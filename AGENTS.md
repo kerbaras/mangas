@@ -10,13 +10,19 @@ This is a Go-based manga bookshelf CLI application built with Bubble Tea TUI fra
 
 ### Build and Run
 ```bash
-go build -o bin/mangas cmd/main.go
+make build
+./bin/mangas
+```
+
+Or directly:
+```bash
+go build -o bin/mangas ./cmd
 ./bin/mangas
 ```
 
 ### Development
 ```bash
-go run cmd/main.go
+go run ./cmd
 ```
 
 ### Testing
@@ -47,9 +53,21 @@ The codebase follows a layered architecture:
 
 ### Entry Points
 
-- `cmd/main.go`: Cobra CLI entry point
+- `cmd/main.go`: Main entry point
+- `cmd/mangas/root.go`: Cobra CLI root command and TUI launcher
 - `pkg/app/app.go`: Bubble Tea application setup
 - `pkg/app/screens/root.go`: Main TUI screen
+
+### CLI Commands
+
+All CLI commands are in `cmd/mangas/`:
+- `root.go` - Root command (launches TUI by default)
+- `list.go` - List library (uses bubbles/table)
+- `search.go` - Search MangaDex (uses bubbles/table)
+- `add.go` - Add manga to library
+- `download.go` - Download manga chapters
+- `epub.go` - Generate EPUB files
+- `helpers.go` - Shared utility functions
 
 ### Data Models
 
@@ -65,6 +83,13 @@ Core entities are defined in `pkg/data/model.go`:
 
 ## Key Dependencies
 
+### Charm Bracelet Suite
 - `github.com/charmbracelet/bubbletea`: TUI framework
+- `github.com/charmbracelet/lipgloss`: Terminal styling
+- `github.com/charmbracelet/bubbles/table`: Table component for CLI
+- `github.com/charmbracelet/bubbles/textinput`: Text input component
+
+### Core Dependencies
 - `github.com/marcboeker/go-duckdb/v2`: Database integration
 - `github.com/spf13/cobra`: CLI framework
+- `github.com/go-shiori/go-epub`: EPUB generation

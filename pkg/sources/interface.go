@@ -5,8 +5,8 @@ import (
 )
 
 type Source interface {
-	Search(query string) ([]data.Manga, error)
+	Search(query string) ([]*data.Manga, error)
 	GetManga(id string) (*data.Manga, error)
-	GetChapters(manga *data.Manga) ([]data.Chapter, error)
+	GetChapters(manga *data.Manga) ([]*data.Chapter, error)
 	GetPages(manga *data.Manga, chapter *data.Chapter) ([]string, error)
 }

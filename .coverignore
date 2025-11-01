@@ -1,0 +1,7 @@
+# Ignore TUI screens and app initialization from coverage
+# These are UI components that are difficult to unit test
+pkg/app/screens/*
+pkg/app/app.go
+pkg/app/styles/*
+cmd/main.go
+

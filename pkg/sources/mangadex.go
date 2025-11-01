@@ -1,11 +1,11 @@
 package sources
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/http"
+	"net/url"
 
 	"github.com/kerbaras/mangas/pkg/data"
+	"github.com/kerbaras/mangas/pkg/utils"
 )
 
 type Manga struct {
@@ -17,9 +17,29 @@ type Manga struct {
 }
 
 func (m *Manga) ToManga() *data.Manga {
+	title := m.Attributes.Title["en"]
+	if title == "" {
+		// Fallback to first available title
+		for _, v := range m.Attributes.Title {
+			title = v
+			break
+		}
+	}
+
+	description := m.Attributes.Description["en"]
+	if description == "" {
+		for _, v := range m.Attributes.Description {
+			description = v
+			break
+		}
+	}
+
 	return &data.Manga{
-		ID:   m.ID,
-		Name: m.Attributes.Title["en"],
+		ID:          m.ID,
+		Name:        title,
+		Description: description,
+		Source:      "mangadex",
+		Status:      "",
 	}
 }
 
@@ -39,84 +59,63 @@ type Chapter struct {
 
 func (c *Chapter) ToChapter() *data.Chapter {
 	return &data.Chapter{
-		ID:       c.ID,
-		Title:    c.Attributes.Title,
-		Language: c.Attributes.Language,
-		Volume:   c.Attributes.Volume,
-		Number:   c.Attributes.Number,
+		ID:         c.ID,
+		Title:      c.Attributes.Title,
+		Language:   c.Attributes.Language,
+		Volume:     c.Attributes.Volume,
+		Number:     c.Attributes.Number,
+		Downloaded: false,
+		FilePath:   "",
 	}
 }
 
 type MangaDex struct {
-	api     *http.Client
-	baseURL string
+	api *utils.API
 }
 
-func NewMangaDex() *MangaDex {
-	api := http.DefaultClient
-	baseURL := "https://api.mangadex.org"
-	return &MangaDex{api: api, baseURL: baseURL}
-}
-
-func (m *MangaDex) get(url string, v any) error {
-	url = fmt.Sprintf("%s%s", m.baseURL, url)
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return err
+func (m *MangaDex) Search(query string) ([]*data.Manga, error) {
+	params := url.Values{
+		"title": {query},
+		"limit": {"10"},
 	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := m.api.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	return json.NewDecoder(resp.Body).Decode(v)
-}
-
-func (m *MangaDex) Search(query string) ([]data.Manga, error) {
-	url := fmt.Sprintf("/manga?title=%s", query)
 	var mangas struct {
 		Data []Manga `json:"data"`
 	}
-	if err := m.get(url, &mangas); err != nil {
+	if err := m.api.Get("/manga", params, &mangas); err != nil {
 		return nil, err
 	}
-	out := make([]data.Manga, len(mangas.Data))
+	out := make([]*data.Manga, len(mangas.Data))
 	for i, manga := range mangas.Data {
-		out[i] = *manga.ToManga()
+		out[i] = manga.ToManga()
 	}
 	return out, nil
 }
 
 func (m *MangaDex) GetManga(id string) (*data.Manga, error) {
-	url := fmt.Sprintf("/manga/%s", id)
 	var manga struct {
 		Data Manga `json:"data"`
 	}
-	if err := m.get(url, &manga); err != nil {
+	if err := m.api.Get(fmt.Sprintf("/manga/%s", id), nil, &manga); err != nil {
 		return nil, err
 	}
 	return manga.Data.ToManga(), nil
 }
 
-func (m *MangaDex) GetChapters(manga *data.Manga) ([]data.Chapter, error) {
-	url := fmt.Sprintf("/manga/%s/feed", manga.ID)
+func (m *MangaDex) GetChapters(manga *data.Manga) ([]*data.Chapter, error) {
 	var feed struct {
 		Data []Chapter `json:"data"`
 	}
-	if err := m.get(url, &feed); err != nil {
+	if err := m.api.Get(fmt.Sprintf("/manga/%s/feed", manga.ID), nil, &feed); err != nil {
 		return nil, err
 	}
-	out := make([]data.Chapter, len(feed.Data))
+	out := make([]*data.Chapter, len(feed.Data))
 	for i, chapter := range feed.Data {
-		out[i] = *chapter.ToChapter()
+		out[i] = chapter.ToChapter()
 	}
 	return out, nil
 }
 
 func (m *MangaDex) GetPages(_ *data.Manga, chapter *data.Chapter) ([]string, error) {
-	url := fmt.Sprintf("/at-home/server/%s", chapter.ID)
 	var server struct {
 		BaseURL string `json:"baseUrl"`
 		Chapter struct {
@@ -124,7 +123,7 @@ func (m *MangaDex) GetPages(_ *data.Manga, chapter *data.Chapter) ([]string, err
 			Data []string `json:"data"`
 		} `json:"chapter"`
 	}
-	if err := m.get(url, &server); err != nil {
+	if err := m.api.Get(fmt.Sprintf("/at-home/server/%s", chapter.ID), nil, &server); err != nil {
 		return nil, err
 	}
 	pages := make([]string, len(server.Chapter.Data))
@@ -132,4 +131,9 @@ func (m *MangaDex) GetPages(_ *data.Manga, chapter *data.Chapter) ([]string, err
 		pages[i] = fmt.Sprintf("%s/data/%s/%s", server.BaseURL, server.Chapter.Hash, data)
 	}
 	return pages, nil
+}
+
+func NewMangaDex() Source {
+	baseURL := "https://api.mangadex.org"
+	return &MangaDex{api: utils.NewAPI(baseURL)}
 }
