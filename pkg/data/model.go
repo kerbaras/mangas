@@ -6,6 +6,9 @@ type Manga struct {
 }
 
 type Chapter struct {
-	ID   string
-	Name string
+	ID       string
+	Title    string
+	Language string
+	Volume   string
+	Number   string
 }
