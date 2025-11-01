@@ -1,8 +1,8 @@
 package integrations
 
 import (
-	"encoding/base64"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -21,6 +21,7 @@ type ImageData struct {
 // EPubBuilder builds EPUB files by streaming images
 type EPubBuilder struct {
 	outputDir string
+	tempDir   string
 	epub      *epub.Epub
 	manga     *data.Manga
 	chapter   *data.Chapter
@@ -44,13 +45,21 @@ func (b *EPubBuilder) Init(manga *data.Manga, chapter *data.Chapter) error {
 		return fmt.Errorf("chapter cannot be nil")
 	}
 
+	// Create temporary directory for staging images
+	tempDir, err := os.MkdirTemp("", "manga-epub-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp directory: %w", err)
+	}
+
 	b.manga = manga
 	b.chapter = chapter
+	b.tempDir = tempDir
 	b.images = make([]ImageData, 0)
 
 	// Create EPub
 	e, err := epub.NewEpub(manga.Name)
 	if err != nil {
+		os.RemoveAll(tempDir)
 		return fmt.Errorf("failed to create EPub: %w", err)
 	}
 
@@ -90,6 +99,13 @@ func (b *EPubBuilder) Done() (string, error) {
 		return "", fmt.Errorf("no images added to chapter")
 	}
 
+	defer func() {
+		// Clean up temp directory
+		if b.tempDir != "" {
+			os.RemoveAll(b.tempDir)
+		}
+	}()
+
 	// Sort images by index
 	sort.Slice(b.images, func(i, j int) bool {
 		return b.images[i].Index < b.images[j].Index
@@ -108,20 +124,22 @@ func (b *EPubBuilder) Done() (string, error) {
 	var htmlContent strings.Builder
 	htmlContent.WriteString(fmt.Sprintf("<h1>%s</h1>\n", chapterTitle))
 
-	// Add all images to EPUB
+	// Write images to temp directory and add to EPUB
 	for i, img := range b.images {
 		// Determine file extension from content type
 		ext := getExtensionFromContentType(img.ContentType)
 		filename := fmt.Sprintf("page_%04d%s", img.Index, ext)
+		
+		// Write image to temp file
+		tempFilePath := filepath.Join(b.tempDir, filename)
+		if err := os.WriteFile(tempFilePath, img.Content, 0644); err != nil {
+			return "", fmt.Errorf("failed to write temp image %d: %w", img.Index, err)
+		}
 
-		// Create data URL from image content
-		b64 := base64.StdEncoding.EncodeToString(img.Content)
-		dataURL := fmt.Sprintf("data:%s;base64,%s", img.ContentType, b64)
-
-		// Add image from data URL
-		internalPath, err := b.epub.AddImage(dataURL, filename)
+		// Add image from temp file
+		internalPath, err := b.epub.AddImage(tempFilePath, filename)
 		if err != nil {
-			return "", fmt.Errorf("failed to add image %d: %w", img.Index, err)
+			return "", fmt.Errorf("failed to add image %d to EPUB: %w", img.Index, err)
 		}
 
 		// Add image to HTML content
@@ -152,6 +170,7 @@ func (b *EPubBuilder) Done() (string, error) {
 	b.manga = nil
 	b.chapter = nil
 	b.images = nil
+	b.tempDir = ""
 
 	return outputPath, nil
 }

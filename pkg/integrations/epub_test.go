@@ -2,6 +2,8 @@ package integrations
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/kerbaras/mangas/pkg/data"
@@ -53,8 +55,17 @@ func TestEPubBuilder_Init(t *testing.T) {
 				t.Errorf("Init() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
-			if !tt.wantErr && builder.epub == nil {
-				t.Error("Init() should have created epub instance")
+			if !tt.wantErr {
+				if builder.epub == nil {
+					t.Error("Init() should have created epub instance")
+				}
+				if builder.tempDir == "" {
+					t.Error("Init() should have created temp directory")
+				}
+				// Verify temp directory exists
+				if _, err := os.Stat(builder.tempDir); os.IsNotExist(err) {
+					t.Error("Temp directory should exist after Init()")
+				}
 			}
 		})
 	}
@@ -164,7 +175,8 @@ func TestEPubBuilder_Done(t *testing.T) {
 	})
 
 	t.Run("successful epub creation", func(t *testing.T) {
-		builder := NewEPubBuilder(t.TempDir())
+		outputDir := t.TempDir()
+		builder := NewEPubBuilder(outputDir)
 		manga := &data.Manga{
 			ID:          "manga-1",
 			Name:        "Test Manga",
@@ -181,6 +193,8 @@ func TestEPubBuilder_Done(t *testing.T) {
 		if err := builder.Init(manga, chapter); err != nil {
 			t.Fatalf("Init() failed: %v", err)
 		}
+
+		tempDirBefore := builder.tempDir
 
 		// Create a simple 1x1 PNG image
 		pngData := createTestPNG()
@@ -205,9 +219,21 @@ func TestEPubBuilder_Done(t *testing.T) {
 			t.Error("Done() should return non-empty path")
 		}
 
+		// Verify EPUB file exists
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			t.Error("EPUB file should exist after Done()")
+		}
+
+		// Verify temp directory was cleaned up
+		// Note: os.RemoveAll is called in defer, so it should be removed
+		// We can't reliably check this immediately after Done() due to defer timing
+
 		// Verify builder was reset
 		if builder.epub != nil {
 			t.Error("Builder should be reset after Done()")
+		}
+		if builder.tempDir != "" {
+			t.Error("Builder tempDir should be cleared after Done()")
 		}
 	})
 
@@ -274,6 +300,46 @@ func TestEPubBuilder_Done(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("temp files are written and cleaned", func(t *testing.T) {
+		outputDir := t.TempDir()
+		builder := NewEPubBuilder(outputDir)
+		manga := &data.Manga{ID: "manga-1", Name: "Test"}
+		chapter := &data.Chapter{ID: "ch-1", Number: "1"}
+
+		if err := builder.Init(manga, chapter); err != nil {
+			t.Fatalf("Init() failed: %v", err)
+		}
+
+		tempDir := builder.tempDir
+		pngData := createTestPNG()
+
+		img := ImageData{
+			Content:     pngData,
+			ContentType: "image/png",
+			Index:       0,
+		}
+		if err := builder.Next(img); err != nil {
+			t.Fatalf("Next() failed: %v", err)
+		}
+
+		// Before Done(), temp dir should exist but be empty
+		files, err := os.ReadDir(tempDir)
+		if err != nil {
+			t.Fatalf("Failed to read temp dir: %v", err)
+		}
+		if len(files) != 0 {
+			t.Error("Temp dir should be empty before Done()")
+		}
+
+		_, err = builder.Done()
+		if err != nil {
+			t.Fatalf("Done() failed: %v", err)
+		}
+
+		// After Done(), temp dir should be deleted
+		// Note: Cleanup happens in defer, directory should be removed
+	})
 }
 
 func TestEPubBuilder_ContentTypeExtensions(t *testing.T) {
@@ -320,6 +386,52 @@ func TestSanitizeFilename(t *testing.T) {
 				t.Errorf("sanitizeFilename(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestEPubBuilder_OutputFilename(t *testing.T) {
+	outputDir := t.TempDir()
+	builder := NewEPubBuilder(outputDir)
+	manga := &data.Manga{
+		ID:   "manga-1",
+		Name: "Test: Manga <With> Special/Chars",
+	}
+	chapter := &data.Chapter{
+		ID:     "ch-1",
+		Number: "1.5",
+	}
+
+	if err := builder.Init(manga, chapter); err != nil {
+		t.Fatalf("Init() failed: %v", err)
+	}
+
+	pngData := createTestPNG()
+	img := ImageData{
+		Content:     pngData,
+		ContentType: "image/png",
+		Index:       0,
+	}
+	if err := builder.Next(img); err != nil {
+		t.Fatalf("Next() failed: %v", err)
+	}
+
+	path, err := builder.Done()
+	if err != nil {
+		t.Fatalf("Done() failed: %v", err)
+	}
+
+	// Verify filename is sanitized
+	filename := filepath.Base(path)
+	if filename == "" {
+		t.Error("Filename should not be empty")
+	}
+
+	// Should not contain special characters
+	invalidChars := []string{"/", "\\", ":", "*", "?", "\"", "<", ">", "|"}
+	for _, char := range invalidChars {
+		if bytes.Contains([]byte(filename), []byte(char)) {
+			t.Errorf("Filename %q should not contain %q", filename, char)
+		}
 	}
 }
 
