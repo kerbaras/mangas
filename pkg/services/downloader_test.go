@@ -55,6 +55,8 @@ type mockRepository struct {
 	getChaptersFunc         func(mangaID string) ([]*data.Chapter, error)
 	saveChapterFunc         func(chapter *data.Chapter) error
 	updateChapterStatusFunc func(chapterID string, downloaded bool, filePath string) error
+	listMangasFunc          func() ([]*data.Manga, error)
+	deleteMangaFunc         func(mangaID string) error
 }
 
 func (m *mockRepository) SaveManga(manga *data.Manga) error {
@@ -88,6 +90,20 @@ func (m *mockRepository) SaveChapter(chapter *data.Chapter) error {
 func (m *mockRepository) UpdateChapterStatus(chapterID string, downloaded bool, filePath string) error {
 	if m.updateChapterStatusFunc != nil {
 		return m.updateChapterStatusFunc(chapterID, downloaded, filePath)
+	}
+	return nil
+}
+
+func (m *mockRepository) ListMangas() ([]*data.Manga, error) {
+	if m.listMangasFunc != nil {
+		return m.listMangasFunc()
+	}
+	return nil, nil
+}
+
+func (m *mockRepository) DeleteManga(mangaID string) error {
+	if m.deleteMangaFunc != nil {
+		return m.deleteMangaFunc(mangaID)
 	}
 	return nil
 }

@@ -30,6 +30,8 @@ type Repository interface {
 	GetChapters(mangaID string) ([]*data.Chapter, error)
 	SaveChapter(chapter *data.Chapter) error
 	UpdateChapterStatus(chapterID string, downloaded bool, filePath string) error
+	ListMangas() ([]*data.Manga, error)
+	DeleteManga(mangaID string) error
 }
 
 // Downloader orchestrates manga downloads as a streaming pipeline
@@ -265,5 +267,12 @@ func (d *Downloader) sendProgress(progress DownloadProgress) {
 // Close cleans up resources
 func (d *Downloader) Close() {
 	d.rateLimiter.Stop()
-	close(d.progressChan)
+	
+	// Close progress channel safely
+	select {
+	case <-d.progressChan:
+		// Already closed
+	default:
+		close(d.progressChan)
+	}
 }
