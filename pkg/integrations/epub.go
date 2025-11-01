@@ -1,55 +1,57 @@
 package integrations
 
 import (
+	"encoding/base64"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/go-shiori/go-epub"
 	"github.com/kerbaras/mangas/pkg/data"
 )
 
+// ImageData represents an image with its content and metadata
+type ImageData struct {
+	Content     []byte
+	ContentType string // e.g., "image/jpeg", "image/png"
+	Index       int    // Page number/order
+}
+
+// EPubBuilder builds EPUB files by streaming images
 type EPubBuilder struct {
 	outputDir string
+	epub      *epub.Epub
+	manga     *data.Manga
+	chapter   *data.Chapter
+	images    []ImageData
 }
 
-func NewEPubBuilder() *EPubBuilder {
-	tempDir, _ := os.MkdirTemp("", "mangas-epub-*")
-	return &EPubBuilder{outputDir: tempDir}
+// NewEPubBuilder creates a new EPubBuilder
+func NewEPubBuilder(outputDir string) *EPubBuilder {
+	return &EPubBuilder{
+		outputDir: outputDir,
+		images:    make([]ImageData, 0),
+	}
 }
 
-// CreateEPub compiles all chapters of a manga into a single EPub file
-func (p *EPubBuilder) CreateEPub(manga *data.Manga, chapters []*data.Chapter) (string, error) {
-	if len(chapters) == 0 {
-		return "", fmt.Errorf("no chapters to compile")
+// Init initializes the builder for a specific chapter
+func (b *EPubBuilder) Init(manga *data.Manga, chapter *data.Chapter) error {
+	if manga == nil {
+		return fmt.Errorf("manga cannot be nil")
+	}
+	if chapter == nil {
+		return fmt.Errorf("chapter cannot be nil")
 	}
 
-	// Ensure output directory exists
-	if err := os.MkdirAll(p.outputDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create output directory: %w", err)
-	}
-
-	// Sort chapters by volume and number
-	sortedChapters := make([]*data.Chapter, len(chapters))
-	copy(sortedChapters, chapters)
-	sort.Slice(sortedChapters, func(i, j int) bool {
-		vi, _ := strconv.ParseFloat(sortedChapters[i].Volume, 64)
-		vj, _ := strconv.ParseFloat(sortedChapters[j].Volume, 64)
-		if vi != vj {
-			return vi < vj
-		}
-		ni, _ := strconv.ParseFloat(sortedChapters[i].Number, 64)
-		nj, _ := strconv.ParseFloat(sortedChapters[j].Number, 64)
-		return ni < nj
-	})
+	b.manga = manga
+	b.chapter = chapter
+	b.images = make([]ImageData, 0)
 
 	// Create EPub
 	e, err := epub.NewEpub(manga.Name)
 	if err != nil {
-		return "", fmt.Errorf("failed to create EPub: %w", err)
+		return fmt.Errorf("failed to create EPub: %w", err)
 	}
 
 	// Set metadata
@@ -59,73 +61,67 @@ func (p *EPubBuilder) CreateEPub(manga *data.Manga, chapters []*data.Chapter) (s
 	}
 	e.SetLang("en")
 
-	// Add chapters to EPub
-	for _, chapter := range sortedChapters {
-		if !chapter.Downloaded || chapter.FilePath == "" {
-			continue
-		}
-
-		if err := p.addChapterToEPub(e, chapter); err != nil {
-			return "", fmt.Errorf("failed to add chapter %s: %w", chapter.Number, err)
-		}
-	}
-
-	// Generate output filename
-	safeTitle := sanitizeFilename(manga.Name)
-	outputPath := filepath.Join(p.outputDir, safeTitle+".epub")
-
-	// Write EPub file
-	if err := e.Write(outputPath); err != nil {
-		return "", fmt.Errorf("failed to write EPub: %w", err)
-	}
-
-	return outputPath, nil
+	b.epub = e
+	return nil
 }
 
-// addChapterToEPub adds a single chapter's images to the EPub
-func (p *EPubBuilder) addChapterToEPub(e *epub.Epub, chapter *data.Chapter) error {
-	// Read images from chapter directory
-	files, err := os.ReadDir(chapter.FilePath)
-	if err != nil {
-		return fmt.Errorf("failed to read chapter directory: %w", err)
+// Next adds an image to the chapter
+func (b *EPubBuilder) Next(image ImageData) error {
+	if b.epub == nil {
+		return fmt.Errorf("builder not initialized, call Init first")
+	}
+	if len(image.Content) == 0 {
+		return fmt.Errorf("image content is empty")
+	}
+	if image.ContentType == "" {
+		return fmt.Errorf("image content type is required")
 	}
 
-	// Filter and sort image files
-	var imageFiles []os.DirEntry
-	for _, file := range files {
-		if !file.IsDir() && isImageFile(file.Name()) {
-			imageFiles = append(imageFiles, file)
-		}
+	b.images = append(b.images, image)
+	return nil
+}
+
+// Done finalizes and writes the EPUB file
+func (b *EPubBuilder) Done() (string, error) {
+	if b.epub == nil {
+		return "", fmt.Errorf("builder not initialized, call Init first")
+	}
+	if len(b.images) == 0 {
+		return "", fmt.Errorf("no images added to chapter")
 	}
 
-	if len(imageFiles) == 0 {
-		return fmt.Errorf("no images found in chapter directory")
-	}
-
-	sort.Slice(imageFiles, func(i, j int) bool {
-		return imageFiles[i].Name() < imageFiles[j].Name()
+	// Sort images by index
+	sort.Slice(b.images, func(i, j int) bool {
+		return b.images[i].Index < b.images[j].Index
 	})
 
 	// Create chapter title
-	chapterTitle := fmt.Sprintf("Chapter %s", chapter.Number)
-	if chapter.Volume != "" && chapter.Volume != "0" {
-		chapterTitle = fmt.Sprintf("Vol. %s, %s", chapter.Volume, chapterTitle)
+	chapterTitle := fmt.Sprintf("Chapter %s", b.chapter.Number)
+	if b.chapter.Volume != "" && b.chapter.Volume != "0" {
+		chapterTitle = fmt.Sprintf("Vol. %s, %s", b.chapter.Volume, chapterTitle)
 	}
-	if chapter.Title != "" {
-		chapterTitle = fmt.Sprintf("%s: %s", chapterTitle, chapter.Title)
+	if b.chapter.Title != "" {
+		chapterTitle = fmt.Sprintf("%s: %s", chapterTitle, b.chapter.Title)
 	}
 
 	// Build HTML content for chapter
 	var htmlContent strings.Builder
 	htmlContent.WriteString(fmt.Sprintf("<h1>%s</h1>\n", chapterTitle))
 
-	for i, imgFile := range imageFiles {
-		imgPath := filepath.Join(chapter.FilePath, imgFile.Name())
+	// Add all images to EPUB
+	for i, img := range b.images {
+		// Determine file extension from content type
+		ext := getExtensionFromContentType(img.ContentType)
+		filename := fmt.Sprintf("page_%04d%s", img.Index, ext)
 
-		// Add image to EPub
-		internalPath, err := e.AddImage(imgPath, "")
+		// Create data URL from image content
+		b64 := base64.StdEncoding.EncodeToString(img.Content)
+		dataURL := fmt.Sprintf("data:%s;base64,%s", img.ContentType, b64)
+
+		// Add image from data URL
+		internalPath, err := b.epub.AddImage(dataURL, filename)
 		if err != nil {
-			return fmt.Errorf("failed to add image %s: %w", imgFile.Name(), err)
+			return "", fmt.Errorf("failed to add image %d: %w", img.Index, err)
 		}
 
 		// Add image to HTML content
@@ -136,18 +132,44 @@ func (p *EPubBuilder) addChapterToEPub(e *epub.Epub, chapter *data.Chapter) erro
 	}
 
 	// Add chapter section to EPub
-	_, err = e.AddSection(htmlContent.String(), chapterTitle, "", "")
+	_, err := b.epub.AddSection(htmlContent.String(), chapterTitle, "", "")
 	if err != nil {
-		return fmt.Errorf("failed to add section: %w", err)
+		return "", fmt.Errorf("failed to add section: %w", err)
 	}
 
-	return nil
+	// Generate output filename
+	safeTitle := sanitizeFilename(b.manga.Name)
+	safeCh := sanitizeFilename(fmt.Sprintf("ch_%s", b.chapter.Number))
+	outputPath := filepath.Join(b.outputDir, fmt.Sprintf("%s_%s.epub", safeTitle, safeCh))
+
+	// Write EPub file
+	if err := b.epub.Write(outputPath); err != nil {
+		return "", fmt.Errorf("failed to write EPub: %w", err)
+	}
+
+	// Reset for next use
+	b.epub = nil
+	b.manga = nil
+	b.chapter = nil
+	b.images = nil
+
+	return outputPath, nil
 }
 
-// isImageFile checks if a file has an image extension
-func isImageFile(filename string) bool {
-	ext := strings.ToLower(filepath.Ext(filename))
-	return ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif" || ext == ".webp"
+// getExtensionFromContentType returns the file extension for a given content type
+func getExtensionFromContentType(contentType string) string {
+	switch contentType {
+	case "image/jpeg", "image/jpg":
+		return ".jpg"
+	case "image/png":
+		return ".png"
+	case "image/gif":
+		return ".gif"
+	case "image/webp":
+		return ".webp"
+	default:
+		return ".jpg"
+	}
 }
 
 // sanitizeFilename removes characters that are invalid in filenames
