@@ -194,8 +194,6 @@ func TestEPubBuilder_Done(t *testing.T) {
 			t.Fatalf("Init() failed: %v", err)
 		}
 
-		tempDirBefore := builder.tempDir
-
 		// Create a simple 1x1 PNG image
 		pngData := createTestPNG()
 

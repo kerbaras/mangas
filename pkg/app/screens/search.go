@@ -226,14 +226,33 @@ type SwitchScreenMsg struct {
 func (s *SearchScreen) performSearch(query string) tea.Cmd {
 	return func() tea.Msg {
 		results, err := s.source.Search(query)
-		return searchResultMsg{results: results, err: err}
+		// Convert []*data.Manga to []data.Manga for compatibility
+		var mangaList []data.Manga
+		for _, m := range results {
+			if m != nil {
+				mangaList = append(mangaList, *m)
+			}
+		}
+		return searchResultMsg{results: mangaList, err: err}
 	}
 }
 
 func (s *SearchScreen) startDownload(mangaID string) tea.Cmd {
 	return func() tea.Msg {
-		// Start download in background (language: English)
-		go s.downloader.DownloadManga(mangaID, "en")
+		// Get manga from repository or source
+		manga, err := s.source.GetManga(mangaID)
+		if err != nil {
+			return downloadStartedMsg{err: err}
+		}
+		
+		// Get chapters from source
+		chapters, err := s.source.GetChapters(manga)
+		if err != nil {
+			return downloadStartedMsg{err: err}
+		}
+		
+		// Start download in background
+		go s.downloader.DownloadManga(manga, chapters)
 		return downloadStartedMsg{err: nil}
 	}
 }
