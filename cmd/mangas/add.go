@@ -32,28 +32,28 @@ var addCmd = &cobra.Command{
 			return
 		}
 
-		// Take the first result
-		manga := results[0]
-		fmt.Printf("✅ Found: %s (ID: %s)\n", manga.Name, manga.ID)
+	// Take the first result
+	manga := results[0]
+	fmt.Printf("✅ Found: %s (ID: %s)\n", manga.Name, manga.ID)
 
-		// Get chapters to count them
-		chapters, err := source.GetChapters(&manga)
-		if err != nil {
-			cobra.CheckErr(fmt.Errorf("failed to get chapters: %w", err))
-		}
+	// Get chapters to count them
+	chapters, err := source.GetChapters(manga)
+	if err != nil {
+		cobra.CheckErr(fmt.Errorf("failed to get chapters: %w", err))
+	}
 
-		// Save manga to database
-		if err := repo.SaveManga(&manga); err != nil {
-			cobra.CheckErr(fmt.Errorf("failed to save manga: %w", err))
-		}
+	// Save manga to database
+	if err := repo.SaveManga(manga); err != nil {
+		cobra.CheckErr(fmt.Errorf("failed to save manga: %w", err))
+	}
 
-		// Save chapter metadata (not downloaded yet)
-		for i := range chapters {
-			chapters[i].MangaID = manga.ID
-			if err := repo.SaveChapter(&chapters[i]); err != nil {
-				log.Printf("Warning: Failed to save chapter %s: %v", chapters[i].Number, err)
-			}
+	// Save chapter metadata (not downloaded yet)
+	for i := range chapters {
+		chapters[i].MangaID = manga.ID
+		if err := repo.SaveChapter(chapters[i]); err != nil {
+			log.Printf("Warning: Failed to save chapter %s: %v", chapters[i].Number, err)
 		}
+	}
 
 		fmt.Printf("✅ Added '%s' to library with %d chapters\n", manga.Name, len(chapters))
 		fmt.Printf("💡 To download chapters, use: mangas download \"%s\" --language en\n", manga.Name)

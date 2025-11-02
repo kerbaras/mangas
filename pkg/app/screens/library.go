@@ -150,8 +150,12 @@ func (s *LibraryScreen) loadLibrary() tea.Msg {
 
 func (s *LibraryScreen) generateEPUB(mangaID string) tea.Cmd {
 	return func() tea.Msg {
-		path, err := s.downloader.ComposeEPUB(mangaID)
-		return epubGeneratedMsg{path: path, err: err}
+		// Note: With the new streaming architecture, EPUBs are created during download
+		// This function is now a no-op or could trigger a re-download if needed
+		return epubGeneratedMsg{
+			path: "",
+			err:  fmt.Errorf("EPUBs are now created automatically during chapter download"),
+		}
 	}
 }
 

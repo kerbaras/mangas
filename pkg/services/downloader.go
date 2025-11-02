@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -32,25 +30,25 @@ type Repository interface {
 	GetChapters(mangaID string) ([]*data.Chapter, error)
 	SaveChapter(chapter *data.Chapter) error
 	UpdateChapterStatus(chapterID string, downloaded bool, filePath string) error
+	ListMangas() ([]*data.Manga, error)
+	DeleteManga(mangaID string) error
 }
 
-// Downloader orchestrates manga downloads from sources
+// Downloader orchestrates manga downloads as a streaming pipeline
 type Downloader struct {
 	source       sources.Source
 	repo         Repository
-	epubBuilder  *integrations.EPubBuilder
 	downloadDir  string
 	client       *http.Client
 	rateLimiter  *time.Ticker
 	progressChan chan DownloadProgress
 }
 
+// NewDownloader creates a new Downloader instance
 func NewDownloader(source sources.Source, repo Repository, downloadDir string) *Downloader {
-	epubBuilder := integrations.NewEPubBuilder()
 	return &Downloader{
 		source:       source,
 		repo:         repo,
-		epubBuilder:  epubBuilder,
 		downloadDir:  downloadDir,
 		client:       http.DefaultClient,
 		rateLimiter:  time.NewTicker(500 * time.Millisecond), // 2 req/sec
@@ -65,14 +63,23 @@ func (d *Downloader) GetProgressChannel() <-chan DownloadProgress {
 
 // DownloadManga downloads all chapters of a manga
 func (d *Downloader) DownloadManga(manga *data.Manga, chapters []*data.Chapter) error {
+	if manga == nil {
+		return fmt.Errorf("manga cannot be nil")
+	}
+
 	// Save manga to database
 	manga.Status = "downloading"
 	if err := d.repo.SaveManga(manga); err != nil {
 		return fmt.Errorf("failed to save manga: %w", err)
 	}
 
+	// Get chapters if not provided
 	if len(chapters) == 0 {
-		chapters, _ = d.source.GetChapters(manga)
+		var err error
+		chapters, err = d.source.GetChapters(manga)
+		if err != nil {
+			return fmt.Errorf("failed to get chapters: %w", err)
+		}
 	}
 
 	// Download chapters with concurrency control
@@ -119,8 +126,15 @@ func (d *Downloader) DownloadManga(manga *data.Manga, chapters []*data.Chapter) 
 	return nil
 }
 
-// DownloadChapter downloads a single chapter
+// DownloadChapter downloads a single chapter and streams it to an EPUB
 func (d *Downloader) DownloadChapter(manga *data.Manga, chapter *data.Chapter) error {
+	if manga == nil {
+		return fmt.Errorf("manga cannot be nil")
+	}
+	if chapter == nil {
+		return fmt.Errorf("chapter cannot be nil")
+	}
+
 	<-d.rateLimiter.C // Rate limiting
 
 	d.sendProgress(DownloadProgress{
@@ -136,13 +150,47 @@ func (d *Downloader) DownloadChapter(manga *data.Manga, chapter *data.Chapter) e
 		return fmt.Errorf("failed to get pages: %w", err)
 	}
 
-	// Create chapter directory
-	chapterDir := filepath.Join(d.downloadDir, manga.ID, chapter.ID)
-	if err := os.MkdirAll(chapterDir, 0755); err != nil {
-		return fmt.Errorf("failed to create chapter directory: %w", err)
+	if len(pages) == 0 {
+		return fmt.Errorf("no pages found for chapter")
 	}
 
-	// Download images
+	// Initialize EPUB builder
+	builder := integrations.NewEPubBuilder(d.downloadDir)
+	if err := builder.Init(manga, chapter); err != nil {
+		return fmt.Errorf("failed to initialize EPUB builder: %w", err)
+	}
+
+	// Download and set manga cover
+	mangaCoverURL, err := d.source.GetMangaCoverURL(manga)
+	if err == nil && mangaCoverURL != "" {
+		coverData, err := d.downloadCoverImage(mangaCoverURL)
+		if err == nil {
+			builder.SetMangaCover(coverData)
+		}
+		// Non-fatal error, continue even if cover download fails
+		<-d.rateLimiter.C // Rate limiting
+	}
+
+	// Download and set chapter cover (if different from manga cover)
+	chapterCoverURL, err := d.source.GetChapterCoverURL(manga, chapter)
+	if err == nil && chapterCoverURL != "" && chapterCoverURL != mangaCoverURL {
+		coverData, err := d.downloadCoverImage(chapterCoverURL)
+		if err == nil {
+			builder.SetChapterCover(coverData)
+		}
+		// Non-fatal error, continue even if cover download fails
+		<-d.rateLimiter.C // Rate limiting
+	}
+
+	d.sendProgress(DownloadProgress{
+		MangaID:       manga.ID,
+		ChapterID:     chapter.ID,
+		ChapterNumber: chapter.Number,
+		TotalPages:    len(pages),
+		Status:        "downloading",
+	})
+
+	// Stream images to EPUB builder
 	for i, pageURL := range pages {
 		d.sendProgress(DownloadProgress{
 			MangaID:       manga.ID,
@@ -153,17 +201,37 @@ func (d *Downloader) DownloadChapter(manga *data.Manga, chapter *data.Chapter) e
 			Status:        "downloading",
 		})
 
-		if err := d.downloadImage(pageURL, chapterDir, i); err != nil {
+		imageData, err := d.downloadImage(pageURL, i)
+		if err != nil {
 			return fmt.Errorf("failed to download page %d: %w", i, err)
+		}
+
+		// Stream image to builder
+		if err := builder.Next(imageData); err != nil {
+			return fmt.Errorf("failed to add page %d to EPUB: %w", i, err)
 		}
 
 		<-d.rateLimiter.C // Rate limiting between pages
 	}
 
+	// Finalize EPUB
+	d.sendProgress(DownloadProgress{
+		MangaID:       manga.ID,
+		ChapterID:     chapter.ID,
+		ChapterNumber: chapter.Number,
+		TotalPages:    len(pages),
+		Status:        "processing",
+	})
+
+	epubPath, err := builder.Done()
+	if err != nil {
+		return fmt.Errorf("failed to finalize EPUB: %w", err)
+	}
+
 	// Update chapter status
 	chapter.Downloaded = true
-	chapter.FilePath = chapterDir
-	if err := d.repo.UpdateChapterStatus(chapter.ID, true, chapterDir); err != nil {
+	chapter.FilePath = epubPath
+	if err := d.repo.UpdateChapterStatus(chapter.ID, true, epubPath); err != nil {
 		return fmt.Errorf("failed to update chapter status: %w", err)
 	}
 
@@ -178,96 +246,65 @@ func (d *Downloader) DownloadChapter(manga *data.Manga, chapter *data.Chapter) e
 	return nil
 }
 
-// downloadImage downloads a single image
-func (d *Downloader) downloadImage(url, dir string, index int) error {
+// downloadImage downloads a single image and returns its data
+func (d *Downloader) downloadImage(url string, index int) (integrations.ImageData, error) {
 	resp, err := d.client.Get(url)
 	if err != nil {
-		return fmt.Errorf("failed to fetch image: %w", err)
+		return integrations.ImageData{}, fmt.Errorf("failed to fetch image: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad status: %s", resp.Status)
+		return integrations.ImageData{}, fmt.Errorf("bad status: %s", resp.Status)
 	}
 
-	// Determine file extension from content type or URL
-	ext := ".jpg"
-	if contentType := resp.Header.Get("Content-Type"); contentType != "" {
-		switch contentType {
-		case "image/png":
-			ext = ".png"
-		case "image/gif":
-			ext = ".gif"
-		case "image/webp":
-			ext = ".webp"
-		}
-	}
-
-	// Create file with zero-padded index
-	filename := fmt.Sprintf("%04d%s", index, ext)
-	filepath := filepath.Join(dir, filename)
-
-	file, err := os.Create(filepath)
+	// Read image content into memory
+	content, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
-	}
-	defer file.Close()
-
-	_, err = io.Copy(file, resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
+		return integrations.ImageData{}, fmt.Errorf("failed to read image content: %w", err)
 	}
 
-	return nil
+	// Determine content type
+	contentType := resp.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "image/jpeg" // Default to JPEG
+	}
+
+	return integrations.ImageData{
+		Content:     content,
+		ContentType: contentType,
+		Index:       index,
+	}, nil
 }
 
-// ComposeEPUB creates an EPUB from downloaded chapters
-func (d *Downloader) ComposeEPUB(mangaID string) (string, error) {
-	manga, err := d.repo.GetManga(mangaID)
+// downloadCoverImage downloads a cover image and returns its data
+func (d *Downloader) downloadCoverImage(url string) (integrations.CoverData, error) {
+	resp, err := d.client.Get(url)
 	if err != nil {
-		return "", fmt.Errorf("failed to get manga: %w", err)
+		return integrations.CoverData{}, fmt.Errorf("failed to fetch cover image: %w", err)
 	}
-	if manga == nil {
-		return "", fmt.Errorf("manga not found")
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return integrations.CoverData{}, fmt.Errorf("bad status for cover image: %s", resp.Status)
 	}
 
-	chapters, err := d.repo.GetChapters(mangaID)
+	// Read image content into memory
+	content, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("failed to get chapters: %w", err)
+		return integrations.CoverData{}, fmt.Errorf("failed to read cover image content: %w", err)
 	}
 
-	// Filter only downloaded chapters
-	var downloadedChapters []*data.Chapter
-	for _, ch := range chapters {
-		if ch.Downloaded {
-			downloadedChapters = append(downloadedChapters, ch)
-		}
+	// Determine content type
+	contentType := resp.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "image/jpeg" // Default to JPEG
 	}
 
-	if len(downloadedChapters) == 0 {
-		return "", fmt.Errorf("no downloaded chapters found")
-	}
-
-	d.sendProgress(DownloadProgress{
-		MangaID: manga.ID,
-		Status:  "processing",
-	})
-
-	// Create EPUB
-	epubPath, err := d.epubBuilder.CreateEPub(manga, downloadedChapters)
-	if err != nil {
-		return "", fmt.Errorf("failed to create EPUB: %w", err)
-	}
-
-	manga.Status = "completed"
-	d.repo.SaveManga(manga)
-
-	d.sendProgress(DownloadProgress{
-		MangaID: manga.ID,
-		Status:  "complete",
-	})
-
-	return epubPath, nil
+	return integrations.CoverData{
+		Content:     content,
+		ContentType: contentType,
+	}, nil
 }
 
 // sendProgress sends a progress update (non-blocking)
@@ -282,5 +319,12 @@ func (d *Downloader) sendProgress(progress DownloadProgress) {
 // Close cleans up resources
 func (d *Downloader) Close() {
 	d.rateLimiter.Stop()
-	close(d.progressChan)
+	
+	// Close progress channel safely
+	select {
+	case <-d.progressChan:
+		// Already closed
+	default:
+		close(d.progressChan)
+	}
 }
