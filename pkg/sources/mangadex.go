@@ -9,11 +9,18 @@ import (
 )
 
 type Manga struct {
-	ID         string `json:"id"`
-	Attributes struct {
+	ID           string `json:"id"`
+	Attributes   struct {
 		Title       map[string]string `json:"title"`
 		Description map[string]string `json:"description"`
 	} `json:"attributes"`
+	Relationships []struct {
+		Type       string `json:"type"`
+		ID         string `json:"id"`
+		Attributes struct {
+			FileName string `json:"fileName"`
+		} `json:"attributes"`
+	} `json:"relationships"`
 }
 
 func (m *Manga) ToManga() *data.Manga {
@@ -131,6 +138,49 @@ func (m *MangaDex) GetPages(_ *data.Manga, chapter *data.Chapter) ([]string, err
 		pages[i] = fmt.Sprintf("%s/data/%s/%s", server.BaseURL, server.Chapter.Hash, data)
 	}
 	return pages, nil
+}
+
+// GetMangaCoverURL returns the cover image URL for a manga
+func (m *MangaDex) GetMangaCoverURL(manga *data.Manga) (string, error) {
+	// Get manga with relationships to find cover art
+	var mangaResp struct {
+		Data Manga `json:"data"`
+	}
+	params := url.Values{
+		"includes[]": {"cover_art"},
+	}
+	if err := m.api.Get(fmt.Sprintf("/manga/%s", manga.ID), params, &mangaResp); err != nil {
+		return "", err
+	}
+
+	// Find cover art relationship
+	var coverID, coverFileName string
+	for _, rel := range mangaResp.Data.Relationships {
+		if rel.Type == "cover_art" {
+			coverID = rel.ID
+			coverFileName = rel.Attributes.FileName
+			break
+		}
+	}
+
+	if coverID == "" || coverFileName == "" {
+		return "", fmt.Errorf("no cover art found for manga")
+	}
+
+	// Construct cover URL
+	// MangaDex cover URLs: https://uploads.mangadex.org/covers/{manga-id}/{filename}
+	coverURL := fmt.Sprintf("https://uploads.mangadex.org/covers/%s/%s", manga.ID, coverFileName)
+	return coverURL, nil
+}
+
+// GetChapterCoverURL returns the cover image URL for a chapter
+// Note: MangaDex doesn't typically have separate chapter covers, so we return the manga cover
+// or the first page of the chapter as a fallback
+func (m *MangaDex) GetChapterCoverURL(manga *data.Manga, chapter *data.Chapter) (string, error) {
+	// For MangaDex, chapters don't have separate covers
+	// We can either return the manga cover or the first page
+	// Let's return the manga cover for consistency
+	return m.GetMangaCoverURL(manga)
 }
 
 func NewMangaDex() Source {

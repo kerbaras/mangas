@@ -160,6 +160,28 @@ func (d *Downloader) DownloadChapter(manga *data.Manga, chapter *data.Chapter) e
 		return fmt.Errorf("failed to initialize EPUB builder: %w", err)
 	}
 
+	// Download and set manga cover
+	mangaCoverURL, err := d.source.GetMangaCoverURL(manga)
+	if err == nil && mangaCoverURL != "" {
+		coverData, err := d.downloadCoverImage(mangaCoverURL)
+		if err == nil {
+			builder.SetMangaCover(coverData)
+		}
+		// Non-fatal error, continue even if cover download fails
+		<-d.rateLimiter.C // Rate limiting
+	}
+
+	// Download and set chapter cover (if different from manga cover)
+	chapterCoverURL, err := d.source.GetChapterCoverURL(manga, chapter)
+	if err == nil && chapterCoverURL != "" && chapterCoverURL != mangaCoverURL {
+		coverData, err := d.downloadCoverImage(chapterCoverURL)
+		if err == nil {
+			builder.SetChapterCover(coverData)
+		}
+		// Non-fatal error, continue even if cover download fails
+		<-d.rateLimiter.C // Rate limiting
+	}
+
 	d.sendProgress(DownloadProgress{
 		MangaID:       manga.ID,
 		ChapterID:     chapter.ID,
@@ -252,6 +274,36 @@ func (d *Downloader) downloadImage(url string, index int) (integrations.ImageDat
 		Content:     content,
 		ContentType: contentType,
 		Index:       index,
+	}, nil
+}
+
+// downloadCoverImage downloads a cover image and returns its data
+func (d *Downloader) downloadCoverImage(url string) (integrations.CoverData, error) {
+	resp, err := d.client.Get(url)
+	if err != nil {
+		return integrations.CoverData{}, fmt.Errorf("failed to fetch cover image: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return integrations.CoverData{}, fmt.Errorf("bad status for cover image: %s", resp.Status)
+	}
+
+	// Read image content into memory
+	content, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return integrations.CoverData{}, fmt.Errorf("failed to read cover image content: %w", err)
+	}
+
+	// Determine content type
+	contentType := resp.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "image/jpeg" // Default to JPEG
+	}
+
+	return integrations.CoverData{
+		Content:     content,
+		ContentType: contentType,
 	}, nil
 }
 

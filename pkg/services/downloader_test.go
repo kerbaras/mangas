@@ -15,10 +15,12 @@ import (
 // Mock implementations for testing
 
 type mockSource struct {
-	searchFunc      func(query string) ([]*data.Manga, error)
-	getMangaFunc    func(id string) (*data.Manga, error)
-	getChaptersFunc func(manga *data.Manga) ([]*data.Chapter, error)
-	getPagesFunc    func(manga *data.Manga, chapter *data.Chapter) ([]string, error)
+	searchFunc            func(query string) ([]*data.Manga, error)
+	getMangaFunc          func(id string) (*data.Manga, error)
+	getChaptersFunc       func(manga *data.Manga) ([]*data.Chapter, error)
+	getPagesFunc          func(manga *data.Manga, chapter *data.Chapter) ([]string, error)
+	getMangaCoverURLFunc  func(manga *data.Manga) (string, error)
+	getChapterCoverURLFunc func(manga *data.Manga, chapter *data.Chapter) (string, error)
 }
 
 func (m *mockSource) Search(query string) ([]*data.Manga, error) {
@@ -47,6 +49,20 @@ func (m *mockSource) GetPages(manga *data.Manga, chapter *data.Chapter) ([]strin
 		return m.getPagesFunc(manga, chapter)
 	}
 	return nil, nil
+}
+
+func (m *mockSource) GetMangaCoverURL(manga *data.Manga) (string, error) {
+	if m.getMangaCoverURLFunc != nil {
+		return m.getMangaCoverURLFunc(manga)
+	}
+	return "", nil
+}
+
+func (m *mockSource) GetChapterCoverURL(manga *data.Manga, chapter *data.Chapter) (string, error) {
+	if m.getChapterCoverURLFunc != nil {
+		return m.getChapterCoverURLFunc(manga, chapter)
+	}
+	return "", nil
 }
 
 type mockRepository struct {
