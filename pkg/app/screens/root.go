@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/kerbaras/mangas/pkg/app/styles"
 	"github.com/kerbaras/mangas/pkg/data"
-	"github.com/kerbaras/mangas/pkg/integrations"
 	"github.com/kerbaras/mangas/pkg/services"
 	"github.com/kerbaras/mangas/pkg/sources"
 )
@@ -26,7 +25,6 @@ type RootScreen struct {
 	repo       *data.Repository
 	source     sources.Source
 	downloader *services.Downloader
-	processor  integrations.Processor
 
 	currentView screenType
 	library     *LibraryScreen
@@ -44,10 +42,8 @@ func NewRootScreen() *RootScreen {
 	
 	homeDir, _ := os.UserHomeDir()
 	downloadDir := filepath.Join(homeDir, ".mangas", "downloads")
-	epubDir := filepath.Join(homeDir, ".mangas", "library")
 	
-	processor := integrations.NewEPUBProcessor(epubDir)
-	downloader := services.NewDownloader(source, repo, processor, downloadDir)
+	downloader := services.NewDownloader(source, repo, downloadDir)
 
 	// Create screens
 	library := NewLibraryScreen(repo, downloader)
@@ -57,7 +53,6 @@ func NewRootScreen() *RootScreen {
 		repo:        repo,
 		source:      source,
 		downloader:  downloader,
-		processor:   processor,
 		currentView: libraryView,
 		library:     library,
 		search:      search,
