@@ -1,0 +1,8 @@
+packages:
+  - apps/*
+
+# pnpm 12 blocks dependency build scripts unless allowed here
+allowBuilds:
+  "@biomejs/biome": true
+  "@tauri-apps/cli": true
+  esbuild: true

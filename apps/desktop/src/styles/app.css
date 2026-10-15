@@ -1,0 +1,26 @@
+@import "./tokens.css";
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-canvas text-ink font-sans text-body antialiased select-none;
+  overscroll-behavior: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must beat utility classes */
+    transition: none !important;
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must beat utility classes */
+    animation: none !important;
+  }
+}

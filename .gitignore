@@ -1,15 +1,10 @@
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-*.test
-
-*.out
-coverage.*
-*.coverprofile
-profile.cov
-
-# env file
-.env
-bin
+# Go (legacy)
+bin/
+coverage.out
+coverage.html
+# Rust
+target/
+# Node
+node_modules/
+apps/desktop/dist/
+apps/desktop/src-tauri/gen/
