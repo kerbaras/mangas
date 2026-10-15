@@ -37,6 +37,14 @@ pub fn list_devices() -> Vec<Device> {
     DEVICES.to_vec()
 }
 
+/// Platform data folder used for chapters and models when no `data_dir` setting is stored.
+#[tauri::command]
+pub fn default_data_dir() -> Result<String, String> {
+    Ok(paths::data_dir(&Settings::default())?
+        .to_string_lossy()
+        .into_owned())
+}
+
 #[tauri::command]
 pub fn get_settings() -> Result<Settings, String> {
     settings_of(&open_library()?)

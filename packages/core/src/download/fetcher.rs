@@ -81,12 +81,18 @@ pub fn is_public_http_url(raw: &str) -> bool {
 fn is_public_ip(ip: IpAddr) -> bool {
     match ip {
         IpAddr::V4(v4) => {
+            let [a, b, _, _] = v4.octets();
             !(v4.is_loopback()
                 || v4.is_private()
                 || v4.is_link_local()
                 || v4.is_unspecified()
                 || v4.is_broadcast()
-                || v4.octets()[0] == 100 && (64..128).contains(&v4.octets()[1]))
+                || v4.is_documentation()
+                || a == 0
+                || a >= 240
+                || (a == 100 && (64..128).contains(&b))
+                || (a == 198 && (18..20).contains(&b))
+                || (a == 192 && b == 0 && v4.octets()[2] == 0))
         }
         IpAddr::V6(v6) => {
             let seg = v6.segments()[0];

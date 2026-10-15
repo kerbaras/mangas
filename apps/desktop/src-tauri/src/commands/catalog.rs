@@ -36,7 +36,8 @@ pub fn unfollow_manga(source: String, id: String) -> Result<bool, String> {
     library::remove_manga(&open_library()?, &source, &MangaId(id)).map_err(to_ipc)
 }
 
-/// Chapters of a followed manga from the library; `refresh` re-syncs them from the source first.
+/// Chapters from the library; `refresh` re-syncs them from the source first. A manga that is not
+/// followed yet has nothing stored, so a refresh returns the source's list without saving it.
 #[tauri::command]
 pub async fn list_chapters(
     source: String,
@@ -49,27 +50,44 @@ pub async fn list_chapters(
     if refresh {
         let src = source_by_name(&source)?;
         let fresh = src.chapters(&id, &language).await.map_err(to_ipc)?;
+        let followed = library::get_manga(&lib, &source, &id)
+            .map_err(to_ipc)?
+            .is_some();
+        if !followed {
+            return Ok(fresh);
+        }
         library::upsert_chapters(&lib, src.name(), &id, &language, &fresh).map_err(to_ipc)?;
     }
     library::list_chapters(&lib, &source, &id, Some(&language)).map_err(to_ipc)
 }
 
 /// Downloads the given chapters, emitting [`DOWNLOAD_EVENT`] as pages and chapters finish.
+/// Downloading a manga that is not followed yet follows it first (chapters are stored per manga);
+/// a followed manga whose chapter list never got saved is re-synced the same way.
 /// Returns the chapter ids that failed (empty on full success).
 #[tauri::command]
 pub async fn download_chapters(
     app: AppHandle,
     source: String,
     manga_id: String,
+    language: String,
     chapter_ids: Vec<String>,
 ) -> Result<Vec<String>, String> {
     let src = source_by_name(&source)?;
     let lib = open_library()?;
-    let known = library::list_chapters(&lib, &source, &MangaId(manga_id), None).map_err(to_ipc)?;
+    let id = MangaId(manga_id);
+    ensure_followed(&lib, src.as_ref(), &id, &language).await?;
+    let known = library::list_chapters(&lib, &source, &id, None).map_err(to_ipc)?;
     let wanted: Vec<ChapterId> = chapter_ids.into_iter().map(ChapterId).collect();
     let selected: Vec<Chapter> = known
         .into_iter()
         .filter(|c| wanted.contains(&c.id))
+        .collect();
+    // Ids the source no longer lists are reported as failed instead of vanishing quietly.
+    let missing: Vec<String> = wanted
+        .iter()
+        .filter(|id| !selected.iter().any(|c| &c.id == *id))
+        .map(|id| id.0.clone())
         .collect();
     let root = paths::downloads(&settings_of(&lib)?)?;
     let emit = |event: Event| {
@@ -80,5 +98,27 @@ pub async fn download_chapters(
     let report = download::download_chapters(src.as_ref(), &lib, &selected, &root, &emit)
         .await
         .map_err(to_ipc)?;
-    Ok(report.failed.into_iter().map(|(id, _)| id.0).collect())
+    let failed = report.failed.into_iter().map(|(id, _)| id.0);
+    Ok(missing.into_iter().chain(failed).collect())
+}
+
+async fn ensure_followed(
+    lib: &library::Library,
+    src: &dyn mangas_core::sources::Source,
+    id: &MangaId,
+    language: &str,
+) -> Result<(), String> {
+    let followed = library::get_manga(lib, src.name(), id)
+        .map_err(to_ipc)?
+        .is_some();
+    let has_chapters = !library::list_chapters(lib, src.name(), id, Some(language))
+        .map_err(to_ipc)?
+        .is_empty();
+    if followed && has_chapters {
+        return Ok(());
+    }
+    let manga = src.manga(id).await.map_err(to_ipc)?;
+    let chapters = src.chapters(id, language).await.map_err(to_ipc)?;
+    library::upsert_manga(lib, &manga).map_err(to_ipc)?;
+    library::upsert_chapters(lib, src.name(), id, language, &chapters).map_err(to_ipc)
 }
