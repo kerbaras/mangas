@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use serde::{Deserialize, Serialize};
 
 use super::MangaId;
@@ -22,6 +24,32 @@ impl Chapter {
     pub fn is_downloaded(&self) -> bool {
         self.local_path.is_some()
     }
+
+    /// Numeric value of [`Chapter::number`], if it parses ("12.5" -> 12.5).
+    pub fn number_value(&self) -> Option<f64> {
+        parse_number(&self.number)
+    }
+}
+
+/// Parses a published chapter number. Non-numeric labels ("Oneshot") yield `None`.
+pub fn parse_number(number: &str) -> Option<f64> {
+    number.trim().parse::<f64>().ok().filter(|n| n.is_finite())
+}
+
+/// Orders chapters by number ascending; unparsable numbers go last, ties keep their order.
+pub fn compare_numbers(a: &str, b: &str) -> Ordering {
+    match (parse_number(a), parse_number(b)) {
+        (Some(x), Some(y)) => x.partial_cmp(&y).unwrap_or(Ordering::Equal),
+        (Some(_), None) => Ordering::Less,
+        (None, Some(_)) => Ordering::Greater,
+        (None, None) => a.cmp(b),
+    }
+}
+
+/// Stable sort by chapter number ascending.
+pub fn sort_by_number(mut chapters: Vec<Chapter>) -> Vec<Chapter> {
+    chapters.sort_by(|a, b| compare_numbers(&a.number, &b.number));
+    chapters
 }
 
 impl std::fmt::Display for ChapterId {

@@ -1,5 +1,6 @@
 use clap::Args as ClapArgs;
-use mangas_core::library;
+use mangas_core::domain::Manga;
+use mangas_core::library::{self, Library};
 
 use crate::paths;
 
@@ -21,10 +22,22 @@ pub fn run(args: Args) -> anyhow::Result<()> {
         if args.plain {
             println!("{} {} {}", m.source, m.id, m.title);
         } else {
-            println!("{:<40} {:<10} {}", truncate(&m.title, 40), m.source, m.id);
+            println!(
+                "{:<40} {:<10} {:<36} {}",
+                truncate(&m.title, 40),
+                m.source,
+                m.id,
+                progress(&lib, &m)?
+            );
         }
     }
     Ok(())
+}
+
+fn progress(lib: &Library, m: &Manga) -> anyhow::Result<String> {
+    let chapters = library::list_chapters(lib, &m.source, &m.id)?;
+    let downloaded = chapters.iter().filter(|c| c.is_downloaded()).count();
+    Ok(format!("{downloaded}/{} downloaded", chapters.len()))
 }
 
 fn truncate(s: &str, n: usize) -> String {

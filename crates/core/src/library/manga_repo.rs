@@ -1,11 +1,13 @@
-use rusqlite::{params, Row};
+use rusqlite::{params, OptionalExtension, Row};
 
 use super::Library;
 use crate::domain::{Manga, MangaId, MangaStatus, Result};
 
+const COLUMNS: &str = "id, source, title, description, cover_url, status";
+
 /// Inserts the manga or refreshes its metadata if it is already followed.
 pub fn upsert_manga(lib: &Library, manga: &Manga) -> Result<()> {
-    lib.conn.execute(
+    lib.conn()?.execute(
         "INSERT INTO manga (id, source, title, description, cover_url, status)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)
          ON CONFLICT (source, id) DO UPDATE SET
@@ -25,12 +27,33 @@ pub fn upsert_manga(lib: &Library, manga: &Manga) -> Result<()> {
 
 /// All followed manga, most recently added first.
 pub fn list_manga(lib: &Library) -> Result<Vec<Manga>> {
-    let mut stmt = lib.conn.prepare(
-        "SELECT id, source, title, description, cover_url, status
-         FROM manga ORDER BY added_at DESC, title",
-    )?;
+    let conn = lib.conn()?;
+    let mut stmt = conn.prepare(&format!(
+        "SELECT {COLUMNS} FROM manga ORDER BY added_at DESC, title"
+    ))?;
     let rows = stmt.query_map([], row_to_manga)?;
     Ok(rows.collect::<std::result::Result<_, _>>()?)
+}
+
+/// One followed manga, if present.
+pub fn get_manga(lib: &Library, source: &str, id: &MangaId) -> Result<Option<Manga>> {
+    let conn = lib.conn()?;
+    Ok(conn
+        .query_row(
+            &format!("SELECT {COLUMNS} FROM manga WHERE source = ?1 AND id = ?2"),
+            params![source, id.0],
+            row_to_manga,
+        )
+        .optional()?)
+}
+
+/// Unfollows a manga; its chapter rows go with it. Returns whether a row was removed.
+pub fn remove_manga(lib: &Library, source: &str, id: &MangaId) -> Result<bool> {
+    let removed = lib.conn()?.execute(
+        "DELETE FROM manga WHERE source = ?1 AND id = ?2",
+        params![source, id.0],
+    )?;
+    Ok(removed > 0)
 }
 
 fn row_to_manga(row: &Row<'_>) -> rusqlite::Result<Manga> {

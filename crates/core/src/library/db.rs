@@ -1,15 +1,24 @@
 use std::path::Path;
+use std::sync::{Mutex, MutexGuard};
 
 use rusqlite::Connection;
 
-use crate::domain::Result;
+use crate::domain::{Error, Result};
 
 const MIGRATIONS: &[&str] = &[include_str!("../../migrations/0001_init.sql")];
 
-/// Handle to the library database. Cheap to pass around by `&`; not `Sync`, so each task
-/// opens its own handle.
+/// Handle to the library database. The connection sits behind a mutex so a handle can be shared
+/// across async tasks (downloads mark chapters while the UI lists them).
 pub struct Library {
-    pub(crate) conn: Connection,
+    conn: Mutex<Connection>,
+}
+
+impl Library {
+    pub(crate) fn conn(&self) -> Result<MutexGuard<'_, Connection>> {
+        self.conn
+            .lock()
+            .map_err(|_| Error::Other("library connection poisoned".into()))
+    }
 }
 
 /// Opens (or creates) the library at `path` and applies pending migrations.
@@ -32,5 +41,7 @@ fn init(conn: Connection) -> Result<Library> {
         conn.execute_batch(sql)?;
         conn.pragma_update(None, "user_version", i as i64 + 1)?;
     }
-    Ok(Library { conn })
+    Ok(Library {
+        conn: Mutex::new(conn),
+    })
 }

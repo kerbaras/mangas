@@ -1,6 +1,6 @@
-use anyhow::bail;
 use clap::Args as ClapArgs;
-use mangas_core::sources;
+
+use super::source_by_name;
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -14,11 +14,19 @@ pub struct Args {
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
-    let Some(source) = sources::by_name(&args.source) else {
-        bail!("unknown source '{}'", args.source);
-    };
-    for m in source.search(&args.query, args.limit).await? {
-        println!("{:<36}  {}", m.id, m.title);
+    let source = source_by_name(&args.source)?;
+    let results = source.search(&args.query, args.limit).await?;
+    if results.is_empty() {
+        println!("No results for \"{}\" on {}", args.query, args.source);
+        return Ok(());
+    }
+    for m in results {
+        println!(
+            "{:<36}  {:<10}  {}",
+            m.id,
+            format!("{:?}", m.status).to_lowercase(),
+            m.title
+        );
     }
     Ok(())
 }
