@@ -5,7 +5,10 @@ use rusqlite::Connection;
 
 use crate::domain::{Error, Result};
 
-const MIGRATIONS: &[&str] = &[include_str!("../../migrations/0001_init.sql")];
+const MIGRATIONS: &[&str] = &[
+    include_str!("../../migrations/0001_init.sql"),
+    include_str!("../../migrations/0002_settings.sql"),
+];
 
 /// Handle to the library database. The connection sits behind a mutex so a handle can be shared
 /// across async tasks (downloads mark chapters while the UI lists them).
