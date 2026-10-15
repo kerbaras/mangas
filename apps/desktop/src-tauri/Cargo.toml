@@ -15,9 +15,10 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-mangas-core = { path = "../../../crates/core" }
+mangas-core = { path = "../../../packages/core" }
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
 serde = { workspace = true }
 serde_json = { workspace = true }
 log = { workspace = true }
@@ -26,4 +27,5 @@ directories = "6"
 
 [features]
 default = []
+ml = ["mangas-core/ml"]
 cuda = ["mangas-core/cuda"]

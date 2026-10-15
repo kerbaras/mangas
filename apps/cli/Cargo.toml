@@ -1,0 +1,25 @@
+[package]
+name = "mangas"
+description = "Mangas CLI: search, follow, download and export manga from the terminal"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "mangas"
+path = "src/main.rs"
+
+[dependencies]
+mangas-core = { path = "../../packages/core" }
+anyhow = { workspace = true }
+tokio = { workspace = true }
+clap = { version = "4", features = ["derive"] }
+directories = "6"
+
+[features]
+default = []
+# ONNX detectors for smart cutting (downloads ONNX Runtime at build time).
+ml = ["mangas-core/ml"]
+cuda = ["mangas-core/cuda"]

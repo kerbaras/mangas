@@ -35,8 +35,10 @@
   --color-accent-soft: #fbe9e7;
 }
 
+/* Plain :root overrides, not a nested @theme: Tailwind hoists @theme blocks out of media
+   queries, which made the dark palette apply in light mode too. */
 @media (prefers-color-scheme: dark) {
-  @theme {
+  :root {
     --color-canvas: #1f1f1e;
     --color-surface: #292928;
     --color-surface-2: #323231;

@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- Rewrite: Rust core (`mangas-core`), Tauri 2 + React desktop app, `mangas` CLI. Replaces the Go TUI.
+- Smart cut of long strips (balanced / fewest-cuts / no-shrink presets), Kindle device profiles,
+  fixed-layout EPUB writer, optional ONNX bubble/text and face detectors (`ml` feature).
+- MangaDex source with rate limiting, resumable downloads, CBZ output, SQLite library and settings.
+
 ### Added - CLI Commands Implementation
 
 #### New Commands
