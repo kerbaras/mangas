@@ -17,3 +17,9 @@ anyhow = { workspace = true }
 tokio = { workspace = true }
 clap = { version = "4", features = ["derive"] }
 directories = "6"
+
+[features]
+default = []
+# ONNX detectors for smart cutting (downloads ONNX Runtime at build time).
+ml = ["mangas-core/ml"]
+cuda = ["mangas-core/cuda"]

@@ -7,3 +7,10 @@ pub fn library_db() -> Result<PathBuf, String> {
         .map(|d| d.data_dir().join("mangas.db"))
         .ok_or_else(|| "no home directory".to_string())
 }
+
+/// Cache directory for downloaded ONNX detector models.
+pub fn models() -> Result<PathBuf, String> {
+    ProjectDirs::from("dev", "kerbaras", "mangas")
+        .map(|d| d.data_dir().join("models"))
+        .ok_or_else(|| "no home directory".to_string())
+}
