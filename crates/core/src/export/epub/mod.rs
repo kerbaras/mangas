@@ -76,7 +76,7 @@ pub fn write(book: &Book, path: &Path) -> Result<PathBuf> {
         std::fs::create_dir_all(parent)?;
     }
     let (target, _claim) = claim_free_file(path)?;
-    let tmp = target.with_extension("epub.part");
+    let tmp = part_file(&target);
     let result = File::create(&tmp)
         .map_err(Error::from)
         .and_then(|file| write_zip(book, file))
@@ -86,6 +86,16 @@ pub fn write(book: &Book, path: &Path) -> Result<PathBuf> {
         let _ = std::fs::remove_file(&target);
     }
     result.map(|()| target)
+}
+
+/// `<file name>.part` next to `target`; appended to the whole name so `book` and `book.epub`
+/// never share one temporary file.
+fn part_file(target: &Path) -> PathBuf {
+    let name = target
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    target.with_file_name(format!("{name}.part"))
 }
 
 /// Atomically creates `path`, or the first `stem (n).ext` that does not exist yet.
