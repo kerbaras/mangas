@@ -26,7 +26,7 @@ export function LibraryScreen() {
     );
   }, [state, filter, sort]);
 
-  const open = (m: Manga) => nav.go({ screen: "manga", source: m.source, id: m.id });
+  const open = (m: Manga) => nav.go({ screen: "manga", manga: m });
   const count = state.kind === "ready" ? state.data.length : null;
 
   return (

@@ -1,9 +1,10 @@
 import { createContext, useContext } from "react";
+import type { Manga } from "@/lib/ipc";
 
 export type Route =
   | { screen: "library" }
   | { screen: "search" }
-  | { screen: "manga"; source: string; id: string }
+  | { screen: "manga"; manga: Manga }
   | { screen: "kindle"; chapterIds?: string[] }
   | { screen: "settings" };
 

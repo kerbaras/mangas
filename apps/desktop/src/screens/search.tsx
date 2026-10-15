@@ -6,7 +6,7 @@ import { SearchResult } from "@/components/search-result";
 import { Input } from "@/components/ui/input";
 import { useDebounced } from "@/hooks/use-debounced";
 import { useLibrary } from "@/hooks/use-library";
-import { mangaKey } from "@/lib/format";
+import { errorMessage, mangaKey } from "@/lib/format";
 import { type Manga, searchManga } from "@/lib/ipc";
 import { useNavigation } from "@/lib/navigation";
 
@@ -25,6 +25,7 @@ export function SearchScreen() {
   const debounced = useDebounced(query, 300);
   const [results, setResults] = useState<Results>({ kind: "idle" });
   const [busy, setBusy] = useState<string | null>(null);
+  const [followError, setFollowError] = useState<string | null>(null);
 
   useEffect(() => {
     const q = debounced.trim();
@@ -45,13 +46,16 @@ export function SearchScreen() {
   const followed = new Set(library.kind === "ready" ? library.data.map(mangaKey) : []);
   const onFollow = async (m: Manga) => {
     setBusy(mangaKey(m));
+    setFollowError(null);
     try {
       await follow(m);
+    } catch (e: unknown) {
+      setFollowError(`Couldn't follow ${m.title}: ${errorMessage(e)}`);
     } finally {
       setBusy(null);
     }
   };
-  const open = (m: Manga) => nav.go({ screen: "manga", source: m.source, id: m.id });
+  const open = (m: Manga) => nav.go({ screen: "manga", manga: m });
 
   return (
     <section className="flex h-full flex-col">
@@ -80,6 +84,11 @@ export function SearchScreen() {
           {results.kind === "searching" && <p className="text-ink-3">Searching {SOURCE}…</p>}
           {results.kind === "error" && (
             <p className="text-accent">Search failed: {results.message}</p>
+          )}
+          {followError && (
+            <p role="alert" className="mb-2 text-caption text-accent">
+              {followError}
+            </p>
           )}
           {results.kind === "ready" && results.items.length === 0 && (
             <EmptyState title={`No results for “${debounced.trim()}”`}>

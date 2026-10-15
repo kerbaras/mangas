@@ -1,5 +1,5 @@
 import { Download, Send } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChaptersTable } from "@/components/chapters-table";
 import { Cover } from "@/components/cover";
 import { ScreenHeader } from "@/components/screen-header";
@@ -18,25 +18,24 @@ import {
   sortChapters,
 } from "@/lib/chapters";
 import { languageLabel } from "@/lib/format";
-import { downloadChapters, listChapters, listLibrary, searchManga } from "@/lib/ipc";
+import { downloadChapters, listChapters, type Manga } from "@/lib/ipc";
 import { useNavigation } from "@/lib/navigation";
 
-type Props = { source: string; id: string };
+type Props = { manga: Manga };
 
-async function loadManga(source: string, id: string) {
-  const inLibrary = (await listLibrary()).find((m) => m.source === source && m.id === id);
-  if (inLibrary) return inLibrary;
-  return (await searchManga(id, source)).find((m) => m.id === id) ?? null;
-}
-
-export function MangaDetailsScreen({ source, id }: Props) {
+export function MangaDetailsScreen({ manga }: Props) {
+  const { source, id } = manga;
   const nav = useNavigation();
-  const manga = useAsync(() => loadManga(source, id), [source, id]);
   const chapters = useAsync(() => listChapters(source, id), [source, id]);
   const downloads = useDownloads();
   const [language, setLanguage] = useState<string | null>(null);
 
   const all = chapters.state.kind === "ready" ? chapters.state.data : [];
+  const landed = all.filter((c) => !c.local_path && downloads.get(c.id)?.done).length;
+  // A finished download changes `local_path` on disk; refetch so export/download buttons follow.
+  useEffect(() => {
+    if (landed > 0) chapters.reload();
+  }, [landed, chapters.reload]);
   const languages = useMemo(() => languagesOf(all), [all]);
   const visible = useMemo(() => sortChapters(filterByLanguage(all, language)), [all, language]);
   const visibleIds = useMemo(() => visible.map((c) => c.id), [visible]);
@@ -44,7 +43,6 @@ export function MangaDetailsScreen({ source, id }: Props) {
 
   const toDownload = downloadable(all, selected);
   const toExport = exportable(all, selected);
-  const title = manga.state.kind === "ready" ? manga.state.data?.title : "…";
 
   const download = async () => {
     await downloadChapters(
@@ -56,24 +54,20 @@ export function MangaDetailsScreen({ source, id }: Props) {
 
   return (
     <section className="flex h-full flex-col">
-      <ScreenHeader back title={title} subtitle={source} />
-      {manga.state.kind === "ready" && manga.state.data && (
-        <div className="flex gap-5 border-b border-stroke px-4 py-4">
-          <Cover manga={manga.state.data} className="w-24 shrink-0" />
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h2 className="text-subtitle font-semibold">{manga.state.data.title}</h2>
-              <StatusBadge status={manga.state.data.status} />
-            </div>
-            <p className="mt-2 line-clamp-3 max-w-2xl text-body text-ink-2">
-              {manga.state.data.description}
-            </p>
-            <p className="mt-2 text-caption text-ink-3">
-              {all.length} chapters · {all.filter((c) => c.local_path).length} on disk
-            </p>
+      <ScreenHeader back title={manga.title} subtitle={source} />
+      <div className="flex gap-5 border-b border-stroke px-4 py-4">
+        <Cover manga={manga} className="w-24 shrink-0" />
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h2 className="text-subtitle font-semibold">{manga.title}</h2>
+            <StatusBadge status={manga.status} />
           </div>
+          <p className="mt-2 line-clamp-3 max-w-2xl text-body text-ink-2">{manga.description}</p>
+          <p className="mt-2 text-caption text-ink-3">
+            {all.length} chapters · {all.filter((c) => c.local_path).length} on disk
+          </p>
         </div>
-      )}
+      </div>
       <div className="flex h-11 shrink-0 items-center gap-3 border-b border-stroke px-4">
         {languages.length > 1 && (
           <Tabs

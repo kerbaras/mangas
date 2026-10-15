@@ -7,8 +7,8 @@ export function useLibrary() {
 
   const unfollow = useCallback(
     async (m: Manga) => {
-      patch((items) => items.filter((x) => x.id !== m.id || x.source !== m.source));
       await unfollowManga(m.source, m.id);
+      patch((items) => items.filter((x) => x.id !== m.id || x.source !== m.source));
     },
     [patch],
   );

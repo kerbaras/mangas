@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { NavRail } from "@/components/nav-rail";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { activeCount, DownloadsProvider, useDownloads } from "@/hooks/use-downloads";
+import { mangaKey } from "@/lib/format";
 import { type Navigation, NavigationContext, type Route } from "@/lib/navigation";
 import { KindleScreen } from "@/screens/kindle";
 import { LibraryScreen } from "@/screens/library";
@@ -16,13 +17,7 @@ function Screen({ route }: { route: Route }) {
     case "search":
       return <SearchScreen />;
     case "manga":
-      return (
-        <MangaDetailsScreen
-          key={`${route.source}:${route.id}`}
-          source={route.source}
-          id={route.id}
-        />
-      );
+      return <MangaDetailsScreen key={mangaKey(route.manga)} manga={route.manga} />;
     case "kindle":
       return <KindleScreen key={route.chapterIds?.join(",") ?? ""} chapterIds={route.chapterIds} />;
     case "settings":
