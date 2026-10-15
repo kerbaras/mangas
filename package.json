@@ -20,12 +20,5 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.13",
     "typescript": "5.9.3"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@biomejs/biome",
-      "@tauri-apps/cli",
-      "esbuild"
-    ]
   }
 }
