@@ -31,7 +31,11 @@ pub fn unique_chapter_dir(dir: PathBuf, chapter: &Chapter, known: &[Chapter]) ->
         return dir;
     }
     let suffix: String = chapter.id.0.chars().take(8).collect();
-    let name = format!("{}-{}", chapter.number, safe_component(&suffix));
+    let name = format!(
+        "{}-{}",
+        safe_component(&chapter.number),
+        safe_component(&suffix)
+    );
     dir.with_file_name(name)
 }
 

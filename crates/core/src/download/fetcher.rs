@@ -1,6 +1,7 @@
 use std::net::IpAddr;
 
 use async_trait::async_trait;
+use reqwest::redirect::{Attempt, Policy};
 use reqwest::Client;
 use url::{Host, Url};
 
@@ -20,6 +21,7 @@ impl HttpFetcher {
     pub fn new() -> Result<Self> {
         let http = Client::builder()
             .user_agent(concat!("mangas/", env!("CARGO_PKG_VERSION")))
+            .redirect(Policy::custom(public_redirects_only))
             .build()?;
         Ok(Self { http })
     }
@@ -35,6 +37,20 @@ impl PageFetcher for HttpFetcher {
         }
         let response = self.http.get(url).send().await?.error_for_status()?;
         Ok(response.bytes().await?.to_vec())
+    }
+}
+
+const MAX_REDIRECTS: usize = 10;
+
+/// Redirects get the same host check as the first request, so a public page URL cannot bounce
+/// the downloader onto an internal address.
+fn public_redirects_only(attempt: Attempt) -> reqwest::redirect::Action {
+    if attempt.previous().len() >= MAX_REDIRECTS {
+        attempt.error("too many redirects")
+    } else if is_public_http_url(attempt.url().as_str()) {
+        attempt.follow()
+    } else {
+        attempt.error("redirect to a non-public url")
     }
 }
 

@@ -123,6 +123,19 @@ fn same_number_chapters_get_distinct_dirs() {
         Path::new("/dl/mangadex/m/12-abcdef01")
     );
     assert_eq!(unique_chapter_dir(dir.clone(), &second, &[]), dir);
+
+    let mut evil = chapter("../x");
+    evil.id = mangas_core::domain::ChapterId("zz".into());
+    let evil_dir = chapter_dir(root, "mangadex", &evil);
+    let suffixed = unique_chapter_dir(evil_dir.clone(), &evil, &[stored_at(&evil_dir)]);
+    assert_eq!(suffixed.parent(), evil_dir.parent());
+    assert!(!suffixed.components().any(|c| c.as_os_str() == ".."));
+}
+
+fn stored_at(dir: &Path) -> Chapter {
+    let mut c = chapter("other");
+    c.local_path = Some(dir.to_string_lossy().into_owned());
+    c
 }
 
 #[test]
