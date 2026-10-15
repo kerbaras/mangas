@@ -138,7 +138,7 @@ Use 'mangas kindle --list-devices' to see all supported Kindle devices.`,
 		cutOpts, err := integrations.SmartCutPreset(cutPreset, device)
 		cobra.CheckErr(err)
 		if maxShrink != 0 {
-			if maxShrink < 1 {
+			if !(maxShrink >= 1) { // also rejects NaN
 				cobra.CheckErr(fmt.Errorf("--max-shrink must be >= 1.0 (1.0 = never shrink)"))
 			}
 			cutOpts.MaxShrink = maxShrink

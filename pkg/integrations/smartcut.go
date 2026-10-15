@@ -112,10 +112,10 @@ func paginateRows(F *stripFeatures, cap int, maxShrink, shrinkPenalty float64, o
 		return nil
 	}
 	cost := cutCosts(F)
-	maxH := int(float64(cap) * maxShrink)
-	if maxH < 1 {
-		maxH = 1
+	if !(maxShrink >= 1) { // never below native zoom; also guards NaN
+		maxShrink = 1
 	}
+	maxH := int(float64(cap) * maxShrink)
 	inf := math.Inf(1)
 	best := make([]float64, H+1)
 	prev := make([]int, H+1)
