@@ -29,6 +29,7 @@ export function SearchScreen() {
 
   useEffect(() => {
     const q = debounced.trim();
+    setFollowError(null);
     if (!q) {
       setResults({ kind: "idle" });
       return;

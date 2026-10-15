@@ -31,7 +31,10 @@ export function MangaDetailsScreen({ manga }: Props) {
   const [language, setLanguage] = useState<string | null>(null);
 
   const all = chapters.state.kind === "ready" ? chapters.state.data : [];
-  const landed = all.filter((c) => !c.local_path && downloads.get(c.id)?.done).length;
+  const landed = all.filter((c) => {
+    const p = downloads.get(c.id);
+    return !c.local_path && p?.done && !p.error;
+  }).length;
   // A finished download changes `local_path` on disk; refetch so export/download buttons follow.
   useEffect(() => {
     if (landed > 0) chapters.reload();
