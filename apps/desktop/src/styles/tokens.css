@@ -1,0 +1,51 @@
+/* Design tokens. Fluent 2 spacing (4px grid) and type ramp; system font stack so the app reads
+   as native on every OS. One accent: hanko red, the seal stamped on every published manga. */
+@import "tailwindcss";
+
+@theme {
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI Variable", "Segoe UI", Roboto, "Noto Sans",
+    sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --text-body: 14px;
+  --text-body--line-height: 20px;
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 22px;
+  --text-subtitle: 20px;
+  --text-subtitle--line-height: 28px;
+  --text-title: 28px;
+  --text-title--line-height: 36px;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  --color-canvas: #f7f7f5;
+  --color-surface: #ffffff;
+  --color-surface-2: #f0f0ee;
+  --color-stroke: #e1e1de;
+  --color-ink: #1b1b1a;
+  --color-ink-2: #5c5c58;
+  --color-ink-3: #8a8a85;
+  --color-accent: #b3261e;
+  --color-accent-hover: #9a1f18;
+  --color-accent-soft: #fbe9e7;
+}
+
+@media (prefers-color-scheme: dark) {
+  @theme {
+    --color-canvas: #1f1f1e;
+    --color-surface: #292928;
+    --color-surface-2: #323231;
+    --color-stroke: #3c3c3a;
+    --color-ink: #f2f2f0;
+    --color-ink-2: #b4b4af;
+    --color-ink-3: #7f7f7a;
+    --color-accent: #e0584f;
+    --color-accent-hover: #ec7169;
+    --color-accent-soft: #3a2422;
+  }
+}

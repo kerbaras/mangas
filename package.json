@@ -1,0 +1,21 @@
+{
+  "name": "@mangas/workspace",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.4.2",
+  "engines": { "node": ">=24 <25", "pnpm": "12.4.2" },
+  "scripts": {
+    "dev": "pnpm --filter @mangas/desktop dev",
+    "build": "pnpm -r build",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "typecheck": "pnpm -r typecheck",
+    "test:rust": "cargo test --workspace",
+    "check": "pnpm lint && pnpm typecheck && pnpm build"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.13",
+    "typescript": "5.9.3"
+  }
+}

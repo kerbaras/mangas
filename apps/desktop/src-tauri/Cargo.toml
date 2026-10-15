@@ -1,0 +1,29 @@
+[package]
+name = "mangas-desktop"
+description = "Mangas desktop: Tauri shell around mangas-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "mangas_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+mangas-core = { path = "../../../crates/core" }
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }
+env_logger = "0.11"
+directories = "6"
+
+[features]
+default = []
+cuda = ["mangas-core/cuda"]
