@@ -37,7 +37,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         );
     }
     let all = source.chapters(&id, &args.lang).await?;
-    library::upsert_chapters(&lib, source.name(), &all)?;
+    library::upsert_chapters(&lib, source.name(), &id, &args.lang, &all)?;
     let selected = match &args.chapters {
         Some(spec) => download::select_chapters(&all, spec)?,
         None => all,

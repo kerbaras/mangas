@@ -3,13 +3,19 @@ use std::path::{Path, PathBuf};
 use super::event::{Event, OnEvent};
 use super::fetcher::{HttpFetcher, PageFetcher};
 use super::pages::download_pages;
-use crate::domain::{Chapter, ChapterId, Error, MangaId, Result};
+use crate::domain::{Chapter, ChapterId, Error, Result};
 use crate::library::{self, Library};
 use crate::sources::Source;
 
-/// `<root>/<source>/<manga id>/<chapter number>`.
-pub fn chapter_dir(root: &Path, source: &str, manga_id: &MangaId, number: &str) -> PathBuf {
-    let safe: String = number
+/// `<root>/<source>/<manga id>/<chapter number>`; chapters without a number (oneshots,
+/// extras) use their id instead so they never share a directory.
+pub fn chapter_dir(root: &Path, source: &str, chapter: &Chapter) -> PathBuf {
+    let name = if chapter.number.is_empty() {
+        chapter.id.0.as_str()
+    } else {
+        chapter.number.as_str()
+    };
+    let safe: String = name
         .chars()
         .map(|c| {
             if c.is_ascii_alphanumeric() || c == '.' || c == '-' {
@@ -19,7 +25,7 @@ pub fn chapter_dir(root: &Path, source: &str, manga_id: &MangaId, number: &str) 
             }
         })
         .collect();
-    root.join(source).join(&manga_id.0).join(safe)
+    root.join(source).join(&chapter.manga_id.0).join(safe)
 }
 
 /// Downloads one chapter into `dest` over HTTP and returns the number of pages.
@@ -76,7 +82,7 @@ pub async fn download_chapters(
     let fetcher = HttpFetcher::new()?;
     let mut report = Report::default();
     for chapter in chapters {
-        let dest = chapter_dir(root, source.name(), &chapter.manga_id, &chapter.number);
+        let dest = chapter_dir(root, source.name(), chapter);
         match download_chapter_with(source, &fetcher, chapter, &dest, on_event).await {
             Ok(_) => {
                 library::mark_downloaded(lib, source.name(), &chapter.id, &dest)?;

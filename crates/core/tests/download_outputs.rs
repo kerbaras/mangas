@@ -1,7 +1,7 @@
 use mangas_core::domain::{Chapter, ChapterId, MangaId};
 use std::path::Path;
 
-use mangas_core::download::{cbz_path, parse_selection, select_chapters, write_cbz};
+use mangas_core::download::{cbz_path, chapter_dir, parse_selection, select_chapters, write_cbz};
 
 fn chapter(number: &str) -> Chapter {
     Chapter {
@@ -76,4 +76,18 @@ fn select_chapters_by_published_number() {
 fn cbz_path_keeps_decimal_chapter_names() {
     assert_eq!(cbz_path(Path::new("/x/m/2.5")), Path::new("/x/m/2.5.cbz"));
     assert_eq!(cbz_path(Path::new("/x/m/12")), Path::new("/x/m/12.cbz"));
+}
+
+#[test]
+fn unnumbered_chapters_get_their_own_directory() {
+    let root = Path::new("/dl");
+    assert_eq!(
+        chapter_dir(root, "mangadex", &chapter("2.5")),
+        Path::new("/dl/mangadex/m/2.5")
+    );
+    let a = chapter_dir(root, "mangadex", &chapter(""));
+    let mut other = chapter("");
+    other.id = mangas_core::domain::ChapterId("other".into());
+    assert_eq!(a, Path::new("/dl/mangadex/m/ch-"));
+    assert_ne!(a, chapter_dir(root, "mangadex", &other));
 }

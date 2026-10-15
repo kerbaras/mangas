@@ -23,7 +23,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let chapters = source.chapters(&id, &args.lang).await?;
     let lib = library::open(&paths::library_db()?)?;
     library::upsert_manga(&lib, &manga)?;
-    library::upsert_chapters(&lib, source.name(), &chapters)?;
+    library::upsert_chapters(&lib, source.name(), &id, &args.lang, &chapters)?;
     println!(
         "Following {} ({} {} chapters available)",
         manga.title,

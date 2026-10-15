@@ -1,4 +1,3 @@
-use std::collections::BTreeSet;
 use std::path::Path;
 
 use rusqlite::{params, Row};
@@ -6,10 +5,18 @@ use rusqlite::{params, Row};
 use super::Library;
 use crate::domain::{sort_by_number, Chapter, ChapterId, MangaId, Result};
 
-/// Inserts or refreshes chapter metadata. `local_path` is left untouched so a re-sync never
-/// forgets what is already on disk. Chapters of the same manga and language that the source
-/// no longer lists are dropped, unless they were downloaded. The manga must be followed.
-pub fn upsert_chapters(lib: &Library, source: &str, chapters: &[Chapter]) -> Result<()> {
+/// Stores the `language` chapter list of `manga_id` as the source currently reports it.
+/// Metadata is refreshed, `local_path` is left untouched so a re-sync never forgets what is
+/// on disk, and chapters the source no longer lists are dropped unless downloaded. An empty
+/// `chapters` therefore clears every non-downloaded chapter of that language.
+/// The manga must be followed.
+pub fn upsert_chapters(
+    lib: &Library,
+    source: &str,
+    manga_id: &MangaId,
+    language: &str,
+    chapters: &[Chapter],
+) -> Result<()> {
     let mut conn = lib.conn()?;
     let tx = conn.transaction()?;
     tx.execute_batch(
@@ -38,14 +45,12 @@ pub fn upsert_chapters(lib: &Library, source: &str, chapters: &[Chapter]) -> Res
                 c.number,
             ])?;
         }
-        let mut prune = tx.prepare(
+        tx.execute(
             "DELETE FROM chapter
              WHERE source = ?1 AND manga_id = ?2 AND language = ?3 AND local_path IS NULL
                AND id NOT IN (SELECT id FROM synced)",
+            params![source, manga_id.0, language],
         )?;
-        for (manga_id, language) in synced_groups(chapters) {
-            prune.execute(params![source, manga_id, language])?;
-        }
     }
     tx.execute_batch("DROP TABLE synced;")?;
     tx.commit()?;
@@ -81,13 +86,6 @@ pub fn mark_downloaded(
         params![source, chapter.0, path.to_string_lossy()],
     )?;
     Ok(())
-}
-
-fn synced_groups(chapters: &[Chapter]) -> BTreeSet<(&str, &str)> {
-    chapters
-        .iter()
-        .map(|c| (c.manga_id.0.as_str(), c.language.as_str()))
-        .collect()
 }
 
 fn row_to_chapter(row: &Row<'_>) -> rusqlite::Result<Chapter> {

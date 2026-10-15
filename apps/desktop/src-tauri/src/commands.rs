@@ -51,7 +51,7 @@ pub async fn follow_manga(source: String, id: String, language: String) -> Resul
     let chapters = source.chapters(&id, &language).await.map_err(to_ipc)?;
     let lib = open_library()?;
     library::upsert_manga(&lib, &manga).map_err(to_ipc)?;
-    library::upsert_chapters(&lib, source.name(), &chapters).map_err(to_ipc)?;
+    library::upsert_chapters(&lib, source.name(), &id, &language, &chapters).map_err(to_ipc)?;
     Ok(manga)
 }
 
@@ -73,7 +73,7 @@ pub async fn list_chapters(
     if refresh {
         let src = source_by_name(&source)?;
         let fresh = src.chapters(&id, &language).await.map_err(to_ipc)?;
-        library::upsert_chapters(&lib, src.name(), &fresh).map_err(to_ipc)?;
+        library::upsert_chapters(&lib, src.name(), &id, &language, &fresh).map_err(to_ipc)?;
     }
     library::list_chapters(&lib, &source, &id, Some(&language)).map_err(to_ipc)
 }

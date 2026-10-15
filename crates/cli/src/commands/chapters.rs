@@ -29,7 +29,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         let source = source_by_name(&args.source)?;
         let fresh = source.chapters(&id, &args.lang).await?;
         if followed {
-            library::upsert_chapters(&lib, source.name(), &fresh)?;
+            library::upsert_chapters(&lib, source.name(), &id, &args.lang, &fresh)?;
             library::list_chapters(&lib, &args.source, &id, Some(&args.lang))?
         } else {
             fresh
