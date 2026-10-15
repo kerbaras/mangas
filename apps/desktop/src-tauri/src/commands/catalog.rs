@@ -62,7 +62,8 @@ pub async fn list_chapters(
 }
 
 /// Downloads the given chapters, emitting [`DOWNLOAD_EVENT`] as pages and chapters finish.
-/// Downloading a manga that is not followed yet follows it first (chapters are stored per manga).
+/// Downloading a manga that is not followed yet follows it first (chapters are stored per manga);
+/// a followed manga whose chapter list never got saved is re-synced the same way.
 /// Returns the chapter ids that failed (empty on full success).
 #[tauri::command]
 pub async fn download_chapters(
@@ -82,6 +83,12 @@ pub async fn download_chapters(
         .into_iter()
         .filter(|c| wanted.contains(&c.id))
         .collect();
+    // Ids the source no longer lists are reported as failed instead of vanishing quietly.
+    let missing: Vec<String> = wanted
+        .iter()
+        .filter(|id| !selected.iter().any(|c| &c.id == *id))
+        .map(|id| id.0.clone())
+        .collect();
     let root = paths::downloads(&settings_of(&lib)?)?;
     let emit = |event: Event| {
         if let Err(e) = app.emit(DOWNLOAD_EVENT, &event) {
@@ -91,7 +98,8 @@ pub async fn download_chapters(
     let report = download::download_chapters(src.as_ref(), &lib, &selected, &root, &emit)
         .await
         .map_err(to_ipc)?;
-    Ok(report.failed.into_iter().map(|(id, _)| id.0).collect())
+    let failed = report.failed.into_iter().map(|(id, _)| id.0);
+    Ok(missing.into_iter().chain(failed).collect())
 }
 
 async fn ensure_followed(
@@ -100,10 +108,13 @@ async fn ensure_followed(
     id: &MangaId,
     language: &str,
 ) -> Result<(), String> {
-    if library::get_manga(lib, src.name(), id)
+    let followed = library::get_manga(lib, src.name(), id)
         .map_err(to_ipc)?
-        .is_some()
-    {
+        .is_some();
+    let has_chapters = !library::list_chapters(lib, src.name(), id, Some(language))
+        .map_err(to_ipc)?
+        .is_empty();
+    if followed && has_chapters {
         return Ok(());
     }
     let manga = src.manga(id).await.map_err(to_ipc)?;
