@@ -1,10 +1,12 @@
 package integrations
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"math"
 	"runtime"
+	"strings"
 	"sync"
 
 	"golang.org/x/image/draw"
@@ -20,20 +22,50 @@ import (
 type SmartCutOptions struct {
 	DeviceWidth   int
 	DeviceHeight  int
-	MaxShrink     float64 // 1.10 = a page may hold 10% more rows than fit at native zoom
+	MaxShrink     float64 // 1.10 = a page may hold 10% more rows than fit at native zoom; 1.0 = never shrink
+	ShrinkPenalty float64 // cost of shrinking a page by 100% of capacity; lower trades zoom for fewer bad cuts
 	OverlapFrac   float64 // rows repeated after a cut through artwork, as a fraction of page capacity
 	AnalysisWidth int     // strips wider than this are downscaled for analysis only
 }
 
-// DefaultSmartCutOptions returns the tuning used for e-ink Kindles.
+// Smart-cut presets, named after the reading-experience trade-off they make.
+const (
+	// PresetBalanced shrinks a page by at most 10% and only when it avoids a costly cut.
+	PresetBalanced = "balanced"
+	// PresetFewestCuts allows up to 25% shrink and shrinks readily; fewest cuts through panels and bubbles.
+	PresetFewestCuts = "fewest-cuts"
+	// PresetNoShrink never shrinks; relies on overlap alone.
+	PresetNoShrink = "no-shrink"
+)
+
+// SmartCutPresets lists the valid preset names.
+var SmartCutPresets = []string{PresetBalanced, PresetFewestCuts, PresetNoShrink}
+
+// DefaultSmartCutOptions returns the balanced preset for the device.
 func DefaultSmartCutOptions(d KindleDevice) SmartCutOptions {
-	return SmartCutOptions{
+	o, _ := SmartCutPreset(PresetBalanced, d)
+	return o
+}
+
+// SmartCutPreset returns the options for a named preset.
+func SmartCutPreset(name string, d KindleDevice) (SmartCutOptions, error) {
+	o := SmartCutOptions{
 		DeviceWidth:   d.Width,
 		DeviceHeight:  d.Height,
-		MaxShrink:     1.10,
 		OverlapFrac:   0.075,
 		AnalysisWidth: 720,
 	}
+	switch name {
+	case PresetBalanced, "":
+		o.MaxShrink, o.ShrinkPenalty = 1.10, 30
+	case PresetFewestCuts:
+		o.MaxShrink, o.ShrinkPenalty = 1.25, 10
+	case PresetNoShrink:
+		o.MaxShrink, o.ShrinkPenalty = 1.0, 30
+	default:
+		return o, fmt.Errorf("unknown smart-cut preset %q (want one of %s)", name, strings.Join(SmartCutPresets, ", "))
+	}
+	return o, nil
 }
 
 const (
@@ -42,7 +74,6 @@ const (
 	cutCostBubble     = 30.0
 	cutCostText       = 60.0
 	cutPageCost       = 1.0
-	cutShrinkPenalty  = 30.0 // per unit of (rows over capacity / capacity)
 	cutBadThreshold   = 0.01 // any cut that is not on a gutter row counts as "through art"
 	longStripMinPages = 1.25 // an image is a strip if it needs more than this many pages
 )
@@ -75,7 +106,7 @@ func cutCosts(F *stripFeatures) []float64 {
 }
 
 // paginateRows chooses page boundaries for a strip of F.H rows where cap rows fit on a page at native zoom.
-func paginateRows(F *stripFeatures, cap int, maxShrink float64, overlap int) []pageSpan {
+func paginateRows(F *stripFeatures, cap int, maxShrink, shrinkPenalty float64, overlap int) []pageSpan {
 	H := F.H
 	if H == 0 {
 		return nil
@@ -109,7 +140,7 @@ func paginateRows(F *stripFeatures, cap int, maxShrink float64, overlap int) []p
 			h := b - start
 			pen := 0.0
 			if h > cap {
-				pen = cutShrinkPenalty * float64(h-cap) / float64(cap)
+				pen = shrinkPenalty * float64(h-cap) / float64(cap)
 			}
 			tot := best[a] + cutPageCost + cost[b] + pen
 			if tot < best[b] {
@@ -183,6 +214,11 @@ func (p *StripPaginator) Feed(img image.Image, last bool) []*image.RGBA {
 	return out
 }
 
+// HasPending reports whether rows are held back waiting for the next chunk of the same width.
+func (p *StripPaginator) HasPending(width int) bool {
+	return p.carry != nil && p.carry.Bounds().Dx() == width
+}
+
 // Flush paginates whatever is still held back and returns those pages.
 func (p *StripPaginator) Flush() []*image.RGBA {
 	if p.carry == nil {
@@ -209,7 +245,7 @@ func (p *StripPaginator) paginateUnit(unit *image.RGBA, last bool) ([]*image.RGB
 		cap = 1
 	}
 	overlap := int(math.Round(float64(cap) * p.opts.OverlapFrac))
-	spans := paginateRows(F, cap, p.opts.MaxShrink, overlap)
+	spans := paginateRows(F, cap, p.opts.MaxShrink, p.opts.ShrinkPenalty, overlap)
 	if !last {
 		// hold the unfinished tail back for the next chunk
 		if len(spans) <= 1 {

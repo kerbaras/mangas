@@ -25,7 +25,9 @@ Examples:
   mangas kindle "Solo Leveling" --device kindle-paperwhite12 --format epub
 
 Long vertical strips (webtoons / manhwa) are split into device pages at rows that avoid panels,
-text and speech bubbles (disable with --smart-cut=false).
+text and speech bubbles (disable with --smart-cut=false). When no clean cut exists a page may be
+shrunk a little so a whole panel fits, or the next page repeats the last rows; tune with
+--cut-preset, --max-shrink and --overlap.
 
 Use 'mangas kindle --list-devices' to see all supported Kindle devices.`,
 	Args: cobra.MaximumNArgs(1),
@@ -49,6 +51,9 @@ Use 'mangas kindle --list-devices' to see all supported Kindle devices.`,
 		title, _ := cmd.Flags().GetString("title")
 		author, _ := cmd.Flags().GetString("author")
 		smartCut, _ := cmd.Flags().GetBool("smart-cut")
+		cutPreset, _ := cmd.Flags().GetString("cut-preset")
+		maxShrink, _ := cmd.Flags().GetFloat64("max-shrink")
+		overlap, _ := cmd.Flags().GetFloat64("overlap")
 
 		// Validate device
 		if deviceID == "" {
@@ -130,17 +135,29 @@ Use 'mangas kindle --list-devices' to see all supported Kindle devices.`,
 
 		// Set up export options
 		device, _ := integrations.GetDeviceProfile(deviceID)
+		cutOpts, err := integrations.SmartCutPreset(cutPreset, device)
+		cobra.CheckErr(err)
+		if maxShrink > 0 {
+			if maxShrink < 1 {
+				cobra.CheckErr(fmt.Errorf("--max-shrink must be >= 1.0 (1.0 = never shrink)"))
+			}
+			cutOpts.MaxShrink = maxShrink
+		}
+		if overlap >= 0 {
+			cutOpts.OverlapFrac = overlap
+		}
 		options := integrations.ExportOptions{
-			Device:      device,
-			Format:      integrations.KindleFormat(format),
-			Title:       title,
-			Author:      author,
-			Chapters:    chapterPaths,
-			OutputPath:  output,
-			Optimize:    true,
-			PanelView:   device.PanelView,
-			RightToLeft: true, // Manga reading direction
-			SmartCut:    smartCut,
+			Device:       device,
+			Format:       integrations.KindleFormat(format),
+			Title:        title,
+			Author:       author,
+			Chapters:     chapterPaths,
+			OutputPath:   output,
+			Optimize:     true,
+			PanelView:    device.PanelView,
+			RightToLeft:  true, // Manga reading direction
+			SmartCut:     smartCut,
+			SmartCutOpts: &cutOpts,
 		}
 
 		fmt.Println("??  Converting and optimizing images...")
@@ -167,6 +184,9 @@ func init() {
 	kindleCmd.Flags().StringP("author", "a", "", "Custom author name")
 	kindleCmd.Flags().Bool("list-devices", false, "List all supported Kindle devices")
 	kindleCmd.Flags().Bool("smart-cut", true, "Split long webtoon strips at panel/bubble-safe rows instead of fixed heights")
+	kindleCmd.Flags().String("cut-preset", integrations.PresetBalanced, "Smart-cut preset: balanced (shrink <=10%), fewest-cuts (shrink <=25%), no-shrink")
+	kindleCmd.Flags().Float64("max-shrink", 0, "Override preset: max page shrink factor, e.g. 1.15 = pages may be 15% smaller (1.0 = never)")
+	kindleCmd.Flags().Float64("overlap", -1, "Override preset: rows repeated after a cut through artwork, as a fraction of page height (e.g. 0.075)")
 
 	rootCmd.AddCommand(kindleCmd)
 }

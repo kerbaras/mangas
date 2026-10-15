@@ -4,11 +4,11 @@ package integrations
 type KindleDevice struct {
 	Name        string
 	Model       string
-	Width       int  // Screen width in pixels
-	Height      int  // Screen height in pixels
-	DPI         int  // Dots per inch
-	Grayscale   bool // Whether device supports only grayscale
-	PanelView   bool // Supports panel view mode
+	Width       int    // Screen width in pixels
+	Height      int    // Screen height in pixels
+	DPI         int    // Dots per inch
+	Grayscale   bool   // Whether device supports only grayscale
+	PanelView   bool   // Supports panel view mode
 	Orientation string // "portrait" or "landscape" or "both"
 }
 
@@ -233,7 +233,7 @@ func (d KindleDevice) GetOptimizationSettings() ImageOptimizationSettings {
 		Quality:       85,
 		Grayscale:     d.Grayscale,
 		Sharpen:       d.Grayscale, // Only sharpen for e-ink displays
-		Contrast:      1.1,          // Slightly boost contrast for e-ink
+		Contrast:      1.1,         // Slightly boost contrast for e-ink
 		Gamma:         1.0,
 		Format:        "jpeg",
 		StripMetadata: true,
@@ -269,9 +269,10 @@ type ExportOptions struct {
 	Author       string
 	Chapters     []string // Chapter IDs or file paths
 	OutputPath   string
-	Optimize     bool // Apply image optimization
-	PanelView    bool // Enable panel view mode
-	RightToLeft  bool // For manga reading direction
-	CoverImage   string // Path to custom cover image
-	SmartCut     bool   // Split long vertical strips (webtoons) at panel/bubble-safe rows
+	Optimize     bool             // Apply image optimization
+	PanelView    bool             // Enable panel view mode
+	RightToLeft  bool             // For manga reading direction
+	CoverImage   string           // Path to custom cover image
+	SmartCut     bool             // Split long vertical strips (webtoons) at panel/bubble-safe rows
+	SmartCutOpts *SmartCutOptions // Tuning for SmartCut; nil uses DefaultSmartCutOptions(Device)
 }

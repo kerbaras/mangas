@@ -116,7 +116,7 @@ func TestPaginateRows_CutsOnGutters(t *testing.T) {
 	h := 5 * 740
 	gutter := func(y int) bool { return y%740 >= 700 }
 	F := featuresFromRows(h, gutter, nil)
-	pages := paginateRows(F, 900, 1.10, 60)
+	pages := paginateRows(F, 900, 1.10, 30, 60)
 	checkCoverage(t, pages, h, 990)
 	if len(pages) != 5 {
 		t.Fatalf("want 5 pages, got %d: %+v", len(pages), pages)
@@ -133,7 +133,7 @@ func TestPaginateRows_ShrinkToFitPanel(t *testing.T) {
 	h := 950 + 40 + 500
 	gutter := func(y int) bool { return y >= 950 && y < 990 }
 	F := featuresFromRows(h, gutter, nil)
-	pages := paginateRows(F, 900, 1.10, 60)
+	pages := paginateRows(F, 900, 1.10, 30, 60)
 	checkCoverage(t, pages, h, 990)
 	if len(pages) != 2 || pages[0].End < 950 || pages[0].End > 990 {
 		t.Fatalf("expected the first page to hold the whole panel: %+v", pages)
@@ -144,7 +144,7 @@ func TestPaginateRows_AvoidsTextAndOverlaps(t *testing.T) {
 	// no gutters at all: a 3000-row full-bleed panel with text at rows 850-1000
 	h := 3000
 	F := featuresFromRows(h, func(int) bool { return false }, func(y int) bool { return y >= 850 && y < 1000 })
-	pages := paginateRows(F, 900, 1.10, 60)
+	pages := paginateRows(F, 900, 1.10, 30, 60)
 	checkCoverage(t, pages, h, 990)
 	for i, p := range pages {
 		if p.End < h && p.End >= 850 && p.End < 1000 {
@@ -194,7 +194,7 @@ func TestRenderPage(t *testing.T) {
 }
 
 func TestStripPaginator_CarryOverAcrossFiles(t *testing.T) {
-	o := SmartCutOptions{DeviceWidth: 600, DeviceHeight: 800, MaxShrink: 1.10, OverlapFrac: 0.075, AnalysisWidth: 720}
+	o := SmartCutOptions{DeviceWidth: 600, DeviceHeight: 800, MaxShrink: 1.10, ShrinkPenalty: 30, OverlapFrac: 0.075, AnalysisWidth: 720}
 	// capacity for a 400-wide strip is 533 rows. A 500-row panel straddles the file boundary at 1200.
 	panels := [][2]int{{20, 480}, {520, 980}, {1020, 1520}, {1560, 2000}, {2040, 2380}}
 	whole := syntheticStrip(400, 2400, panels)
@@ -241,7 +241,7 @@ func TestStripPaginator_CarryOverAcrossFiles(t *testing.T) {
 }
 
 func TestStripPaginator_FlushAndWidthChange(t *testing.T) {
-	o := SmartCutOptions{DeviceWidth: 600, DeviceHeight: 800, MaxShrink: 1.10, OverlapFrac: 0.075, AnalysisWidth: 720}
+	o := SmartCutOptions{DeviceWidth: 600, DeviceHeight: 800, MaxShrink: 1.10, ShrinkPenalty: 30, OverlapFrac: 0.075, AnalysisWidth: 720}
 	p := NewStripPaginator(o)
 	if got := p.Feed(syntheticStrip(400, 300, [][2]int{{20, 280}}), false); len(got) != 0 {
 		t.Fatalf("a short non-final chunk should be held back, got %d pages", len(got))
@@ -253,5 +253,56 @@ func TestStripPaginator_FlushAndWidthChange(t *testing.T) {
 	}
 	if p.Flush() != nil {
 		t.Fatal("nothing should remain after a final chunk")
+	}
+}
+
+func TestSmartCutPreset(t *testing.T) {
+	d := KindleDevices["kindle-paperwhite12"]
+	for _, name := range SmartCutPresets {
+		o, err := SmartCutPreset(name, d)
+		if err != nil || o.DeviceWidth != d.Width || o.MaxShrink < 1.0 {
+			t.Fatalf("preset %s: %+v %v", name, o, err)
+		}
+	}
+	if _, err := SmartCutPreset("bogus", d); err == nil {
+		t.Fatal("unknown preset must error")
+	}
+	if DefaultSmartCutOptions(d).MaxShrink != 1.10 {
+		t.Fatal("default preset should be balanced")
+	}
+}
+
+func TestFilters_SubImage(t *testing.T) {
+	proc := NewImageProcessor(ImageOptimizationSettings{MaxWidth: 1000, MaxHeight: 1000, Quality: 80, Grayscale: true, Sharpen: true, Contrast: 1.1, Gamma: 0.9, Format: "jpeg"})
+	full := image.NewGray(image.Rect(0, 0, 200, 200))
+	for i := range full.Pix {
+		full.Pix[i] = uint8(i)
+	}
+	sub := full.SubImage(image.Rect(50, 50, 150, 120)).(*image.Gray)
+	out, err := proc.ProcessDecoded(sub)
+	if err != nil || len(out) == 0 {
+		t.Fatalf("gray sub-image: %v", err)
+	}
+	rgba := image.NewRGBA(image.Rect(0, 0, 200, 200))
+	subRGBA := rgba.SubImage(image.Rect(10, 20, 90, 70)).(*image.RGBA)
+	if g := proc.toGrayscale(subRGBA); g.Bounds().Dx() != 80 || g.Bounds().Dy() != 50 {
+		t.Fatalf("rgba sub-image: %v", g.Bounds())
+	}
+	if _, err := proc.ProcessDecoded(subRGBA); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestStripPaginator_ShortTrailingChunkStaysInStrip(t *testing.T) {
+	o := SmartCutOptions{DeviceWidth: 600, DeviceHeight: 800, MaxShrink: 1.10, ShrinkPenalty: 30, OverlapFrac: 0.075, AnalysisWidth: 720}
+	p := NewStripPaginator(o)
+	p.Feed(syntheticStrip(400, 1500, [][2]int{{20, 500}, {540, 1000}, {1040, 1500}}), false)
+	if !p.HasPending(400) || p.HasPending(500) {
+		t.Fatal("pending rows should be reported for the same width only")
+	}
+	// a 300-row tail is not a long strip on its own but must join the held-back rows
+	got := p.Feed(syntheticStrip(400, 300, [][2]int{{0, 260}}), true)
+	if len(got) == 0 || p.HasPending(400) {
+		t.Fatalf("tail should have been paginated with the pending rows, got %d pages", len(got))
 	}
 }

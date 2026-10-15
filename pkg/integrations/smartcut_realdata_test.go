@@ -22,7 +22,11 @@ func TestSmartCut_RealChapter(t *testing.T) {
 	files, _ := filepath.Glob(filepath.Join(dir, "*"))
 	sort.Strings(files)
 	dev, _ := GetDeviceProfile("kindle-paperwhite12")
-	p := NewStripPaginator(DefaultSmartCutOptions(dev))
+	cutOpts, err := SmartCutPreset(os.Getenv("MANGAS_SMARTCUT_PRESET"), dev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := NewStripPaginator(cutOpts)
 	var spans [][2]int
 	offset := 0 // global row of the top of the current unit
 	carryH := 0
@@ -57,7 +61,7 @@ func TestSmartCut_RealChapter(t *testing.T) {
 	if os.Getenv("MANGAS_SMARTCUT_TIME_FILTERS") != "" {
 		// time the e-ink filters + JPEG encoding over a chapter's worth of pages
 		proc := NewImageProcessor(dev.GetOptimizationSettings())
-		q := NewStripPaginator(DefaultSmartCutOptions(dev))
+		q := NewStripPaginator(cutOpts)
 		var all []*image.RGBA
 		for i, f := range files {
 			data, _ := os.ReadFile(f)
@@ -83,7 +87,7 @@ func TestSmartCut_RealChapter(t *testing.T) {
 	}
 	if sample := os.Getenv("MANGAS_SMARTCUT_SAMPLES"); sample != "" {
 		// re-run on the first two files and dump a few pages for eyeballing
-		q := NewStripPaginator(DefaultSmartCutOptions(dev))
+		q := NewStripPaginator(cutOpts)
 		var all []*image.RGBA
 		for i, f := range files[:2] {
 			data, _ := os.ReadFile(f)

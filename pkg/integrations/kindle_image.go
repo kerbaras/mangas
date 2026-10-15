@@ -26,8 +26,11 @@ func NewImageProcessor(settings ImageOptimizationSettings) *ImageProcessor {
 
 // ProcessImage optimizes an image for Kindle display
 func (p *ImageProcessor) ProcessImage(input io.Reader) ([]byte, error) {
-	// Decode image
-	img, format, err := image.Decode(input)
+	data, err := io.ReadAll(input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read image: %w", err)
+	}
+	img, format, err := decodeImage(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode image: %w", err)
 	}
@@ -105,9 +108,9 @@ func (p *ImageProcessor) resize(img image.Image, width, height int) image.Image 
 	return dst
 }
 
-// toRGBA returns img as *image.RGBA without copying when it already is one.
+// toRGBA returns img as a tightly packed, zero-origin *image.RGBA, without copying when it already is one.
 func toRGBA(img image.Image) *image.RGBA {
-	if rgba, ok := img.(*image.RGBA); ok {
+	if rgba, ok := img.(*image.RGBA); ok && isPacked(rgba.Bounds(), rgba.Stride, 4) {
 		return rgba
 	}
 	b := img.Bounds()
@@ -116,9 +119,30 @@ func toRGBA(img image.Image) *image.RGBA {
 	return dst
 }
 
+// isPacked reports whether an image with these bounds and stride is zero-origin with no row padding,
+// so its Pix slice can be walked linearly.
+func isPacked(b image.Rectangle, stride, channels int) bool {
+	return b.Min == image.Point{} && stride == b.Dx()*channels
+}
+
+// toGray returns img as a tightly packed, zero-origin *image.Gray (copying only sub-images), or nil.
+func toGray(img image.Image) *image.Gray {
+	g, ok := img.(*image.Gray)
+	if !ok {
+		return nil
+	}
+	if isPacked(g.Bounds(), g.Stride, 1) {
+		return g
+	}
+	b := g.Bounds()
+	dst := image.NewGray(image.Rect(0, 0, b.Dx(), b.Dy()))
+	draw.Draw(dst, dst.Bounds(), g, b.Min, draw.Src)
+	return dst
+}
+
 // toGrayscale converts an image to grayscale (BT.601 luma)
 func (p *ImageProcessor) toGrayscale(img image.Image) image.Image {
-	if g, ok := img.(*image.Gray); ok {
+	if g := toGray(img); g != nil {
 		return g
 	}
 	src := toRGBA(img)
@@ -193,48 +217,40 @@ func (p *ImageProcessor) toneLUT() *[256]uint8 {
 
 // applyLUT maps every colour channel through lut (alpha untouched), keeping the image type.
 func applyLUT(img image.Image, lut *[256]uint8) image.Image {
-	switch src := img.(type) {
-	case *image.Gray:
+	if src := toGray(img); src != nil {
 		dst := image.NewGray(src.Bounds())
 		for i, v := range src.Pix {
 			dst.Pix[i] = lut[v]
 		}
 		return dst
-	default:
-		rgba := toRGBA(img)
-		dst := image.NewRGBA(rgba.Bounds())
-		for i, v := range rgba.Pix {
-			if i&3 == 3 {
-				dst.Pix[i] = v
-			} else {
-				dst.Pix[i] = lut[v]
-			}
-		}
-		return dst
 	}
+	rgba := toRGBA(img)
+	dst := image.NewRGBA(rgba.Bounds())
+	for i, v := range rgba.Pix {
+		if i&3 == 3 {
+			dst.Pix[i] = v
+		} else {
+			dst.Pix[i] = lut[v]
+		}
+	}
+	return dst
 }
 
 // sharpen applies a simple sharpening filter for e-ink displays
 //
 // 3x3 kernel [-1 -1 -1; -1 9 -1; -1 -1 -1]; border pixels are copied as-is.
 func (p *ImageProcessor) sharpen(img image.Image) image.Image {
-	var pix []uint8
-	var stride, channels, w, h int
-	var out image.Image
-	switch src := img.(type) {
-	case *image.Gray:
+	if src := toGray(img); src != nil {
 		dst := image.NewGray(src.Bounds())
 		copy(dst.Pix, src.Pix)
-		pix, stride, channels, w, h, out = src.Pix, src.Stride, 1, src.Bounds().Dx(), src.Bounds().Dy(), dst
-		sharpenPix(pix, dst.Pix, stride, channels, w, h)
-	default:
-		rgba := toRGBA(img)
-		dst := image.NewRGBA(rgba.Bounds())
-		copy(dst.Pix, rgba.Pix)
-		pix, stride, channels, w, h, out = rgba.Pix, rgba.Stride, 4, rgba.Bounds().Dx(), rgba.Bounds().Dy(), dst
-		sharpenPix(pix, dst.Pix, stride, channels, w, h)
+		sharpenPix(src.Pix, dst.Pix, src.Stride, 1, src.Bounds().Dx(), src.Bounds().Dy())
+		return dst
 	}
-	return out
+	rgba := toRGBA(img)
+	dst := image.NewRGBA(rgba.Bounds())
+	copy(dst.Pix, rgba.Pix)
+	sharpenPix(rgba.Pix, dst.Pix, rgba.Stride, 4, rgba.Bounds().Dx(), rgba.Bounds().Dy())
+	return dst
 }
 
 func sharpenPix(src, dst []uint8, stride, channels, w, h int) {

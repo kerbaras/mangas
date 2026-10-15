@@ -59,12 +59,22 @@ func (c *KindleConverter) ConvertChapters(options ExportOptions) (string, error)
 		return "", fmt.Errorf("failed to create output directory: %w", err)
 	}
 
+	var cutOpts *SmartCutOptions
+	if options.SmartCut {
+		if options.SmartCutOpts != nil {
+			cutOpts = options.SmartCutOpts
+		} else {
+			o := DefaultSmartCutOptions(c.device)
+			cutOpts = &o
+		}
+	}
+
 	// Extract and process all chapter images
 	allImages := make([]ProcessedImage, 0)
 	chapterTitles := make([]string, 0)
 
 	for i, chapterPath := range options.Chapters {
-		images, title, err := c.extractAndProcessChapter(chapterPath, i, options.SmartCut)
+		images, title, err := c.extractAndProcessChapter(chapterPath, i, cutOpts)
 		if err != nil {
 			return "", fmt.Errorf("failed to process chapter %s: %w", chapterPath, err)
 		}
@@ -100,10 +110,10 @@ type ProcessedImage struct {
 
 // extractAndProcessChapter extracts images from an EPUB and processes them.
 //
-// With smartCut, consecutive long vertical strips (webtoon chunks) are stitched together and split
+// With cutOpts set, consecutive long vertical strips (webtoon chunks) are stitched together and split
 // into device pages at rows that do not cross panels, text or speech bubbles; regular pages are
 // scaled to fit as before.
-func (c *KindleConverter) extractAndProcessChapter(epubPath string, chapterIndex int, smartCut bool) ([]ProcessedImage, string, error) {
+func (c *KindleConverter) extractAndProcessChapter(epubPath string, chapterIndex int, cutOpts *SmartCutOptions) ([]ProcessedImage, string, error) {
 	// Open EPUB as ZIP
 	reader, err := zip.OpenReader(epubPath)
 	if err != nil {
@@ -142,10 +152,8 @@ func (c *KindleConverter) extractAndProcessChapter(epubPath string, chapterIndex
 	}
 
 	var paginator *StripPaginator
-	var cutOpts SmartCutOptions
-	if smartCut {
-		cutOpts = DefaultSmartCutOptions(c.device)
-		paginator = NewStripPaginator(cutOpts)
+	if cutOpts != nil {
+		paginator = NewStripPaginator(*cutOpts)
 	}
 	stripPages := 0
 	emitPages := func(pages []*image.RGBA, filename string) {
@@ -167,7 +175,8 @@ func (c *KindleConverter) extractAndProcessChapter(epubPath string, chapterIndex
 		if err != nil {
 			continue
 		}
-		if paginator != nil && IsLongStrip(img.Bounds().Dx(), img.Bounds().Dy(), cutOpts) {
+		// A short trailing chunk of a strip still belongs to the strip held back by the paginator.
+		if paginator != nil && (IsLongStrip(img.Bounds().Dx(), img.Bounds().Dy(), *cutOpts) || paginator.HasPending(img.Bounds().Dx())) {
 			emitPages(paginator.Feed(img, i == len(entries)-1), e.name)
 			continue
 		}
@@ -249,12 +258,12 @@ func (c *KindleConverter) generateOptimizedEPUB(images []ProcessedImage, chapter
 		return "", err
 	}
 
-	// Add all processed images
-	for _, img := range images {
+	// Add all processed images in order (images are already chapter-ordered)
+	for i, img := range images {
 		imageData := ImageData{
 			Content:     img.Data,
 			ContentType: "image/jpeg",
-			Index:       img.ChapterIndex*1000 + img.PageIndex,
+			Index:       i,
 		}
 		if err := epubBuilder.Next(imageData); err != nil {
 			return "", err
