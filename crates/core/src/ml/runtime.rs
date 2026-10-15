@@ -25,16 +25,46 @@ pub fn provider_name() -> &'static str {
     }
 }
 
+/// Platform accelerators in preference order; ort skips any that is unavailable at runtime.
+fn accelerators() -> Vec<ExecutionProviderDispatch> {
+    [cuda(), coreml(), directml()]
+        .into_iter()
+        .flatten()
+        .collect()
+}
+
+#[cfg(feature = "cuda")]
+fn cuda() -> Option<ExecutionProviderDispatch> {
+    Some(ort::ep::CUDA::default().build())
+}
+#[cfg(not(feature = "cuda"))]
+fn cuda() -> Option<ExecutionProviderDispatch> {
+    None
+}
+
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+fn coreml() -> Option<ExecutionProviderDispatch> {
+    Some(ort::ep::CoreML::default().build())
+}
+#[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+fn coreml() -> Option<ExecutionProviderDispatch> {
+    None
+}
+
+#[cfg(windows)]
+fn directml() -> Option<ExecutionProviderDispatch> {
+    Some(ort::ep::DirectML::default().build())
+}
+#[cfg(not(windows))]
+fn directml() -> Option<ExecutionProviderDispatch> {
+    None
+}
+
 fn providers() -> Vec<ExecutionProviderDispatch> {
-    let mut eps: Vec<ExecutionProviderDispatch> = Vec::new();
-    #[cfg(feature = "cuda")]
-    eps.push(ort::ep::CUDA::default().build());
-    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-    eps.push(ort::ep::CoreML::default().build());
-    #[cfg(windows)]
-    eps.push(ort::ep::DirectML::default().build());
-    eps.push(ort::ep::CPU::default().build());
-    eps
+    accelerators()
+        .into_iter()
+        .chain(std::iter::once(ort::ep::CPU::default().build()))
+        .collect()
 }
 
 pub fn load_session(path: &Path) -> Result<Session> {

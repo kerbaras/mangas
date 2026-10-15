@@ -31,8 +31,10 @@ pub struct Args {
     /// EPUB title (defaults to the first chapter directory's parent name)
     #[arg(long)]
     pub title: Option<String>,
+    /// Output EPUB path [default: out.epub]
     #[arg(long, short)]
     pub output: Option<PathBuf>,
+    /// Print the known device profiles and exit
     #[arg(long)]
     pub list_devices: bool,
 }

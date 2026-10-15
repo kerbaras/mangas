@@ -102,7 +102,7 @@ fn execution_provider_name() -> Option<String> {
 #[cfg(feature = "ml")]
 pub async fn row_penalizer(
     cache_dir: &Path,
-    on_progress: &mut dyn FnMut(&str, u64, Option<u64>),
+    on_progress: &mut (dyn FnMut(&str, u64, Option<u64>) + Send),
 ) -> Result<RowPenalizer> {
     let mut paths = Vec::new();
     for spec in &MODELS {
@@ -116,7 +116,7 @@ pub async fn row_penalizer(
 #[cfg(not(feature = "ml"))]
 pub async fn row_penalizer(
     _cache_dir: &Path,
-    _on_progress: &mut dyn FnMut(&str, u64, Option<u64>),
+    _on_progress: &mut (dyn FnMut(&str, u64, Option<u64>) + Send),
 ) -> Result<RowPenalizer> {
     Err(crate::domain::Error::Other(
         "detectors need a build with the `ml` feature (cargo build --features ml)".into(),

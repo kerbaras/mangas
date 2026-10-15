@@ -38,7 +38,7 @@ fn verify(spec: &ModelSpec, bytes: &[u8]) -> Result<()> {
 pub async fn ensure_model(
     cache_dir: &Path,
     spec: &ModelSpec,
-    on_progress: &mut dyn FnMut(u64, Option<u64>),
+    on_progress: &mut (dyn FnMut(u64, Option<u64>) + Send),
 ) -> Result<PathBuf> {
     let path = model_path(cache_dir, spec);
     if path.is_file() {
