@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"image"
-	"image/color"
 	"image/jpeg"
 	"image/png"
 	"io"
+	"math"
 
 	"golang.org/x/image/draw"
 )
@@ -31,7 +31,15 @@ func (p *ImageProcessor) ProcessImage(input io.Reader) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode image: %w", err)
 	}
+	return p.processDecoded(img, format)
+}
 
+// ProcessDecoded optimizes an already decoded image for Kindle display
+func (p *ImageProcessor) ProcessDecoded(img image.Image) ([]byte, error) {
+	return p.processDecoded(img, "")
+}
+
+func (p *ImageProcessor) processDecoded(img image.Image, format string) ([]byte, error) {
 	// Get original dimensions
 	bounds := img.Bounds()
 	origWidth := bounds.Dx()
@@ -51,14 +59,9 @@ func (p *ImageProcessor) ProcessImage(input io.Reader) ([]byte, error) {
 		processed = p.toGrayscale(processed)
 	}
 
-	// Apply contrast adjustment if needed
-	if p.settings.Contrast != 1.0 {
-		processed = p.adjustContrast(processed, p.settings.Contrast)
-	}
-
-	// Apply gamma correction if needed
-	if p.settings.Gamma != 1.0 {
-		processed = p.adjustGamma(processed, p.settings.Gamma)
+	// Apply contrast and gamma in one pass if needed
+	if p.settings.Contrast != 1.0 || p.settings.Gamma != 1.0 {
+		processed = applyLUT(processed, p.toneLUT())
 	}
 
 	// Apply sharpening for e-ink if enabled
@@ -95,182 +98,166 @@ func (p *ImageProcessor) calculateDimensions(width, height int) (int, int) {
 // resize resizes an image using high-quality interpolation
 func (p *ImageProcessor) resize(img image.Image, width, height int) image.Image {
 	dst := image.NewRGBA(image.Rect(0, 0, width, height))
-	
+
 	// Use CatmullRom for high-quality downscaling
 	draw.CatmullRom.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Over, nil)
-	
+
 	return dst
 }
 
-// toGrayscale converts an image to grayscale
-func (p *ImageProcessor) toGrayscale(img image.Image) image.Image {
-	bounds := img.Bounds()
-	gray := image.NewGray(bounds)
+// toRGBA returns img as *image.RGBA without copying when it already is one.
+func toRGBA(img image.Image) *image.RGBA {
+	if rgba, ok := img.(*image.RGBA); ok {
+		return rgba
+	}
+	b := img.Bounds()
+	dst := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
+	draw.Draw(dst, dst.Bounds(), img, b.Min, draw.Src)
+	return dst
+}
 
-	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			gray.Set(x, y, img.At(x, y))
+// toGrayscale converts an image to grayscale (BT.601 luma)
+func (p *ImageProcessor) toGrayscale(img image.Image) image.Image {
+	if g, ok := img.(*image.Gray); ok {
+		return g
+	}
+	src := toRGBA(img)
+	w, h := src.Bounds().Dx(), src.Bounds().Dy()
+	gray := image.NewGray(image.Rect(0, 0, w, h))
+	for y := 0; y < h; y++ {
+		s := src.Pix[y*src.Stride : y*src.Stride+w*4]
+		d := gray.Pix[y*gray.Stride : y*gray.Stride+w]
+		for x := 0; x < w; x++ {
+			d[x] = uint8((19595*uint32(s[x*4]) + 38470*uint32(s[x*4+1]) + 7471*uint32(s[x*4+2]) + 1<<15) >> 16)
 		}
 	}
-
 	return gray
 }
 
 // adjustContrast adjusts the contrast of an image
 func (p *ImageProcessor) adjustContrast(img image.Image, factor float64) image.Image {
-	bounds := img.Bounds()
-	adjusted := image.NewRGBA(bounds)
-
-	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			r, g, b, a := img.At(x, y).RGBA()
-			
-			// Convert to 0-255 range
-			r8 := uint8(r >> 8)
-			g8 := uint8(g >> 8)
-			b8 := uint8(b >> 8)
-			a8 := uint8(a >> 8)
-
-			// Apply contrast adjustment
-			r8 = p.adjustChannel(r8, factor)
-			g8 = p.adjustChannel(g8, factor)
-			b8 = p.adjustChannel(b8, factor)
-
-			adjusted.SetRGBA(x, y, color.RGBA{r8, g8, b8, a8})
-		}
+	var lut [256]uint8
+	for i := range lut {
+		lut[i] = p.adjustChannel(uint8(i), factor)
 	}
-
-	return adjusted
+	return applyLUT(img, &lut)
 }
 
 // adjustChannel adjusts a single color channel
 func (p *ImageProcessor) adjustChannel(value uint8, factor float64) uint8 {
 	// Center around 128 (middle gray)
-	adjusted := float64(value-128)*factor + 128
-	
+	adjusted := (float64(value)-128)*factor + 128
+
 	if adjusted < 0 {
 		return 0
 	}
 	if adjusted > 255 {
 		return 255
 	}
-	
+
 	return uint8(adjusted)
 }
 
 // adjustGamma applies gamma correction to an image
 func (p *ImageProcessor) adjustGamma(img image.Image, gamma float64) image.Image {
-	bounds := img.Bounds()
-	adjusted := image.NewRGBA(bounds)
-
-	// Build gamma lookup table
-	gammaTable := make([]uint8, 256)
-	for i := 0; i < 256; i++ {
-		normalized := float64(i) / 255.0
-		corrected := 255.0 * pow(normalized, 1.0/gamma)
-		if corrected > 255 {
-			corrected = 255
-		}
-		gammaTable[i] = uint8(corrected)
+	var lut [256]uint8
+	for i := range lut {
+		lut[i] = gammaChannel(uint8(i), gamma)
 	}
-
-	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			r, g, b, a := img.At(x, y).RGBA()
-			
-			r8 := gammaTable[uint8(r>>8)]
-			g8 := gammaTable[uint8(g>>8)]
-			b8 := gammaTable[uint8(b>>8)]
-			a8 := uint8(a >> 8)
-
-			adjusted.SetRGBA(x, y, color.RGBA{r8, g8, b8, a8})
-		}
-	}
-
-	return adjusted
+	return applyLUT(img, &lut)
 }
 
-// pow is a simple power function for gamma calculation
-func pow(x, y float64) float64 {
-	if y == 1.0 {
-		return x
+func gammaChannel(value uint8, gamma float64) uint8 {
+	corrected := 255.0 * math.Pow(float64(value)/255.0, 1.0/gamma)
+	if corrected > 255 {
+		corrected = 255
 	}
-	if y == 2.0 {
-		return x * x
+	return uint8(corrected + 0.5)
+}
+
+// toneLUT folds the contrast and gamma steps into one lookup table.
+func (p *ImageProcessor) toneLUT() *[256]uint8 {
+	var lut [256]uint8
+	for i := range lut {
+		v := uint8(i)
+		if p.settings.Contrast != 1.0 {
+			v = p.adjustChannel(v, p.settings.Contrast)
+		}
+		if p.settings.Gamma != 1.0 {
+			v = gammaChannel(v, p.settings.Gamma)
+		}
+		lut[i] = v
 	}
-	// For other values, use a simple approximation
-	// This is sufficient for gamma correction
-	result := 1.0
-	absY := y
-	if y < 0 {
-		absY = -y
+	return &lut
+}
+
+// applyLUT maps every colour channel through lut (alpha untouched), keeping the image type.
+func applyLUT(img image.Image, lut *[256]uint8) image.Image {
+	switch src := img.(type) {
+	case *image.Gray:
+		dst := image.NewGray(src.Bounds())
+		for i, v := range src.Pix {
+			dst.Pix[i] = lut[v]
+		}
+		return dst
+	default:
+		rgba := toRGBA(img)
+		dst := image.NewRGBA(rgba.Bounds())
+		for i, v := range rgba.Pix {
+			if i&3 == 3 {
+				dst.Pix[i] = v
+			} else {
+				dst.Pix[i] = lut[v]
+			}
+		}
+		return dst
 	}
-	
-	for i := 0; i < int(absY*10); i++ {
-		result *= x
-	}
-	
-	if y < 0 {
-		return 1.0 / result
-	}
-	return result
 }
 
 // sharpen applies a simple sharpening filter for e-ink displays
+//
+// 3x3 kernel [-1 -1 -1; -1 9 -1; -1 -1 -1]; border pixels are copied as-is.
 func (p *ImageProcessor) sharpen(img image.Image) image.Image {
-	bounds := img.Bounds()
-	sharpened := image.NewRGBA(bounds)
+	var pix []uint8
+	var stride, channels, w, h int
+	var out image.Image
+	switch src := img.(type) {
+	case *image.Gray:
+		dst := image.NewGray(src.Bounds())
+		copy(dst.Pix, src.Pix)
+		pix, stride, channels, w, h, out = src.Pix, src.Stride, 1, src.Bounds().Dx(), src.Bounds().Dy(), dst
+		sharpenPix(pix, dst.Pix, stride, channels, w, h)
+	default:
+		rgba := toRGBA(img)
+		dst := image.NewRGBA(rgba.Bounds())
+		copy(dst.Pix, rgba.Pix)
+		pix, stride, channels, w, h, out = rgba.Pix, rgba.Stride, 4, rgba.Bounds().Dx(), rgba.Bounds().Dy(), dst
+		sharpenPix(pix, dst.Pix, stride, channels, w, h)
+	}
+	return out
+}
 
-	// Simple 3x3 sharpening kernel
-	// [ -1 -1 -1 ]
-	// [ -1  9 -1 ]
-	// [ -1 -1 -1 ]
-	
-	for y := bounds.Min.Y + 1; y < bounds.Max.Y-1; y++ {
-		for x := bounds.Min.X + 1; x < bounds.Max.X-1; x++ {
-			// Get surrounding pixels
-			var rSum, gSum, bSum int32
-			
-			// Center pixel (weight: 9)
-			r, g, b, a := img.At(x, y).RGBA()
-			rSum += int32(r>>8) * 9
-			gSum += int32(g>>8) * 9
-			bSum += int32(b>>8) * 9
-
-			// Surrounding pixels (weight: -1 each)
-			for dy := -1; dy <= 1; dy++ {
-				for dx := -1; dx <= 1; dx++ {
-					if dx == 0 && dy == 0 {
-						continue
-					}
-					r, g, b, _ := img.At(x+dx, y+dy).RGBA()
-					rSum -= int32(r >> 8)
-					gSum -= int32(g >> 8)
-					bSum -= int32(b >> 8)
-				}
+func sharpenPix(src, dst []uint8, stride, channels, w, h int) {
+	colour := channels
+	if channels == 4 {
+		colour = 3 // leave alpha alone
+	}
+	for y := 1; y < h-1; y++ {
+		up := src[(y-1)*stride:]
+		mid := src[y*stride:]
+		down := src[(y+1)*stride:]
+		row := dst[y*stride:]
+		for x := 1; x < w-1; x++ {
+			for c := 0; c < colour; c++ {
+				i := x*channels + c
+				sum := 9*int32(mid[i]) -
+					int32(up[i-channels]) - int32(up[i]) - int32(up[i+channels]) -
+					int32(mid[i-channels]) - int32(mid[i+channels]) -
+					int32(down[i-channels]) - int32(down[i]) - int32(down[i+channels])
+				row[i] = clamp(sum)
 			}
-
-			// Clamp values
-			r8 := clamp(rSum)
-			g8 := clamp(gSum)
-			b8 := clamp(bSum)
-			a8 := uint8(a >> 8)
-
-			sharpened.SetRGBA(x, y, color.RGBA{r8, g8, b8, a8})
 		}
 	}
-
-	// Copy edges as-is
-	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		sharpened.Set(bounds.Min.X, y, img.At(bounds.Min.X, y))
-		sharpened.Set(bounds.Max.X-1, y, img.At(bounds.Max.X-1, y))
-	}
-	for x := bounds.Min.X; x < bounds.Max.X; x++ {
-		sharpened.Set(x, bounds.Min.Y, img.At(x, bounds.Min.Y))
-		sharpened.Set(x, bounds.Max.Y-1, img.At(x, bounds.Max.Y-1))
-	}
-
-	return sharpened
 }
 
 // clamp restricts a value to the 0-255 range

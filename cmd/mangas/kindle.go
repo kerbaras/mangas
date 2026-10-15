@@ -22,6 +22,10 @@ Examples:
   mangas kindle "One Piece" --device kindle-paperwhite3 --chapters 1-10
   mangas kindle "Naruto" --device kindle-oasis --format mobi
   mangas kindle "Bleach" --device kindle-scribe --chapters 5,6,7
+  mangas kindle "Solo Leveling" --device kindle-paperwhite12 --format epub
+
+Long vertical strips (webtoons / manhwa) are split into device pages at rows that avoid panels,
+text and speech bubbles (disable with --smart-cut=false).
 
 Use 'mangas kindle --list-devices' to see all supported Kindle devices.`,
 	Args: cobra.MaximumNArgs(1),
@@ -44,6 +48,7 @@ Use 'mangas kindle --list-devices' to see all supported Kindle devices.`,
 		output, _ := cmd.Flags().GetString("output")
 		title, _ := cmd.Flags().GetString("title")
 		author, _ := cmd.Flags().GetString("author")
+		smartCut, _ := cmd.Flags().GetBool("smart-cut")
 
 		// Validate device
 		if deviceID == "" {
@@ -135,6 +140,7 @@ Use 'mangas kindle --list-devices' to see all supported Kindle devices.`,
 			Optimize:    true,
 			PanelView:   device.PanelView,
 			RightToLeft: true, // Manga reading direction
+			SmartCut:    smartCut,
 		}
 
 		fmt.Println("??  Converting and optimizing images...")
@@ -160,6 +166,7 @@ func init() {
 	kindleCmd.Flags().StringP("title", "t", "", "Custom title for the export")
 	kindleCmd.Flags().StringP("author", "a", "", "Custom author name")
 	kindleCmd.Flags().Bool("list-devices", false, "List all supported Kindle devices")
+	kindleCmd.Flags().Bool("smart-cut", true, "Split long webtoon strips at panel/bubble-safe rows instead of fixed heights")
 
 	rootCmd.AddCommand(kindleCmd)
 }
@@ -167,6 +174,8 @@ func init() {
 func printDeviceList() {
 	fmt.Println("📱 Supported Kindle Devices:")
 	fmt.Println("E-Ink Readers:")
+	fmt.Println("  kindle-paperwhite12   - Kindle Paperwhite 12th gen / Signature (300 DPI, 7\")")
+	fmt.Println("  kindle-paperwhite5    - Kindle Paperwhite 11th gen / Signature (300 DPI, 6.8\")")
 	fmt.Println("  kindle-paperwhite3    - Kindle Paperwhite 3/4 (300 DPI)")
 	fmt.Println("  kindle-oasis          - Kindle Oasis 1/2 (300 DPI)")
 	fmt.Println("  kindle-oasis3         - Kindle Oasis 3 (300 DPI, larger screen)")
@@ -183,6 +192,7 @@ func printDeviceList() {
 	fmt.Println("  kindle-fire           - Kindle Fire (169 DPI)")
 	fmt.Println()
 	fmt.Println("?? Recommended devices for manga:")
+	fmt.Println("   - kindle-paperwhite12 (current Paperwhite; long webtoon strips are smart-cut by default)")
 	fmt.Println("   - kindle-paperwhite3 (best balance of quality and compatibility)")
 	fmt.Println("   - kindle-oasis3 (larger screen, great for manga)")
 	fmt.Println("   - kindle-scribe (largest screen available)")

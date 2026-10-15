@@ -94,6 +94,26 @@ var KindleDevices = map[string]KindleDevice{
 		PanelView:   true,
 		Orientation: "portrait",
 	},
+	"kindle-paperwhite5": {
+		Name:        "Kindle Paperwhite 5 (11th gen) / Signature Edition",
+		Model:       "KPW5",
+		Width:       1236,
+		Height:      1648,
+		DPI:         300,
+		Grayscale:   true,
+		PanelView:   true,
+		Orientation: "portrait",
+	},
+	"kindle-paperwhite12": {
+		Name:        "Kindle Paperwhite (12th gen, 2024) / Signature Edition",
+		Model:       "KPW12",
+		Width:       1264,
+		Height:      1680,
+		DPI:         300,
+		Grayscale:   true,
+		PanelView:   true,
+		Orientation: "portrait",
+	},
 	"kindle-voyage": {
 		Name:        "Kindle Voyage",
 		Model:       "KV",
@@ -253,4 +273,5 @@ type ExportOptions struct {
 	PanelView    bool // Enable panel view mode
 	RightToLeft  bool // For manga reading direction
 	CoverImage   string // Path to custom cover image
+	SmartCut     bool   // Split long vertical strips (webtoons) at panel/bubble-safe rows
 }

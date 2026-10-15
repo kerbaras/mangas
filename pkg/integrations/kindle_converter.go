@@ -5,12 +5,15 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"image"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/kerbaras/mangas/pkg/data"
 )
@@ -61,7 +64,7 @@ func (c *KindleConverter) ConvertChapters(options ExportOptions) (string, error)
 	chapterTitles := make([]string, 0)
 
 	for i, chapterPath := range options.Chapters {
-		images, title, err := c.extractAndProcessChapter(chapterPath, i)
+		images, title, err := c.extractAndProcessChapter(chapterPath, i, options.SmartCut)
 		if err != nil {
 			return "", fmt.Errorf("failed to process chapter %s: %w", chapterPath, err)
 		}
@@ -95,8 +98,12 @@ type ProcessedImage struct {
 	Filename     string
 }
 
-// extractAndProcessChapter extracts images from an EPUB and processes them
-func (c *KindleConverter) extractAndProcessChapter(epubPath string, chapterIndex int) ([]ProcessedImage, string, error) {
+// extractAndProcessChapter extracts images from an EPUB and processes them.
+//
+// With smartCut, consecutive long vertical strips (webtoon chunks) are stitched together and split
+// into device pages at rows that do not cross panels, text or speech bubbles; regular pages are
+// scaled to fit as before.
+func (c *KindleConverter) extractAndProcessChapter(epubPath string, chapterIndex int, smartCut bool) ([]ProcessedImage, string, error) {
 	// Open EPUB as ZIP
 	reader, err := zip.OpenReader(epubPath)
 	if err != nil {
@@ -104,61 +111,119 @@ func (c *KindleConverter) extractAndProcessChapter(epubPath string, chapterIndex
 	}
 	defer reader.Close()
 
-	images := make([]ProcessedImage, 0)
 	chapterTitle := fmt.Sprintf("Chapter %d", chapterIndex+1)
 
-	// Find all images in the EPUB
+	// Collect image entries in reading order (by filename)
+	type entry struct {
+		name string
+		file *zip.File
+	}
+	entries := make([]entry, 0)
 	for _, file := range reader.File {
-		// Check if file is an image
-		if !strings.HasSuffix(strings.ToLower(file.Name), ".jpg") &&
-			!strings.HasSuffix(strings.ToLower(file.Name), ".jpeg") &&
-			!strings.HasSuffix(strings.ToLower(file.Name), ".png") {
+		if !isSupportedImageName(file.Name) {
 			continue
 		}
-
 		// Skip cover images (we'll handle them separately)
 		if strings.Contains(strings.ToLower(file.Name), "cover") {
 			continue
 		}
+		entries = append(entries, entry{name: filepath.Base(file.Name), file: file})
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].name < entries[j].name })
 
-		// Extract image
-		rc, err := file.Open()
+	images := make([]ProcessedImage, 0)
+	add := func(data []byte, filename string) {
+		images = append(images, ProcessedImage{
+			Data:         data,
+			ChapterIndex: chapterIndex,
+			PageIndex:    len(images),
+			Filename:     filename,
+		})
+	}
+
+	var paginator *StripPaginator
+	var cutOpts SmartCutOptions
+	if smartCut {
+		cutOpts = DefaultSmartCutOptions(c.device)
+		paginator = NewStripPaginator(cutOpts)
+	}
+	stripPages := 0
+	emitPages := func(pages []*image.RGBA, filename string) {
+		for _, processed := range c.processPagesParallel(pages) {
+			if processed == nil {
+				continue
+			}
+			stripPages++
+			add(processed, fmt.Sprintf("%s-%04d", filename, stripPages))
+		}
+	}
+
+	for i, e := range entries {
+		imageData, err := readZipFile(e.file)
 		if err != nil {
 			continue
 		}
-
-		imageData, err := io.ReadAll(rc)
-		rc.Close()
+		img, _, err := decodeImage(imageData)
 		if err != nil {
 			continue
 		}
-
-		// Process image for Kindle
-		processed, err := c.processor.ProcessImageData(imageData)
+		if paginator != nil && IsLongStrip(img.Bounds().Dx(), img.Bounds().Dy(), cutOpts) {
+			emitPages(paginator.Feed(img, i == len(entries)-1), e.name)
+			continue
+		}
+		if paginator != nil {
+			emitPages(paginator.Flush(), e.name)
+		}
+		processed, err := c.processor.ProcessDecoded(img)
 		if err != nil {
 			// Log error but continue with other images
 			continue
 		}
-
-		images = append(images, ProcessedImage{
-			Data:         processed,
-			ChapterIndex: chapterIndex,
-			PageIndex:    len(images),
-			Filename:     filepath.Base(file.Name),
-		})
+		add(processed, e.name)
 	}
-
-	// Sort images by filename to maintain order
-	sort.Slice(images, func(i, j int) bool {
-		return images[i].Filename < images[j].Filename
-	})
-
-	// Update page indices after sorting
-	for i := range images {
-		images[i].PageIndex = i
+	if paginator != nil {
+		emitPages(paginator.Flush(), "tail")
 	}
 
 	return images, chapterTitle, nil
+}
+
+// processPagesParallel runs the e-ink filters and encoding over pages on all CPUs, preserving order.
+// A page that fails to process is returned as nil.
+func (c *KindleConverter) processPagesParallel(pages []*image.RGBA) [][]byte {
+	out := make([][]byte, len(pages))
+	sem := make(chan struct{}, runtime.GOMAXPROCS(0))
+	var wg sync.WaitGroup
+	for i, page := range pages {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(i int, page *image.RGBA) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			if data, err := c.processor.ProcessDecoded(page); err == nil {
+				out[i] = data
+			}
+		}(i, page)
+	}
+	wg.Wait()
+	return out
+}
+
+func isSupportedImageName(name string) bool {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".jpg", ".jpeg", ".png", ".webp":
+		return true
+	}
+	return false
+}
+
+func readZipFile(file *zip.File) ([]byte, error) {
+	rc, err := file.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer rc.Close()
+	return io.ReadAll(rc)
 }
 
 // generateOptimizedEPUB creates a Kindle-optimized EPUB
@@ -261,7 +326,7 @@ func (c *KindleConverter) convertWithCalibre(input, output string, options Expor
 func (c *KindleConverter) convertWithKindlegen(input, output string) error {
 	cmd := exec.Command("kindlegen", input, "-o", filepath.Base(output))
 	cmd.Dir = filepath.Dir(input)
-	
+
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("kindlegen failed: %w", err)
 	}
