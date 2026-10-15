@@ -36,7 +36,8 @@ pub fn unfollow_manga(source: String, id: String) -> Result<bool, String> {
     library::remove_manga(&open_library()?, &source, &MangaId(id)).map_err(to_ipc)
 }
 
-/// Chapters of a followed manga from the library; `refresh` re-syncs them from the source first.
+/// Chapters from the library; `refresh` re-syncs them from the source first. A manga that is not
+/// followed yet has nothing stored, so a refresh returns the source's list without saving it.
 #[tauri::command]
 pub async fn list_chapters(
     source: String,
@@ -49,6 +50,12 @@ pub async fn list_chapters(
     if refresh {
         let src = source_by_name(&source)?;
         let fresh = src.chapters(&id, &language).await.map_err(to_ipc)?;
+        let followed = library::get_manga(&lib, &source, &id)
+            .map_err(to_ipc)?
+            .is_some();
+        if !followed {
+            return Ok(fresh);
+        }
         library::upsert_chapters(&lib, src.name(), &id, &language, &fresh).map_err(to_ipc)?;
     }
     library::list_chapters(&lib, &source, &id, Some(&language)).map_err(to_ipc)

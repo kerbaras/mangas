@@ -22,6 +22,7 @@ export const tauriBackend: Backend = {
   listLibrary: () => invoke<Manga[]>("list_library"),
   listDevices: () => invoke<Device[]>("list_devices"),
   getSettings: () => invoke<Settings>("get_settings"),
+  dataDir: () => invoke<string>("data_dir"),
   setSettings: (settings) => invoke<void>("set_settings", { settings }),
   searchManga: (query, source) =>
     invoke<Manga[]>("search_manga", { source, query, limit: SEARCH_LIMIT }),

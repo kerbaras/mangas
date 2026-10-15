@@ -37,6 +37,13 @@ pub fn list_devices() -> Vec<Device> {
     DEVICES.to_vec()
 }
 
+/// Root folder for chapters and models after applying the `data_dir` setting.
+#[tauri::command]
+pub fn data_dir() -> Result<String, String> {
+    let dir = paths::data_dir(&settings_of(&open_library()?)?)?;
+    Ok(dir.to_string_lossy().into_owned())
+}
+
 #[tauri::command]
 pub fn get_settings() -> Result<Settings, String> {
     settings_of(&open_library()?)

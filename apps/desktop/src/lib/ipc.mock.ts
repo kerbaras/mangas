@@ -80,6 +80,9 @@ export const mockBackend: Backend = {
   async listDevices() {
     return sampleDevices;
   },
+  async dataDir() {
+    return settings.data_dir ?? DATA_DIR;
+  },
   async getSettings() {
     await wait(50);
     return settings;

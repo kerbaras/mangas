@@ -80,6 +80,8 @@ export type Backend = {
   listLibrary(): Promise<Manga[]>;
   listDevices(): Promise<Device[]>;
   getSettings(): Promise<Settings>;
+  /** Resolved root for chapters and models (the `data_dir` setting or the platform default). */
+  dataDir(): Promise<string>;
   setSettings(settings: Settings): Promise<void>;
   searchManga(query: string, source: string): Promise<Manga[]>;
   followManga(source: string, id: string): Promise<Manga>;
@@ -117,6 +119,7 @@ export function setBackend(b: Backend | null) {
 export const listLibrary = async () => (await backend()).listLibrary();
 export const listDevices = async () => (await backend()).listDevices();
 export const getSettings = async () => (await backend()).getSettings();
+export const dataDir = async () => (await backend()).dataDir();
 export const setSettings = async (s: Settings) => (await backend()).setSettings(s);
 export const searchManga = async (q: string, s: string) => (await backend()).searchManga(q, s);
 export const followManga = async (s: string, id: string) => (await backend()).followManga(s, id);
