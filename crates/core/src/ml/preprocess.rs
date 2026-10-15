@@ -34,7 +34,7 @@ pub fn prepare(tile: &RgbaImage) -> Result<Prepared> {
 pub fn chw(img: &RgbaImage, normalise: bool) -> Vec<f32> {
     let n = (img.width() * img.height()) as usize;
     let mut out = vec![0f32; 3 * n];
-    for (i, p) in img.as_raw().chunks_exact(4).enumerate() {
+    for (i, p) in img.as_raw().as_chunks::<4>().0.iter().enumerate() {
         for c in 0..3 {
             let v = p[c] as f32 / 255.0;
             out[c * n + i] = if normalise { (v - MEAN[c]) / STD[c] } else { v };

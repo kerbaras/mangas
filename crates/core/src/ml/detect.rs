@@ -94,7 +94,7 @@ fn rtdetr_detections(
     labels
         .iter()
         .zip(scores)
-        .zip(boxes.chunks_exact(4))
+        .zip(boxes.as_chunks::<4>().0.iter())
         .filter(|((_, &s), _)| s >= DETECTOR_SCORE_THRESHOLD)
         .filter_map(|((&l, &s), b)| {
             let class = match l {

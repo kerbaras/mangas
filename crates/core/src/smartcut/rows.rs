@@ -9,7 +9,7 @@ pub fn row_uniformity(s: &RgbStrip) -> Vec<f64> {
     (0..s.height)
         .map(|y| {
             let (mut sum, mut sq) = ([0f64; 3], [0f64; 3]);
-            for p in s.row(y).chunks_exact(3) {
+            for p in s.row(y).as_chunks::<3>().0.iter() {
                 for c in 0..3 {
                     let v = p[c] as f64;
                     sum[c] += v;
@@ -40,8 +40,10 @@ pub fn row_texture(s: &RgbStrip) -> Vec<f32> {
                 return 0.0;
             }
             let acc: i32 = row
-                .chunks_exact(3)
-                .map(luma)
+                .as_chunks::<3>()
+                .0
+                .iter()
+                .map(|p| luma(p))
                 .collect::<Vec<_>>()
                 .windows(2)
                 .map(|w| (w[1] - w[0]).abs())

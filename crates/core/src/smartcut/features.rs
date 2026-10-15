@@ -93,7 +93,7 @@ pub fn find_gutters(uni: &[f64]) -> Vec<RowSpan> {
 pub fn median_colour(s: &RgbStrip, a: usize, b: usize) -> [u8; 3] {
     let mut hist = [[0usize; 256]; 3];
     for y in a..b {
-        for p in s.row(y).chunks_exact(3) {
+        for p in s.row(y).as_chunks::<3>().0.iter() {
             for c in 0..3 {
                 hist[c][p[c] as usize] += 1;
             }
@@ -143,7 +143,7 @@ pub fn foreground_mask(s: &RgbStrip, bg: &[[u8; 3]]) -> Vec<u8> {
     let mut m = vec![0u8; s.width * s.height];
     for y in 0..s.height {
         let b = bg[y];
-        for (x, p) in s.row(y).chunks_exact(3).enumerate() {
+        for (x, p) in s.row(y).as_chunks::<3>().0.iter().enumerate() {
             let d = (0..3)
                 .map(|c| (p[c] as i32 - b[c] as i32).abs())
                 .max()

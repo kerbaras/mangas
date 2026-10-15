@@ -86,7 +86,9 @@ pub fn process_page(img: &RgbaImage, s: &ImageSettings) -> Result<EncodedPage> {
     }
     let lut = tone_lut(s.contrast, s.gamma);
     let rgb: Vec<u8> = flat
-        .chunks_exact(4)
+        .as_chunks::<4>()
+        .0
+        .iter()
         .flat_map(|p| [lut[p[0] as usize], lut[p[1] as usize], lut[p[2] as usize]])
         .collect();
     Ok(EncodedPage {

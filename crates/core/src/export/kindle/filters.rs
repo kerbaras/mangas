@@ -3,7 +3,9 @@
 
 /// Composites a packed RGBA buffer onto an opaque white background (alpha becomes 255).
 pub fn flatten_on_white(rgba: &[u8]) -> Vec<u8> {
-    rgba.chunks_exact(4)
+    rgba.as_chunks::<4>()
+        .0
+        .iter()
         .flat_map(|p| {
             let a = p[3] as u32;
             let mix = |c: u8| ((c as u32 * a + 255 * (255 - a) + 127) / 255) as u8;
@@ -14,7 +16,9 @@ pub fn flatten_on_white(rgba: &[u8]) -> Vec<u8> {
 
 /// BT.601 luma of a packed RGBA buffer.
 pub fn grayscale_rgba(rgba: &[u8]) -> Vec<u8> {
-    rgba.chunks_exact(4)
+    rgba.as_chunks::<4>()
+        .0
+        .iter()
         .map(|p| {
             ((19595 * p[0] as u32 + 38470 * p[1] as u32 + 7471 * p[2] as u32 + (1 << 15)) >> 16)
                 as u8
