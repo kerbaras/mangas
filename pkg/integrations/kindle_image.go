@@ -26,11 +26,7 @@ func NewImageProcessor(settings ImageOptimizationSettings) *ImageProcessor {
 
 // ProcessImage optimizes an image for Kindle display
 func (p *ImageProcessor) ProcessImage(input io.Reader) ([]byte, error) {
-	data, err := io.ReadAll(input)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read image: %w", err)
-	}
-	img, format, err := decodeImage(data)
+	img, format, err := decodeImageFrom(input)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode image: %w", err)
 	}

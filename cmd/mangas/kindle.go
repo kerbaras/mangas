@@ -144,6 +144,9 @@ Use 'mangas kindle --list-devices' to see all supported Kindle devices.`,
 			cutOpts.MaxShrink = maxShrink
 		}
 		if overlap >= 0 {
+			if overlap > 0.5 {
+				cobra.CheckErr(fmt.Errorf("--overlap must be between 0 and 0.5 (fraction of the page height)"))
+			}
 			cutOpts.OverlapFrac = overlap
 		}
 		options := integrations.ExportOptions{

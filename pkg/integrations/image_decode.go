@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"image"
 	"image/color"
+	"io"
 
 	_ "golang.org/x/image/webp" // register WebP, the format most webtoon sources deliver
 )
@@ -15,7 +16,12 @@ import (
 // therefore every viewer) applies the limited-range transform; do the same so background detection
 // sees the real colours.
 func decodeImage(data []byte) (image.Image, string, error) {
-	img, format, err := image.Decode(bytes.NewReader(data))
+	return decodeImageFrom(bytes.NewReader(data))
+}
+
+// decodeImageFrom is decodeImage for a stream; it reads only as much as the decoder needs.
+func decodeImageFrom(r io.Reader) (image.Image, string, error) {
+	img, format, err := image.Decode(r)
 	if err != nil {
 		return nil, "", err
 	}

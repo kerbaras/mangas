@@ -245,6 +245,8 @@ func (p *StripPaginator) paginateUnit(unit *image.RGBA, last bool) ([]*image.RGB
 		cap = 1
 	}
 	overlap := int(math.Round(float64(cap) * p.opts.OverlapFrac))
+	// overlap must leave room to advance: never more than half of what fits on a page
+	overlap = clampInt(overlap, 0, cap/2)
 	spans := paginateRows(F, cap, p.opts.MaxShrink, p.opts.ShrinkPenalty, overlap)
 	if !last {
 		// hold the unfinished tail back for the next chunk

@@ -306,3 +306,16 @@ func TestStripPaginator_ShortTrailingChunkStaysInStrip(t *testing.T) {
 		t.Fatalf("tail should have been paginated with the pending rows, got %d pages", len(got))
 	}
 }
+
+func TestStripPaginator_HugeOverlapStillAdvances(t *testing.T) {
+	o := SmartCutOptions{DeviceWidth: 600, DeviceHeight: 800, MaxShrink: 1.10, ShrinkPenalty: 30, OverlapFrac: 5, AnalysisWidth: 720}
+	// full-bleed artwork, no gutters anywhere
+	img := image.NewRGBA(image.Rect(0, 0, 400, 3000))
+	for i := range img.Pix {
+		img.Pix[i] = uint8(i * 7)
+	}
+	pages := NewStripPaginator(o).Feed(img, true)
+	if len(pages) < 5 {
+		t.Fatalf("an oversized overlap must be clamped so the strip is still split, got %d pages", len(pages))
+	}
+}
