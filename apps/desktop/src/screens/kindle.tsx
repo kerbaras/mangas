@@ -14,6 +14,7 @@ import { useAsync } from "@/hooks/use-async";
 import { useDownloadedChapters } from "@/hooks/use-downloaded-chapters";
 import { useExport } from "@/hooks/use-export";
 import { pickFolder } from "@/lib/dialogs";
+import { exportFileName, exportTitle, joinPath } from "@/lib/export-name";
 import { detectorsStatus, listDevices, type Preset } from "@/lib/ipc";
 import { useNavigation } from "@/lib/navigation";
 import { useSettings } from "@/lib/settings";
@@ -42,6 +43,13 @@ export function KindleScreen({ chapterIds }: Props) {
   const allChapters =
     groups.state.kind === "ready" ? groups.state.data.flatMap((g) => g.chapters) : [];
   const picked = allChapters.filter((c) => selected.has(c.id) && c.local_path);
+  const picks =
+    groups.state.kind === "ready"
+      ? groups.state.data.map((g) => ({
+          manga: g.manga,
+          chapters: g.chapters.filter((c) => selected.has(c.id) && c.local_path),
+        }))
+      : [];
   const busy = exportJob.state.kind === "running";
 
   const chooseOutput = async () => {
@@ -52,14 +60,17 @@ export function KindleScreen({ chapterIds }: Props) {
     if (dir) setOutput(dir);
   };
 
-  const run = () =>
+  const run = () => {
+    const title = exportTitle(picks);
     exportJob.run({
       chapter_dirs: picked.flatMap((c) => (c.local_path ? [c.local_path] : [])),
       device,
       preset,
       detectors: useDetectors,
-      output,
+      output: joinPath(output, exportFileName(title)),
+      title,
     });
+  };
 
   const detectorHint =
     detectors.state.kind !== "ready"

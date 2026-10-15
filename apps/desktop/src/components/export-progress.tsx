@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { ExportState } from "@/hooks/use-export";
 import { revealFolder } from "@/lib/dialogs";
+import { parentDir } from "@/lib/export-name";
 
 export function ExportProgressPanel({
   state,
@@ -53,7 +54,7 @@ export function ExportProgressPanel({
           {state.output}
         </p>
       </div>
-      <Button size="sm" onClick={() => revealFolder(state.output)}>
+      <Button size="sm" onClick={() => revealFolder(parentDir(state.output))}>
         <FolderOpen /> Open folder
       </Button>
     </div>

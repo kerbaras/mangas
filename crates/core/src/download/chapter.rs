@@ -15,7 +15,30 @@ pub fn chapter_dir(root: &Path, source: &str, chapter: &Chapter) -> PathBuf {
     } else {
         chapter.number.as_str()
     };
-    let safe: String = name
+    root.join(safe_component(source))
+        .join(safe_component(&chapter.manga_id.0))
+        .join(safe_component(name))
+}
+
+/// Keeps the directory for `chapter` apart from a same-numbered chapter (another group's
+/// release) already stored at the same path by suffixing part of the chapter id.
+pub fn unique_chapter_dir(dir: PathBuf, chapter: &Chapter, known: &[Chapter]) -> PathBuf {
+    let dir_str = dir.to_string_lossy();
+    let taken = known
+        .iter()
+        .any(|c| c.id != chapter.id && c.local_path.as_deref() == Some(dir_str.as_ref()));
+    if !taken {
+        return dir;
+    }
+    let suffix: String = chapter.id.0.chars().take(8).collect();
+    let name = format!("{}-{}", chapter.number, safe_component(&suffix));
+    dir.with_file_name(name)
+}
+
+/// One path component that cannot escape its parent: only `[A-Za-z0-9.-]`, never empty or
+/// made of dots only.
+fn safe_component(raw: &str) -> String {
+    let safe: String = raw
         .chars()
         .map(|c| {
             if c.is_ascii_alphanumeric() || c == '.' || c == '-' {
@@ -25,7 +48,11 @@ pub fn chapter_dir(root: &Path, source: &str, chapter: &Chapter) -> PathBuf {
             }
         })
         .collect();
-    root.join(source).join(&chapter.manga_id.0).join(safe)
+    if safe.is_empty() || safe.chars().all(|c| c == '.') {
+        "_".to_string()
+    } else {
+        safe
+    }
 }
 
 /// Downloads one chapter into `dest` over HTTP and returns the number of pages.
@@ -82,7 +109,8 @@ pub async fn download_chapters(
     let fetcher = HttpFetcher::new()?;
     let mut report = Report::default();
     for chapter in chapters {
-        let dest = chapter_dir(root, source.name(), chapter);
+        let known = library::list_chapters(lib, source.name(), &chapter.manga_id, None)?;
+        let dest = unique_chapter_dir(chapter_dir(root, source.name(), chapter), chapter, &known);
         match download_chapter_with(source, &fetcher, chapter, &dest, on_event).await {
             Ok(_) => {
                 library::mark_downloaded(lib, source.name(), &chapter.id, &dest)?;
