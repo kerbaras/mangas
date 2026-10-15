@@ -11,7 +11,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::list_library,
             commands::list_devices,
-            commands::data_dir,
+            commands::default_data_dir,
             commands::get_settings,
             commands::set_settings,
             commands::catalog::search_manga,

@@ -3,7 +3,13 @@
  * backend at startup (`loadSettings`) and written through on every change.
  */
 import { useCallback, useSyncExternalStore } from "react";
-import { dataDir, getSettings, type Preset, type Settings as Stored, setSettings } from "./ipc";
+import {
+  defaultDataDir,
+  getSettings,
+  type Preset,
+  type Settings as Stored,
+  setSettings,
+} from "./ipc";
 import { DEFAULT_PRESET, isPreset } from "./presets";
 
 export type Settings = {
@@ -21,12 +27,13 @@ const DEFAULTS: Settings = {
 const listeners = new Set<() => void>();
 let cached: Settings = DEFAULTS;
 
-const fromStored = (s: Stored, resolvedDataDir: string): Settings => ({
-  dataDir: s.data_dir || resolvedDataDir || DEFAULTS.dataDir,
+const fromStored = (s: Stored, platformDataDir: string): Settings => ({
+  dataDir: s.data_dir || platformDataDir,
   defaultDevice: s.default_device || DEFAULTS.defaultDevice,
   defaultPreset: isPreset(s.default_preset) ? s.default_preset : DEFAULTS.defaultPreset,
 });
 
+/** Platform default; a `dataDir` equal to it is stored as `null` so the default can move. */
 let defaultDataDir = DEFAULTS.dataDir;
 
 const toStored = (s: Settings): Stored => ({
@@ -41,10 +48,10 @@ const notify = () => {
 
 export const readSettings = (): Settings => cached;
 
-/** Hydrates from the backend; the resolved data dir replaces the `~` placeholder default. */
+/** Hydrates from the backend; the platform data dir replaces the `~` placeholder default. */
 export async function loadSettings(): Promise<void> {
-  const [stored, resolved] = await Promise.all([getSettings(), dataDir()]);
-  defaultDataDir = resolved || DEFAULTS.dataDir;
+  const [stored, platform] = await Promise.all([getSettings(), defaultDataDir()]);
+  defaultDataDir = platform || DEFAULTS.dataDir;
   cached = fromStored(stored, defaultDataDir);
   notify();
 }

@@ -80,14 +80,14 @@ export type Backend = {
   listLibrary(): Promise<Manga[]>;
   listDevices(): Promise<Device[]>;
   getSettings(): Promise<Settings>;
-  /** Resolved root for chapters and models (the `data_dir` setting or the platform default). */
-  dataDir(): Promise<string>;
+  /** Platform data folder used when no `data_dir` setting is stored. */
+  defaultDataDir(): Promise<string>;
   setSettings(settings: Settings): Promise<void>;
   searchManga(query: string, source: string): Promise<Manga[]>;
   followManga(source: string, id: string): Promise<Manga>;
   unfollowManga(source: string, id: string): Promise<void>;
   listChapters(source: string, mangaId: string, refresh?: boolean): Promise<Chapter[]>;
-  /** Resolves to the ids of chapters that failed; progress arrives via `onDownloadProgress`. */
+  /** Follows the manga if needed, then resolves to the ids of chapters that failed; progress arrives via `onDownloadProgress`. */
   downloadChapters(source: string, mangaId: string, chapterIds: string[]): Promise<string[]>;
   /** Resolves to the path of the EPUB written. */
   exportKindle(request: ExportRequest): Promise<string>;
@@ -119,7 +119,7 @@ export function setBackend(b: Backend | null) {
 export const listLibrary = async () => (await backend()).listLibrary();
 export const listDevices = async () => (await backend()).listDevices();
 export const getSettings = async () => (await backend()).getSettings();
-export const dataDir = async () => (await backend()).dataDir();
+export const defaultDataDir = async () => (await backend()).defaultDataDir();
 export const setSettings = async (s: Settings) => (await backend()).setSettings(s);
 export const searchManga = async (q: string, s: string) => (await backend()).searchManga(q, s);
 export const followManga = async (s: string, id: string) => (await backend()).followManga(s, id);

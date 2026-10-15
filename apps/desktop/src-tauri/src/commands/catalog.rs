@@ -62,17 +62,21 @@ pub async fn list_chapters(
 }
 
 /// Downloads the given chapters, emitting [`DOWNLOAD_EVENT`] as pages and chapters finish.
+/// Downloading a manga that is not followed yet follows it first (chapters are stored per manga).
 /// Returns the chapter ids that failed (empty on full success).
 #[tauri::command]
 pub async fn download_chapters(
     app: AppHandle,
     source: String,
     manga_id: String,
+    language: String,
     chapter_ids: Vec<String>,
 ) -> Result<Vec<String>, String> {
     let src = source_by_name(&source)?;
     let lib = open_library()?;
-    let known = library::list_chapters(&lib, &source, &MangaId(manga_id), None).map_err(to_ipc)?;
+    let id = MangaId(manga_id);
+    ensure_followed(&lib, src.as_ref(), &id, &language).await?;
+    let known = library::list_chapters(&lib, &source, &id, None).map_err(to_ipc)?;
     let wanted: Vec<ChapterId> = chapter_ids.into_iter().map(ChapterId).collect();
     let selected: Vec<Chapter> = known
         .into_iter()
@@ -88,4 +92,22 @@ pub async fn download_chapters(
         .await
         .map_err(to_ipc)?;
     Ok(report.failed.into_iter().map(|(id, _)| id.0).collect())
+}
+
+async fn ensure_followed(
+    lib: &library::Library,
+    src: &dyn mangas_core::sources::Source,
+    id: &MangaId,
+    language: &str,
+) -> Result<(), String> {
+    if library::get_manga(lib, src.name(), id)
+        .map_err(to_ipc)?
+        .is_some()
+    {
+        return Ok(());
+    }
+    let manga = src.manga(id).await.map_err(to_ipc)?;
+    let chapters = src.chapters(id, language).await.map_err(to_ipc)?;
+    library::upsert_manga(lib, &manga).map_err(to_ipc)?;
+    library::upsert_chapters(lib, src.name(), id, language, &chapters).map_err(to_ipc)
 }

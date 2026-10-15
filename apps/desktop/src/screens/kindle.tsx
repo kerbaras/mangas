@@ -1,5 +1,5 @@
 import { FolderOpen, Send } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DeviceSelect } from "@/components/device-select";
 import { DownloadedPicker } from "@/components/downloaded-picker";
 import { EmptyState } from "@/components/empty-state";
@@ -34,6 +34,16 @@ export function KindleScreen({ chapterIds }: Props) {
   const [preset, setPreset] = useState<Preset>(settings.defaultPreset);
   const [useDetectors, setUseDetectors] = useState(true);
   const [output, setOutput] = useState(`${settings.dataDir}/kindle`);
+  const outputTouched = useRef(false);
+  const editOutput = (dir: string) => {
+    outputTouched.current = true;
+    setOutput(dir);
+  };
+
+  // Settings hydrate asynchronously; keep the default output in step until the user picks one.
+  useEffect(() => {
+    if (!outputTouched.current) setOutput(`${settings.dataDir}/kindle`);
+  }, [settings.dataDir]);
 
   useEffect(() => {
     if (detectors.state.kind === "ready" && !detectors.state.data.downloaded)
@@ -57,7 +67,7 @@ export function KindleScreen({ chapterIds }: Props) {
       "Choose where to write the EPUB files",
       `${settings.dataDir}/kindle`,
     );
-    if (dir) setOutput(dir);
+    if (dir) editOutput(dir);
   };
 
   const run = () => {
@@ -156,7 +166,7 @@ export function KindleScreen({ chapterIds }: Props) {
               <Input
                 id="output"
                 value={output}
-                onChange={(e) => setOutput(e.target.value)}
+                onChange={(e) => editOutput(e.target.value)}
                 className="font-mono text-caption"
               />
               <Button onClick={chooseOutput} aria-label="Choose output folder">

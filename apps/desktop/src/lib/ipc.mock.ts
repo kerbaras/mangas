@@ -80,8 +80,8 @@ export const mockBackend: Backend = {
   async listDevices() {
     return sampleDevices;
   },
-  async dataDir() {
-    return settings.data_dir ?? DATA_DIR;
+  async defaultDataDir() {
+    return DATA_DIR;
   },
   async getSettings() {
     await wait(50);
@@ -116,6 +116,8 @@ export const mockBackend: Backend = {
     return chaptersOf(source, id).map((c) => ({ ...c }));
   },
   async downloadChapters(source, mangaId, chapterIds) {
+    const manga = sampleCatalog.find((m) => m.source === source && m.id === mangaId);
+    if (manga) library.set(`${source}:${mangaId}`, manga);
     const all = chaptersOf(source, mangaId);
     const picked = chapterIds.flatMap((id) => all.filter((c) => c.id === id));
     void (async () => {
