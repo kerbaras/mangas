@@ -65,7 +65,9 @@ fn entries(book: &Book) -> Vec<PageEntry> {
 
 /// Writes `book` next to `path` (parent directories are created) and returns the file written.
 /// An existing file is never replaced: the name gets ` (2)`, ` (3)`, ... like a browser download.
-/// The target is claimed with `create_new`, so two exports racing for one name get two files.
+/// The target is claimed with `create_new` (two exports racing for one name get two files),
+/// the zip is built in a `.part` file next to it and renamed over the claim when complete, so
+/// the final name never holds a half-written book.
 pub fn write(book: &Book, path: &Path) -> Result<PathBuf> {
     if book.pages.is_empty() {
         return Err(Error::Other("epub: no pages".into()));
@@ -73,11 +75,17 @@ pub fn write(book: &Book, path: &Path) -> Result<PathBuf> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let (target, file) = claim_free_file(path)?;
-    write_zip(book, file).inspect_err(|_| {
+    let (target, _claim) = claim_free_file(path)?;
+    let tmp = target.with_extension("epub.part");
+    let result = File::create(&tmp)
+        .map_err(Error::from)
+        .and_then(|file| write_zip(book, file))
+        .and_then(|()| std::fs::rename(&tmp, &target).map_err(Error::from));
+    if result.is_err() {
+        let _ = std::fs::remove_file(&tmp);
         let _ = std::fs::remove_file(&target);
-    })?;
-    Ok(target)
+    }
+    result.map(|()| target)
 }
 
 /// Atomically creates `path`, or the first `stem (n).ext` that does not exist yet.
