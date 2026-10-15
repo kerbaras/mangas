@@ -1,8 +1,24 @@
-//! Smart cutting of long vertical strips into device pages (port of the Go implementation:
-//! row features -> cut costs -> dynamic-programming page boundaries). Implemented in the
-//! "export + smartcut + ml" PR; the options type is fixed here so the UI and CLI can be built.
+//! Smart cutting of long vertical strips into device pages (port of the Go implementation):
+//! row features -> cut costs -> dynamic-programming page boundaries -> rendered pages.
+
+mod bubbles;
+pub mod components;
+pub mod costs;
+pub mod features;
+mod morphology;
+pub mod paginate;
+mod paginator;
+pub mod raster;
+pub mod render;
+mod rows;
+mod text;
 
 use serde::{Deserialize, Serialize};
+
+pub use components::PixelBox;
+pub use features::{RowSpan, StripFeatures};
+pub use paginate::PageSpan;
+pub use paginator::{capacity, is_long_strip, Page, RowPenalizer, StripPaginator, ANALYSIS_WIDTH};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Options {

@@ -40,6 +40,6 @@ async fn main() -> anyhow::Result<()> {
         Command::Remove(args) => commands::remove::run(args),
         Command::Chapters(args) => commands::chapters::run(args).await,
         Command::Download(args) => commands::download::run(args).await,
-        Command::Kindle(args) => commands::kindle::run(args),
+        Command::Kindle(args) => commands::kindle::run(args).await,
     }
 }

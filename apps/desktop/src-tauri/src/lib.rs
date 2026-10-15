@@ -14,7 +14,9 @@ pub fn run() {
             commands::follow_manga,
             commands::unfollow_manga,
             commands::list_chapters,
-            commands::download_chapters
+            commands::download_chapters,
+            commands::export_kindle,
+            commands::detectors_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

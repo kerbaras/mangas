@@ -26,4 +26,5 @@ directories = "6"
 
 [features]
 default = []
+ml = ["mangas-core/ml"]
 cuda = ["mangas-core/cuda"]

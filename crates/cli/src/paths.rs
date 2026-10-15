@@ -16,3 +16,8 @@ pub fn library_db() -> anyhow::Result<PathBuf> {
 pub fn downloads() -> anyhow::Result<PathBuf> {
     Ok(dirs()?.data_dir().join("chapters"))
 }
+
+/// Cache directory for downloaded ONNX detector models.
+pub fn models() -> anyhow::Result<PathBuf> {
+    Ok(dirs()?.data_dir().join("models"))
+}

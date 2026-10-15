@@ -16,3 +16,8 @@ pub fn library_db() -> Result<PathBuf, String> {
 pub fn downloads() -> Result<PathBuf, String> {
     Ok(data_dir()?.join("chapters"))
 }
+
+/// Cache directory for downloaded ONNX detector models.
+pub fn models() -> Result<PathBuf, String> {
+    Ok(data_dir()?.join("models"))
+}
