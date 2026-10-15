@@ -75,7 +75,7 @@ pub async fn list_chapters(
         let fresh = src.chapters(&id, &language).await.map_err(to_ipc)?;
         library::upsert_chapters(&lib, src.name(), &fresh).map_err(to_ipc)?;
     }
-    library::list_chapters(&lib, &source, &id).map_err(to_ipc)
+    library::list_chapters(&lib, &source, &id, Some(&language)).map_err(to_ipc)
 }
 
 /// Downloads the given chapters, emitting [`DOWNLOAD_EVENT`] as pages and chapters finish.
@@ -89,7 +89,7 @@ pub async fn download_chapters(
 ) -> Result<Vec<String>, String> {
     let src = source_by_name(&source)?;
     let lib = open_library()?;
-    let known = library::list_chapters(&lib, &source, &MangaId(manga_id)).map_err(to_ipc)?;
+    let known = library::list_chapters(&lib, &source, &MangaId(manga_id), None).map_err(to_ipc)?;
     let wanted: Vec<ChapterId> = chapter_ids.into_iter().map(ChapterId).collect();
     let selected: Vec<Chapter> = known
         .into_iter()

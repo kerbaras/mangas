@@ -109,6 +109,19 @@ fn dedupe_sorts_numerically_not_lexically() {
 }
 
 #[test]
+fn dedupe_keeps_every_unnumbered_chapter() {
+    let id = MangaId(EMINENCE.into());
+    let mut chapters = parse_feed_response(&fixture("feed_hosted.json"), &id, "en")
+        .unwrap()
+        .chapters;
+    chapters[1].number = String::new();
+    chapters[2].number = String::new();
+    let unique = dedupe_and_sort(chapters);
+    assert_eq!(unique.len(), 5);
+    assert_eq!(unique.iter().filter(|c| c.number.is_empty()).count(), 2);
+}
+
+#[test]
 fn at_home_builds_full_quality_page_urls() {
     let pages = parse_at_home_response(&fixture("at_home.json")).unwrap();
     assert_eq!(pages.0.len(), 30);

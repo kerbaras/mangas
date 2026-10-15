@@ -70,7 +70,7 @@ fn chapters_roundtrip_sorted_by_number() {
         chapter("m", "oneshot", "Oneshot"),
     ];
     upsert_chapters(&lib, "mangadex", &chapters).unwrap();
-    let listed = list_chapters(&lib, "mangadex", &MangaId("m".into())).unwrap();
+    let listed = list_chapters(&lib, "mangadex", &MangaId("m".into()), None).unwrap();
     let numbers: Vec<&str> = listed.iter().map(|c| c.number.as_str()).collect();
     assert_eq!(numbers, ["2", "9.5", "10", "Oneshot"]);
     assert_eq!(listed[0].title.as_deref(), Some("Chapter 2"));
@@ -94,7 +94,7 @@ fn upsert_refreshes_metadata_but_keeps_local_path() {
     renamed.title = Some("New title".into());
     upsert_chapters(&lib, "mangadex", &[renamed]).unwrap();
 
-    let listed = list_chapters(&lib, "mangadex", &id).unwrap();
+    let listed = list_chapters(&lib, "mangadex", &id, None).unwrap();
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].title.as_deref(), Some("New title"));
     assert_eq!(listed[0].local_path.as_deref(), Some("/tmp/m/1"));
@@ -121,5 +121,51 @@ fn remove_manga_cascades_to_chapters() {
     assert!(remove_manga(&lib, "mangadex", &id).unwrap());
     assert!(!remove_manga(&lib, "mangadex", &id).unwrap());
     assert!(list_manga(&lib).unwrap().is_empty());
-    assert!(list_chapters(&lib, "mangadex", &id).unwrap().is_empty());
+    assert!(list_chapters(&lib, "mangadex", &id, None)
+        .unwrap()
+        .is_empty());
+}
+
+#[test]
+fn upsert_prunes_chapters_the_source_dropped_unless_downloaded() {
+    let lib = open_in_memory().unwrap();
+    upsert_manga(&lib, &sample("m", "Manga")).unwrap();
+    let id = MangaId("m".into());
+    let all = [
+        chapter("m", "c1", "1"),
+        chapter("m", "c2", "2"),
+        chapter("m", "c3", "3"),
+    ];
+    upsert_chapters(&lib, "mangadex", &all).unwrap();
+    mark_downloaded(
+        &lib,
+        "mangadex",
+        &ChapterId("c2".into()),
+        Path::new("/tmp/2"),
+    )
+    .unwrap();
+
+    upsert_chapters(&lib, "mangadex", &all[..1]).unwrap();
+    let ids: Vec<String> = list_chapters(&lib, "mangadex", &id, None)
+        .unwrap()
+        .into_iter()
+        .map(|c| c.id.0)
+        .collect();
+    assert_eq!(ids, ["c1", "c2"]);
+}
+
+#[test]
+fn list_chapters_filters_by_language() {
+    let lib = open_in_memory().unwrap();
+    upsert_manga(&lib, &sample("m", "Manga")).unwrap();
+    let id = MangaId("m".into());
+    let mut es = chapter("m", "c1-es", "1");
+    es.language = "es".into();
+    upsert_chapters(&lib, "mangadex", &[chapter("m", "c1", "1")]).unwrap();
+    upsert_chapters(&lib, "mangadex", &[es]).unwrap();
+
+    assert_eq!(list_chapters(&lib, "mangadex", &id, None).unwrap().len(), 2);
+    let en = list_chapters(&lib, "mangadex", &id, Some("en")).unwrap();
+    assert_eq!(en.len(), 1);
+    assert_eq!(en[0].id.0, "c1");
 }

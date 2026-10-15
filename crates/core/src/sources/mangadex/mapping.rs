@@ -86,11 +86,12 @@ pub fn parse_error_response(status: u16, body: &str) -> Error {
 }
 
 /// Keeps one chapter per number (the first in feed order) and sorts by number ascending.
+/// Chapters without a number (oneshots, extras) are all kept.
 pub fn dedupe_and_sort(chapters: Vec<Chapter>) -> Vec<Chapter> {
     let mut seen = HashSet::new();
     let unique = chapters
         .into_iter()
-        .filter(|c| seen.insert(c.number.clone()))
+        .filter(|c| c.number.is_empty() || seen.insert(c.number.clone()))
         .collect();
     sort_by_number(unique)
 }

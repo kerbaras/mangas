@@ -24,13 +24,13 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let lib = library::open(&paths::library_db()?)?;
     let followed = library::get_manga(&lib, &args.source, &id)?.is_some();
     let chapters = if args.offline {
-        library::list_chapters(&lib, &args.source, &id)?
+        library::list_chapters(&lib, &args.source, &id, Some(&args.lang))?
     } else {
         let source = source_by_name(&args.source)?;
         let fresh = source.chapters(&id, &args.lang).await?;
         if followed {
             library::upsert_chapters(&lib, source.name(), &fresh)?;
-            library::list_chapters(&lib, &args.source, &id)?
+            library::list_chapters(&lib, &args.source, &id, Some(&args.lang))?
         } else {
             fresh
         }

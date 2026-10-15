@@ -35,7 +35,7 @@ pub fn run(args: Args) -> anyhow::Result<()> {
 }
 
 fn progress(lib: &Library, m: &Manga) -> anyhow::Result<String> {
-    let chapters = library::list_chapters(lib, &m.source, &m.id)?;
+    let chapters = library::list_chapters(lib, &m.source, &m.id, None)?;
     let downloaded = chapters.iter().filter(|c| c.is_downloaded()).count();
     Ok(format!("{downloaded}/{} downloaded", chapters.len()))
 }

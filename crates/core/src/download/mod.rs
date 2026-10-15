@@ -8,7 +8,7 @@ mod fetcher;
 mod pages;
 mod selection;
 
-pub use cbz::write_cbz;
+pub use cbz::{cbz_path, write_cbz};
 pub use chapter::{
     chapter_dir, download_chapter, download_chapter_with, download_chapters, Report,
 };

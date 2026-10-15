@@ -51,7 +51,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         download::download_chapters(source.as_ref(), &lib, &selected, &root, &print_event).await?;
     if args.cbz {
         for dir in &report.downloaded {
-            let out = dir.with_extension("cbz");
+            let out = download::cbz_path(dir);
             let pages = download::write_cbz(dir, &out)?;
             println!("packed {pages} pages -> {}", out.display());
         }

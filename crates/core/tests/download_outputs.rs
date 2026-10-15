@@ -1,5 +1,7 @@
 use mangas_core::domain::{Chapter, ChapterId, MangaId};
-use mangas_core::download::{parse_selection, select_chapters, write_cbz};
+use std::path::Path;
+
+use mangas_core::download::{cbz_path, parse_selection, select_chapters, write_cbz};
 
 fn chapter(number: &str) -> Chapter {
     Chapter {
@@ -16,7 +18,14 @@ fn chapter(number: &str) -> Chapter {
 #[test]
 fn cbz_stores_pages_in_order() {
     let dir = tempfile::tempdir().unwrap();
-    for name in ["0002.jpg", "0001.png", "0003.png.part", "0010.jpg"] {
+    for name in [
+        "0002.jpg",
+        "0001.png",
+        "0003.png.part",
+        "0010.jpg",
+        "ComicInfo.xml",
+        ".DS_Store",
+    ] {
         std::fs::write(dir.path().join(name), name).unwrap();
     }
     let out = dir.path().join("out").join("ch.cbz");
@@ -61,4 +70,10 @@ fn select_chapters_by_published_number() {
     assert_eq!(picked, ["1", "2", "7"]);
     assert!(select_chapters(&all, "x").is_err());
     assert!(select_chapters(&all, "").is_err());
+}
+
+#[test]
+fn cbz_path_keeps_decimal_chapter_names() {
+    assert_eq!(cbz_path(Path::new("/x/m/2.5")), Path::new("/x/m/2.5.cbz"));
+    assert_eq!(cbz_path(Path::new("/x/m/12")), Path::new("/x/m/12.cbz"));
 }
