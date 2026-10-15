@@ -34,10 +34,10 @@ const fromStored = (s: Stored, platformDataDir: string): Settings => ({
 });
 
 /** Platform default; a `dataDir` equal to it is stored as `null` so the default can move. */
-let defaultDataDir = DEFAULTS.dataDir;
+let platformDataDir = DEFAULTS.dataDir;
 
 const toStored = (s: Settings): Stored => ({
-  data_dir: s.dataDir === defaultDataDir ? null : s.dataDir,
+  data_dir: s.dataDir === platformDataDir ? null : s.dataDir,
   default_device: s.defaultDevice,
   default_preset: s.defaultPreset,
 });
@@ -51,8 +51,8 @@ export const readSettings = (): Settings => cached;
 /** Hydrates from the backend; the platform data dir replaces the `~` placeholder default. */
 export async function loadSettings(): Promise<void> {
   const [stored, platform] = await Promise.all([getSettings(), fetchDefaultDataDir()]);
-  defaultDataDir = platform || DEFAULTS.dataDir;
-  cached = fromStored(stored, defaultDataDir);
+  platformDataDir = platform || DEFAULTS.dataDir;
+  cached = fromStored(stored, platformDataDir);
   notify();
 }
 
