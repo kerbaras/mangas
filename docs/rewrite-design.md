@@ -10,15 +10,15 @@ the speech-bubble/face detectors used by smart cutting.
 ## Layout (cargo workspace + pnpm workspace)
 
 ```
-crates/core        mangas-core: domain, sources, library (SQLite), download, epub/kindle, smartcut, ml
-crates/cli         mangas: clap CLI, one file per subcommand, calls core only
+packages/core        mangas-core: domain, sources, library (SQLite), download, epub/kindle, smartcut, ml
+apps/cli         mangas: clap CLI, one file per subcommand, calls core only
 apps/desktop       Tauri 2 shell (src-tauri) + React/Vite/Tailwind UI (src); IPC commands are thin
                    wrappers over core
 docs/              design notes
 ```
 
 Rules: the Tauri layer and the CLI contain no business logic. Everything testable lives in
-`mangas-core`, with integration tests under `crates/core/tests/`.
+`mangas-core`, with integration tests under `packages/core/tests/`.
 
 ## Core modules
 

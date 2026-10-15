@@ -12,7 +12,7 @@ name = "mangas"
 path = "src/main.rs"
 
 [dependencies]
-mangas-core = { path = "../core" }
+mangas-core = { path = "../../packages/core" }
 anyhow = { workspace = true }
 tokio = { workspace = true }
 clap = { version = "4", features = ["derive"] }

@@ -1,8 +1,8 @@
 [workspace]
 resolver = "2"
-members = ["crates/core", "crates/cli", "apps/desktop/src-tauri"]
+members = ["packages/core", "apps/cli", "apps/desktop/src-tauri"]
 # The desktop shell needs the Tauri system libraries; build it explicitly with `-p mangas-desktop`.
-default-members = ["crates/core", "crates/cli"]
+default-members = ["packages/core", "apps/cli"]
 
 [workspace.package]
 version = "0.1.0"

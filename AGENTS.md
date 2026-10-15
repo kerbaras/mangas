@@ -5,9 +5,9 @@ app, small CLI. The original Go/TUI implementation was removed once the Rust por
 
 ## Layout
 
-- `crates/core` (`mangas-core`): all business logic. Modules: `domain`, `sources`, `library`,
-  `download`, `export`, `smartcut`, `ml`. Tests in `crates/core/tests/`.
-- `crates/cli` (`mangas`): clap CLI, one file per subcommand, thin calls into core.
+- `packages/core` (`mangas-core`): all business logic. Modules: `domain`, `sources`, `library`,
+  `download`, `export`, `smartcut`, `ml`. Tests in `packages/core/tests/`.
+- `apps/cli` (`mangas`): clap CLI, one file per subcommand, thin calls into core.
 - `apps/desktop`: Tauri shell in `src-tauri` (IPC commands only, no logic) and React UI in `src`.
 - `docs/rewrite-design.md`: architecture and decisions.
 
