@@ -1,7 +1,3 @@
-# Go (legacy)
-bin/
-coverage.out
-coverage.html
 # Rust
 target/
 # Node

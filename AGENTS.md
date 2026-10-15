@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Mangas is a desktop manga/manhwa library and Kindle exporter: Rust core, Tauri 2 + React desktop
-app, small CLI. The Go code under `cmd/` and `pkg/` is legacy and is being removed; do not extend it.
+app, small CLI. The original Go/TUI implementation was removed once the Rust port reached parity.
 
 ## Layout
 

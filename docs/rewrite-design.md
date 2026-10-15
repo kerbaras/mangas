@@ -62,4 +62,4 @@ Rules: the Tauri layer and the CLI contain no business logic. Everything testabl
    shell that boots and shows the library screen with mock data. CI for fmt/clippy/test/typecheck.
 2. Stacked PRs (one subdevin each): A sources + download + library; B export + smartcut + ml;
    C desktop UI.
-3. Final PR: remove `cmd/`, `pkg/`, `go.mod`; README for the new app.
+3. Final PR (done): merged A/B/C, UI wired to the real IPC, persisted settings, Go code removed.
