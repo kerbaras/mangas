@@ -4,7 +4,7 @@
 
 mod xml;
 
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
@@ -65,6 +65,7 @@ fn entries(book: &Book) -> Vec<PageEntry> {
 
 /// Writes `book` next to `path` (parent directories are created) and returns the file written.
 /// An existing file is never replaced: the name gets ` (2)`, ` (3)`, ... like a browser download.
+/// The target is claimed with `create_new`, so two exports racing for one name get two files.
 pub fn write(book: &Book, path: &Path) -> Result<PathBuf> {
     if book.pages.is_empty() {
         return Err(Error::Other("epub: no pages".into()));
@@ -72,20 +73,30 @@ pub fn write(book: &Book, path: &Path) -> Result<PathBuf> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let target = free_path(path);
-    let tmp = target.with_extension("epub.part");
-    write_zip(book, &tmp).inspect_err(|_| {
-        let _ = std::fs::remove_file(&tmp);
+    let (target, file) = claim_free_file(path)?;
+    write_zip(book, file).inspect_err(|_| {
+        let _ = std::fs::remove_file(&target);
     })?;
-    std::fs::rename(&tmp, &target)?;
     Ok(target)
 }
 
-/// `path` itself when nothing is there, otherwise the first `stem (n).ext` that is free.
-fn free_path(path: &Path) -> PathBuf {
-    if !path.exists() {
-        return path.to_path_buf();
+/// Atomically creates `path`, or the first `stem (n).ext` that does not exist yet.
+fn claim_free_file(path: &Path) -> std::io::Result<(PathBuf, File)> {
+    for candidate in candidates(path) {
+        match OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&candidate)
+        {
+            Ok(file) => return Ok((candidate, file)),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(e),
+        }
     }
+    unreachable!("candidates is infinite")
+}
+
+fn candidates(path: &Path) -> impl Iterator<Item = PathBuf> + '_ {
     let stem = path
         .file_stem()
         .map(|s| s.to_string_lossy().into_owned())
@@ -94,15 +105,12 @@ fn free_path(path: &Path) -> PathBuf {
         .extension()
         .map(|e| format!(".{}", e.to_string_lossy()))
         .unwrap_or_default();
-    (2..)
-        .map(|n| path.with_file_name(format!("{stem} ({n}){ext}")))
-        .find(|candidate| !candidate.exists())
-        .unwrap_or_else(|| path.to_path_buf())
+    std::iter::once(path.to_path_buf())
+        .chain((2..).map(move |n| path.with_file_name(format!("{stem} ({n}){ext}"))))
 }
 
-fn write_zip(book: &Book, path: &Path) -> Result<()> {
-    let file = BufWriter::new(File::create(path)?);
-    let mut zip = ZipWriter::new(file);
+fn write_zip(book: &Book, file: File) -> Result<()> {
+    let mut zip = ZipWriter::new(BufWriter::new(file));
     let stored = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
     let deflated = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
     let z = |e: zip::result::ZipError| Error::Other(format!("epub: {e}"));
