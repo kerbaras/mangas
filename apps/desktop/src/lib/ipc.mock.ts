@@ -1,0 +1,117 @@
+/**
+ * In-browser stand-in for the Tauri shell. Keeps a library in memory, fakes network latency and
+ * drives the same progress events the Rust side emits, so every screen works in `pnpm dev:web`.
+ */
+import type { Backend, Chapter, DownloadProgress, ExportProgress, Manga, Unlisten } from "./ipc";
+import { sampleCatalog, sampleChapters, sampleDevices, sampleLibrary } from "./mock-data";
+
+const DATA_DIR = "~/.local/share/mangas";
+
+const library = new Map(sampleLibrary.map((m) => [`${m.source}:${m.id}`, m]));
+const chapterCache = new Map<string, Chapter[]>();
+const downloadListeners = new Set<(p: DownloadProgress) => void>();
+const exportListeners = new Set<(p: ExportProgress) => void>();
+
+const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+function subscribe<T>(set: Set<(p: T) => void>, cb: (p: T) => void): Promise<Unlisten> {
+  set.add(cb);
+  return Promise.resolve(() => set.delete(cb));
+}
+
+function chaptersOf(source: string, id: string): Chapter[] {
+  const key = `${source}:${id}`;
+  const cached = chapterCache.get(key);
+  if (cached) return cached;
+  const manga = sampleCatalog.find((m) => m.source === source && m.id === id);
+  const list = manga ? sampleChapters(manga, DATA_DIR) : [];
+  chapterCache.set(key, list);
+  return list;
+}
+
+async function simulateDownload(chapter: Chapter, fail: boolean) {
+  const pages = 18 + (chapter.id.length % 7);
+  for (let page = 1; page <= pages; page++) {
+    await wait(90 + Math.random() * 120);
+    if (fail && page === Math.floor(pages / 2)) {
+      for (const cb of downloadListeners)
+        cb({ chapter_id: chapter.id, page, pages, done: true, error: "HTTP 429 from source" });
+      return;
+    }
+    const done = page === pages;
+    if (done) chapter.local_path = `${DATA_DIR}/mangadex/${chapter.manga_id}/${chapter.number}`;
+    for (const cb of downloadListeners)
+      cb({ chapter_id: chapter.id, page, pages, done, error: null });
+  }
+}
+
+const stages = [
+  "Reading pages",
+  "Detecting cut points",
+  "Cutting strips",
+  "Filtering for e-ink",
+  "Writing EPUB",
+];
+
+async function simulateExport(total: number) {
+  for (const stage of stages) {
+    for (let current = 1; current <= total; current++) {
+      await wait(60);
+      for (const cb of exportListeners) cb({ stage, current, total });
+    }
+  }
+}
+
+export const mockBackend: Backend = {
+  async listLibrary() {
+    await wait(250);
+    return [...library.values()];
+  },
+  async listDevices() {
+    return sampleDevices;
+  },
+  async searchManga(query, source) {
+    await wait(450);
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return sampleCatalog.filter(
+      (m) =>
+        m.source === source &&
+        (m.title.toLowerCase().includes(q) || m.description.toLowerCase().includes(q)),
+    );
+  },
+  async followManga(source, id) {
+    await wait(200);
+    const manga: Manga | undefined = sampleCatalog.find((m) => m.source === source && m.id === id);
+    if (!manga) throw new Error(`Unknown manga ${source}:${id}`);
+    library.set(`${source}:${id}`, manga);
+    return manga;
+  },
+  async unfollowManga(source, id) {
+    await wait(150);
+    library.delete(`${source}:${id}`);
+  },
+  async listChapters(source, id) {
+    await wait(300);
+    return chaptersOf(source, id).map((c) => ({ ...c }));
+  },
+  async downloadChapters(source, chapterIds) {
+    const all = [...chapterCache.entries()]
+      .filter(([key]) => key.startsWith(`${source}:`))
+      .flatMap(([, list]) => list);
+    const picked = chapterIds.flatMap((id) => all.filter((c) => c.id === id));
+    void (async () => {
+      for (const [i, chapter] of picked.entries()) await simulateDownload(chapter, i === 2);
+    })();
+    return `job-${Date.now()}`;
+  },
+  async exportKindle(request) {
+    await simulateExport(Math.max(1, request.chapter_dirs.length * 6));
+  },
+  async detectorsStatus() {
+    await wait(120);
+    return { downloaded: true, provider: "CPU" };
+  },
+  onDownloadProgress: (cb) => subscribe(downloadListeners, cb),
+  onExportProgress: (cb) => subscribe(exportListeners, cb),
+};

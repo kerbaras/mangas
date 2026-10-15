@@ -1,70 +1,88 @@
-import { Plus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Plus, Search } from "lucide-react";
+import { useMemo, useState } from "react";
+import { EmptyState } from "@/components/empty-state";
+import { MangaCard } from "@/components/manga-card";
+import { ScreenHeader } from "@/components/screen-header";
+import { type LibrarySort, SortMenu, sortLibrary } from "@/components/sort-menu";
 import { Button } from "@/components/ui/button";
-import { listLibrary, type Manga } from "@/lib/ipc";
-
-type State =
-  | { kind: "loading" }
-  | { kind: "ready"; items: Manga[] }
-  | { kind: "error"; message: string };
+import { Input } from "@/components/ui/input";
+import { useLibrary } from "@/hooks/use-library";
+import { mangaKey } from "@/lib/format";
+import type { Manga } from "@/lib/ipc";
+import { useNavigation } from "@/lib/navigation";
 
 export function LibraryScreen() {
-  const [state, setState] = useState<State>({ kind: "loading" });
+  const nav = useNavigation();
+  const { state, unfollow } = useLibrary();
+  const [filter, setFilter] = useState("");
+  const [sort, setSort] = useState<LibrarySort>("title");
 
-  useEffect(() => {
-    listLibrary()
-      .then((items) => setState({ kind: "ready", items }))
-      .catch((e: unknown) => setState({ kind: "error", message: String(e) }));
-  }, []);
+  const items = useMemo(() => {
+    if (state.kind !== "ready") return [];
+    const q = filter.trim().toLowerCase();
+    return sortLibrary(
+      state.data.filter((m) => !q || m.title.toLowerCase().includes(q)),
+      sort,
+    );
+  }, [state, filter, sort]);
+
+  const open = (m: Manga) => nav.go({ screen: "manga", source: m.source, id: m.id });
+  const count = state.kind === "ready" ? state.data.length : null;
 
   return (
     <section className="flex h-full flex-col">
-      <header className="flex h-12 items-center justify-between border-b border-stroke px-4">
-        <h1 className="text-body-lg font-semibold">Library</h1>
-        <Button variant="primary" size="sm" disabled>
+      <ScreenHeader title="Library" subtitle={count !== null && `${count} followed`}>
+        {count ? (
+          <div className="relative">
+            <Search className="pointer-events-none absolute top-2 left-2 size-4 text-ink-3" />
+            <Input
+              type="search"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="Filter by title"
+              aria-label="Filter by title"
+              className="w-56 pl-7"
+            />
+          </div>
+        ) : null}
+        {count ? <SortMenu value={sort} onChange={setSort} /> : null}
+        <Button variant="primary" size="sm" onClick={() => nav.go({ screen: "search" })}>
           <Plus /> Follow a manga
         </Button>
-      </header>
+      </ScreenHeader>
       <div className="flex-1 overflow-auto p-4">
         {state.kind === "loading" && <p className="text-ink-3">Loading…</p>}
         {state.kind === "error" && (
           <p className="text-accent">Couldn't open the library: {state.message}</p>
         )}
-        {state.kind === "ready" && state.items.length === 0 && <EmptyLibrary />}
-        {state.kind === "ready" && state.items.length > 0 && <Grid items={state.items} />}
+        {state.kind === "ready" && state.data.length === 0 && (
+          <EmptyState
+            title="Nothing on the shelf yet"
+            action={
+              <Button variant="primary" onClick={() => nav.go({ screen: "search" })}>
+                <Search /> Search a source
+              </Button>
+            }
+          >
+            Follow a title from a source. Chapters you download show up here, ready to send to your
+            Kindle.
+          </EmptyState>
+        )}
+        {state.kind === "ready" && state.data.length > 0 && items.length === 0 && (
+          <EmptyState title={`Nothing matches “${filter.trim()}”`}>
+            Try a shorter title, or clear the filter.
+          </EmptyState>
+        )}
+        {items.length > 0 && (
+          <ul className="grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-3">
+            {items.map((m) => (
+              <li key={mangaKey(m)}>
+                <MangaCard manga={m} onOpen={open} onUnfollow={unfollow} />
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </section>
-  );
-}
-
-function EmptyLibrary() {
-  return (
-    <div className="mx-auto mt-24 max-w-sm text-center">
-      <p className="text-subtitle font-semibold">Nothing on the shelf yet</p>
-      <p className="mt-2 text-ink-2">
-        Search a source and follow a title. Chapters you download show up here, ready to send to
-        your Kindle.
-      </p>
-    </div>
-  );
-}
-
-function Grid({ items }: { items: Manga[] }) {
-  return (
-    <ul className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
-      {items.map((m) => (
-        <li key={`${m.source}:${m.id}`} className="group">
-          <div className="aspect-[2/3] overflow-hidden rounded-md border border-stroke bg-surface-2">
-            {m.cover_url && (
-              <img src={m.cover_url} alt="" className="size-full object-cover" loading="lazy" />
-            )}
-          </div>
-          <p className="mt-2 truncate text-body font-medium" title={m.title}>
-            {m.title}
-          </p>
-          <p className="text-caption text-ink-3">{m.source}</p>
-        </li>
-      ))}
-    </ul>
   );
 }

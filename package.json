@@ -15,7 +15,8 @@
     "format": "biome check --write .",
     "typecheck": "pnpm -r typecheck",
     "test:rust": "cargo test --workspace",
-    "check": "pnpm lint && pnpm typecheck && pnpm build"
+    "check": "pnpm lint && pnpm typecheck && pnpm test:web && pnpm build",
+    "test:web": "pnpm -r test"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",
