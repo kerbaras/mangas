@@ -4,6 +4,7 @@
 
 mod xml;
 
+use std::ffi::OsString;
 use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
@@ -91,11 +92,9 @@ pub fn write(book: &Book, path: &Path) -> Result<PathBuf> {
 /// `<file name>.part` next to `target`; appended to the whole name so `book` and `book.epub`
 /// never share one temporary file.
 fn part_file(target: &Path) -> PathBuf {
-    let name = target
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    target.with_file_name(format!("{name}.part"))
+    let mut name = target.file_name().map(OsString::from).unwrap_or_default();
+    name.push(".part");
+    target.with_file_name(name)
 }
 
 /// Atomically creates `path`, or the first `stem (n).ext` that does not exist yet.
