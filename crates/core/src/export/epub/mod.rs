@@ -6,7 +6,7 @@ mod xml;
 
 use std::fs::File;
 use std::io::{BufWriter, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipWriter};
@@ -63,20 +63,41 @@ fn entries(book: &Book) -> Vec<PageEntry> {
         .collect()
 }
 
-/// Writes `book` to `path` (parent directories are created).
-pub fn write(book: &Book, path: &Path) -> Result<()> {
+/// Writes `book` next to `path` (parent directories are created) and returns the file written.
+/// An existing file is never replaced: the name gets ` (2)`, ` (3)`, ... like a browser download.
+pub fn write(book: &Book, path: &Path) -> Result<PathBuf> {
     if book.pages.is_empty() {
         return Err(Error::Other("epub: no pages".into()));
     }
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let tmp = path.with_extension("epub.part");
+    let target = free_path(path);
+    let tmp = target.with_extension("epub.part");
     write_zip(book, &tmp).inspect_err(|_| {
         let _ = std::fs::remove_file(&tmp);
     })?;
-    std::fs::rename(&tmp, path)?;
-    Ok(())
+    std::fs::rename(&tmp, &target)?;
+    Ok(target)
+}
+
+/// `path` itself when nothing is there, otherwise the first `stem (n).ext` that is free.
+fn free_path(path: &Path) -> PathBuf {
+    if !path.exists() {
+        return path.to_path_buf();
+    }
+    let stem = path
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let ext = path
+        .extension()
+        .map(|e| format!(".{}", e.to_string_lossy()))
+        .unwrap_or_default();
+    (2..)
+        .map(|n| path.with_file_name(format!("{stem} ({n}){ext}")))
+        .find(|candidate| !candidate.exists())
+        .unwrap_or_else(|| path.to_path_buf())
 }
 
 fn write_zip(book: &Book, path: &Path) -> Result<()> {

@@ -31,8 +31,8 @@ export function useExport() {
     running.current = true;
     setState({ kind: "running", progress: null });
     try {
-      await exportKindle(request);
-      setState({ kind: "done", output: request.output });
+      const output = await exportKindle(request);
+      setState({ kind: "done", output });
     } catch (e) {
       setState({ kind: "error", message: errorMessage(e) });
     } finally {

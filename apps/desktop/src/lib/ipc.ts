@@ -87,7 +87,8 @@ export type Backend = {
   listChapters(source: string, mangaId: string, refresh?: boolean): Promise<Chapter[]>;
   /** Resolves to the ids of chapters that failed; progress arrives via `onDownloadProgress`. */
   downloadChapters(source: string, mangaId: string, chapterIds: string[]): Promise<string[]>;
-  exportKindle(request: ExportRequest): Promise<void>;
+  /** Resolves to the path of the EPUB written. */
+  exportKindle(request: ExportRequest): Promise<string>;
   detectorsStatus(): Promise<DetectorsStatus>;
   onDownloadProgress(cb: (p: DownloadProgress) => void): Promise<Unlisten>;
   onExportProgress(cb: (p: ExportProgress) => void): Promise<Unlisten>;

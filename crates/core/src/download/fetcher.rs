@@ -36,6 +36,12 @@ impl PageFetcher for HttpFetcher {
             )));
         }
         let response = self.http.get(url).send().await?.error_for_status()?;
+        if !is_public_http_url(response.url().as_str()) {
+            return Err(Error::Other(format!(
+                "refusing response from non-public url {}",
+                response.url()
+            )));
+        }
         Ok(response.bytes().await?.to_vec())
     }
 }

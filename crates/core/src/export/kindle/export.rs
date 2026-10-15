@@ -41,13 +41,15 @@ pub enum Progress {
     },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExportStats {
     pub pages: usize,
     pub strips: usize,
     pub source_rows: usize,
     pub pagination_ms: u128,
     pub filters_ms: u128,
+    /// File actually written (differs from the request when the name was already taken).
+    pub output: PathBuf,
 }
 
 struct Run<'a> {
@@ -137,6 +139,7 @@ pub fn export(
             source_rows: 0,
             pagination_ms: 0,
             filters_ms: 0,
+            output: PathBuf::new(),
         },
         progress,
     };
@@ -172,6 +175,6 @@ pub fn export(
         chapters,
         pages: run.pages,
     };
-    epub::write(&book, &req.output)?;
+    run.stats.output = epub::write(&book, &req.output)?;
     Ok(run.stats)
 }

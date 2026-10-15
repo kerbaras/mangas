@@ -122,6 +122,7 @@ export const mockBackend: Backend = {
   },
   async exportKindle(request) {
     await simulateExport(Math.max(1, request.chapter_dirs.length * 6));
+    return request.output;
   },
   async detectorsStatus() {
     await wait(120);

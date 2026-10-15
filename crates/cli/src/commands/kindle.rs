@@ -143,7 +143,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let stats = export(&req, penalizer, &mut print_progress)?;
     println!(
         "{}: {} pages from {} chapters ({} strips, {} source rows); pagination {} ms, filters {} ms, total {} ms",
-        output.display(),
+        stats.output.display(),
         stats.pages,
         req.chapter_dirs.len(),
         stats.strips,

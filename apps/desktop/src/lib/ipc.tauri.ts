@@ -39,9 +39,8 @@ export const tauriBackend: Backend = {
     }),
   downloadChapters: (source, mangaId, chapterIds) =>
     invoke<string[]>("download_chapters", { source, mangaId, chapterIds }),
-  exportKindle: async (request) => {
-    await invoke<ExportStats>("export_kindle", toExportArgs(request));
-  },
+  exportKindle: async (request) =>
+    (await invoke<ExportStats>("export_kindle", toExportArgs(request))).output,
   detectorsStatus: async () => toDetectorsStatus(await invoke<MlStatus>("detectors_status")),
   onDownloadProgress: (cb) =>
     listen<DownloadEvent>(DOWNLOAD_EVENT, (e) => cb(toDownloadProgress(e.payload))),

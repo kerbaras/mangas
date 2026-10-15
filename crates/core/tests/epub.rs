@@ -133,3 +133,27 @@ fn rejects_empty_book() {
     };
     assert!(epub::write(&book, &dir.path().join("e.epub")).is_err());
 }
+
+#[test]
+fn never_replaces_an_existing_book() {
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("Title ch 1-3.epub");
+    std::fs::write(&out, b"previous").unwrap();
+    let book = Book {
+        id: "x".into(),
+        title: "t".into(),
+        author: "a".into(),
+        language: "en".into(),
+        right_to_left: false,
+        device_width: 1,
+        device_height: 1,
+        chapters: vec![],
+        pages: vec![page(600, 800)],
+    };
+    let written = epub::write(&book, &out).expect("write");
+    assert_eq!(written, dir.path().join("Title ch 1-3 (2).epub"));
+    assert_eq!(std::fs::read(&out).unwrap(), b"previous");
+    let again = epub::write(&book, &out).expect("write");
+    assert_eq!(again, dir.path().join("Title ch 1-3 (3).epub"));
+    assert!(!dir.path().join("Title ch 1-3 (2).epub.part").exists());
+}
