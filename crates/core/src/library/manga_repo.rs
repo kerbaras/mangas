@@ -25,12 +25,10 @@ pub fn upsert_manga(lib: &Library, manga: &Manga) -> Result<()> {
     Ok(())
 }
 
-/// All followed manga, most recently added first.
+/// All followed manga, most recently followed first (insertion order via rowid).
 pub fn list_manga(lib: &Library) -> Result<Vec<Manga>> {
     let conn = lib.conn()?;
-    let mut stmt = conn.prepare(&format!(
-        "SELECT {COLUMNS} FROM manga ORDER BY added_at DESC, title"
-    ))?;
+    let mut stmt = conn.prepare(&format!("SELECT {COLUMNS} FROM manga ORDER BY rowid DESC"))?;
     let rows = stmt.query_map([], row_to_manga)?;
     Ok(rows.collect::<std::result::Result<_, _>>()?)
 }

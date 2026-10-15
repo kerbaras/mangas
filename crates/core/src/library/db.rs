@@ -23,7 +23,7 @@ impl Library {
 
 /// Opens (or creates) the library at `path` and applies pending migrations.
 pub fn open(path: &Path) -> Result<Library> {
-    if let Some(dir) = path.parent() {
+    if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
         std::fs::create_dir_all(dir)?;
     }
     init(Connection::open(path)?)
