@@ -50,7 +50,7 @@ export const readSettings = (): Settings => cached;
 
 /** Hydrates from the backend; the platform data dir replaces the `~` placeholder default. */
 export async function loadSettings(): Promise<void> {
-  const [stored, platform] = await Promise.all([getSettings(), defaultDataDir()]);
+  const [stored, platform] = await Promise.all([getSettings(), fetchDefaultDataDir()]);
   defaultDataDir = platform || DEFAULTS.dataDir;
   cached = fromStored(stored, defaultDataDir);
   notify();
