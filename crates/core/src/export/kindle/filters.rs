@@ -1,6 +1,17 @@
 //! E-ink filters on raw pixel buffers: BT.601 grayscale, contrast + gamma folded into one LUT,
 //! and a 3x3 sharpen. Pure functions over `Vec<u8>`; the caller owns image geometry.
 
+/// Composites a packed RGBA buffer onto an opaque white background (alpha becomes 255).
+pub fn flatten_on_white(rgba: &[u8]) -> Vec<u8> {
+    rgba.chunks_exact(4)
+        .flat_map(|p| {
+            let a = p[3] as u32;
+            let mix = |c: u8| ((c as u32 * a + 255 * (255 - a) + 127) / 255) as u8;
+            [mix(p[0]), mix(p[1]), mix(p[2]), 255]
+        })
+        .collect()
+}
+
 /// BT.601 luma of a packed RGBA buffer.
 pub fn grayscale_rgba(rgba: &[u8]) -> Vec<u8> {
     rgba.chunks_exact(4)

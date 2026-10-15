@@ -43,8 +43,13 @@ export type ExportProgress =
 
 /** Payload of the `kindle-progress` event emitted during `exportKindle`. */
 export type KindleProgressEvent =
-  | { kind: "model_download"; id: string; done: number; total: number | null }
-  | ({ kind: "export" } & ExportProgress);
+  | {
+      event: "model_download";
+      id: string;
+      done: number;
+      total: number | null;
+    }
+  | ({ event: "export" } & ExportProgress);
 
 export const KINDLE_PROGRESS_EVENT = "kindle-progress";
 

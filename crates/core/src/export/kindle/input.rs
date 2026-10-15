@@ -11,7 +11,9 @@ const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "webp"];
 /// Image files of a chapter directory in name order.
 pub fn chapter_images(dir: &Path) -> Result<Vec<PathBuf>> {
     let mut files: Vec<PathBuf> = std::fs::read_dir(dir)?
-        .filter_map(|e| e.ok().map(|e| e.path()))
+        .map(|e| e.map(|e| e.path()))
+        .collect::<std::io::Result<Vec<_>>>()?
+        .into_iter()
         .filter(|p| {
             p.extension()
                 .and_then(|e| e.to_str())
@@ -36,10 +38,11 @@ pub(super) fn chapter_title(dir: &Path, index: usize) -> String {
         .unwrap_or_else(|| format!("Chapter {}", index + 1))
 }
 
-/// Deterministic identifier derived from the title and page count (no extra dependency).
-pub(super) fn uuid_like(title: &str, pages: usize) -> String {
+/// Unique identifier: hash of the title, the output path and the export time (no extra dependency).
+pub(super) fn uuid_like(title: &str, output: &Path) -> String {
     use sha2::{Digest, Sha256};
-    let hash = Sha256::digest(format!("{title}:{pages}"));
+    let now = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default();
+    let hash = Sha256::digest(format!("{title}:{}:{now}", output.display()));
     let h: Vec<String> = hash.iter().take(16).map(|b| format!("{b:02x}")).collect();
     let s = h.concat();
     format!(

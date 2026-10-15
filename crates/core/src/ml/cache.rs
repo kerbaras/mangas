@@ -42,7 +42,14 @@ pub async fn ensure_model(
 ) -> Result<PathBuf> {
     let path = model_path(cache_dir, spec);
     if path.is_file() {
-        return Ok(path);
+        if verify(spec, &std::fs::read(&path)?).is_ok() {
+            return Ok(path);
+        }
+        log::warn!(
+            "model {}: cached file failed sha256 check, downloading again",
+            spec.id
+        );
+        std::fs::remove_file(&path)?;
     }
     std::fs::create_dir_all(cache_dir)?;
     let resp = reqwest::get(spec.url).await?.error_for_status()?;

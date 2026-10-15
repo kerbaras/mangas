@@ -71,6 +71,15 @@ pub fn write(book: &Book, path: &Path) -> Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
+    let tmp = path.with_extension("epub.part");
+    write_zip(book, &tmp).inspect_err(|_| {
+        let _ = std::fs::remove_file(&tmp);
+    })?;
+    std::fs::rename(&tmp, path)?;
+    Ok(())
+}
+
+fn write_zip(book: &Book, path: &Path) -> Result<()> {
     let file = BufWriter::new(File::create(path)?);
     let mut zip = ZipWriter::new(file);
     let stored = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);

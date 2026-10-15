@@ -4,7 +4,7 @@ use std::io::Cursor;
 
 use image::{ImageFormat, Rgba, RgbaImage};
 use mangas_core::export::kindle::filters::{
-    apply_lut, grayscale_rgba, is_identity, sharpen_gray, tone_lut,
+    apply_lut, flatten_on_white, grayscale_rgba, is_identity, sharpen_gray, tone_lut,
 };
 use mangas_core::export::kindle::process::{fit_dimensions, process_page, ImageSettings};
 use mangas_core::export::{self};
@@ -71,4 +71,19 @@ fn process_page_fits_and_encodes_gray_jpeg() {
     assert_eq!((page.width, page.height), (1264, 632));
     let decoded = image::load_from_memory(&page.jpeg).unwrap();
     assert_eq!(decoded.color(), image::ColorType::L8);
+}
+
+#[test]
+fn transparent_pixels_become_white_not_black() {
+    assert_eq!(flatten_on_white(&[0, 0, 0, 0]), vec![255, 255, 255, 255]);
+    assert_eq!(flatten_on_white(&[0, 0, 0, 255]), vec![0, 0, 0, 255]);
+    assert_eq!(flatten_on_white(&[0, 0, 0, 128]), vec![127, 127, 127, 255]);
+    let dev = export::kindle::device("kindle-paperwhite12").unwrap();
+    let img = RgbaImage::from_pixel(32, 32, Rgba([0, 0, 0, 0]));
+    let page = process_page(&img, &ImageSettings::for_device(&dev)).unwrap();
+    let decoded = image::load_from_memory(&page.jpeg).unwrap().to_luma8();
+    assert!(
+        decoded.pixels().all(|p| p.0[0] > 240),
+        "transparent page renders white"
+    );
 }

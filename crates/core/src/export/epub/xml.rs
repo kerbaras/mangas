@@ -18,10 +18,7 @@ pub const CONTAINER_XML: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 "#;
 
 pub fn content_opf(book: &Book, pages: &[PageEntry], modified: &str) -> String {
-    let (w, h) = pages
-        .first()
-        .map(|p| (p.width, p.height))
-        .unwrap_or((book.device_width, book.device_height));
+    let (w, h) = (book.device_width, book.device_height);
     let mut manifest = String::new();
     let mut spine = String::new();
     for p in pages {

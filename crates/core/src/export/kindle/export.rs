@@ -148,18 +148,21 @@ pub fn export(
             total,
             path: dir.clone(),
         });
-        chapters.push(ChapterEntry {
-            title: chapter_title(dir, index),
-            first_page: run.pages.len(),
-        });
+        let first_page = run.pages.len();
         run.chapter(dir, &dev)
             .map_err(|e| Error::Other(format!("{}: {e}", dir.display())))?;
+        if run.pages.len() > first_page {
+            chapters.push(ChapterEntry {
+                title: chapter_title(dir, index),
+                first_page,
+            });
+        }
     }
     (run.progress)(Progress::Writing {
         pages: run.pages.len(),
     });
     let book = Book {
-        id: uuid_like(&req.title, run.pages.len()),
+        id: uuid_like(&req.title, &req.output),
         title: req.title.clone(),
         author: "mangas".into(),
         language: "en".into(),

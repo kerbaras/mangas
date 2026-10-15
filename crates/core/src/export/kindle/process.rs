@@ -5,7 +5,9 @@ use std::io::Cursor;
 use image::codecs::jpeg::JpegEncoder;
 use image::{ExtendedColorType, GrayImage, ImageEncoder, RgbaImage};
 
-use super::filters::{apply_lut, grayscale_rgba, is_identity, sharpen_gray, tone_lut};
+use super::filters::{
+    apply_lut, flatten_on_white, grayscale_rgba, is_identity, sharpen_gray, tone_lut,
+};
 use super::Device;
 use crate::domain::{Error, Result};
 use crate::smartcut::raster::resize_rgba;
@@ -66,8 +68,9 @@ pub fn process_page(img: &RgbaImage, s: &ImageSettings) -> Result<EncodedPage> {
     } else {
         img.clone()
     };
+    let flat = flatten_on_white(fitted.as_raw());
     if s.grayscale {
-        let mut gray = grayscale_rgba(fitted.as_raw());
+        let mut gray = grayscale_rgba(&flat);
         let lut = tone_lut(s.contrast, s.gamma);
         if !is_identity(&lut) {
             gray = apply_lut(&gray, &lut);
@@ -82,8 +85,7 @@ pub fn process_page(img: &RgbaImage, s: &ImageSettings) -> Result<EncodedPage> {
         });
     }
     let lut = tone_lut(s.contrast, s.gamma);
-    let rgb: Vec<u8> = fitted
-        .as_raw()
+    let rgb: Vec<u8> = flat
         .chunks_exact(4)
         .flat_map(|p| [lut[p[0] as usize], lut[p[1] as usize], lut[p[2] as usize]])
         .collect();

@@ -38,7 +38,7 @@ fn writes_valid_fixed_layout_epub() {
                 first_page: 2,
             },
         ],
-        pages: vec![page(1264, 1680), page(1264, 1680), page(1264, 1680)],
+        pages: vec![page(1264, 1680), page(1264, 1680), page(600, 800)],
     };
     epub::write(&book, &out).expect("write");
 
@@ -67,7 +67,10 @@ fn writes_valid_fixed_layout_epub() {
         .read_to_string(&mut opf)
         .unwrap();
     assert!(opf.contains("<meta property=\"rendition:layout\">pre-paginated</meta>"));
-    assert!(opf.contains("<meta name=\"original-resolution\" content=\"1264x1680\"/>"));
+    assert!(
+        opf.contains("<meta name=\"original-resolution\" content=\"1264x1680\"/>"),
+        "resolution is the device canvas even when a page is smaller"
+    );
     assert!(opf.contains("<meta name=\"book-type\" content=\"comic\"/>"));
     assert!(opf.contains("<dc:title>Test &lt;Book&gt;</dc:title>"));
     assert_eq!(opf.matches("<itemref idref=").count(), 3);
@@ -88,6 +91,30 @@ fn writes_valid_fixed_layout_epub() {
     assert!(xhtml.contains("<img src=\"../images/page-00000.jpg\""));
     assert!(xhtml.contains("width=1264, height=1680"));
     assert!(zip.by_name("OEBPS/images/page-00002.jpg").is_ok());
+    assert!(
+        !dir.path().join("sub/out.epub.part").exists(),
+        "temp file renamed away"
+    );
+}
+
+#[test]
+fn failed_write_keeps_the_previous_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("keep.epub");
+    std::fs::write(&out, b"previous").unwrap();
+    let empty = Book {
+        id: "x".into(),
+        title: "t".into(),
+        author: "a".into(),
+        language: "en".into(),
+        right_to_left: false,
+        device_width: 1,
+        device_height: 1,
+        chapters: vec![],
+        pages: vec![],
+    };
+    assert!(epub::write(&empty, &out).is_err());
+    assert_eq!(std::fs::read(&out).unwrap(), b"previous");
 }
 
 #[test]

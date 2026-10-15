@@ -27,7 +27,7 @@ pub fn list_devices() -> Vec<Device> {
 
 /// Emitted as `kindle-progress` while `export_kindle` runs.
 #[derive(Clone, serde::Serialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(tag = "event", rename_all = "snake_case")]
 enum ExportEvent {
     ModelDownload {
         id: String,
