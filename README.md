@@ -18,6 +18,18 @@ Rust core, Tauri 2 + React desktop app, and a small CLI that exposes the same op
 Design notes and decisions: [`docs/rewrite-design.md`](docs/rewrite-design.md). Rules for
 contributors and agents: [`AGENTS.md`](AGENTS.md).
 
+## Install
+
+Builds for macOS (arm64, Intel), Windows (x64, arm64) and Linux (x64, arm64) are on the
+[releases page](https://github.com/kerbaras/mangas/releases). Release candidates are marked
+pre-release.
+
+The macOS bundle is ad-hoc signed unless the repository has an Apple Developer ID: on first
+launch right-click the app and choose Open (or allow it under System Settings → Privacy &
+Security). To ship signed and notarized builds, add these repository secrets and the release
+workflow picks them up: `APPLE_CERTIFICATE` (base64 `.p12`), `APPLE_CERTIFICATE_PASSWORD`,
+`APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD` (app-specific password), `APPLE_TEAM_ID`.
+
 ## Build
 
 Requirements: Rust 1.85+, Node 24, pnpm 12. The desktop app also needs the
