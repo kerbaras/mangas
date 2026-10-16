@@ -1,25 +1,27 @@
 //! MangaDex source (<https://api.mangadex.org>).
 
 mod api;
-mod client;
 mod mapping;
-mod rate_limit;
 
 use async_trait::async_trait;
 
-pub use client::API_BASE;
+use crate::http::ApiClient;
+
+pub const API_BASE: &str = "https://api.mangadex.org";
+const SITE: &str = "https://mangadex.org";
+const REQUESTS_PER_SECOND: u32 = 5;
 pub use mapping::{
     cover_url, dedupe_and_sort, parse_at_home_response, parse_error_response, parse_feed_response,
     parse_manga_response, parse_search_response, FeedPage, SOURCE_NAME,
 };
 
-use crate::domain::{Chapter, ChapterId, Manga, MangaId, Result};
-use crate::sources::{PageUrls, Source};
+use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId, Result};
+use mangas_core::sources::{PageUrls, Source};
 
 const FEED_PAGE_SIZE: u32 = 500;
 
 pub struct MangaDex {
-    client: client::ApiClient,
+    client: ApiClient,
 }
 
 impl MangaDex {
@@ -30,8 +32,20 @@ impl MangaDex {
     /// Points the source at another base URL (tests, mirrors).
     pub fn with_base(base: &str) -> Result<Self> {
         Ok(Self {
-            client: client::ApiClient::new(base)?,
+            client: ApiClient::new(SOURCE_NAME, SITE, base, REQUESTS_PER_SECOND)?,
         })
+    }
+}
+
+impl MangaDex {
+    /// GET returning the body; MangaDex error payloads become [`mangas_core::Error::Source`].
+    async fn get(&self, path: &str, query: &[(&str, String)]) -> Result<String> {
+        let reply = self.client.get_raw(path, query).await?;
+        if (200..300).contains(&reply.status) {
+            Ok(reply.body)
+        } else {
+            Err(parse_error_response(reply.status, &reply.body))
+        }
     }
 }
 
@@ -47,13 +61,13 @@ impl Source for MangaDex {
             ("limit", limit.clamp(1, 100).to_string()),
             ("includes[]", "cover_art".to_string()),
         ];
-        let body = self.client.get("/manga", &params).await?;
+        let body = self.get("/manga", &params).await?;
         parse_search_response(&body)
     }
 
     async fn manga(&self, id: &MangaId) -> Result<Manga> {
         let params = [("includes[]", "cover_art".to_string())];
-        let body = self.client.get(&format!("/manga/{id}"), &params).await?;
+        let body = self.get(&format!("/manga/{id}"), &params).await?;
         parse_manga_response(&body)
     }
 
@@ -68,7 +82,7 @@ impl Source for MangaDex {
                 ("limit", FEED_PAGE_SIZE.to_string()),
                 ("offset", current.to_string()),
             ];
-            let body = self.client.get(&path, &params).await?;
+            let body = self.get(&path, &params).await?;
             let page = parse_feed_response(&body, id, language)?;
             all.extend(page.chapters);
             offset = page.next_offset;
@@ -77,10 +91,7 @@ impl Source for MangaDex {
     }
 
     async fn pages(&self, chapter: &ChapterId) -> Result<PageUrls> {
-        let body = self
-            .client
-            .get(&format!("/at-home/server/{chapter}"), &[])
-            .await?;
+        let body = self.get(&format!("/at-home/server/{chapter}"), &[]).await?;
         parse_at_home_response(&body)
     }
 }

@@ -14,6 +14,7 @@ fn settings_round_trip_and_overwrite() {
         data_dir: Some("/tmp/mangas".into()),
         default_device: Some("kindle-scribe".into()),
         default_preset: Some(Preset::FewestCuts),
+        provider_sessions: Default::default(),
     };
     library::set_settings(&lib, &first).unwrap();
     assert_eq!(library::get_settings(&lib).unwrap(), first);

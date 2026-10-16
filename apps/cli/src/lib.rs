@@ -32,6 +32,8 @@ enum Command {
     Download(commands::download::Args),
     /// Export downloaded chapters as a Kindle-ready EPUB
     Kindle(commands::kindle::Args),
+    /// List the providers and whether they are ready to use
+    Providers(commands::providers::Args),
 }
 
 /// Parses `args` (including the program name) and runs the command. Exits on `--help`,
@@ -49,5 +51,6 @@ where
         Command::Chapters(args) => commands::chapters::run(args).await,
         Command::Download(args) => commands::download::run(args).await,
         Command::Kindle(args) => commands::kindle::run(args).await,
+        Command::Providers(args) => commands::providers::run(args),
     }
 }

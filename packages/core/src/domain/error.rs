@@ -7,6 +7,10 @@ pub enum Error {
     NotFound(String),
     #[error("source {name}: {message}")]
     Source { name: String, message: String },
+    /// The provider sits behind a browser verification (Cloudflare); the app must open `site`
+    /// in a window, let the user pass it and store the resulting session.
+    #[error("challenge: {name} needs a browser session for {site}")]
+    Challenge { name: String, site: String },
     #[error("library: {0}")]
     Library(#[from] rusqlite::Error),
     #[error("network: {0}")]

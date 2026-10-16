@@ -17,6 +17,7 @@ path = "src/main.rs"
 
 [dependencies]
 mangas-core = { path = "../../packages/core" }
+mangas-providers = { path = "../../packages/providers" }
 anyhow = { workspace = true }
 tokio = { workspace = true }
 clap = { version = "4", features = ["derive"] }

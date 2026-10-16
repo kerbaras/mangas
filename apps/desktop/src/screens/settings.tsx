@@ -3,6 +3,7 @@ import { useState } from "react";
 import { DeviceSelect } from "@/components/device-select";
 import { Field } from "@/components/field";
 import { PresetPicker } from "@/components/preset-picker";
+import { ProvidersList } from "@/components/providers-list";
 import { ScreenHeader } from "@/components/screen-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +53,14 @@ export function SettingsScreen() {
                   <FolderOpen /> Choose…
                 </Button>
               </div>
+            </Field>
+          </Group>
+          <Group title="Providers">
+            <Field
+              label="Sources"
+              hint="Sites behind a verification wall open in their own window once; the session is reused by the app and the `mangas` command until it expires."
+            >
+              <ProvidersList />
             </Field>
           </Group>
           <Group title="Kindle">

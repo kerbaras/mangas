@@ -1,11 +1,13 @@
 use std::net::IpAddr;
 
 use async_trait::async_trait;
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::redirect::{Attempt, Policy};
 use reqwest::Client;
 use url::{Host, Url};
 
 use crate::domain::{Error, Result};
+use crate::sources::{Header, Source};
 
 /// Fetches one page image. Abstracted so downloads can be tested without a network.
 #[async_trait]
@@ -19,12 +21,34 @@ pub struct HttpFetcher {
 
 impl HttpFetcher {
     pub fn new() -> Result<Self> {
+        Self::with_headers(&[])
+    }
+
+    /// Fetcher sending the headers `source` needs on every page request.
+    pub fn for_source(source: &dyn Source) -> Result<Self> {
+        Self::with_headers(&source.page_headers())
+    }
+
+    pub fn with_headers(headers: &[Header]) -> Result<Self> {
         let http = Client::builder()
             .user_agent(concat!("mangas/", env!("CARGO_PKG_VERSION")))
+            .default_headers(header_map(headers)?)
             .redirect(Policy::custom(public_redirects_only))
             .build()?;
         Ok(Self { http })
     }
+}
+
+fn header_map(headers: &[Header]) -> Result<HeaderMap> {
+    let mut map = HeaderMap::new();
+    for (name, value) in headers {
+        let name = HeaderName::from_bytes(name.as_bytes())
+            .map_err(|e| Error::Other(format!("header {name}: {e}")))?;
+        let value = HeaderValue::from_str(value)
+            .map_err(|e| Error::Other(format!("header {name}: {e}")))?;
+        map.insert(name, value);
+    }
+    Ok(map)
 }
 
 #[async_trait]

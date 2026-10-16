@@ -5,8 +5,14 @@ app, small CLI. The original Go/TUI implementation was removed once the Rust por
 
 ## Layout
 
-- `packages/core` (`mangas-core`): all business logic. Modules: `domain`, `sources`, `library`,
-  `download`, `export`, `smartcut`, `ml`. Tests in `packages/core/tests/`.
+- `packages/core` (`mangas-core`): all business logic. Modules: `domain`, `sources` (the
+  `Source` trait only), `library`, `download`, `export`, `smartcut`, `ml`. Tests in
+  `packages/core/tests/`.
+- `packages/providers` (`mangas-providers`): one module per site (`mangadex`, `mangadot`) on a
+  shared rate-limited `http::ApiClient`; `registry` maps names to providers. Sites behind a
+  browser verification get a `Session` (cookies + user agent) stored in the app settings;
+  `ApiClient` turns a challenge page into `Error::Challenge` so the UI can offer "Connect".
+  Mapping functions are pure and tested on JSON fixtures in `packages/providers/tests/`.
 - `apps/cli` (`mangas-cli`): clap CLI as a library plus a dev binary, one file per subcommand, thin
   calls into core. The shipped `mangas` executable is the desktop one: with arguments it runs
   this CLI, without them it opens the app.

@@ -10,7 +10,7 @@ Rust core, Tauri 2 + React desktop app, and a small CLI that exposes the same op
 
 | Path | Crate / package | What it does |
 |---|---|---|
-| `packages/core` | `mangas-core` | Sources (MangaDex), SQLite library, downloads, smart cut, Kindle filters, EPUB writer, optional ONNX detectors |
+| `packages/core` (+ `packages/providers` for the site adapters) | `mangas-core` | Sources (MangaDex), SQLite library, downloads, smart cut, Kindle filters, EPUB writer, optional ONNX detectors |
 | `apps/cli` | `mangas-cli` | the command line as a library (+ a dev binary): `search`, `add`, `remove`, `chapters`, `download`, `list`, `kindle` |
 | `apps/desktop` | `@mangas/desktop` | Tauri shell (`src-tauri`, IPC only) and the React UI (`src`); builds the shipped `mangas` executable, which runs the CLI when given arguments and opens the app otherwise |
 

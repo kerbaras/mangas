@@ -1,5 +1,5 @@
 use mangas_core::domain::{Error, MangaId, MangaStatus};
-use mangas_core::sources::mangadex::{
+use mangas_providers::mangadex::{
     cover_url, dedupe_and_sort, parse_at_home_response, parse_error_response, parse_feed_response,
     parse_manga_response, parse_search_response,
 };

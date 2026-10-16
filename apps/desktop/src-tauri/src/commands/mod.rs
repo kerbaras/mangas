@@ -2,11 +2,12 @@
 
 pub mod catalog;
 pub mod kindle;
+pub mod providers;
 
 use mangas_core::domain::Manga;
 use mangas_core::export::kindle::{Device, DEVICES};
 use mangas_core::library::{self, Library, Settings};
-use mangas_core::sources::{self, Source};
+use mangas_providers::Source;
 
 use crate::paths;
 
@@ -19,8 +20,10 @@ pub(super) fn open_library() -> Result<Library, String> {
     library::open(&paths::library_db()?).map_err(to_ipc)
 }
 
+/// The provider called `name`, carrying the browser session stored for it in the settings.
 pub(super) fn source_by_name(name: &str) -> Result<Box<dyn Source>, String> {
-    sources::by_name(name).ok_or_else(|| format!("unknown source '{name}'"))
+    let settings = settings_of(&open_library()?)?;
+    mangas_providers::by_name(name, &settings).ok_or_else(|| format!("unknown source '{name}'"))
 }
 
 pub(super) fn settings_of(lib: &Library) -> Result<Settings, String> {
