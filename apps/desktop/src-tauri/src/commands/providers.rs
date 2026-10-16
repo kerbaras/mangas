@@ -60,8 +60,14 @@ fn capture_session<R: tauri::Runtime>(
     provider: &str,
     site: &Url,
 ) -> Result<(), String> {
-    let cookies = webview.cookies_for_url(site.clone()).map_err(to_ipc)?;
-    let header = cookie_header(cookies.iter().map(|c| (c.name(), c.value())));
+    let host = site.host_str().unwrap_or_default();
+    let cookies = webview.cookies().map_err(to_ipc)?;
+    let header = cookie_header(
+        cookies
+            .iter()
+            .filter(|c| cookie_matches_host(c.domain(), host))
+            .map(|c| (c.name(), c.value())),
+    );
     if !header.contains(&format!("{CLEARANCE_COOKIE}=")) {
         return Ok(());
     }
@@ -94,10 +100,45 @@ pub fn allowed_navigation(url: &Url, site: &Url) -> bool {
             || host == "challenges.cloudflare.com")
 }
 
+/// Whether a cookie set for `domain` is sent to `host`. Cookies the site scoped to a parent
+/// domain (`Domain=.mangadot.net`, as Cloudflare does) must count too: macOS reports them with
+/// the leading dot, which Tauri's own per-URL filter compares as an exact string and drops.
+/// A cookie without a domain cannot be attributed to the site and is left out.
+pub fn cookie_matches_host(domain: Option<&str>, host: &str) -> bool {
+    let Some(domain) = domain.map(|d| d.trim_start_matches('.')) else {
+        return false;
+    };
+    host == domain || host.ends_with(&format!(".{domain}"))
+}
+
 /// `name=value; name2=value2`, as the HTTP `Cookie` header wants it.
 pub fn cookie_header<'a>(cookies: impl Iterator<Item = (&'a str, &'a str)>) -> String {
     cookies
         .map(|(name, value)| format!("{name}={value}"))
         .collect::<Vec<_>>()
         .join("; ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::cookie_matches_host;
+
+    #[test]
+    fn parent_domain_cookies_apply_to_the_site_host() {
+        assert!(cookie_matches_host(Some(".mangadot.net"), "mangadot.net"));
+        assert!(cookie_matches_host(Some("mangadot.net"), "mangadot.net"));
+        assert!(cookie_matches_host(
+            Some(".mangadot.net"),
+            "www.mangadot.net"
+        ));
+    }
+
+    #[test]
+    fn other_hosts_are_left_out() {
+        assert!(!cookie_matches_host(Some("cloudflare.com"), "mangadot.net"));
+        assert!(!cookie_matches_host(
+            Some(".notmangadot.net"),
+            "mangadot.net"
+        ));
+    }
 }
