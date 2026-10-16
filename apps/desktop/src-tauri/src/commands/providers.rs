@@ -30,10 +30,12 @@ pub fn connect_provider(app: AppHandle, provider: String) -> Result<(), String> 
         return existing.set_focus().map_err(to_ipc);
     }
     let id = info.id;
+    let origin = site.clone();
     WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(site.clone()))
         .title(format!("Connect {}", info.name))
         .inner_size(1000.0, 760.0)
         .user_agent(BROWSER_USER_AGENT)
+        .on_navigation(move |url| allowed_navigation(url, &origin))
         .on_page_load(move |webview, _| {
             if let Err(e) = capture_session(&webview, id, &site) {
                 log::warn!("{id}: could not read session cookies: {e}");
@@ -76,6 +78,17 @@ fn capture_session<R: tauri::Runtime>(
     library::set_settings(&lib, &settings).map_err(to_ipc)?;
     log::info!("{provider}: browser session saved");
     webview.close().map_err(to_ipc)
+}
+
+/// The Connect window may only navigate within the provider's site and Cloudflare's challenge
+/// pages; anything else (ads, outbound links) is blocked.
+pub fn allowed_navigation(url: &Url, site: &Url) -> bool {
+    let host = url.host_str().unwrap_or_default();
+    let site_host = site.host_str().unwrap_or_default();
+    url.scheme() == "about"
+        || host == site_host
+        || host.ends_with(&format!(".{site_host}"))
+        || host == "challenges.cloudflare.com"
 }
 
 /// `name=value; name2=value2`, as the HTTP `Cookie` header wants it.

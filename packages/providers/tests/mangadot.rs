@@ -1,7 +1,7 @@
 use mangas_core::domain::{ChapterId, MangaId, MangaStatus};
 use mangas_providers::mangadot::{
-    images_path, matches, parse_chapters, parse_images, parse_manga_list, parse_manga_page,
-    site_url,
+    images_path, loader_status, matches, parse_chapters, parse_images, parse_manga_list,
+    parse_manga_page, site_url,
 };
 
 const SEARCH: &str = r#"{"manga_list":[{"id":32807,"title":"Konyaku Hakisarete","genres":["Comedy"],"status":"Ongoing","photo":"/uploads/ea2cc63c.webp","date_added":"2026-06-30 07:25:30+00","description":"The protagonist"}]}"#;
@@ -81,6 +81,16 @@ fn manga_page_reads_open_graph_tags() {
         Some("https://mangadot.net/uploads/op.webp")
     );
     assert!(parse_manga_page(&MangaId("1".into()), "<html></html>").is_err());
+}
+
+#[test]
+fn manga_page_status_comes_from_the_inlined_loader_data() {
+    // As served: the stream chunk is a JS string, so quotes arrive escaped.
+    let html = r#"<meta property="og:title" content="X"/><script>window.__reactRouterContext.streamController.enqueue("[{"_1":2},"manga",{"_3":4},"id",42,"title","X","status","Completed","photo","/uploads/a.webp","other",{"status":-5}]");</script>"#;
+    assert_eq!(loader_status(html).as_deref(), Some("Completed"));
+    let m = parse_manga_page(&MangaId("42".into()), html).unwrap();
+    assert_eq!(m.status, MangaStatus::Completed);
+    assert_eq!(loader_status("<html></html>"), None);
 }
 
 #[test]

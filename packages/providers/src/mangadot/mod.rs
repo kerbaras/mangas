@@ -10,8 +10,8 @@ use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId, Result};
 use mangas_core::sources::{Header, PageUrls, Source};
 
 pub use mapping::{
-    chapter_id, images_path, parse_chapters, parse_images, parse_manga_list, parse_manga_page,
-    site_url, SITE, SOURCE_NAME,
+    chapter_id, images_path, loader_status, parse_chapters, parse_images, parse_manga_list,
+    parse_manga_page, site_url, SITE, SOURCE_NAME,
 };
 pub use search::{honoured, matches};
 

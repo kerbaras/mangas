@@ -56,7 +56,8 @@ pub fn parse_manga_list(body: &str) -> Result<Vec<Manga>> {
     Ok(list.manga_list.into_iter().map(to_manga).collect())
 }
 
-/// Open Graph tags of the `/manga/{id}` page: the only place with the full description.
+/// Open Graph tags of the `/manga/{id}` page (title, description, cover) plus the status from
+/// the React Router loader data inlined in the page.
 pub fn parse_manga_page(id: &MangaId, html: &str) -> Result<Manga> {
     let title = og(html, "og:title").ok_or_else(|| Error::NotFound(format!("manga {id}")))?;
     Ok(Manga {
@@ -65,8 +66,21 @@ pub fn parse_manga_page(id: &MangaId, html: &str) -> Result<Manga> {
         title,
         description: og(html, "og:description").unwrap_or_default(),
         cover_url: og(html, "og:image"),
-        status: MangaStatus::Unknown,
+        status: parse_status(loader_status(html).as_deref()),
     })
+}
+
+/// The loader data is a flat turbo-stream array where the first occurrence of a value is
+/// literal: `"status","Ongoing"`. Later occurrences are back-references, so the first literal
+/// is the page's own manga. The array sits in a JS string, so quotes may arrive escaped.
+pub fn loader_status(html: &str) -> Option<String> {
+    let text = html.replace("\\\"", "\"");
+    let key = "\"status\",\"";
+    let start = text.find(key)? + key.len();
+    let rest = &text[start..];
+    let end = rest.find('"')?;
+    Some(rest[..end].to_string())
+        .filter(|s| !s.is_empty() && s.chars().all(|c| c.is_ascii_alphabetic()))
 }
 
 fn og(html: &str, property: &str) -> Option<String> {
