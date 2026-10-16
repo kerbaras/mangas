@@ -8,9 +8,15 @@ use tauri::{AppHandle, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBui
 
 use super::{open_library, settings_of, to_ipc};
 
-/// A current desktop Chrome user agent: Cloudflare binds `cf_clearance` to it, so the same
-/// string goes out with every API request that carries the cookie.
+/// A current browser user agent for the engine the Connect window runs (Chromium on Windows,
+/// WebKit elsewhere): Cloudflare's check loops when the two disagree. It binds `cf_clearance`
+/// to this string, so the same one goes out with every API request that carries the cookie.
+#[cfg(target_os = "windows")]
 pub const BROWSER_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36";
+#[cfg(target_os = "macos")]
+pub const BROWSER_USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15";
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+pub const BROWSER_USER_AGENT: &str = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15";
 const CLEARANCE_COOKIE: &str = "cf_clearance";
 
 #[tauri::command]
@@ -18,8 +24,8 @@ pub fn list_providers() -> Vec<ProviderInfo> {
     PROVIDERS.to_vec()
 }
 
-/// Opens `provider`'s site in a window. Once the verification cookie appears the session is
-/// saved and the window closes itself.
+/// Opens `provider`'s site in a private window, so only a clearance earned there is seen. Once
+/// the verification cookie appears the session is saved and the window closes itself.
 #[tauri::command]
 pub fn connect_provider(app: AppHandle, provider: String) -> Result<(), String> {
     let info = mangas_providers::info(&provider)
@@ -34,6 +40,7 @@ pub fn connect_provider(app: AppHandle, provider: String) -> Result<(), String> 
     WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(site.clone()))
         .title(format!("Connect {}", info.name))
         .inner_size(1000.0, 760.0)
+        .incognito(true)
         .user_agent(BROWSER_USER_AGENT)
         .on_navigation(move |url| allowed_navigation(url, &origin))
         .on_page_load(move |webview, _| {
