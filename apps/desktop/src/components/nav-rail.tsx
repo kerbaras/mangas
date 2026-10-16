@@ -53,7 +53,7 @@ export function NavRail({ activeDownloads }: { activeDownloads: number }) {
       {top.map((item) => (
         <RailButton key={item.label} item={item} active={section === item.route.screen} />
       ))}
-      <div className="flex-1" />
+      <div data-tauri-drag-region className="flex-1" />
       <RailButton item={settings} active={section === "settings"} />
     </nav>
   );
