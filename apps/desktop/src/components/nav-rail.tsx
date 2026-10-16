@@ -1,7 +1,9 @@
 import { BookOpen, Search, Send, Settings } from "lucide-react";
 import type { ReactNode } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/cn";
 import { type Route, railSection, useNavigation } from "@/lib/navigation";
+import { hasTrafficLights } from "@/lib/platform";
 
 type Item = { icon: ReactNode; label: string; route: Route; badge?: number };
 
@@ -42,7 +44,11 @@ export function NavRail({ activeDownloads }: { activeDownloads: number }) {
   return (
     <nav
       aria-label="Main"
-      className="flex w-14 shrink-0 flex-col items-center gap-1 border-r border-stroke bg-surface py-3"
+      data-tauri-drag-region
+      className={cn(
+        "flex w-14 shrink-0 flex-col items-center gap-1 border-r border-stroke bg-surface py-3",
+        hasTrafficLights() && "pt-12",
+      )}
     >
       {top.map((item) => (
         <RailButton key={item.label} item={item} active={section === item.route.screen} />
