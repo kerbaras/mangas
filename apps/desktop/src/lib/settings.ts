@@ -36,7 +36,9 @@ const fromStored = (s: Stored, platformDataDir: string): Settings => ({
 /** Platform default; a `dataDir` equal to it is stored as `null` so the default can move. */
 let platformDataDir = DEFAULTS.dataDir;
 
+/** Provider sessions are owned by the backend (`set_settings` keeps the stored ones). */
 const toStored = (s: Settings): Stored => ({
+  provider_sessions: {},
   data_dir: s.dataDir === platformDataDir ? null : s.dataDir,
   default_device: s.defaultDevice,
   default_preset: s.defaultPreset,

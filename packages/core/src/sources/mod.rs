@@ -1,17 +1,6 @@
-//! Manga providers. Each source implements [`Source`]; the rest of the core never talks to a
-//! provider directly.
+//! Provider contract. Implementations live in the `mangas-providers` crate; the rest of the
+//! core only ever sees a [`Source`].
 
-pub mod mangadex;
 mod source;
 
-pub use source::{PageUrls, Source};
-
-/// Returns the source registered under `name`, if any.
-pub fn by_name(name: &str) -> Option<Box<dyn Source>> {
-    match name {
-        mangadex::SOURCE_NAME => mangadex::MangaDex::new()
-            .ok()
-            .map(|s| Box::new(s) as Box<dyn Source>),
-        _ => None,
-    }
-}
+pub use source::{Header, PageUrls, Source};

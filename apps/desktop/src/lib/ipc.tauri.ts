@@ -1,7 +1,7 @@
 /** The real bridge: Tauri `invoke` plus event listeners, adapted to the `Backend` contract. */
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { Backend, Chapter, Device, Manga, Settings } from "./ipc";
+import type { Backend, Chapter, Device, Manga, ProviderInfo, Settings } from "./ipc";
 import {
   type DownloadEvent,
   type ExportStats,
@@ -25,6 +25,9 @@ export const tauriBackend: Backend = {
   defaultDataDir: () => invoke<string>("default_data_dir"),
   setSettings: (settings) => invoke<void>("set_settings", { settings }),
   installCli: () => invoke<string>("install_cli"),
+  listProviders: () => invoke<ProviderInfo[]>("list_providers"),
+  connectProvider: (provider) => invoke<void>("connect_provider", { provider }),
+  disconnectProvider: (provider) => invoke<void>("disconnect_provider", { provider }),
   searchManga: (query, source) =>
     invoke<Manga[]>("search_manga", { source, query, limit: SEARCH_LIMIT }),
   followManga: (source, id) =>

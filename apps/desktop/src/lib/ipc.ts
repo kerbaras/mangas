@@ -40,12 +40,32 @@ export type Device = {
 /** Mirrors `mangas_core::smartcut::Preset` (kebab-case on the wire). */
 export type Preset = "balanced" | "fewest-cuts" | "no-shrink";
 
+/** Browser session captured for a provider behind a verification wall. */
+export type ProviderSession = {
+  cookies: string;
+  user_agent: string;
+  saved_at: string | null;
+};
+
 /** Mirrors `mangas_core::library::Settings`; `null` means "use the default". */
 export type Settings = {
   data_dir: string | null;
   default_device: string | null;
   default_preset: Preset | null;
+  provider_sessions: Record<string, ProviderSession>;
 };
+
+/** Mirrors `mangas_providers::ProviderInfo`. */
+export type ProviderInfo = {
+  id: string;
+  name: string;
+  site: string;
+  needs_browser_session: boolean;
+};
+
+/** Errors from a provider that needs a browser session start with this marker. */
+export const CHALLENGE_PREFIX = "challenge:";
+export const isChallenge = (message: string) => message.includes(CHALLENGE_PREFIX);
 
 export type DownloadProgress = {
   chapter_id: string;
@@ -85,6 +105,10 @@ export type Backend = {
   setSettings(settings: Settings): Promise<void>;
   /** Links the executable as `mangas` on PATH; resolves to the link path. */
   installCli(): Promise<string>;
+  listProviders(): Promise<ProviderInfo[]>;
+  /** Opens the provider's site in a window; the session is stored once the check is passed. */
+  connectProvider(id: string): Promise<void>;
+  disconnectProvider(id: string): Promise<void>;
   searchManga(query: string, source: string): Promise<Manga[]>;
   followManga(source: string, id: string): Promise<Manga>;
   unfollowManga(source: string, id: string): Promise<void>;
@@ -124,6 +148,9 @@ export const getSettings = async () => (await backend()).getSettings();
 export const defaultDataDir = async () => (await backend()).defaultDataDir();
 export const setSettings = async (s: Settings) => (await backend()).setSettings(s);
 export const installCli = async () => (await backend()).installCli();
+export const listProviders = async () => (await backend()).listProviders();
+export const connectProvider = async (id: string) => (await backend()).connectProvider(id);
+export const disconnectProvider = async (id: string) => (await backend()).disconnectProvider(id);
 export const searchManga = async (q: string, s: string) => (await backend()).searchManga(q, s);
 export const followManga = async (s: string, id: string) => (await backend()).followManga(s, id);
 export const unfollowManga = async (s: string, id: string) =>

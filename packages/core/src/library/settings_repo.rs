@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
 
@@ -14,6 +16,17 @@ pub struct Settings {
     pub data_dir: Option<String>,
     pub default_device: Option<String>,
     pub default_preset: Option<Preset>,
+    /// Browser sessions captured for providers behind a verification wall, by source name.
+    pub provider_sessions: BTreeMap<String, ProviderSession>,
+}
+
+/// Cookies and the user agent that obtained them; the HTTP client must send both unchanged.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ProviderSession {
+    pub cookies: String,
+    pub user_agent: String,
+    pub saved_at: Option<String>,
 }
 
 const KEY: &str = "app";

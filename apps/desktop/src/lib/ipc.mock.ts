@@ -8,6 +8,7 @@ import type {
   DownloadProgress,
   ExportProgress,
   Manga,
+  ProviderInfo,
   Settings,
   Unlisten,
 } from "./ipc";
@@ -15,7 +16,17 @@ import { sampleCatalog, sampleChapters, sampleDevices, sampleLibrary } from "./m
 
 const DATA_DIR = "~/.local/share/mangas";
 
-let settings: Settings = { data_dir: null, default_device: null, default_preset: null };
+let settings: Settings = {
+  data_dir: null,
+  default_device: null,
+  default_preset: null,
+  provider_sessions: {},
+};
+
+const providers: ProviderInfo[] = [
+  { id: "mangadex", name: "MangaDex", site: "https://mangadex.org", needs_browser_session: false },
+  { id: "mangadot", name: "MangaDot", site: "https://mangadot.net", needs_browser_session: true },
+];
 
 const library = new Map(sampleLibrary.map((m) => [`${m.source}:${m.id}`, m]));
 const chapterCache = new Map<string, Chapter[]>();
@@ -88,16 +99,40 @@ export const mockBackend: Backend = {
     return settings;
   },
   async setSettings(next) {
-    settings = next;
+    settings = { ...next, provider_sessions: settings.provider_sessions };
   },
   async installCli() {
     await wait(200);
     return "/usr/local/bin/mangas";
   },
+  async listProviders() {
+    return providers;
+  },
+  async connectProvider(id) {
+    await wait(800);
+    settings = {
+      ...settings,
+      provider_sessions: {
+        ...settings.provider_sessions,
+        [id]: {
+          cookies: "cf_clearance=mock",
+          user_agent: "mock",
+          saved_at: new Date().toISOString(),
+        },
+      },
+    };
+  },
+  async disconnectProvider(id) {
+    const { [id]: _, ...rest } = settings.provider_sessions;
+    settings = { ...settings, provider_sessions: rest };
+  },
   async searchManga(query, source) {
     await wait(450);
     const q = query.trim().toLowerCase();
     if (!q) return [];
+    const info = providers.find((p) => p.id === source);
+    if (info?.needs_browser_session && !settings.provider_sessions[source])
+      throw new Error(`challenge: ${source} needs a browser session for ${info.site}`);
     return sampleCatalog.filter(
       (m) =>
         m.source === source &&

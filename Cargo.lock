@@ -2423,6 +2423,7 @@ dependencies = [
  "clap",
  "directories",
  "mangas-core",
+ "mangas-providers",
  "tokio",
 ]
 
@@ -2457,11 +2458,13 @@ name = "mangas-desktop"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "directories",
  "env_logger",
  "log",
  "mangas-cli",
  "mangas-core",
+ "mangas-providers",
  "serde",
  "serde_json",
  "tauri",
@@ -2469,7 +2472,23 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-opener",
  "tokio",
+ "url",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "mangas-providers"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "log",
+ "mangas-core",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "url",
 ]
 
 [[package]]

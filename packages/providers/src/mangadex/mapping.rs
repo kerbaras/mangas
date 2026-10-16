@@ -3,8 +3,8 @@
 use std::collections::HashSet;
 
 use super::api::{AtHome, ChapterData, Collection, Entity, ErrorBody, Localized, MangaData};
-use crate::domain::{sort_by_number, Chapter, ChapterId, Error, Manga, MangaId, MangaStatus};
-use crate::sources::PageUrls;
+use mangas_core::domain::{sort_by_number, Chapter, ChapterId, Error, Manga, MangaId, MangaStatus};
+use mangas_core::sources::PageUrls;
 
 pub const SOURCE_NAME: &str = "mangadex";
 const COVER_BASE: &str = "https://uploads.mangadex.org/covers";

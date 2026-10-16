@@ -1,16 +1,20 @@
-import { Search } from "lucide-react";
+import { Link2, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { EmptyState } from "@/components/empty-state";
+import { ProviderSelect } from "@/components/provider-select";
 import { ScreenHeader } from "@/components/screen-header";
 import { SearchResult } from "@/components/search-result";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDebounced } from "@/hooks/use-debounced";
 import { useLibrary } from "@/hooks/use-library";
 import { errorMessage, mangaKey } from "@/lib/format";
-import { type Manga, searchManga } from "@/lib/ipc";
+import { DEFAULT_SOURCE, isChallenge, type Manga, searchManga } from "@/lib/ipc";
 import { useNavigation } from "@/lib/navigation";
+import { connectAndWait } from "@/lib/providers";
 
-const SOURCE = "mangadex";
+const SOURCE_KEY = "mangas.search.source";
+const readSource = () => window.localStorage.getItem(SOURCE_KEY) || DEFAULT_SOURCE;
 
 type Results =
   | { kind: "idle" }
@@ -22,11 +26,14 @@ export function SearchScreen() {
   const nav = useNavigation();
   const { state: library, follow } = useLibrary();
   const [query, setQuery] = useState("");
+  const [source, setSource] = useState(readSource);
+  const [attempt, setAttempt] = useState(0);
   const debounced = useDebounced(query, 300);
   const [results, setResults] = useState<Results>({ kind: "idle" });
   const [busy, setBusy] = useState<string | null>(null);
   const [followError, setFollowError] = useState<string | null>(null);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: attempt reruns the search after connecting a provider
   useEffect(() => {
     const q = debounced.trim();
     setFollowError(null);
@@ -36,13 +43,21 @@ export function SearchScreen() {
     }
     let alive = true;
     setResults({ kind: "searching" });
-    searchManga(q, SOURCE)
+    searchManga(q, source)
       .then((items) => alive && setResults({ kind: "ready", items }))
-      .catch((e: unknown) => alive && setResults({ kind: "error", message: String(e) }));
+      .catch((e: unknown) => alive && setResults({ kind: "error", message: errorMessage(e) }));
     return () => {
       alive = false;
     };
-  }, [debounced]);
+  }, [debounced, source, attempt]);
+
+  const pickSource = (id: string) => {
+    window.localStorage.setItem(SOURCE_KEY, id);
+    setSource(id);
+  };
+  const connect = async () => {
+    if (await connectAndWait(source)) setAttempt((a) => a + 1);
+  };
 
   const followed = new Set(library.kind === "ready" ? library.data.map(mangaKey) : []);
   const onFollow = async (m: Manga) => {
@@ -60,7 +75,9 @@ export function SearchScreen() {
 
   return (
     <section className="flex h-full flex-col">
-      <ScreenHeader title="Search" subtitle={SOURCE} />
+      <ScreenHeader title="Search">
+        <ProviderSelect value={source} onChange={pickSource} />
+      </ScreenHeader>
       <div className="border-b border-stroke px-4 py-3">
         <div className="relative mx-auto max-w-2xl">
           <Search className="pointer-events-none absolute top-2.5 left-3 size-4 text-ink-3" />
@@ -82,8 +99,18 @@ export function SearchScreen() {
               Results show cover, title and status. Follow one to add it to your library.
             </EmptyState>
           )}
-          {results.kind === "searching" && <p className="text-ink-3">Searching {SOURCE}…</p>}
-          {results.kind === "error" && (
+          {results.kind === "searching" && <p className="text-ink-3">Searching {source}…</p>}
+          {results.kind === "error" && isChallenge(results.message) && (
+            <EmptyState title="This site asks for a browser check">
+              <p className="mb-3">
+                Pass it once in its own window; the app keeps the session and retries.
+              </p>
+              <Button onClick={connect}>
+                <Link2 /> Connect {source}
+              </Button>
+            </EmptyState>
+          )}
+          {results.kind === "error" && !isChallenge(results.message) && (
             <p className="text-accent">Search failed: {results.message}</p>
           )}
           {followError && (

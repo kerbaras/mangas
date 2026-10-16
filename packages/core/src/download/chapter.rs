@@ -66,7 +66,7 @@ pub async fn download_chapter(
     dest: &Path,
     on_event: OnEvent<'_>,
 ) -> Result<usize> {
-    let fetcher = HttpFetcher::new()?;
+    let fetcher = HttpFetcher::for_source(source)?;
     download_chapter_with(source, &fetcher, chapter, dest, on_event).await
 }
 
@@ -110,7 +110,7 @@ pub async fn download_chapters(
     root: &Path,
     on_event: OnEvent<'_>,
 ) -> Result<Report> {
-    let fetcher = HttpFetcher::new()?;
+    let fetcher = HttpFetcher::for_source(source)?;
     let mut report = Report::default();
     for chapter in chapters {
         let known = library::list_chapters(lib, source.name(), &chapter.manga_id, None)?;
