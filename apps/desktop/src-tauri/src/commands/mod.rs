@@ -59,14 +59,36 @@ pub fn set_settings(settings: Settings) -> Result<(), String> {
 /// or the `ln -s` command to run by hand when the directory is not writable.
 #[tauri::command]
 pub fn install_cli() -> Result<String, String> {
-    let exe = std::env::current_exe().map_err(to_ipc)?;
+    // Inside an AppImage `current_exe` is the temporary mount; `APPIMAGE` is the real file.
+    let exe = match std::env::var_os("APPIMAGE") {
+        Some(p) => std::path::PathBuf::from(p),
+        None => std::env::current_exe().map_err(to_ipc)?,
+    };
     link_cli(&exe)
 }
 
 #[cfg(unix)]
 fn link_cli(exe: &std::path::Path) -> Result<String, String> {
     let link = std::path::Path::new("/usr/local/bin/mangas");
-    let _ = std::fs::remove_file(link);
+    match std::fs::read_link(link) {
+        Ok(target) if is_ours(&target) => {
+            let _ = std::fs::remove_file(link);
+        }
+        Ok(target) => {
+            return Err(format!(
+                "{} already points to {}; remove it first",
+                link.display(),
+                target.display()
+            ))
+        }
+        Err(_) if link.exists() => {
+            return Err(format!(
+                "{} exists and is not a link; refusing to replace it",
+                link.display()
+            ))
+        }
+        Err(_) => {}
+    }
     std::os::unix::fs::symlink(exe, link)
         .map(|()| link.display().to_string())
         .map_err(|e| {
@@ -77,6 +99,16 @@ fn link_cli(exe: &std::path::Path) -> Result<String, String> {
                 link.display()
             )
         })
+}
+
+/// A previous install of ours: dangling, or a file whose name starts with "mangas".
+#[cfg(unix)]
+fn is_ours(target: &std::path::Path) -> bool {
+    let name = target
+        .file_name()
+        .map(|n| n.to_string_lossy().to_ascii_lowercase())
+        .unwrap_or_default();
+    !target.exists() || name.starts_with("mangas")
 }
 
 #[cfg(not(unix))]
