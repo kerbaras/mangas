@@ -90,6 +90,10 @@ export const mockBackend: Backend = {
   async setSettings(next) {
     settings = next;
   },
+  async installCli() {
+    await wait(200);
+    return "/usr/local/bin/mangas";
+  },
   async searchManga(query, source) {
     await wait(450);
     const q = query.trim().toLowerCase();

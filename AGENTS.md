@@ -7,7 +7,9 @@ app, small CLI. The original Go/TUI implementation was removed once the Rust por
 
 - `packages/core` (`mangas-core`): all business logic. Modules: `domain`, `sources`, `library`,
   `download`, `export`, `smartcut`, `ml`. Tests in `packages/core/tests/`.
-- `apps/cli` (`mangas`): clap CLI, one file per subcommand, thin calls into core.
+- `apps/cli` (`mangas-cli`): clap CLI as a library plus a dev binary, one file per subcommand, thin
+  calls into core. The shipped `mangas` executable is the desktop one: with arguments it runs
+  this CLI, without them it opens the app.
 - `apps/desktop`: Tauri shell in `src-tauri` (IPC commands only, no logic) and React UI in `src`.
 - `docs/rewrite-design.md`: architecture and decisions.
 
@@ -17,7 +19,7 @@ app, small CLI. The original Go/TUI implementation was removed once the Rust por
   `cargo clippy --workspace --all-targets -- -D warnings`
 - Web: `pnpm install`, `pnpm -C apps/desktop dev`, `pnpm -C apps/desktop check` (tsc + eslint),
   `pnpm -C apps/desktop tauri dev`
-- CLI: `cargo run -p mangas -- --help`
+- CLI: `cargo run -p mangas-cli -- --help`
 
 ## Code rules
 

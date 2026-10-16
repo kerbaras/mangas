@@ -14,6 +14,7 @@ pub fn run() {
             commands::default_data_dir,
             commands::get_settings,
             commands::set_settings,
+            commands::install_cli,
             commands::catalog::search_manga,
             commands::catalog::follow_manga,
             commands::catalog::unfollow_manga,

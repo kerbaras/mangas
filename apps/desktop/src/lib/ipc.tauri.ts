@@ -24,6 +24,7 @@ export const tauriBackend: Backend = {
   getSettings: () => invoke<Settings>("get_settings"),
   defaultDataDir: () => invoke<string>("default_data_dir"),
   setSettings: (settings) => invoke<void>("set_settings", { settings }),
+  installCli: () => invoke<string>("install_cli"),
   searchManga: (query, source) =>
     invoke<Manga[]>("search_manga", { source, query, limit: SEARCH_LIMIT }),
   followManga: (source, id) =>
