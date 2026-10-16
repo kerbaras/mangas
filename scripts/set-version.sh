@@ -5,5 +5,5 @@ set -euo pipefail
 v="$1"
 sed -i.bak -E "0,/^version = \"[^\"]+\"/s//version = \"${v}\"/" Cargo.toml && rm Cargo.toml.bak
 sed -i.bak -E "s/^(  \"version\": )\"[^\"]+\"/\1\"${v}\"/" apps/desktop/package.json && rm apps/desktop/package.json.bak
-cargo update --workspace --offline >/dev/null
+cargo update --workspace >/dev/null
 echo "version set to ${v}"

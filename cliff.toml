@@ -48,12 +48,12 @@ tag_pattern = "v[0-9]*"
 sort_commits = "oldest"
 # Keep a Changelog groups; the <!-- n --> prefix fixes their order and is stripped by `striptags`.
 commit_parsers = [
+  { body = "(?i)security", group = "<!-- 4 -->Security" },
   { message = "^feat", group = "<!-- 0 -->Added" },
   { message = "^fix", group = "<!-- 2 -->Fixed" },
   { message = "^perf", group = "<!-- 1 -->Changed" },
   { message = "^refactor", group = "<!-- 1 -->Changed" },
   { message = "^revert", group = "<!-- 3 -->Removed" },
-  { body = ".*security", group = "<!-- 4 -->Security" },
   { message = "^chore\\(release\\)", skip = true },
   { message = "^chore|^ci|^docs|^style|^test|^build", skip = true },
   { message = ".*", skip = true },
