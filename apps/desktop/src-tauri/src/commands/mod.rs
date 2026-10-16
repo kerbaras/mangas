@@ -101,14 +101,16 @@ fn link_cli(exe: &std::path::Path) -> Result<String, String> {
         })
 }
 
-/// A previous install of ours: dangling, or a file whose name starts with "mangas".
+/// A previous install of ours: dangling, the `mangas` binary, or a Mangas AppImage.
 #[cfg(unix)]
 fn is_ours(target: &std::path::Path) -> bool {
     let name = target
         .file_name()
         .map(|n| n.to_string_lossy().to_ascii_lowercase())
         .unwrap_or_default();
-    !target.exists() || name.starts_with("mangas")
+    !target.exists()
+        || name == "mangas"
+        || (name.starts_with("mangas") && name.ends_with(".appimage"))
 }
 
 #[cfg(not(unix))]

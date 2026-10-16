@@ -14,12 +14,14 @@ pub fn library_db() -> anyhow::Result<PathBuf> {
     Ok(dirs()?.data_dir().join("mangas.db"))
 }
 
-/// Folder chosen in the desktop app's Settings, or the platform data dir, so the CLI and the
-/// app see the same chapters and models.
+/// Folder chosen in the desktop app's Settings, so the CLI and the app see the same chapters
+/// and models; the platform data dir when none is set or the library cannot be read.
 fn data_dir() -> anyhow::Result<PathBuf> {
-    let lib = library::open(&library_db()?)?;
-    let settings = library::get_settings(&lib)?;
-    match settings.data_dir.filter(|s| !s.is_empty()) {
+    let custom = library::open(&library_db()?)
+        .and_then(|lib| library::get_settings(&lib))
+        .ok()
+        .and_then(|s| s.data_dir.filter(|d| !d.is_empty()));
+    match custom {
         Some(dir) => Ok(PathBuf::from(dir)),
         None => Ok(dirs()?.data_dir().to_path_buf()),
     }
