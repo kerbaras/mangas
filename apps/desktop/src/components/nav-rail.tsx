@@ -46,8 +46,8 @@ export function NavRail({ activeDownloads }: { activeDownloads: number }) {
       aria-label="Main"
       data-tauri-drag-region
       className={cn(
-        "flex w-14 shrink-0 flex-col items-center gap-1 border-r border-stroke bg-surface py-3",
-        hasTrafficLights() && "pt-12",
+        "flex shrink-0 flex-col items-center gap-1 border-r border-stroke bg-surface py-3",
+        hasTrafficLights() ? "w-[72px] pt-[60px]" : "w-14",
       )}
     >
       {top.map((item) => (
