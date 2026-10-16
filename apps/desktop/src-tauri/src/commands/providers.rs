@@ -81,14 +81,17 @@ fn capture_session<R: tauri::Runtime>(
 }
 
 /// The Connect window may only navigate within the provider's site and Cloudflare's challenge
-/// pages; anything else (ads, outbound links) is blocked.
+/// pages, over HTTPS; anything else (ads, outbound links, plaintext) is blocked.
 pub fn allowed_navigation(url: &Url, site: &Url) -> bool {
+    if url.scheme() == "about" {
+        return true;
+    }
     let host = url.host_str().unwrap_or_default();
     let site_host = site.host_str().unwrap_or_default();
-    url.scheme() == "about"
-        || host == site_host
-        || host.ends_with(&format!(".{site_host}"))
-        || host == "challenges.cloudflare.com"
+    url.scheme() == "https"
+        && (host == site_host
+            || host.ends_with(&format!(".{site_host}"))
+            || host == "challenges.cloudflare.com")
 }
 
 /// `name=value; name2=value2`, as the HTTP `Cookie` header wants it.
