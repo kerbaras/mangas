@@ -13,7 +13,7 @@ pub use mapping::{
     chapter_id, images_path, parse_chapters, parse_images, parse_manga_list, parse_manga_page,
     site_url, SITE, SOURCE_NAME,
 };
-pub use search::matches;
+pub use search::{honoured, matches};
 
 use crate::http::ApiClient;
 use crate::session::Session;
@@ -65,13 +65,20 @@ impl MangaDot {
     }
 }
 
+/// True when `url` is on `site` (same scheme and host, any path).
+pub fn same_site(url: &str, site: &str) -> bool {
+    let rest = url.strip_prefix(site).unwrap_or(url);
+    rest.len() < url.len() && (rest.is_empty() || rest.starts_with('/') || rest.starts_with('?'))
+}
+
 #[async_trait]
 impl Source for MangaDot {
     fn name(&self) -> &'static str {
         SOURCE_NAME
     }
 
-    /// Tries the search endpoint first; if it ignores the text, filters the catalogue locally.
+    /// Tries the search endpoint first; if it ignores the text (the results do not mostly
+    /// match it), filters the catalogue locally instead.
     async fn search(&self, query: &str, limit: usize) -> Result<Vec<Manga>> {
         let limit = limit.clamp(1, 100);
         let params = [
@@ -105,9 +112,11 @@ impl Source for MangaDot {
         parse_images(&body)
     }
 
-    fn page_headers(&self) -> Vec<Header> {
+    /// The referer always; the browser session only to the site itself, never to a CDN or
+    /// other image host a chapter may point at.
+    fn page_headers(&self, url: &str) -> Vec<Header> {
         let mut headers = vec![("referer".to_string(), format!("{SITE}/"))];
-        if let Some(session) = &self.session {
+        if let Some(session) = self.session.as_ref().filter(|_| same_site(url, SITE)) {
             headers.extend(session.headers());
         }
         headers

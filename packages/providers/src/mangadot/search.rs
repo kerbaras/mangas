@@ -20,7 +20,9 @@ pub fn filter(items: Vec<Manga>, query: &str, limit: usize) -> Vec<Manga> {
         .collect()
 }
 
-/// True when the API honoured the text query: at least one result matches it.
+/// True when the API honoured the text query: most results match it. A page of unrelated
+/// latest titles that happens to contain one match does not count.
 pub fn honoured(items: &[Manga], query: &str) -> bool {
-    items.iter().any(|m| matches(&m.title, query))
+    let hits = items.iter().filter(|m| matches(&m.title, query)).count();
+    !items.is_empty() && hits * 2 > items.len()
 }

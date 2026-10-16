@@ -19,8 +19,10 @@ pub trait Source: Send + Sync {
     async fn manga(&self, id: &MangaId) -> Result<Manga>;
     async fn chapters(&self, id: &MangaId, language: &str) -> Result<Vec<Chapter>>;
     async fn pages(&self, chapter: &ChapterId) -> Result<PageUrls>;
-    /// Headers the page downloader must send (referer, browser session cookie, ...).
-    fn page_headers(&self) -> Vec<Header> {
+    /// Headers the page downloader must send when fetching `url` (referer, browser session
+    /// cookie, ...). Implementations keep credentials to their own host.
+    fn page_headers(&self, url: &str) -> Vec<Header> {
+        let _ = url;
         Vec::new()
     }
 }

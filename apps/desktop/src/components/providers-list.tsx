@@ -3,13 +3,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAsync } from "@/hooks/use-async";
 import { errorMessage } from "@/lib/format";
-import {
-  connectProvider,
-  disconnectProvider,
-  getSettings,
-  listProviders,
-  type ProviderInfo,
-} from "@/lib/ipc";
+import { disconnectProvider, getSettings, listProviders, type ProviderInfo } from "@/lib/ipc";
+import { connectAndWait } from "@/lib/providers";
 
 /** Providers with their connection state; sites behind a verification get Connect/Disconnect. */
 export function ProvidersList() {
@@ -20,8 +15,9 @@ export function ProvidersList() {
   const connect = async (p: ProviderInfo) => {
     setNote(`Pass the verification in the ${p.name} window; it closes by itself when done.`);
     try {
-      await connectProvider(p.id);
-      window.setTimeout(sessions.reload, 4000);
+      const ok = await connectAndWait(p.id);
+      setNote(ok ? null : `No session captured for ${p.name}; close its window and try again.`);
+      sessions.reload();
     } catch (e: unknown) {
       setNote(errorMessage(e));
     }

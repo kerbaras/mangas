@@ -9,8 +9,9 @@ import { Input } from "@/components/ui/input";
 import { useDebounced } from "@/hooks/use-debounced";
 import { useLibrary } from "@/hooks/use-library";
 import { errorMessage, mangaKey } from "@/lib/format";
-import { connectProvider, DEFAULT_SOURCE, isChallenge, type Manga, searchManga } from "@/lib/ipc";
+import { DEFAULT_SOURCE, isChallenge, type Manga, searchManga } from "@/lib/ipc";
 import { useNavigation } from "@/lib/navigation";
+import { connectAndWait } from "@/lib/providers";
 
 const SOURCE_KEY = "mangas.search.source";
 const readSource = () => window.localStorage.getItem(SOURCE_KEY) || DEFAULT_SOURCE;
@@ -55,8 +56,7 @@ export function SearchScreen() {
     setSource(id);
   };
   const connect = async () => {
-    await connectProvider(source);
-    window.setTimeout(() => setAttempt((a) => a + 1), 5000);
+    if (await connectAndWait(source)) setAttempt((a) => a + 1);
   };
 
   const followed = new Set(library.kind === "ready" ? library.data.map(mangaKey) : []);

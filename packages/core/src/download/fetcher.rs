@@ -15,27 +15,30 @@ pub trait PageFetcher: Send + Sync {
     async fn fetch(&self, url: &str) -> Result<Vec<u8>>;
 }
 
-pub struct HttpFetcher {
+/// Decides the extra headers for one page URL; sources keep their cookies to their own host.
+pub type HeadersFor<'a> = dyn Fn(&str) -> Vec<Header> + Send + Sync + 'a;
+
+pub struct HttpFetcher<'a> {
     http: Client,
+    headers_for: Box<HeadersFor<'a>>,
 }
 
-impl HttpFetcher {
+impl<'a> HttpFetcher<'a> {
     pub fn new() -> Result<Self> {
-        Self::with_headers(&[])
+        Self::with_headers(Box::new(|_| Vec::new()))
     }
 
-    /// Fetcher sending the headers `source` needs on every page request.
-    pub fn for_source(source: &dyn Source) -> Result<Self> {
-        Self::with_headers(&source.page_headers())
+    /// Fetcher asking `source` which headers each page request needs.
+    pub fn for_source(source: &'a dyn Source) -> Result<Self> {
+        Self::with_headers(Box::new(move |url| source.page_headers(url)))
     }
 
-    pub fn with_headers(headers: &[Header]) -> Result<Self> {
+    pub fn with_headers(headers_for: Box<HeadersFor<'a>>) -> Result<Self> {
         let http = Client::builder()
             .user_agent(concat!("mangas/", env!("CARGO_PKG_VERSION")))
-            .default_headers(header_map(headers)?)
             .redirect(Policy::custom(public_redirects_only))
             .build()?;
-        Ok(Self { http })
+        Ok(Self { http, headers_for })
     }
 }
 
@@ -52,14 +55,21 @@ fn header_map(headers: &[Header]) -> Result<HeaderMap> {
 }
 
 #[async_trait]
-impl PageFetcher for HttpFetcher {
+impl PageFetcher for HttpFetcher<'_> {
     async fn fetch(&self, url: &str) -> Result<Vec<u8>> {
         if !is_public_http_url(url) {
             return Err(Error::Other(format!(
                 "refusing to fetch non-public url {url}"
             )));
         }
-        let response = self.http.get(url).send().await?.error_for_status()?;
+        let headers = header_map(&(self.headers_for)(url))?;
+        let response = self
+            .http
+            .get(url)
+            .headers(headers)
+            .send()
+            .await?
+            .error_for_status()?;
         if !is_public_http_url(response.url().as_str()) {
             return Err(Error::Other(format!(
                 "refusing response from non-public url {}",

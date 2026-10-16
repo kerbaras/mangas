@@ -91,6 +91,38 @@ fn title_matching_is_word_based_and_case_insensitive() {
 }
 
 #[test]
+fn session_headers_stay_on_the_site() {
+    use mangas_providers::mangadot::same_site;
+    assert!(same_site(
+        "https://mangadot.net/chapters/x/001.webp",
+        "https://mangadot.net"
+    ));
+    assert!(same_site("https://mangadot.net", "https://mangadot.net"));
+    assert!(!same_site(
+        "https://mangadot.net.evil.io/a.webp",
+        "https://mangadot.net"
+    ));
+    assert!(!same_site(
+        "https://cdn.example/002.webp",
+        "https://mangadot.net"
+    ));
+}
+
+#[test]
+fn search_endpoint_is_trusted_only_when_results_mostly_match() {
+    use mangas_providers::mangadot::honoured;
+    let items = parse_manga_list(SEARCH).unwrap();
+    assert!(honoured(&items, "konyaku"));
+    let latest: Vec<_> = (0..3)
+        .flat_map(|_| parse_manga_list(SEARCH).unwrap())
+        .collect();
+    let mut mixed = latest;
+    mixed[0].title = "Naruto".into();
+    assert!(!honoured(&mixed, "naruto"));
+    assert!(!honoured(&[], "naruto"));
+}
+
+#[test]
 fn challenge_detection() {
     use mangas_providers::http::is_challenge;
     assert!(is_challenge(403, "challenge", ""));
