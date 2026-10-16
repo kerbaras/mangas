@@ -1,7 +1,17 @@
 {
   "$schema": "https://schema.tauri.app/config/capability",
   "identifier": "default",
-  "description": "Main window: core IPC, file dialogs and the opener plugin",
+  "description": "Main window: core IPC, window controls for the custom title bar, file dialogs and the opener plugin",
   "windows": ["main"],
-  "permissions": ["core:default", "core:event:default", "dialog:default", "opener:default"]
+  "permissions": [
+    "core:default",
+    "core:event:default",
+    "core:window:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-close",
+    "dialog:default",
+    "opener:default"
+  ]
 }
