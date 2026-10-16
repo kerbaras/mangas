@@ -103,8 +103,11 @@ pub fn allowed_navigation(url: &Url, site: &Url) -> bool {
 /// Whether a cookie set for `domain` is sent to `host`. Cookies the site scoped to a parent
 /// domain (`Domain=.mangadot.net`, as Cloudflare does) must count too: macOS reports them with
 /// the leading dot, which Tauri's own per-URL filter compares as an exact string and drops.
+/// A cookie without a domain cannot be attributed to the site and is left out.
 pub fn cookie_matches_host(domain: Option<&str>, host: &str) -> bool {
-    let domain = domain.unwrap_or(host).trim_start_matches('.');
+    let Some(domain) = domain.map(|d| d.trim_start_matches('.')) else {
+        return false;
+    };
     host == domain || host.ends_with(&format!(".{domain}"))
 }
 
@@ -128,7 +131,6 @@ mod tests {
             Some(".mangadot.net"),
             "www.mangadot.net"
         ));
-        assert!(cookie_matches_host(None, "mangadot.net"));
     }
 
     #[test]
