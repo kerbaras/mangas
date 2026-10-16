@@ -81,8 +81,10 @@ impl Source for MangaDot {
     /// match it), filters the catalogue locally instead.
     async fn search(&self, query: &str, limit: usize) -> Result<Vec<Manga>> {
         let limit = limit.clamp(1, 100);
+        // `search` is the name the site's own search page uses for the text (its route reads
+        // and writes `?search=`); the API is assumed to take the same one.
         let params = [
-            ("q", query.to_string()),
+            ("search", query.to_string()),
             ("limit", limit.to_string()),
             ("page", "1".to_string()),
         ];
