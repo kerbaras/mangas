@@ -54,3 +54,35 @@ pub fn get_settings() -> Result<Settings, String> {
 pub fn set_settings(settings: Settings) -> Result<(), String> {
     library::set_settings(&open_library()?, &settings).map_err(to_ipc)
 }
+
+/// Links this executable as `mangas` on the user's PATH (macOS/Linux). Returns the link path,
+/// or the `ln -s` command to run by hand when the directory is not writable.
+#[tauri::command]
+pub fn install_cli() -> Result<String, String> {
+    let exe = std::env::current_exe().map_err(to_ipc)?;
+    link_cli(&exe)
+}
+
+#[cfg(unix)]
+fn link_cli(exe: &std::path::Path) -> Result<String, String> {
+    let link = std::path::Path::new("/usr/local/bin/mangas");
+    let _ = std::fs::remove_file(link);
+    std::os::unix::fs::symlink(exe, link)
+        .map(|()| link.display().to_string())
+        .map_err(|e| {
+            format!(
+                "could not write {}: {e}. Run: sudo ln -sf \"{}\" {}",
+                link.display(),
+                exe.display(),
+                link.display()
+            )
+        })
+}
+
+#[cfg(not(unix))]
+fn link_cli(exe: &std::path::Path) -> Result<String, String> {
+    Err(format!(
+        "add the folder of {} to your PATH to use the command line",
+        exe.display()
+    ))
+}

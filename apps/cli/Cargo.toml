@@ -1,5 +1,5 @@
 [package]
-name = "mangas"
+name = "mangas-cli"
 description = "Mangas CLI: search, follow, download and export manga from the terminal"
 version.workspace = true
 edition.workspace = true
@@ -7,8 +7,12 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[lib]
+name = "mangas_cli"
+path = "src/lib.rs"
+
 [[bin]]
-name = "mangas"
+name = "mangas-cli"
 path = "src/main.rs"
 
 [dependencies]

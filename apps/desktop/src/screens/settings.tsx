@@ -1,4 +1,5 @@
-import { FolderOpen } from "lucide-react";
+import { FolderOpen, Terminal } from "lucide-react";
+import { useState } from "react";
 import { DeviceSelect } from "@/components/device-select";
 import { Field } from "@/components/field";
 import { PresetPicker } from "@/components/preset-picker";
@@ -7,12 +8,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAsync } from "@/hooks/use-async";
 import { pickFolder } from "@/lib/dialogs";
-import { listDevices } from "@/lib/ipc";
+import { errorMessage } from "@/lib/format";
+import { installCli, listDevices } from "@/lib/ipc";
+import { hasTrafficLights } from "@/lib/platform";
 import { useSettings } from "@/lib/settings";
 
 export function SettingsScreen() {
   const [settings, update] = useSettings();
   const devices = useAsync(listDevices, []);
+
+  const [cliNote, setCliNote] = useState<string | null>(null);
+  const linkCli = async () => {
+    try {
+      setCliNote(`Installed: ${await installCli()}. Run \`mangas --help\` in a terminal.`);
+    } catch (e: unknown) {
+      setCliNote(errorMessage(e));
+    }
+  };
 
   const chooseDataDir = async () => {
     const dir = await pickFolder("Choose the data folder", settings.dataDir);
@@ -68,6 +80,21 @@ export function SettingsScreen() {
               />
             </Field>
           </Group>
+          {hasTrafficLights() && (
+            <Group title="Command line">
+              <Field
+                label="Shell command"
+                hint="Links this app as `mangas` in /usr/local/bin so the same commands work from a terminal."
+              >
+                <div className="flex flex-col gap-2">
+                  <Button onClick={linkCli} className="self-start">
+                    <Terminal /> Install `mangas` command
+                  </Button>
+                  {cliNote && <p className="text-caption text-ink-3">{cliNote}</p>}
+                </div>
+              </Field>
+            </Group>
+          )}
         </div>
       </div>
     </section>

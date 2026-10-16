@@ -11,11 +11,19 @@ publish.workspace = true
 name = "mangas_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+# The shipped executable: `mangas` with arguments runs the CLI, without them opens the app.
+[[bin]]
+name = "mangas"
+path = "src/main.rs"
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
 mangas-core = { path = "../../../packages/core" }
+mangas-cli = { path = "../../cli" }
+tokio = { workspace = true }
+anyhow = { workspace = true }
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
@@ -25,7 +33,10 @@ log = { workspace = true }
 env_logger = "0.11"
 directories = "6"
 
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_System_Console"] }
+
 [features]
 default = []
-ml = ["mangas-core/ml"]
-cuda = ["mangas-core/cuda"]
+ml = ["mangas-core/ml", "mangas-cli/ml"]
+cuda = ["mangas-core/cuda", "mangas-cli/cuda"]
