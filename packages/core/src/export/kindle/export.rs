@@ -8,7 +8,7 @@ use image::RgbaImage;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use super::input::{chapter_images, chapter_title, decode, uuid_like};
+use super::input::{chapter_files, chapter_title, decode, uuid_like, ChapterFiles};
 use super::process::{process_page, ImageSettings};
 use super::Device;
 use crate::domain::{Error, Result};
@@ -48,6 +48,9 @@ pub struct ExportStats {
     pub source_rows: usize,
     pub pagination_ms: u128,
     pub filters_ms: u128,
+    /// Files left out because their format cannot be decoded (each one is logged).
+    #[serde(default)]
+    pub skipped: usize,
     /// File actually written (differs from the request when the name was already taken).
     pub output: PathBuf,
 }
@@ -100,7 +103,14 @@ impl Run<'_> {
     }
 
     fn chapter(&mut self, dir: &Path, dev: &Device) -> Result<()> {
-        let files = chapter_images(dir)?;
+        let ChapterFiles {
+            pages: files,
+            skipped,
+        } = chapter_files(dir)?;
+        for file in &skipped {
+            tracing::warn!(file = %file.display(), "export: skipping unsupported file");
+        }
+        self.stats.skipped += skipped.len();
         for (i, file) in files.iter().enumerate() {
             let img = decode(file)?;
             let (w, h) = (img.width(), img.height());
@@ -139,6 +149,7 @@ pub fn export(
             source_rows: 0,
             pagination_ms: 0,
             filters_ms: 0,
+            skipped: 0,
             output: PathBuf::new(),
         },
         progress,

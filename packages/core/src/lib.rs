@@ -6,6 +6,7 @@ pub mod diagnostics;
 pub mod domain;
 pub mod download;
 pub mod export;
+pub mod images;
 pub mod library;
 pub mod logging;
 pub mod ml;

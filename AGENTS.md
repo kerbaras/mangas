@@ -27,8 +27,8 @@ app, small CLI. The original Go/TUI implementation was removed once the Rust por
 
 - Rust: `cargo build --workspace`, `cargo test --workspace`, `cargo fmt --all -- --check`,
   `cargo clippy --workspace --all-targets -- -D warnings`
-- Web: `pnpm install`, `pnpm -C apps/desktop dev`, `pnpm -C apps/desktop check` (tsc + eslint),
-  `pnpm -C apps/desktop tauri dev`
+- Web: `pnpm install`, `pnpm check` (root: lint + typecheck + web tests + build),
+  `pnpm -C apps/desktop dev`, `pnpm -C apps/desktop tauri dev`
 - CLI: `cargo run -p mangas-cli -- --help`
 
 ## Code rules

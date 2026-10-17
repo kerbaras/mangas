@@ -34,6 +34,8 @@ export type ExportStats = {
   source_rows: number;
   pagination_ms: number;
   filters_ms: number;
+  /** Files left out because their format cannot be decoded. */
+  skipped: number;
   /** File actually written; differs from the request when that name was taken. */
   output: string;
 };
