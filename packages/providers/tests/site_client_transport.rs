@@ -24,29 +24,46 @@ fn client(base: &str, session: Option<Session>) -> SiteClient {
     SiteClient::new(config, session).unwrap()
 }
 
-/// Serves one response that promises 100 bytes and closes after 5, then a complete one.
-fn truncating_server() -> String {
+/// Serves `replies` in order, one per connection. With `hold` the connections stay open until
+/// the last reply is sent, so a body promised by `Content-Length` never arrives.
+fn raw_server(replies: Vec<&'static str>, hold: bool) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
     std::thread::spawn(move || {
-        let replies = [
-            "HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nshort",
-            "HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\npong",
-        ];
+        let mut open = Vec::new();
         for reply in replies {
             let (mut stream, _) = listener.accept().unwrap();
             let mut buf = [0u8; 4096];
             let _ = stream.read(&mut buf);
             stream.write_all(reply.as_bytes()).unwrap();
+            if hold {
+                open.push(stream);
+            }
         }
     });
     format!("http://{addr}")
 }
 
+const PONG: &str = "HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\npong";
+
 #[tokio::test]
 async fn a_get_cut_off_mid_body_is_retried() {
-    let base = truncating_server();
+    let short = "HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nshort";
+    let base = raw_server(vec![short, PONG], false);
     let body = client(&base, None).get("/ping", &[]).await.unwrap();
+    assert_eq!(body, "pong");
+}
+
+#[tokio::test]
+async fn a_retried_response_body_is_not_awaited() {
+    let stalled =
+        "HTTP/1.1 503 Service Unavailable\r\nRetry-After: 0\r\nContent-Length: 100\r\n\r\n";
+    let base = raw_server(vec![stalled, PONG], true);
+    let request = client(&base, None);
+    let body = tokio::time::timeout(Duration::from_secs(5), request.get("/ping", &[]))
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(body, "pong");
 }
 

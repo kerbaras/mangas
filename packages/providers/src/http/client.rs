@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use chrono::Utc;
 use mangas_core::domain::{Error, Result};
 use mangas_core::sources::{Header, ProviderStatus};
@@ -110,34 +112,50 @@ impl SiteClient {
         let mut attempt = 0;
         loop {
             self.bucket.acquire().await;
-            let (result, asked) = self.attempt(request(), idempotent).await;
-            match asked.and_then(|after| retry.delay(attempt, after)) {
-                Some(wait) => {
+            let wait = |after| retry.delay(attempt, after);
+            match self.attempt(request(), idempotent, wait).await {
+                (_, Some(wait)) => {
                     log::debug!("{}: retry {} in {wait:?}", self.config.info.id, attempt + 1);
                     tokio::time::sleep(wait).await;
                     attempt += 1;
                 }
-                None => return result,
+                (result, None) => return result,
             }
         }
     }
 
-    /// One request including its body, so a connection dropped mid-body is retried too.
-    async fn attempt(&self, request: RequestBuilder, idempotent: bool) -> Attempt {
+    /// One request including its body, so a connection dropped mid-body is retried too. A
+    /// response that will be retried is not read, so its `Retry-After` always applies.
+    async fn attempt(
+        &self,
+        request: RequestBuilder,
+        idempotent: bool,
+        wait: impl Fn(Option<Duration>) -> Option<Duration>,
+    ) -> Attempt {
         let response = match request.send().await {
             Ok(response) => response,
             Err(e) => {
-                let retry = retryable_transport(&e, idempotent).then_some(None);
-                return (Err(e.into()), retry);
+                let retry = retryable_transport(&e, idempotent).then(|| wait(None));
+                return (Err(e.into()), retry.flatten());
             }
         };
-        let retry = should_retry(&response, idempotent).then(|| retry_after(&response));
         let status = response.status().as_u16();
+        if should_retry(&response, idempotent) {
+            if let Some(after) = wait(retry_after(&response)) {
+                return (
+                    Ok(Reply {
+                        status,
+                        body: String::new(),
+                    }),
+                    Some(after),
+                );
+            }
+        }
         let mitigated = mitigated(&response);
         match response.text().await {
-            Err(e) => (Err(e.into()), idempotent.then_some(None)),
+            Err(e) => (Err(e.into()), idempotent.then(|| wait(None)).flatten()),
             Ok(body) if is_challenge(status, &mitigated, &body) => (Err(self.challenge()), None),
-            Ok(body) => (Ok(Reply { status, body }), retry),
+            Ok(body) => (Ok(Reply { status, body }), None),
         }
     }
 
