@@ -108,6 +108,8 @@ export type ExportRequest = {
   title?: string;
 };
 
+export type ExportResult = { output: string; pages: number; skipped: number };
+
 export type DetectorsStatus = {
   /** Built with detector support; models download on first use. */
   available: boolean;
@@ -140,8 +142,8 @@ export type Backend = DiagnosticsBackend & {
   downloadChapters(source: string, mangaId: string, chapterIds: string[]): Promise<string[]>;
   /** Imports chapter folders / .cbz files (or one series folder) as a `local` manga. */
   importLocal(paths: string[], title?: string): Promise<ImportReport>;
-  /** Resolves to the path of the EPUB written. */
-  exportKindle(request: ExportRequest): Promise<string>;
+  /** Resolves to the EPUB written, its page count and the files skipped as unsupported. */
+  exportKindle(request: ExportRequest): Promise<ExportResult>;
   detectorsStatus(): Promise<DetectorsStatus>;
   onDownloadProgress(cb: (p: DownloadProgress) => void): Promise<Unlisten>;
   onExportProgress(cb: (p: ExportProgress) => void): Promise<Unlisten>;
