@@ -1,0 +1,543 @@
+{
+ "result": "ok",
+ "response": "collection",
+ "data": [
+  {
+   "id": "91d928a1-7237-4d03-abc3-4b1440cc7d55",
+   "type": "manga",
+   "attributes": {
+    "title": {
+     "ja-ro": "Kage no Jitsuryokusha ni Naritakute! Master of Garden: Shichikage Retsuden"
+    },
+    "altTitles": [
+     {
+      "ja": "陰の実力者になりたくて！マスターオブガーデン～七陰列伝～"
+     },
+     {
+      "en": "The Eminence in Shadow: Master of Garden: Seven Shadows Chronicles"
+     },
+     {
+      "en": "I Want To Become The Eminence In Shadow! Master Of Garden: Seven Shadows Chronicles"
+     },
+     {
+      "ru": "Восхождение в Тени! ~Хроники Семи Теней~"
+     }
+    ],
+    "description": {
+     "en": "Cid Kagenou, a boy who was enjoying the “eminence in shadow” setting in another world, plays the role of the justice with the girls called the Seven Shadows (they are very serious), such that the darkness of the world will disappear (maybe).\n\nThe curtain rises on an overwhelmingly chuunibyou and misunderstanding-filled serious comedy about the strongest Seven Shadows (and the protagonist)!?"
+    },
+    "isLocked": true,
+    "links": {
+     "al": "179256",
+     "ap": "kage-no-jitsuryokusha-ni-naritakute-master-of-garden-shichikage-retsuden",
+     "bw": "series/498868/list",
+     "kt": "76399",
+     "mu": "boicrvk",
+     "amz": "https://www.amazon.co.jp/dp/B0DP7XBJ9K",
+     "cdj": "https://www.cdjapan.co.jp/product/NEOBK-3040311",
+     "ebj": "https://ebookjapan.yahoo.co.jp/books/864485",
+     "mal": "170680",
+     "raw": "https://comic-walker.com/detail/KC_005607_S"
+    },
+    "officialLinks": null,
+    "originalLanguage": "ja",
+    "lastVolume": "",
+    "lastChapter": "",
+    "publicationDemographic": null,
+    "status": "ongoing",
+    "year": 2024,
+    "contentRating": "suggestive",
+    "tags": [
+     {
+      "id": "391b0423-d847-456f-aff0-8b0cfc03066b",
+      "type": "tag",
+      "attributes": {
+       "name": {
+        "en": "Action"
+       },
+       "description": {},
+       "group": "genre",
+       "version": 1
+      },
+      "relationships": []
+     },
+     {
+      "id": "39730448-9a5f-48a2-85b0-a70db87b1233",
+      "type": "tag",
+      "attributes": {
+       "name": {
+        "en": "Demons"
+       },
+       "description": {},
+       "group": "theme",
+       "version": 1
+      },
+      "relationships": []
+     },
+     {
+      "id": "799c202e-7daa-44eb-9cf7-8a3c0441531e",
+      "type": "tag",
+      "attributes": {
+       "name": {
+        "en": "Martial Arts"
+       },
+       "description": {},
+       "group": "theme",
+       "version": 1
+      },
+      "relationships": []
+     },
+     {
+      "id": "87cc87cd-a395-47af-b27a-93258283bbc6",
+      "type": "tag",
+      "attributes": {
+       "name": {
+        "en": "Adventure"
+       },
+       "description": {},
+       "group": "genre",
+       "version": 1
+      },
+      "relationships": []
+     },
+     {
+      "id": "a1f53773-c69a-4ce5-8cab-fffcd90b1565",
+      "type": "tag",
+      "attributes": {
+       "name": {
+        "en": "Magic"
+       },
+       "description": {},
+       "group": "theme",
+       "version": 1
+      },
+      "relationships": []
+     },
+     {
+      "id": "aafb99c1-7f60-43fa-b75f-fc9502ce29c7",
+      "type": "tag",
+      "attributes": {
+       "name": {
+        "en": "Harem"
+       },
+       "description": {},
+       "group": "theme",
+       "version": 1
+      },
+      "relationships": []
+     },
+     {
+      "id": "ace04997-f6bd-436e-b261-779182193d3d",
+      "type": "tag",
+      "attributes": {
+       "name": {
+        "en": "Isekai"
+       },
+       "description": {},
+       "group": "genre",
+       "version": 1
+      },
+      "relationships": []
+     },
+     {
+      "id": "b9af3a63-f058-46de-a9a0-e0c13906197a",
+      "type": "tag",
+      "attributes": {
+       "name": {
+        "en": "Drama"
+       },
+       "description": {},
+       "group": "genre",
+       "version": 1
+      },
+      "relationships": []
+     },
+     {
+      "id": "cdc58593-87dd-415e-bbc0-2ec27bf404cc",
+      "type": "tag",
+      "attributes": {
+       "name": {
+        "en": "Fantasy"
+       },
+       "description": {},
+       "group": "genre",
+       "version": 1
+      },
+      "relationships": []
+     },
+     {
+      "id": "f4122d1c-3b44-44d0-9936-ff7502c39ad3",
+      "type": "tag",
+      "attributes": {
+       "name": {
+        "en": "Adaptation"
+       },
+       "description": {},
+       "group": "format",
+       "version": 1
+      },
+      "relationships": []
+     }
+    ],
+    "state": "published",
+    "chapterNumbersResetOnNewVolume": false,
+    "createdAt": "2024-05-18T10:44:31+00:00",
+    "updatedAt": "2026-10-08T19:50:37+00:00",
+    "version": 26,
+    "availableTranslatedLanguages": [
+     "zh",
+     "en",
+     "pt-br",
+     "zh-hk",
+     "th",
+     "ru",
+     "tr",
+     "es-la",
+     "id",
+     "vi",
+     "fr",
+     "pl"
+    ],
+    "latestUploadedChapter": "6027287f-bd88-4517-a478-6d0f03380113"
+   },
+   "relationships": [
+    {
+     "id": "c6c278e1-268b-4b7b-84ec-3289bd0c08f0",
+     "type": "author"
+    },
+    {
+     "id": "fa94e213-0833-495e-bef2-42f00e6a827e",
+     "type": "artist"
+    },
+    {
+     "id": "604b2d95-7e18-42ef-9323-85c3cbb32962",
+     "type": "cover_art",
+     "attributes": {
+      "description": "",
+      "volume": "4",
+      "fileName": "33439369-8fe5-4306-abab-cece3befe57b.jpg",
+      "locale": "ja",
+      "createdAt": "2026-10-08T19:50:36+00:00",
+      "updatedAt": "2026-10-08T19:50:36+00:00",
+      "version": 1
+     }
+    },
+    {
+     "id": "77bee52c-d2d6-44ad-a33a-1734c1fe696a",
+     "type": "manga",
+     "related": "main_story"
+    },
+    {
+     "id": "fc4eede2-4fc9-4fdc-8904-7ea7ae56d773",
+     "type": "manga",
+     "related": "same_franchise"
+    },
+    {
+     "id": "c82fa5d6-584a-4f88-88e2-316bed75933e",
+     "type": "creator"
+    }
+   ]
+  },
+  {
+   "id": "77bee52c-d2d6-44ad-a33a-1734c1fe696a",
+   "type": "manga",
+   "attributes": {
+    "title": {
+     "ja-ro": "Kage no Jitsuryokusha ni Naritakute!"
+    },
+    "altTitles": [
+     {
+      "en": "The Eminence in Shadow"
+     },
+     {
+      "ru": "Восхождение в тени"
+     },
+     {
+      "ja": "陰の実力者になりたくて！"
+     },
+     {
+      "ko": "숨은 실력자가 되고싶어서"
+     },
+     {
+      "uk": "Сходження у тіні"
+     },
+     {
+      "en": "I Want To Be The Eminence In Shadow!"
+     },
+     {
+      "en": "To Be a Power in the Shadows!"
+     },
+     {
+      "es-la": "La Eminencia en las Sombras"
+     },
+     {
+      "vi": "Ta Muốn Trở Thành Chúa Tể Bóng Tối!"
+     }
+    ],
+    "description": {
+     "en": "Just like how everyone adored heroes in their childhood, a certain young man adored those powers hidden in shadows. Ninjas, rogues, shadowy mentor types, that sort of deal.  \r\nAfter hiding his strength and living the mediocre life of a NPC by day while undergoing frenzied training by night, he finally reincarnates into a different world and gains ultimate power.  \r\nThe young man who is only pretending to be a power in the shadows… his subordinates who took him more seriously than he expected… and a giant organization in the shadows that gets accidentally trampled…  \r\nThis is the story of a young boy who had adored powers in shadows possibly eventually reigning over the world of shadows in another world.",
+     "ru": "Подобно тому, как некоторые в детстве боготворят героев, один юноша обожал силы, скрывающиеся в тени. Скрыв свою силу и прожив посредственную жизнь посредственного персонажа, проходя в это время через безумные ночные тренировки, он в конце концов перерождается в ином мире, обретая абсолютную силу. Юноша, отыгрывающий роль скрывающейся в тени силы, его неправильно всё понимающие подчинённые и огромная стёртая в пыль теневая организация… Это история о юноше, обожавшем скрывающиеся во мраке силы, который, вероятно, в итоге обретёт власть над теневой стороной иного мира.   \r\n  \r\n  \r\n- [Japanese Light Novel (Bookwalker)](https://bookwalker.jp/series/179219/)  \r\n- [Japanese Light Novel (Amazon.co.jp)](https://www.amazon.co.jp/dp/4047353027/)  \r\n- [LN Vol. 1 Youtube Promo](https://www.youtube.com/watch?v=9pahhkIs4Ss),with Kentarou Kumagai (熊谷健太郎) voicing the MC (Cid Kagenou)",
+     "es-la": "Tal cual como todos adoraban héroes en su niñez, cierto adolescente adoraba los poderes que se esconden en las sombras. Tras haber ocultado su fuerza y viviendo la vida mediocre de un mob durante el día y entrenando descontroladamente por la noche, él finalmente reencarna en un mundo diferente y gana el poder definitivo. El adolescente que solo juega a ser una eminencia en las sombras, sus subordinados confusos, y una gigante organización en las sombras que es pisoteada... Esta es la historia de un adolescente que adoraba esos poderes en las sombras y que posiblemente llegue a reinar en las sombras de otro mundo."
+    },
+    "isLocked": true,
+    "links": {
+     "al": "106758",
+     "ap": "the-eminence-in-shadow",
+     "bl": "634375",
+     "bw": "series/212232/list",
+     "kt": "54238",
+     "mu": "ug5qy4o",
+     "nu": "to-be-a-power-in-the-shadows-ln",
+     "amz": "https://www.amazon.co.jp/dp/B07YCVDDB6",
+     "cdj": "https://www.cdjapan.co.jp/product/NEOBK-2511008",
+     "ebj": "https://ebookjapan.yahoo.co.jp/books/551817",
+     "mal": "119022",
+     "raw": "https://comic-walker.com/contents/detail/KDCW_KS04200967010000_68/",
+     "engtl": "https://yenpress.com/titles/9781975325183-the-eminence-in-shadow-vol-1-manga"
+    },
+    "officialLinks": null,
+    "originalLanguage": "ja",
+    "lastVolume": null,
+    "lastChapter": null,
+    "publicationDemographic": "shounen",
+    "status": "ongoing",
+    "year": 2018,
+    "contentRating": "safe",
+    "tags": [
+     {
+      "id": "0bc90acb-ccc1-44ca-a34a-b9f3a73259d0",
+      "type": "tag",
+      "attributes": {
+       "name": {
+        "en": "Reincarnation"
+       },
+       "description": {},
+       "group": "theme",
+       "version": 1
+      },
+      "relationships": []
+     },
+     {
+      "id": "391b0423-d847-456f-aff0-8b0cfc03066b",
+      "type": "tag",
+      "attributes": {
+       "name": {
+        "en": "Action"
+       },
+       "description": {},
+       "group": "genre",
+       "version": 1
+      },
+      "relationships": []
+     },
+     {
+      "id": "39730448-9a5f-48a2-85b0-a70db87b1233",
+      "type": "tag",
+      "attributes": {
+       "name": {
+        "en": "Demons"
+       },
+       "description": {},
+       "group": "theme",
+       "version": 1
+      },
+      "relationships": []
+     },
+     {
+      "id": "4d32cc48-9f00-4cca-9b5a-a839f0764984",
+      "type": "tag",
+      "attributes": {
+       "name": {
+        "en": "Comedy"
+       },
+       "description": {},
+       "group": "genre",
+       "version": 1
+      },
+      "relationships": []
+     },
+     {
+      "id": "799c202e-7daa-44eb-9cf7-8a3c0441531e",
+      "type": "tag",
+      "attributes": {
+       "name": {
+        "en": "Martial Arts"
+       },
+       "description": {},
+       "group": "theme",
+       "version": 1
+      },
+      "relationships": []
+     },
+     {
+      "id": "a1f53773-c69a-4ce5-8cab-fffcd90b1565",
+      "type": "tag",
+      "attributes": {
+       "name": {
+        "en": "Magic"
+       },
+       "description": {},
+       "group": "theme",
+       "version": 1
+      },
+      "relationships": []
+     },
+     {
+      "id": "aafb99c1-7f60-43fa-b75f-fc9502ce29c7",
+      "type": "tag",
+      "attributes": {
+       "name": {
+        "en": "Harem"
+       },
+       "description": {},
+       "group": "theme",
+       "version": 1
+      },
+      "relationships": []
+     },
+     {
+      "id": "ace04997-f6bd-436e-b261-779182193d3d",
+      "type": "tag",
+      "attributes": {
+       "name": {
+        "en": "Isekai"
+       },
+       "description": {},
+       "group": "genre",
+       "version": 1
+      },
+      "relationships": []
+     },
+     {
+      "id": "b9af3a63-f058-46de-a9a0-e0c13906197a",
+      "type": "tag",
+      "attributes": {
+       "name": {
+        "en": "Drama"
+       },
+       "description": {},
+       "group": "genre",
+       "version": 1
+      },
+      "relationships": []
+     },
+     {
+      "id": "caaa44eb-cd40-4177-b930-79d3ef2afe87",
+      "type": "tag",
+      "attributes": {
+       "name": {
+        "en": "School Life"
+       },
+       "description": {},
+       "group": "theme",
+       "version": 1
+      },
+      "relationships": []
+     },
+     {
+      "id": "cdc58593-87dd-415e-bbc0-2ec27bf404cc",
+      "type": "tag",
+      "attributes": {
+       "name": {
+        "en": "Fantasy"
+       },
+       "description": {},
+       "group": "genre",
+       "version": 1
+      },
+      "relationships": []
+     },
+     {
+      "id": "f4122d1c-3b44-44d0-9936-ff7502c39ad3",
+      "type": "tag",
+      "attributes": {
+       "name": {
+        "en": "Adaptation"
+       },
+       "description": {},
+       "group": "format",
+       "version": 1
+      },
+      "relationships": []
+     }
+    ],
+    "state": "published",
+    "chapterNumbersResetOnNewVolume": false,
+    "createdAt": "2019-09-25T19:52:08+00:00",
+    "updatedAt": "2026-06-06T22:58:25+00:00",
+    "version": 80,
+    "availableTranslatedLanguages": [
+     "hu",
+     "pl",
+     "uk",
+     "id",
+     "ru",
+     "vi",
+     "fr",
+     "zh-hk",
+     "es-la",
+     "pt-br",
+     "en",
+     "it",
+     "tr",
+     "ar",
+     "zh",
+     "et",
+     "de",
+     "fa"
+    ],
+    "latestUploadedChapter": "b5b9e8ca-a8ff-41cd-a358-0bcb7602696c"
+   },
+   "relationships": [
+    {
+     "id": "a1746c35-50ed-4e6f-94c1-092b07440d59",
+     "type": "author"
+    },
+    {
+     "id": "c6c278e1-268b-4b7b-84ec-3289bd0c08f0",
+     "type": "author"
+    },
+    {
+     "id": "a1746c35-50ed-4e6f-94c1-092b07440d59",
+     "type": "artist"
+    },
+    {
+     "id": "a3f94384-b9bf-4c59-9968-3204b6eb5fd2",
+     "type": "cover_art",
+     "attributes": {
+      "description": "Volume 18 cover from BookLive",
+      "volume": "18",
+      "fileName": "6079dd31-838b-4d61-87c4-121f3ad19158.jpg",
+      "locale": "ja",
+      "createdAt": "2026-06-06T22:58:25+00:00",
+      "updatedAt": "2026-06-06T22:58:25+00:00",
+      "version": 1
+     }
+    },
+    {
+     "id": "4a9fb2f2-f1d7-455a-9250-fb8507745cd2",
+     "type": "manga",
+     "related": "doujinshi"
+    },
+    {
+     "id": "63f65509-4fd1-4476-9987-dd99d32b1764",
+     "type": "manga",
+     "related": "doujinshi"
+    },
+    {
+     "id": "91d928a1-7237-4d03-abc3-4b1440cc7d55",
+     "type": "manga",
+     "related": "side_story"
+    },
+    {
+     "id": "fc4eede2-4fc9-4fdc-8904-7ea7ae56d773",
+     "type": "manga",
+     "related": "spin_off"
+    }
+   ]
+  }
+ ],
+ "limit": 2,
+ "offset": 0,
+ "total": 6
+}

@@ -35,4 +35,8 @@ pub struct ProviderInfo {
 pub trait Provider: Send + Sync {
     fn info(&self) -> ProviderInfo;
     fn build(&self, settings: &Settings) -> Result<Arc<dyn Source>>;
+    /// Like [`Provider::build`] with every request sent to `base` instead of the real hosts
+    /// (contract tests against a mock server, mirrors). `base` replaces the root the provider
+    /// derives its URLs from (its API root, or its site when the API lives under it).
+    fn build_at(&self, settings: &Settings, base: &str) -> Result<Arc<dyn Source>>;
 }
