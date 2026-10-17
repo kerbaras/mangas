@@ -1,7 +1,7 @@
 /** The real bridge: Tauri `invoke` plus event listeners, adapted to the `Backend` contract. */
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { Backend, Chapter, Device, Manga, ProviderInfo, Settings } from "./ipc";
+import type { Backend, Chapter, Device, ImportReport, Manga, ProviderInfo, Settings } from "./ipc";
 import {
   type DownloadEvent,
   type ExportStats,
@@ -48,6 +48,12 @@ export const tauriBackend: Backend = {
       mangaId,
       language: DEFAULT_LANGUAGE,
       chapterIds,
+    }),
+  importLocal: (paths, title) =>
+    invoke<ImportReport>("import_local", {
+      paths,
+      title: title ?? null,
+      language: DEFAULT_LANGUAGE,
     }),
   exportKindle: async (request) =>
     (await invoke<ExportStats>("export_kindle", toExportArgs(request))).output,

@@ -47,7 +47,8 @@ pub async fn list_chapters(
 ) -> Result<Vec<Chapter>, String> {
     let id = MangaId(manga_id);
     let lib = open_library()?;
-    if refresh {
+    // Imported manga have no provider to refresh from; the library is the only list.
+    if refresh && !library::is_local(&source) {
         let src = source_by_name(&source)?;
         let fresh = src.chapters(&id, &language).await.map_err(to_ipc)?;
         let followed = library::get_manga(&lib, &source, &id)
@@ -58,7 +59,9 @@ pub async fn list_chapters(
         }
         library::upsert_chapters(&lib, src.name(), &id, &language, &fresh).map_err(to_ipc)?;
     }
-    library::list_chapters(&lib, &source, &id, Some(&language)).map_err(to_ipc)
+    // Local chapters keep the language they were imported with (`mangas import --lang`).
+    let language = (!library::is_local(&source)).then_some(language.as_str());
+    library::list_chapters(&lib, &source, &id, language).map_err(to_ipc)
 }
 
 /// Downloads the given chapters, emitting [`DOWNLOAD_EVENT`] as pages and chapters finish.

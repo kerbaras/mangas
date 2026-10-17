@@ -63,6 +63,17 @@ export type ProviderInfo = {
   needs_browser_session: boolean;
 };
 
+/** Source name of manga imported from disk (`mangas_core::library::LOCAL_SOURCE`). */
+export const LOCAL_SOURCE = "local";
+export const isLocal = (m: { source: string }) => m.source === LOCAL_SOURCE;
+
+/** Mirrors `mangas_core::library::ImportReport`. */
+export type ImportReport = {
+  manga: Manga;
+  imported: { number: string; title: string | null; pages: number; path: string }[];
+  skipped: { name: string; reason: string }[];
+};
+
 /** Errors from a provider that needs a browser session start with this marker. */
 export const CHALLENGE_PREFIX = "challenge:";
 export const isChallenge = (message: string) => message.includes(CHALLENGE_PREFIX);
@@ -115,6 +126,8 @@ export type Backend = {
   listChapters(source: string, mangaId: string, refresh?: boolean): Promise<Chapter[]>;
   /** Follows the manga if needed, then resolves to the ids of chapters that failed; progress arrives via `onDownloadProgress`. */
   downloadChapters(source: string, mangaId: string, chapterIds: string[]): Promise<string[]>;
+  /** Imports chapter folders / .cbz files (or one series folder) as a `local` manga. */
+  importLocal(paths: string[], title?: string): Promise<ImportReport>;
   /** Resolves to the path of the EPUB written. */
   exportKindle(request: ExportRequest): Promise<string>;
   detectorsStatus(): Promise<DetectorsStatus>;
@@ -159,6 +172,8 @@ export const listChapters = async (s: string, id: string, refresh = false) =>
   (await backend()).listChapters(s, id, refresh);
 export const downloadChapters = async (s: string, mangaId: string, ids: string[]) =>
   (await backend()).downloadChapters(s, mangaId, ids);
+export const importLocal = async (paths: string[], title?: string) =>
+  (await backend()).importLocal(paths, title);
 export const exportKindle = async (r: ExportRequest) => (await backend()).exportKindle(r);
 export const detectorsStatus = async () => (await backend()).detectorsStatus();
 export const onDownloadProgress = async (cb: (p: DownloadProgress) => void) =>
