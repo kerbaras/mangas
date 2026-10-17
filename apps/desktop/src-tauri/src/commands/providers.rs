@@ -3,7 +3,7 @@
 //! stored with the user agent that obtained them for the Rust HTTP client to reuse.
 
 use mangas_core::library::{self, ProviderSession};
-use mangas_providers::{ProviderInfo, PROVIDERS};
+use mangas_providers::{ProviderInfo, ProviderStatus};
 use tauri::{AppHandle, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 use super::{open_library, settings_of, to_ipc};
@@ -21,7 +21,14 @@ const CLEARANCE_COOKIE: &str = "cf_clearance";
 
 #[tauri::command]
 pub fn list_providers() -> Vec<ProviderInfo> {
-    PROVIDERS.to_vec()
+    mangas_providers::providers()
+}
+
+/// Probes `provider` once with the stored session: ready, needs a session, or unreachable.
+#[tauri::command]
+pub async fn provider_status(provider: String) -> Result<ProviderStatus, String> {
+    let settings = settings_of(&open_library()?)?;
+    Ok(mangas_providers::status(&provider, &settings).await)
 }
 
 /// Opens `provider`'s site in a private window, so only a clearance earned there is seen. Once

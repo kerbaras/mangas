@@ -16,6 +16,7 @@ pub fn run() {
             commands::set_settings,
             commands::install_cli,
             commands::providers::list_providers,
+            commands::providers::provider_status,
             commands::providers::connect_provider,
             commands::providers::disconnect_provider,
             commands::catalog::search_manga,

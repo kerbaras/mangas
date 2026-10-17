@@ -1,3 +1,6 @@
+use std::time::Duration;
+
+use chrono::{DateTime, Utc};
 use mangas_core::library::{ProviderSession, Settings};
 use mangas_core::sources::Header;
 
@@ -7,6 +10,8 @@ use mangas_core::sources::Header;
 pub struct Session {
     pub cookies: String,
     pub user_agent: String,
+    /// When the desktop app captured it (RFC 3339).
+    pub saved_at: Option<String>,
 }
 
 impl Session {
@@ -27,6 +32,16 @@ impl Session {
         }
         headers
     }
+
+    /// Older than `ttl` at `now`. A session without a readable `saved_at` is not considered
+    /// expired: the status probe decides for it.
+    pub fn is_expired(&self, ttl: Duration, now: DateTime<Utc>) -> bool {
+        self.saved_at
+            .as_deref()
+            .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
+            .and_then(|saved| now.signed_duration_since(saved).to_std().ok())
+            .is_some_and(|age| age > ttl)
+    }
 }
 
 impl From<&ProviderSession> for Session {
@@ -34,6 +49,7 @@ impl From<&ProviderSession> for Session {
         Self {
             cookies: s.cookies.clone(),
             user_agent: s.user_agent.clone(),
+            saved_at: s.saved_at.clone(),
         }
     }
 }

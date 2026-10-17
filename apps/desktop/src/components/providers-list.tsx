@@ -3,10 +3,17 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAsync } from "@/hooks/use-async";
 import { errorMessage } from "@/lib/format";
-import { disconnectProvider, getSettings, listProviders, type ProviderInfo } from "@/lib/ipc";
-import { connectAndWait } from "@/lib/providers";
+import {
+  disconnectProvider,
+  getSettings,
+  listProviders,
+  type ProviderInfo,
+  type ProviderSession,
+  providerStatus,
+} from "@/lib/ipc";
+import { connectAndWait, providerStatusText } from "@/lib/providers";
 
-/** Providers with their connection state; sites behind a verification get Connect/Disconnect. */
+/** Providers with their status; sites behind a verification get Connect/Disconnect. */
 export function ProvidersList() {
   const providers = useAsync(listProviders, []);
   const sessions = useAsync(async () => (await getSettings()).provider_sessions, []);
@@ -33,37 +40,61 @@ export function ProvidersList() {
   return (
     <div className="flex flex-col gap-2">
       <ul className="divide-y divide-stroke rounded-md border border-stroke">
-        {providers.state.data.map((p) => {
-          const session = connected[p.id];
-          return (
-            <li key={p.id} className="flex items-center gap-3 px-3 py-2">
-              <div className="min-w-0 flex-1">
-                <p className="text-body font-medium">{p.name}</p>
-                <p className="truncate text-caption text-ink-3">
-                  {p.site.replace(/^https?:\/\//, "")}
-                  {p.needs_browser_session &&
-                    (session
-                      ? ` · connected${when(session.saved_at)}`
-                      : " · needs a browser session")}
-                </p>
-              </div>
-              {p.needs_browser_session &&
-                (session ? (
-                  <Button variant="ghost" size="sm" onClick={() => disconnect(p)}>
-                    <Link2Off /> Disconnect
-                  </Button>
-                ) : (
-                  <Button size="sm" onClick={() => connect(p)}>
-                    <Link2 /> Connect
-                  </Button>
-                ))}
-            </li>
-          );
-        })}
+        {providers.state.data.map((p) => (
+          <ProviderRow
+            key={p.id}
+            provider={p}
+            session={connected[p.id]}
+            onConnect={() => connect(p)}
+            onDisconnect={() => disconnect(p)}
+          />
+        ))}
       </ul>
       {note && <p className="text-caption text-ink-3">{note}</p>}
     </div>
   );
 }
 
-const when = (iso: string | null) => (iso ? ` ${new Date(iso).toLocaleDateString()}` : "");
+type RowProps = {
+  provider: ProviderInfo;
+  session: ProviderSession | undefined;
+  onConnect: () => void;
+  onDisconnect: () => void;
+};
+
+function ProviderRow({ provider: p, session, onConnect, onDisconnect }: RowProps) {
+  const status = useAsync(() => providerStatus(p.id), [p.id, session?.saved_at]);
+  const probed =
+    status.state.kind === "ready"
+      ? status.state.data
+      : status.state.kind === "error"
+        ? { state: "unreachable" as const, reason: status.state.message }
+        : undefined;
+  const expired = probed?.state === "needs_session";
+  return (
+    <li className="flex items-center gap-3 px-3 py-2">
+      <div className="min-w-0 flex-1">
+        <p className="text-body font-medium">{p.name}</p>
+        <p className="truncate text-caption text-ink-3">
+          {p.site.replace(/^https?:\/\//, "")}
+          {" · "}
+          {providerStatusText(
+            p.needs_browser_session,
+            probed,
+            session ? session.saved_at : undefined,
+          )}
+        </p>
+      </div>
+      {p.needs_browser_session &&
+        (session && !expired ? (
+          <Button variant="ghost" size="sm" onClick={onDisconnect}>
+            <Link2Off /> Disconnect
+          </Button>
+        ) : (
+          <Button size="sm" onClick={onConnect}>
+            <Link2 /> Connect
+          </Button>
+        ))}
+    </li>
+  );
+}

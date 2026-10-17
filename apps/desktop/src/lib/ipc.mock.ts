@@ -8,11 +8,16 @@ import type {
   DownloadProgress,
   ExportProgress,
   Manga,
-  ProviderInfo,
   Settings,
   Unlisten,
 } from "./ipc";
-import { sampleCatalog, sampleChapters, sampleDevices, sampleLibrary } from "./mock-data";
+import {
+  sampleProviders as providers,
+  sampleCatalog,
+  sampleChapters,
+  sampleDevices,
+  sampleLibrary,
+} from "./mock-data";
 import { mockImport } from "./mock-import";
 
 const DATA_DIR = "~/.local/share/mangas";
@@ -23,11 +28,6 @@ let settings: Settings = {
   default_preset: null,
   provider_sessions: {},
 };
-
-const providers: ProviderInfo[] = [
-  { id: "mangadex", name: "MangaDex", site: "https://mangadex.org", needs_browser_session: false },
-  { id: "mangadot", name: "MangaDot", site: "https://mangadot.net", needs_browser_session: true },
-];
 
 const library = new Map(sampleLibrary.map((m) => [`${m.source}:${m.id}`, m]));
 const chapterCache = new Map<string, Chapter[]>();
@@ -126,6 +126,14 @@ export const mockBackend: Backend = {
   async disconnectProvider(id) {
     const { [id]: _, ...rest } = settings.provider_sessions;
     settings = { ...settings, provider_sessions: rest };
+  },
+  async providerStatus(id) {
+    await wait(300);
+    const info = providers.find((p) => p.id === id);
+    if (!info) return { state: "unreachable", reason: `not found: source '${id}'` };
+    if (info.needs_browser_session && !settings.provider_sessions[id])
+      return { state: "needs_session" };
+    return { state: "ready" };
   },
   async searchManga(query, source) {
     await wait(450);

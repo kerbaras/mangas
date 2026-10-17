@@ -2,5 +2,7 @@
 //! core only ever sees a [`Source`].
 
 mod source;
+mod status;
 
 pub use source::{Header, PageUrls, Source};
+pub use status::ProviderStatus;
