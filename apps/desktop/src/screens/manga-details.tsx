@@ -21,7 +21,7 @@ import {
   selectionSummary,
   sortChapters,
 } from "@/lib/chapters";
-import { downloadLabel, rememberLabels } from "@/lib/download-labels";
+import { rememberLabels } from "@/lib/download-labels";
 import { languageLabel } from "@/lib/format";
 import { DEFAULT_LANGUAGE, downloadChapters, isChallenge, type Manga } from "@/lib/ipc";
 import { loadChapters } from "@/lib/load-chapters";
@@ -77,16 +77,13 @@ export function MangaDetailsScreen({ manga }: Props) {
   const download = async () => {
     rememberLabels(toDownload.map((c) => [c.id, `Chapter ${c.number} of ${manga.title}`]));
     try {
-      const missing = await downloadChapters(
+      // Per-chapter failures, missing chapters included, arrive as progress errors.
+      await downloadChapters(
         source,
         id,
         toDownload.map((c) => c.id),
       );
       clear();
-      if (missing.length > 0)
-        toast.warning(`${missing.length} chapter(s) didn't download`, {
-          description: `${source} no longer lists: ${missing.map(downloadLabel).join(", ")}`,
-        });
     } catch (e: unknown) {
       notifyError("Download failed", e, { source, retry: download, id: `download-${source}` });
     }
