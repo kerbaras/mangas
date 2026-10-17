@@ -26,14 +26,17 @@ pub fn manga_for(title: &str) -> Manga {
     }
 }
 
-/// Same manga under `<slug>-<hash>`: another title already owns the plain slug (`A B` vs `A! B`).
-pub fn with_distinct_id(manga: Manga) -> Manga {
-    let hash = short_hash(&manga.title);
-    let id = format!("{}-{}", manga.id.0, &hash[..6.min(hash.len())]);
-    Manga {
-        id: MangaId(id),
-        ..manga
-    }
+/// Ids to try for a new series, in order: the slug, `<slug>-<hash of title>`, then numbered
+/// variants, for when another title already owns the slug (`A B` vs `A! B`).
+pub fn candidate_ids(slug: &str, title: &str) -> Vec<MangaId> {
+    let hash = short_hash(title);
+    let hashed = format!("{slug}-{}", &hash[..6.min(hash.len())]);
+    let numbered = (2..50).map(|n| format!("{hashed}-{n}"));
+    [slug.to_string(), hashed.clone()]
+        .into_iter()
+        .chain(numbered)
+        .map(MangaId)
+        .collect()
 }
 
 /// One chapter per entry. Ids hash the manga id and the entry name, so importing the same

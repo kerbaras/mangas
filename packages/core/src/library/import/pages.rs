@@ -58,21 +58,25 @@ fn extract_cbz(src: &Path, dest: &Path) -> Result<usize> {
         })
         .collect();
     pages.sort_by(|a, b| natural_cmp(&a.1, &b.1));
+    let mut total = 0;
     for (n, (index, name)) in pages.iter().enumerate() {
         let mut file = archive.by_index(*index).map_err(zip_error)?;
         let mut out = File::create(dest.join(page_name(n, name)))?;
-        let written = io::copy(&mut (&mut file).take(MAX_PAGE_BYTES + 1), &mut out)?;
-        if written > MAX_PAGE_BYTES {
+        let budget = MAX_PAGE_BYTES.min(MAX_CHAPTER_BYTES - total);
+        let written = io::copy(&mut (&mut file).take(budget + 1), &mut out)?;
+        if written > budget {
             return Err(Error::Other(format!(
-                "cbz: page {name} is larger than 256 MiB"
+                "cbz: {name} goes over the size limit"
             )));
         }
+        total += written;
     }
     Ok(pages.len())
 }
 
-/// No real page comes close; stops a crafted archive from filling the disk.
+/// No real page or chapter comes close; stops a crafted archive from filling the disk.
 const MAX_PAGE_BYTES: u64 = 256 * 1024 * 1024;
+const MAX_CHAPTER_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 
 fn zip_error(e: zip::result::ZipError) -> Error {
     Error::Other(format!("cbz: {e}"))

@@ -13,8 +13,10 @@ use std::path::{Path, PathBuf};
 pub use names::{natural_cmp, parse_chapter_name, slug, ParsedName};
 pub use report::{ImportReport, ImportedChapter, Skipped};
 
-use super::{get_manga, list_chapters, mark_downloaded, upsert_chapters, upsert_manga, Library};
-use crate::domain::{Chapter, Error, Result};
+use super::{
+    get_manga, list_chapters, list_manga, mark_downloaded, upsert_chapters, upsert_manga, Library,
+};
+use crate::domain::{Chapter, Error, Manga, Result};
 use crate::download::{chapter_dir, unique_chapter_dir};
 
 /// Source name of imported manga. Their chapters are always on disk; there is no provider.
@@ -44,10 +46,7 @@ pub fn import_paths(lib: &Library, root: &Path, req: &ImportRequest) -> Result<I
         .map(str::trim)
         .filter(|t| !t.is_empty())
         .map_or(scan.title, str::to_string);
-    let mut manga = plan::manga_for(&title);
-    if get_manga(lib, LOCAL_SOURCE, &manga.id)?.is_some_and(|m| m.title != title) {
-        manga = plan::with_distinct_id(manga);
-    }
+    let manga = resolve_manga(lib, &title)?;
     let mut known = list_chapters(lib, LOCAL_SOURCE, &manga.id, None)?;
     let mut skipped = scan.skipped;
     let mut imported = Vec::new();
@@ -101,6 +100,23 @@ pub fn import_paths(lib: &Library, root: &Path, req: &ImportRequest) -> Result<I
         imported,
         skipped,
     })
+}
+
+/// The stored local series titled `title`, else a new one under the first free id.
+fn resolve_manga(lib: &Library, title: &str) -> Result<Manga> {
+    let stored = list_manga(lib)?
+        .into_iter()
+        .find(|m| is_local(&m.source) && m.title == title);
+    if let Some(manga) = stored {
+        return Ok(manga);
+    }
+    let fresh = plan::manga_for(title);
+    for id in plan::candidate_ids(&fresh.id.0, title) {
+        if get_manga(lib, LOCAL_SOURCE, &id)?.is_none() {
+            return Ok(Manga { id, ..fresh });
+        }
+    }
+    Err(Error::Other(format!("no free library id for {title}")))
 }
 
 fn on_disk(known: &[Chapter], chapter: &Chapter) -> bool {

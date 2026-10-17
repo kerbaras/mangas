@@ -3,7 +3,10 @@
 use std::path::Path;
 
 use image::{Rgba, RgbaImage};
-use mangas_core::library::{import_paths, list_manga, open_in_memory, ImportRequest};
+use mangas_core::domain::MangaId;
+use mangas_core::library::{
+    import_paths, list_manga, open_in_memory, remove_manga, ImportRequest, LOCAL_SOURCE,
+};
 
 fn png(dir: &Path, name: &str) {
     std::fs::create_dir_all(dir).unwrap();
@@ -55,4 +58,24 @@ fn titles_with_the_same_slug_stay_separate_series() {
     assert_eq!(again.manga.id, second.manga.id);
     assert!(again.imported.is_empty());
     assert_eq!(list_manga(&lib).unwrap().len(), 2);
+}
+
+#[test]
+fn a_series_keeps_its_id_after_the_slug_owner_is_removed() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("data");
+    for title in ["A B", "A! B"] {
+        png(&tmp.path().join(title).join("Chapter 1"), "1.png");
+    }
+    let lib = open_in_memory().unwrap();
+    let path = |t: &str| vec![tmp.path().join(t)];
+
+    import_paths(&lib, &root, &request(path("A B"), None)).unwrap();
+    let hashed = import_paths(&lib, &root, &request(path("A! B"), None)).unwrap();
+    remove_manga(&lib, LOCAL_SOURCE, &MangaId("a-b".into())).unwrap();
+    let again = import_paths(&lib, &root, &request(path("A! B"), None)).unwrap();
+
+    assert_eq!(again.manga.id, hashed.manga.id);
+    assert!(again.imported.is_empty());
+    assert_eq!(list_manga(&lib).unwrap().len(), 1);
 }
