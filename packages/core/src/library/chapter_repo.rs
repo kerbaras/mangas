@@ -60,7 +60,9 @@ pub fn upsert_chapters(
     Ok(())
 }
 
-/// Known chapters of a manga, by number ascending; `language` narrows to one language.
+/// Known chapters of a manga, by number ascending. `language` narrows to one language, but
+/// downloaded chapters are always listed (with their own language) so a preference change never
+/// hides what is on disk.
 pub fn list_chapters(
     lib: &Library,
     source: &str,
@@ -70,7 +72,8 @@ pub fn list_chapters(
     let conn = lib.conn()?;
     let mut stmt = conn.prepare(
         "SELECT id, manga_id, title, language, volume, number, local_path, scanlation_group
-         FROM chapter WHERE source = ?1 AND manga_id = ?2 AND (?3 IS NULL OR language = ?3)",
+         FROM chapter WHERE source = ?1 AND manga_id = ?2
+               AND (?3 IS NULL OR language = ?3 OR local_path IS NOT NULL)",
     )?;
     let rows = stmt.query_map(params![source, manga_id.0, language], row_to_chapter)?;
     let chapters: Vec<Chapter> = rows.collect::<std::result::Result<_, _>>()?;

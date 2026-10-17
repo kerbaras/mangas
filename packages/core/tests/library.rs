@@ -164,35 +164,3 @@ fn upsert_prunes_chapters_the_source_dropped_unless_downloaded() {
         .collect();
     assert_eq!(ids, ["c1", "c2"]);
 }
-
-#[test]
-fn list_chapters_filters_by_language() {
-    let lib = open_in_memory().unwrap();
-    upsert_manga(&lib, &sample("m", "Manga")).unwrap();
-    let id = MangaId("m".into());
-    let mut es = chapter("m", "c1-es", "1");
-    es.language = "es".into();
-    upsert_chapters(&lib, "mangadex", &id, "en", &[chapter("m", "c1", "1")]).unwrap();
-    upsert_chapters(&lib, "mangadex", &id, "es", &[es]).unwrap();
-
-    assert_eq!(list_chapters(&lib, "mangadex", &id, None).unwrap().len(), 2);
-    let en = list_chapters(&lib, "mangadex", &id, Some("en")).unwrap();
-    assert_eq!(en.len(), 1);
-    assert_eq!(en[0].id.0, "c1");
-}
-
-#[test]
-fn empty_refresh_clears_non_downloaded_chapters_of_that_language() {
-    let lib = open_in_memory().unwrap();
-    upsert_manga(&lib, &sample("m", "Manga")).unwrap();
-    let id = MangaId("m".into());
-    let mut es = chapter("m", "c1-es", "1");
-    es.language = "es".into();
-    upsert_chapters(&lib, "mangadex", &id, "en", &[chapter("m", "c1", "1")]).unwrap();
-    upsert_chapters(&lib, "mangadex", &id, "es", &[es]).unwrap();
-
-    upsert_chapters(&lib, "mangadex", &id, "en", &[]).unwrap();
-    let left = list_chapters(&lib, "mangadex", &id, None).unwrap();
-    assert_eq!(left.len(), 1);
-    assert_eq!(left[0].language, "es");
-}

@@ -120,9 +120,10 @@ async fn ensure_followed(
     let followed = library::get_manga(lib, src.name(), id)
         .map_err(to_ipc)?
         .is_some();
-    let has_chapters = !library::list_chapters(lib, src.name(), id, Some(language))
+    let has_chapters = library::list_chapters(lib, src.name(), id, Some(language))
         .map_err(to_ipc)?
-        .is_empty();
+        .iter()
+        .any(|c| c.language == language);
     if followed && has_chapters {
         return Ok(());
     }
