@@ -12,11 +12,6 @@
     "translatedLanguage": "en",
     "externalUrl": null,
     "isUnavailable": false,
-    "publishAt": "2024-07-09T16:23:58+00:00",
-    "readableAt": "2024-07-09T16:23:58+00:00",
-    "createdAt": "2024-07-09T16:23:57+00:00",
-    "updatedAt": "2024-11-26T11:08:39+00:00",
-    "version": 4,
     "pages": 15
    },
    "relationships": [
@@ -27,10 +22,6 @@
     {
      "id": "91d928a1-7237-4d03-abc3-4b1440cc7d55",
      "type": "manga"
-    },
-    {
-     "id": "676d5263-8ac0-4640-a30a-de8554141884",
-     "type": "user"
     }
    ]
   },
@@ -44,11 +35,6 @@
     "translatedLanguage": "en",
     "externalUrl": null,
     "isUnavailable": false,
-    "publishAt": "2024-06-14T09:17:29+00:00",
-    "readableAt": "2024-06-14T09:17:29+00:00",
-    "createdAt": "2024-06-14T09:17:29+00:00",
-    "updatedAt": "2024-12-10T06:47:50+00:00",
-    "version": 7,
     "pages": 30
    },
    "relationships": [
@@ -59,10 +45,6 @@
     {
      "id": "91d928a1-7237-4d03-abc3-4b1440cc7d55",
      "type": "manga"
-    },
-    {
-     "id": "620c0779-a893-4200-ae4c-7250d873f5d2",
-     "type": "user"
     }
    ]
   },
@@ -76,11 +58,6 @@
     "translatedLanguage": "en",
     "externalUrl": null,
     "isUnavailable": false,
-    "publishAt": "2024-06-03T05:44:47+00:00",
-    "readableAt": "2024-06-03T05:44:47+00:00",
-    "createdAt": "2024-06-03T05:44:46+00:00",
-    "updatedAt": "2024-11-26T10:59:18+00:00",
-    "version": 6,
     "pages": 27
    },
    "relationships": [
@@ -91,10 +68,6 @@
     {
      "id": "91d928a1-7237-4d03-abc3-4b1440cc7d55",
      "type": "manga"
-    },
-    {
-     "id": "676d5263-8ac0-4640-a30a-de8554141884",
-     "type": "user"
     }
    ]
   },
@@ -108,11 +81,6 @@
     "translatedLanguage": "en",
     "externalUrl": null,
     "isUnavailable": false,
-    "publishAt": "2024-05-29T21:27:45+00:00",
-    "readableAt": "2024-05-29T21:27:45+00:00",
-    "createdAt": "2024-05-29T21:27:44+00:00",
-    "updatedAt": "2024-12-10T06:47:47+00:00",
-    "version": 6,
     "pages": 31
    },
    "relationships": [
@@ -123,10 +91,6 @@
     {
      "id": "91d928a1-7237-4d03-abc3-4b1440cc7d55",
      "type": "manga"
-    },
-    {
-     "id": "fca42d9d-b00c-4b52-8966-c3e1061fca4e",
-     "type": "user"
     }
    ]
   },
@@ -140,11 +104,6 @@
     "translatedLanguage": "en",
     "externalUrl": null,
     "isUnavailable": false,
-    "publishAt": "2024-06-12T12:13:37+00:00",
-    "readableAt": "2024-06-12T12:13:37+00:00",
-    "createdAt": "2024-06-12T12:13:36+00:00",
-    "updatedAt": "2024-11-26T10:59:39+00:00",
-    "version": 7,
     "pages": 15
    },
    "relationships": [
@@ -155,10 +114,6 @@
     {
      "id": "91d928a1-7237-4d03-abc3-4b1440cc7d55",
      "type": "manga"
-    },
-    {
-     "id": "676d5263-8ac0-4640-a30a-de8554141884",
-     "type": "user"
     }
    ]
   },
@@ -172,11 +127,6 @@
     "translatedLanguage": "en",
     "externalUrl": null,
     "isUnavailable": false,
-    "publishAt": "2024-06-12T04:49:34+00:00",
-    "readableAt": "2024-06-12T04:49:34+00:00",
-    "createdAt": "2024-06-12T04:49:33+00:00",
-    "updatedAt": "2024-12-10T06:47:50+00:00",
-    "version": 6,
     "pages": 16
    },
    "relationships": [
@@ -187,10 +137,6 @@
     {
      "id": "91d928a1-7237-4d03-abc3-4b1440cc7d55",
      "type": "manga"
-    },
-    {
-     "id": "fca42d9d-b00c-4b52-8966-c3e1061fca4e",
-     "type": "user"
     }
    ]
   },
@@ -204,11 +150,6 @@
     "translatedLanguage": "en",
     "externalUrl": null,
     "isUnavailable": false,
-    "publishAt": "2024-07-03T05:18:20+00:00",
-    "readableAt": "2024-07-03T05:18:20+00:00",
-    "createdAt": "2024-07-03T05:18:19+00:00",
-    "updatedAt": "2024-11-26T11:07:59+00:00",
-    "version": 4,
     "pages": 14
    },
    "relationships": [
@@ -219,10 +160,6 @@
     {
      "id": "91d928a1-7237-4d03-abc3-4b1440cc7d55",
      "type": "manga"
-    },
-    {
-     "id": "676d5263-8ac0-4640-a30a-de8554141884",
-     "type": "user"
     }
    ]
   },
@@ -236,11 +173,6 @@
     "translatedLanguage": "es",
     "externalUrl": null,
     "isUnavailable": false,
-    "publishAt": "2024-06-25T05:17:00+00:00",
-    "readableAt": "2024-06-25T05:17:00+00:00",
-    "createdAt": "2024-06-25T05:16:59+00:00",
-    "updatedAt": "2024-12-10T06:47:51+00:00",
-    "version": 4,
     "pages": 15
    },
    "relationships": [
@@ -251,10 +183,6 @@
     {
      "id": "91d928a1-7237-4d03-abc3-4b1440cc7d55",
      "type": "manga"
-    },
-    {
-     "id": "fca42d9d-b00c-4b52-8966-c3e1061fca4e",
-     "type": "user"
     }
    ]
   }

@@ -140,9 +140,9 @@ Every registered provider goes through the same contract suite
    `MANGAS_LIVE=1 cargo test -p mangas-providers --test live -- --ignored <id>`. The manual
    `live-smoke` workflow runs them (MangaDex only; MangaDot is Cloudflare-gated from CI).
 5. By hand: `mangas providers check <id> [--query q] [--lang en]` walks status → search → manga
-   → chapters → pages → HEAD of the first page with the provider's headers. It prints one line
-   per step with timings and exits non-zero on failure. The walk is `doctor::check` in the
-   providers crate.
+   → chapters → pages → a one-byte GET of the first page with the provider's headers. It
+   prints one line per step with timings and exits non-zero on failure. The walk is
+   `doctor::check` in the providers crate.
 
 ## Coding rules (also in AGENTS.md)
 

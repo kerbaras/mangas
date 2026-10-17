@@ -10,35 +10,16 @@
    },
    "altTitles": [
     {
-     "ja": "陰の実力者になりたくて！マスターオブガーデン～七陰列伝～"
-    },
-    {
      "en": "The Eminence in Shadow: Master of Garden: Seven Shadows Chronicles"
     },
     {
      "en": "I Want To Become The Eminence In Shadow! Master Of Garden: Seven Shadows Chronicles"
-    },
-    {
-     "ru": "Восхождение в Тени! ~Хроники Семи Теней~"
     }
    ],
    "description": {
     "en": "Cid Kagenou, a boy who was enjoying the “eminence in shadow” setting in another world, plays the role of the justice with the girls called the Seven Shadows (they are very serious), such that the darkness of the world will disappear (maybe).\n\nThe curtain rises on an overwhelmingly chuunibyou and misunderstanding-filled serious comedy about the strongest Seven Shadows (and the protagonist)!?"
    },
    "isLocked": true,
-   "links": {
-    "al": "179256",
-    "ap": "kage-no-jitsuryokusha-ni-naritakute-master-of-garden-shichikage-retsuden",
-    "bw": "series/498868/list",
-    "kt": "76399",
-    "mu": "boicrvk",
-    "amz": "https://www.amazon.co.jp/dp/B0DP7XBJ9K",
-    "cdj": "https://www.cdjapan.co.jp/product/NEOBK-3040311",
-    "ebj": "https://ebookjapan.yahoo.co.jp/books/864485",
-    "mal": "170680",
-    "raw": "https://comic-walker.com/detail/KC_005607_S"
-   },
-   "officialLinks": null,
    "originalLanguage": "ja",
    "lastVolume": "",
    "lastChapter": "",
@@ -46,138 +27,6 @@
    "status": "ongoing",
    "year": 2024,
    "contentRating": "suggestive",
-   "tags": [
-    {
-     "id": "391b0423-d847-456f-aff0-8b0cfc03066b",
-     "type": "tag",
-     "attributes": {
-      "name": {
-       "en": "Action"
-      },
-      "description": {},
-      "group": "genre",
-      "version": 1
-     },
-     "relationships": []
-    },
-    {
-     "id": "39730448-9a5f-48a2-85b0-a70db87b1233",
-     "type": "tag",
-     "attributes": {
-      "name": {
-       "en": "Demons"
-      },
-      "description": {},
-      "group": "theme",
-      "version": 1
-     },
-     "relationships": []
-    },
-    {
-     "id": "799c202e-7daa-44eb-9cf7-8a3c0441531e",
-     "type": "tag",
-     "attributes": {
-      "name": {
-       "en": "Martial Arts"
-      },
-      "description": {},
-      "group": "theme",
-      "version": 1
-     },
-     "relationships": []
-    },
-    {
-     "id": "87cc87cd-a395-47af-b27a-93258283bbc6",
-     "type": "tag",
-     "attributes": {
-      "name": {
-       "en": "Adventure"
-      },
-      "description": {},
-      "group": "genre",
-      "version": 1
-     },
-     "relationships": []
-    },
-    {
-     "id": "a1f53773-c69a-4ce5-8cab-fffcd90b1565",
-     "type": "tag",
-     "attributes": {
-      "name": {
-       "en": "Magic"
-      },
-      "description": {},
-      "group": "theme",
-      "version": 1
-     },
-     "relationships": []
-    },
-    {
-     "id": "aafb99c1-7f60-43fa-b75f-fc9502ce29c7",
-     "type": "tag",
-     "attributes": {
-      "name": {
-       "en": "Harem"
-      },
-      "description": {},
-      "group": "theme",
-      "version": 1
-     },
-     "relationships": []
-    },
-    {
-     "id": "ace04997-f6bd-436e-b261-779182193d3d",
-     "type": "tag",
-     "attributes": {
-      "name": {
-       "en": "Isekai"
-      },
-      "description": {},
-      "group": "genre",
-      "version": 1
-     },
-     "relationships": []
-    },
-    {
-     "id": "b9af3a63-f058-46de-a9a0-e0c13906197a",
-     "type": "tag",
-     "attributes": {
-      "name": {
-       "en": "Drama"
-      },
-      "description": {},
-      "group": "genre",
-      "version": 1
-     },
-     "relationships": []
-    },
-    {
-     "id": "cdc58593-87dd-415e-bbc0-2ec27bf404cc",
-     "type": "tag",
-     "attributes": {
-      "name": {
-       "en": "Fantasy"
-      },
-      "description": {},
-      "group": "genre",
-      "version": 1
-     },
-     "relationships": []
-    },
-    {
-     "id": "f4122d1c-3b44-44d0-9936-ff7502c39ad3",
-     "type": "tag",
-     "attributes": {
-      "name": {
-       "en": "Adaptation"
-      },
-      "description": {},
-      "group": "format",
-      "version": 1
-     },
-     "relationships": []
-    }
-   ],
    "state": "published",
    "chapterNumbersResetOnNewVolume": false,
    "createdAt": "2024-05-18T10:44:31+00:00",

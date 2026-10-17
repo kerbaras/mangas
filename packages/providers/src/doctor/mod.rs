@@ -7,8 +7,10 @@ use std::future::Future;
 use std::time::{Duration, Instant};
 
 use mangas_core::domain::{Chapter, Manga};
+use mangas_core::download::is_public_http_url;
 use mangas_core::sources::{Header, ProviderStatus, Source};
 use reqwest::header::RANGE;
+use reqwest::redirect::{Attempt, Policy};
 use reqwest::Client;
 
 pub use report::{lines, Report, Step, StepReport, STEPS};
@@ -21,17 +23,18 @@ const SEARCH_LIMIT: usize = 10;
 const CANDIDATES: usize = 5;
 const IMAGE_TIMEOUT: Duration = Duration::from_secs(30);
 
-/// Runs the check against the real site: the image step is an HTTP HEAD of the first page
-/// with the provider's page headers.
+/// Runs the check against the real site. The image step is a one-byte ranged GET of the first
+/// page with its page headers, and like the downloader it only reaches public hosts.
 pub async fn check(source: &dyn Source, query: &str, language: &str) -> Report {
     let client = Client::builder()
         .user_agent(USER_AGENT)
         .timeout(IMAGE_TIMEOUT)
+        .redirect(Policy::custom(public_redirects_only))
         .build()
         .map_err(|e| e.to_string());
     check_with(source, query, language, |url, headers| {
         let client = client.clone();
-        async move { head(client?, url, headers).await }
+        async move { first_byte(client?, url, headers).await }
     })
     .await
 }
@@ -175,18 +178,23 @@ fn label(chapter: &Chapter) -> String {
     }
 }
 
-/// HEAD of `url`; hosts refusing HEAD get a one-byte ranged GET instead.
-async fn head(client: Client, url: String, headers: Vec<Header>) -> Result<u16, String> {
+/// One-byte ranged GET of `url`: hosts that ignore `Range` answer 200 with the body.
+async fn first_byte(client: Client, url: String, headers: Vec<Header>) -> Result<u16, String> {
+    if !is_public_http_url(&url) {
+        return Err(format!("not a public http(s) url: {url}"));
+    }
     let headers = header_map(&headers).map_err(|e| e.to_string())?;
-    let send = |request: reqwest::RequestBuilder| async move {
-        request
-            .send()
-            .await
-            .map(|r| r.status().as_u16())
-            .map_err(|e| e.to_string())
-    };
-    match send(client.head(&url).headers(headers.clone())).await? {
-        405 | 501 => send(client.get(&url).headers(headers).header(RANGE, "bytes=0-0")).await,
-        status => Ok(status),
+    let request = client.get(&url).headers(headers).header(RANGE, "bytes=0-0");
+    let response = request.send().await.map_err(|e| e.to_string())?;
+    Ok(response.status().as_u16())
+}
+
+fn public_redirects_only(attempt: Attempt) -> reqwest::redirect::Action {
+    if attempt.previous().len() >= 10 {
+        attempt.error("too many redirects")
+    } else if is_public_http_url(attempt.url().as_str()) {
+        attempt.follow()
+    } else {
+        attempt.error("redirect to a non-public url")
     }
 }

@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use mangas_core::domain::{Chapter, ChapterId, Error, Manga, MangaId, MangaStatus, Result};
-use mangas_providers::doctor::{check_with, lines, Report, Step};
+use mangas_providers::doctor::{check, check_with, lines, Report, Step};
 use mangas_providers::{Header, PageUrls, ProviderStatus, Source};
 
 struct Fake {
@@ -54,6 +54,7 @@ impl Source for Fake {
     async fn pages(&self, chapter: &ChapterId) -> Result<PageUrls> {
         match chapter.0.as_str() {
             "empty-1" => Ok(PageUrls(vec![])),
+            "local-1" => Ok(PageUrls(vec!["http://127.0.0.1:9/1.png".into()])),
             id => Ok(PageUrls(vec![format!("https://img.test/{id}/1.png")])),
         }
     }
@@ -177,4 +178,12 @@ async fn source_errors_are_reported_not_raised() {
     assert_eq!(report.failed_step(), Some(Step::Search));
     let reason = report.steps[1].outcome.clone().unwrap_err();
     assert!(reason.contains("needs a browser session"), "{reason}");
+}
+
+#[tokio::test]
+async fn the_real_image_fetch_refuses_non_public_hosts() {
+    let report = check(&fake(vec!["local"], &[("local", 1)]), "q", "en").await;
+    assert_eq!(report.failed_step(), Some(Step::Image));
+    let reason = report.steps[5].outcome.clone().unwrap_err();
+    assert!(reason.starts_with("not a public http(s) url"), "{reason}");
 }
