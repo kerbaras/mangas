@@ -140,8 +140,9 @@ impl SiteClient {
             }
         };
         let status = response.status().as_u16();
+        let after = retry_after(&response);
         if should_retry(&response, idempotent) {
-            if let Some(after) = wait(retry_after(&response)) {
+            if let Some(after) = wait(after) {
                 return (
                     Ok(Reply {
                         status,
@@ -153,7 +154,7 @@ impl SiteClient {
         }
         let mitigated = mitigated(&response);
         match response.text().await {
-            Err(e) => (Err(e.into()), idempotent.then(|| wait(None)).flatten()),
+            Err(e) => (Err(e.into()), idempotent.then(|| wait(after)).flatten()),
             Ok(body) if is_challenge(status, &mitigated, &body) => (Err(self.challenge()), None),
             Ok(body) => (Ok(Reply { status, body }), None),
         }
