@@ -53,7 +53,9 @@ Rules: the Tauri layer and the CLI contain no business logic. Everything testabl
 `packages/providers` gives every site the same plumbing, so a provider is only its mapping:
 
 - **`Provider`** (`provider.rs`): `info() -> ProviderInfo` (id, name, site, languages,
-  capabilities, `needs_browser_session`, icon URL) and `build(&Settings) -> Arc<dyn Source>`.
+  capabilities, `needs_browser_session`, icon URL), `build(&Settings) -> Arc<dyn Source>` and
+  `build_at(&Settings, base)`, the same source with every request sent to `base` (the contract
+  tests point it at a mock server).
   `registry.rs` lists the descriptors; `providers()`, `source(id, settings)` and
   `status(id, settings)` are what the CLI and the Tauri commands call.
 - **`SiteClient`** (`http/client.rs`): timeouts (30 s, 10 s connect), per-client token bucket,
@@ -81,7 +83,10 @@ pub struct ExampleProvider;
 impl Provider for ExampleProvider {
     fn info(&self) -> ProviderInfo { INFO }
     fn build(&self, settings: &Settings) -> Result<Arc<dyn Source>> {
-        let config = ClientConfig { image_hosts: &["cdn.example.com"], ..ClientConfig::new(INFO, "https://example.com/api") };
+        self.build_at(settings, "https://example.com/api")
+    }
+    fn build_at(&self, settings: &Settings, base: &str) -> Result<Arc<dyn Source>> {
+        let config = ClientConfig { image_hosts: &["cdn.example.com"], ..ClientConfig::new(INFO, base) };
         Ok(Arc::new(Example { client: SiteClient::new(config, Session::from_settings(settings, INFO.id))? }))
     }
 }
@@ -100,6 +105,44 @@ impl Source for Example {
 ```
 
 Then add `&example::ExampleProvider` to `PROVIDERS` in `registry.rs`.
+
+### Testing a provider
+
+Every registered provider goes through the same contract suite
+(`packages/providers/tests/contract_suite.rs`, helpers in `tests/contract/`). It only uses the
+`Provider`/`Source` API, so a new provider needs fixtures, not test code:
+
+1. Record the responses of one walk (search → manga → chapters → pages) with
+   `scripts/record-fixture.sh <id> contract/<file> '<url>'`. For a site behind a verification,
+   pass the stored session's cookies and user agent with `-c` and `-a`. Trim the bodies: two
+   search results, a few chapters. Keep at least one chapter in another language and one out of
+   order, so the language filter and the sort get exercised. Paginated bodies must report a
+   total that ends the paging.
+2. Write `tests/fixtures/<id>/contract/manifest.json`: `query`, `language`,
+   `pages_need_referer`, and `routes` (the `path` relative to the `build_at` base, the required
+   `query` parameters, and the `file` that answers it). The first search result must be the
+   manga whose chapters are recorded, and its first chapter after sorting the one whose pages
+   are recorded.
+3. `cargo test -p mangas-providers --test contract_suite` checks:
+   - unique ids with titles, and `manga(id)` round-trips
+   - chapters of that manga, in the requested language, sorted by `Chapter::number`, numbers
+     that parse
+   - non-empty absolute page URLs
+   - page headers: the referer where the manifest says so, session cookies only on the site's
+     own host
+   - a Cloudflare page becomes `Error::Challenge`
+   - the status probe maps 200, a challenge and 500 to Ready, NeedsSession and Unreachable;
+     a missing required session gives NeedsSession without a request
+
+   A registered provider without a manifest fails the suite.
+4. Live: add `<id>_live_contract` / `<id>_live_check` to `tests/live.rs` if CI can reach the
+   site. They are `#[ignore]` and do nothing unless `MANGAS_LIVE=1`:
+   `MANGAS_LIVE=1 cargo test -p mangas-providers --test live -- --ignored <id>`. The manual
+   `live-smoke` workflow runs them (MangaDex only; MangaDot is Cloudflare-gated from CI).
+5. By hand: `mangas providers check <id> [--query q] [--lang en]` walks status → search → manga
+   → chapters → pages → a one-byte GET of the first page with the provider's headers. It
+   prints one line per step with timings and exits non-zero on failure. The walk is
+   `doctor::check` in the providers crate.
 
 ## Coding rules (also in AGENTS.md)
 

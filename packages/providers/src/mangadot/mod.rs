@@ -53,9 +53,17 @@ impl Provider for MangaDotProvider {
     }
 
     fn build(&self, settings: &Settings) -> Result<Arc<dyn Source>> {
-        Ok(Arc::new(MangaDot::new(Session::from_settings(
-            settings, INFO.id,
-        ))?))
+        self.build_at(settings, SITE)
+    }
+
+    fn build_at(&self, settings: &Settings, base: &str) -> Result<Arc<dyn Source>> {
+        let base = base.trim_end_matches('/');
+        let session = Session::from_settings(settings, INFO.id);
+        Ok(Arc::new(MangaDot::with_base(
+            base,
+            &format!("{base}/api"),
+            session,
+        )?))
     }
 }
 

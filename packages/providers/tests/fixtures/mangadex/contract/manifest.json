@@ -1,0 +1,12 @@
+{
+  "_comment": "Recorded from api.mangadex.org with scripts/record-fixture.sh, then trimmed: 2 search results, 8 feed entries (one switched to 'es', one moved out of order, total = 8), 3 pages.",
+  "query": "eminence",
+  "language": "en",
+  "pages_need_referer": false,
+  "routes": [
+    { "path": "/manga", "query": { "title": "eminence" }, "file": "search.json" },
+    { "path": "/manga/91d928a1-7237-4d03-abc3-4b1440cc7d55", "file": "manga.json" },
+    { "path": "/manga/91d928a1-7237-4d03-abc3-4b1440cc7d55/feed", "query": { "translatedLanguage[]": "en" }, "file": "feed.json" },
+    { "path": "/at-home/server/6573cb1d-8153-4c2b-aadf-ccde663c50c6", "file": "at_home.json" }
+  ]
+}

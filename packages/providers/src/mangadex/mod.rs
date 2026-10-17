@@ -53,6 +53,10 @@ impl Provider for MangaDexProvider {
     fn build(&self, _settings: &Settings) -> Result<Arc<dyn Source>> {
         Ok(Arc::new(MangaDex::new()?))
     }
+
+    fn build_at(&self, _settings: &Settings, base: &str) -> Result<Arc<dyn Source>> {
+        Ok(Arc::new(MangaDex::with_base(base)?))
+    }
 }
 
 pub struct MangaDex {

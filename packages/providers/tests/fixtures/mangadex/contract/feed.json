@@ -1,0 +1,193 @@
+{
+ "result": "ok",
+ "response": "collection",
+ "data": [
+  {
+   "id": "e2953471-89a7-471f-8b6d-c569d336cd4f",
+   "type": "chapter",
+   "attributes": {
+    "volume": "1",
+    "chapter": "3.1",
+    "title": null,
+    "translatedLanguage": "en",
+    "externalUrl": null,
+    "isUnavailable": false,
+    "pages": 15
+   },
+   "relationships": [
+    {
+     "id": "652c0d5b-3a84-46e2-b3f0-23024e84b72b",
+     "type": "scanlation_group"
+    },
+    {
+     "id": "91d928a1-7237-4d03-abc3-4b1440cc7d55",
+     "type": "manga"
+    }
+   ]
+  },
+  {
+   "id": "6573cb1d-8153-4c2b-aadf-ccde663c50c6",
+   "type": "chapter",
+   "attributes": {
+    "volume": "1",
+    "chapter": "1",
+    "title": null,
+    "translatedLanguage": "en",
+    "externalUrl": null,
+    "isUnavailable": false,
+    "pages": 30
+   },
+   "relationships": [
+    {
+     "id": "b3c56144-b707-42cf-ac6f-eb29b0511449",
+     "type": "scanlation_group"
+    },
+    {
+     "id": "91d928a1-7237-4d03-abc3-4b1440cc7d55",
+     "type": "manga"
+    }
+   ]
+  },
+  {
+   "id": "d74c0354-8ceb-4428-9765-d950c94fe185",
+   "type": "chapter",
+   "attributes": {
+    "volume": "1",
+    "chapter": "1",
+    "title": null,
+    "translatedLanguage": "en",
+    "externalUrl": null,
+    "isUnavailable": false,
+    "pages": 27
+   },
+   "relationships": [
+    {
+     "id": "652c0d5b-3a84-46e2-b3f0-23024e84b72b",
+     "type": "scanlation_group"
+    },
+    {
+     "id": "91d928a1-7237-4d03-abc3-4b1440cc7d55",
+     "type": "manga"
+    }
+   ]
+  },
+  {
+   "id": "ec99f8a9-b14e-4e44-a42a-9bb95197c99c",
+   "type": "chapter",
+   "attributes": {
+    "volume": "1",
+    "chapter": "1",
+    "title": null,
+    "translatedLanguage": "en",
+    "externalUrl": null,
+    "isUnavailable": false,
+    "pages": 31
+   },
+   "relationships": [
+    {
+     "id": "151f8626-0ccd-4625-86f0-4421017ce04d",
+     "type": "scanlation_group"
+    },
+    {
+     "id": "91d928a1-7237-4d03-abc3-4b1440cc7d55",
+     "type": "manga"
+    }
+   ]
+  },
+  {
+   "id": "172189d8-b14f-4bc6-886b-90f448ca77e6",
+   "type": "chapter",
+   "attributes": {
+    "volume": "1",
+    "chapter": "2.1",
+    "title": null,
+    "translatedLanguage": "en",
+    "externalUrl": null,
+    "isUnavailable": false,
+    "pages": 15
+   },
+   "relationships": [
+    {
+     "id": "652c0d5b-3a84-46e2-b3f0-23024e84b72b",
+     "type": "scanlation_group"
+    },
+    {
+     "id": "91d928a1-7237-4d03-abc3-4b1440cc7d55",
+     "type": "manga"
+    }
+   ]
+  },
+  {
+   "id": "45058d38-15c1-4eae-90c9-c7905f34b649",
+   "type": "chapter",
+   "attributes": {
+    "volume": "1",
+    "chapter": "2.1",
+    "title": null,
+    "translatedLanguage": "en",
+    "externalUrl": null,
+    "isUnavailable": false,
+    "pages": 16
+   },
+   "relationships": [
+    {
+     "id": "151f8626-0ccd-4625-86f0-4421017ce04d",
+     "type": "scanlation_group"
+    },
+    {
+     "id": "91d928a1-7237-4d03-abc3-4b1440cc7d55",
+     "type": "manga"
+    }
+   ]
+  },
+  {
+   "id": "10326e7e-92a7-4cc9-a645-1e4eb1b5647b",
+   "type": "chapter",
+   "attributes": {
+    "volume": "1",
+    "chapter": "2.2",
+    "title": null,
+    "translatedLanguage": "en",
+    "externalUrl": null,
+    "isUnavailable": false,
+    "pages": 14
+   },
+   "relationships": [
+    {
+     "id": "652c0d5b-3a84-46e2-b3f0-23024e84b72b",
+     "type": "scanlation_group"
+    },
+    {
+     "id": "91d928a1-7237-4d03-abc3-4b1440cc7d55",
+     "type": "manga"
+    }
+   ]
+  },
+  {
+   "id": "735043e0-70be-4dbb-8def-65e4585c50fe",
+   "type": "chapter",
+   "attributes": {
+    "volume": "1",
+    "chapter": "2.2",
+    "title": null,
+    "translatedLanguage": "es",
+    "externalUrl": null,
+    "isUnavailable": false,
+    "pages": 15
+   },
+   "relationships": [
+    {
+     "id": "151f8626-0ccd-4625-86f0-4421017ce04d",
+     "type": "scanlation_group"
+    },
+    {
+     "id": "91d928a1-7237-4d03-abc3-4b1440cc7d55",
+     "type": "manga"
+    }
+   ]
+  }
+ ],
+ "limit": 8,
+ "offset": 0,
+ "total": 8
+}

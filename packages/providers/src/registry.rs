@@ -27,6 +27,13 @@ pub fn source(id: &str, settings: &Settings) -> Result<Arc<dyn Source>> {
     find(id).ok_or_else(|| unknown(id))?.build(settings)
 }
 
+/// Like [`source`] with every request sent to `base` (see [`Provider::build_at`]).
+pub fn source_at(id: &str, settings: &Settings, base: &str) -> Result<Arc<dyn Source>> {
+    find(id)
+        .ok_or_else(|| unknown(id))?
+        .build_at(settings, base)
+}
+
 /// Whether `id` is usable now: one cheap request at most.
 pub async fn status(id: &str, settings: &Settings) -> ProviderStatus {
     match source(id, settings) {

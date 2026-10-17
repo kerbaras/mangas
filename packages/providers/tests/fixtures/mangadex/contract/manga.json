@@ -1,0 +1,89 @@
+{
+ "result": "ok",
+ "response": "entity",
+ "data": {
+  "id": "91d928a1-7237-4d03-abc3-4b1440cc7d55",
+  "type": "manga",
+  "attributes": {
+   "title": {
+    "ja-ro": "Kage no Jitsuryokusha ni Naritakute! Master of Garden: Shichikage Retsuden"
+   },
+   "altTitles": [
+    {
+     "en": "The Eminence in Shadow: Master of Garden: Seven Shadows Chronicles"
+    },
+    {
+     "en": "I Want To Become The Eminence In Shadow! Master Of Garden: Seven Shadows Chronicles"
+    }
+   ],
+   "description": {
+    "en": "Cid Kagenou, a boy who was enjoying the “eminence in shadow” setting in another world, plays the role of the justice with the girls called the Seven Shadows (they are very serious), such that the darkness of the world will disappear (maybe).\n\nThe curtain rises on an overwhelmingly chuunibyou and misunderstanding-filled serious comedy about the strongest Seven Shadows (and the protagonist)!?"
+   },
+   "isLocked": true,
+   "originalLanguage": "ja",
+   "lastVolume": "",
+   "lastChapter": "",
+   "publicationDemographic": null,
+   "status": "ongoing",
+   "year": 2024,
+   "contentRating": "suggestive",
+   "state": "published",
+   "chapterNumbersResetOnNewVolume": false,
+   "createdAt": "2024-05-18T10:44:31+00:00",
+   "updatedAt": "2026-10-08T19:50:37+00:00",
+   "version": 26,
+   "availableTranslatedLanguages": [
+    "zh",
+    "en",
+    "pt-br",
+    "zh-hk",
+    "th",
+    "ru",
+    "tr",
+    "es-la",
+    "id",
+    "vi",
+    "fr",
+    "pl"
+   ],
+   "latestUploadedChapter": "6027287f-bd88-4517-a478-6d0f03380113"
+  },
+  "relationships": [
+   {
+    "id": "c6c278e1-268b-4b7b-84ec-3289bd0c08f0",
+    "type": "author"
+   },
+   {
+    "id": "fa94e213-0833-495e-bef2-42f00e6a827e",
+    "type": "artist"
+   },
+   {
+    "id": "604b2d95-7e18-42ef-9323-85c3cbb32962",
+    "type": "cover_art",
+    "attributes": {
+     "description": "",
+     "volume": "4",
+     "fileName": "33439369-8fe5-4306-abab-cece3befe57b.jpg",
+     "locale": "ja",
+     "createdAt": "2026-10-08T19:50:36+00:00",
+     "updatedAt": "2026-10-08T19:50:36+00:00",
+     "version": 1
+    }
+   },
+   {
+    "id": "77bee52c-d2d6-44ad-a33a-1734c1fe696a",
+    "type": "manga",
+    "related": "main_story"
+   },
+   {
+    "id": "fc4eede2-4fc9-4fdc-8904-7ea7ae56d773",
+    "type": "manga",
+    "related": "same_franchise"
+   },
+   {
+    "id": "c82fa5d6-584a-4f88-88e2-316bed75933e",
+    "type": "creator"
+   }
+  ]
+ }
+}

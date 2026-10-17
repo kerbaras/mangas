@@ -2,6 +2,7 @@
 //! the common [`http::SiteClient`] / [`http::HostPolicy`]; [`registry`] is the only place that
 //! knows them by name. See "Provider harness" in `docs/rewrite-design.md`.
 
+pub mod doctor;
 pub mod http;
 pub mod mangadex;
 pub mod mangadot;
@@ -13,5 +14,5 @@ mod session;
 pub use mangas_core::sources::{Header, PageUrls, ProviderStatus, Source};
 pub use provider::{Capability, Provider, ProviderInfo};
 pub use rate_limit::TokenBucket;
-pub use registry::{info, providers, source, status, statuses};
+pub use registry::{info, providers, source, source_at, status, statuses};
 pub use session::Session;
