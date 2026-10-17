@@ -1,21 +1,21 @@
 //! `providers check`: walks one provider the way a download would (status → search → manga →
 //! chapters → pages → first page image) and reports each step with its timing.
 
+mod fetch;
 mod report;
 
 use std::future::Future;
 use std::time::{Duration, Instant};
 
 use mangas_core::domain::{Chapter, Manga};
-use mangas_core::download::is_public_http_url;
 use mangas_core::sources::{Header, ProviderStatus, Source};
-use reqwest::header::RANGE;
-use reqwest::redirect::{Attempt, Policy};
+use reqwest::redirect::Policy;
 use reqwest::Client;
 
 pub use report::{lines, Report, Step, StepReport, STEPS};
 
-use crate::http::{header_map, USER_AGENT};
+use crate::http::USER_AGENT;
+use fetch::{first_byte, public_redirects_only};
 
 /// Search results asked for, and how many of them are tried until one has chapters (popular
 /// titles often have none hosted in a given language).
@@ -175,26 +175,5 @@ fn label(chapter: &Chapter) -> String {
     match chapter.number.as_str() {
         "" => chapter.id.to_string(),
         number => format!("{number} ({})", chapter.id),
-    }
-}
-
-/// One-byte ranged GET of `url`: hosts that ignore `Range` answer 200 with the body.
-async fn first_byte(client: Client, url: String, headers: Vec<Header>) -> Result<u16, String> {
-    if !is_public_http_url(&url) {
-        return Err(format!("not a public http(s) url: {url}"));
-    }
-    let headers = header_map(&headers).map_err(|e| e.to_string())?;
-    let request = client.get(&url).headers(headers).header(RANGE, "bytes=0-0");
-    let response = request.send().await.map_err(|e| e.to_string())?;
-    Ok(response.status().as_u16())
-}
-
-fn public_redirects_only(attempt: Attempt) -> reqwest::redirect::Action {
-    if attempt.previous().len() >= 10 {
-        attempt.error("too many redirects")
-    } else if is_public_http_url(attempt.url().as_str()) {
-        attempt.follow()
-    } else {
-        attempt.error("redirect to a non-public url")
     }
 }
