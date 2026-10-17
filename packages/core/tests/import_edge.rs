@@ -1,4 +1,4 @@
-//! Import edge cases: sources inside the library folder, titles that share a slug.
+//! Import edge cases: sources inside the library folder, titles that share a slug, source edits.
 
 use std::path::Path;
 
@@ -78,4 +78,21 @@ fn a_series_keeps_its_id_after_the_slug_owner_is_removed() {
     assert_eq!(again.manga.id, hashed.manga.id);
     assert!(again.imported.is_empty());
     assert_eq!(list_manga(&lib).unwrap().len(), 1);
+}
+
+#[test]
+fn imported_pages_are_copies_not_links_to_the_source() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("data");
+    let source = tmp.path().join("Foo").join("Chapter 1");
+    png(&source, "a.png");
+    let lib = open_in_memory().unwrap();
+
+    let report = import_paths(&lib, &root, &request(vec![tmp.path().join("Foo")], None)).unwrap();
+    let page = report.imported[0].path.join("0001.png");
+    let before = std::fs::read(&page).unwrap();
+    std::fs::write(source.join("a.png"), b"edited").unwrap();
+    std::fs::remove_dir_all(&source).unwrap();
+
+    assert_eq!(std::fs::read(&page).unwrap(), before);
 }

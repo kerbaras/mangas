@@ -16,7 +16,7 @@ pub fn write_pages(entry: &Entry, dest: &Path) -> Result<usize> {
     }
     std::fs::create_dir_all(dest)?;
     match entry.kind {
-        EntryKind::Folder => link_folder(&entry.path, dest),
+        EntryKind::Folder => copy_folder(&entry.path, dest),
         EntryKind::Cbz => extract_cbz(&entry.path, dest),
     }
 }
@@ -26,8 +26,8 @@ fn page_name(index: usize, original: &str) -> String {
     format!("{:04}.{ext}", index + 1)
 }
 
-/// Hard-links each image (same volume) or copies it.
-fn link_folder(src: &Path, dest: &Path) -> Result<usize> {
+/// Copies each image, so later edits to the source folder never reach the library.
+fn copy_folder(src: &Path, dest: &Path) -> Result<usize> {
     let mut files: Vec<String> = std::fs::read_dir(src)?
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_ok_and(|t| t.is_file()))
@@ -36,11 +36,7 @@ fn link_folder(src: &Path, dest: &Path) -> Result<usize> {
         .collect();
     files.sort_by(|a, b| natural_cmp(a, b));
     for (i, name) in files.iter().enumerate() {
-        let target = dest.join(page_name(i, name));
-        let from = src.join(name);
-        if std::fs::hard_link(&from, &target).is_err() {
-            std::fs::copy(&from, &target)?;
-        }
+        std::fs::copy(src.join(name), dest.join(page_name(i, name)))?;
     }
     Ok(files.len())
 }
