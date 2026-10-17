@@ -4,6 +4,12 @@ import { describeError } from "./errors";
 import { errorMessage } from "./format";
 import { connectAndWait } from "./providers";
 
+/**
+ * Sonner keeps a dismissed toast mounted this long; a same-id toast raised meanwhile (a retry that
+ * fails at once) would be swallowed by the exit, so Retry waits it out.
+ */
+export const TOAST_EXIT_MS = 250;
+
 type Options = {
   /** Provider the failing call went to; enables Connect on challenge errors. */
   source?: string;
@@ -62,6 +68,6 @@ export function notifyError(title: string, error: unknown, { source, retry, id }
     id,
     description,
     duration: 10_000,
-    action: retry ? { label: "Retry", onClick: retry } : undefined,
+    action: retry ? { label: "Retry", onClick: () => setTimeout(retry, TOAST_EXIT_MS) } : undefined,
   });
 }
