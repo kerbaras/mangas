@@ -1,7 +1,11 @@
-import { Download, Send } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { BookOpen, Download, Send } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { ChallengePrompt } from "@/components/challenge-prompt";
 import { ChaptersTable } from "@/components/chapters-table";
 import { Cover } from "@/components/cover";
+import { EmptyState } from "@/components/empty-state";
+import { ErrorAlert } from "@/components/error-alert";
 import { ScreenHeader } from "@/components/screen-header";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -17,16 +21,39 @@ import {
   selectionSummary,
   sortChapters,
 } from "@/lib/chapters";
+import { rememberLabels } from "@/lib/download-labels";
 import { languageLabel } from "@/lib/format";
-import { downloadChapters, listChapters, type Manga } from "@/lib/ipc";
+import { DEFAULT_LANGUAGE, downloadChapters, isChallenge, type Manga } from "@/lib/ipc";
+import { loadChapters } from "@/lib/load-chapters";
 import { useNavigation } from "@/lib/navigation";
+import { notifyError } from "@/lib/notify";
 
 type Props = { manga: Manga };
 
 export function MangaDetailsScreen({ manga }: Props) {
   const { source, id } = manga;
   const nav = useNavigation();
-  const chapters = useAsync(() => listChapters(source, id, true), [source, id]);
+  const refreshToast = `refresh-${source}:${id}`;
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      toast.dismiss(refreshToast);
+    };
+  }, [refreshToast]);
+  const chapters = useAsync(
+    () =>
+      loadChapters(source, id, (e) => {
+        if (!mounted.current) return;
+        notifyError("Couldn't refresh chapters; showing the saved list", e, {
+          source,
+          retry: chapters.reload,
+          id: refreshToast,
+        });
+      }),
+    [source, id],
+  );
   const downloads = useDownloads();
   const [language, setLanguage] = useState<string | null>(null);
 
@@ -48,12 +75,18 @@ export function MangaDetailsScreen({ manga }: Props) {
   const toExport = exportable(all, selected);
 
   const download = async () => {
-    await downloadChapters(
-      source,
-      id,
-      toDownload.map((c) => c.id),
-    );
-    clear();
+    rememberLabels(toDownload.map((c) => [c.id, `Chapter ${c.number} of ${manga.title}`]));
+    try {
+      // Per-chapter failures, missing chapters included, arrive as progress errors.
+      await downloadChapters(
+        source,
+        id,
+        toDownload.map((c) => c.id),
+      );
+      clear();
+    } catch (e: unknown) {
+      notifyError("Download failed", e, { source, retry: download, id: `download-${source}` });
+    }
   };
 
   return (
@@ -104,10 +137,25 @@ export function MangaDetailsScreen({ manga }: Props) {
       </div>
       <div className="flex-1 overflow-auto">
         {chapters.state.kind === "loading" && <p className="p-4 text-ink-3">Loading chapters…</p>}
-        {chapters.state.kind === "error" && (
-          <p className="p-4 text-accent">Couldn't list chapters: {chapters.state.message}</p>
+        {chapters.state.kind === "error" &&
+          (isChallenge(chapters.state.message) ? (
+            <ChallengePrompt source={source} onConnected={chapters.reload} />
+          ) : (
+            <div className="p-4">
+              <ErrorAlert
+                title="Couldn't list chapters"
+                message={chapters.state.message}
+                onRetry={chapters.reload}
+              />
+            </div>
+          ))}
+        {chapters.state.kind === "ready" && all.length === 0 && (
+          <EmptyState icon={<BookOpen />} title={`No ${languageLabel(DEFAULT_LANGUAGE)} chapters`}>
+            {source} lists no chapters in {languageLabel(DEFAULT_LANGUAGE)} for this title. Other
+            languages aren't fetched yet; try the same title on another source.
+          </EmptyState>
         )}
-        {chapters.state.kind === "ready" && (
+        {chapters.state.kind === "ready" && all.length > 0 && (
           <ChaptersTable
             chapters={visible}
             selected={selected}

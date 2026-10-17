@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { NavRail } from "@/components/nav-rail";
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { activeCount, DownloadsProvider, useDownloads } from "@/hooks/use-downloads";
 import { mangaKey } from "@/lib/format";
@@ -64,6 +65,7 @@ export function App() {
       <DownloadsProvider>
         <Shell nav={nav} />
       </DownloadsProvider>
+      <Toaster />
     </TooltipProvider>
   );
 }

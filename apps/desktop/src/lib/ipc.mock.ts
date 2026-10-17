@@ -18,6 +18,8 @@ import {
   sampleDevices,
   sampleLibrary,
 } from "./mock-data";
+import { mockDiagnostics } from "./mock-diagnostics";
+import { failIfOffline, mockFlags } from "./mock-flags";
 import { mockImport } from "./mock-import";
 
 const DATA_DIR = "~/.local/share/mangas";
@@ -29,7 +31,9 @@ let settings: Settings = {
   provider_sessions: {},
 };
 
-const library = new Map(sampleLibrary.map((m) => [`${m.source}:${m.id}`, m]));
+const library = new Map(
+  (mockFlags.emptyLibrary ? [] : sampleLibrary).map((m) => [`${m.source}:${m.id}`, m]),
+);
 const chapterCache = new Map<string, Chapter[]>();
 const downloadListeners = new Set<(p: DownloadProgress) => void>();
 const exportListeners = new Set<(p: ExportProgress) => void>();
@@ -139,6 +143,7 @@ export const mockBackend: Backend = {
     await wait(450);
     const q = query.trim().toLowerCase();
     if (!q) return [];
+    failIfOffline(source, q);
     const info = providers.find((p) => p.id === source);
     if (info?.needs_browser_session && !settings.provider_sessions[source])
       throw new Error(`challenge: ${source} needs a browser session for ${info.site}`);
@@ -188,6 +193,7 @@ export const mockBackend: Backend = {
     await wait(120);
     return { available: true, downloaded: true, provider: "cpu" };
   },
+  ...mockDiagnostics(DATA_DIR, providers, () => settings),
   onDownloadProgress: (cb) => subscribe(downloadListeners, cb),
   onExportProgress: (cb) => subscribe(exportListeners, cb),
 };

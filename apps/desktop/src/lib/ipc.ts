@@ -3,6 +3,7 @@
  * `ipc.tauri.ts` inside Tauri, `ipc.mock.ts` in a plain browser (`pnpm dev:web`).
  * Types here are what the screens consume; the Rust wire shapes live in `ipc.wire.ts`.
  */
+import type { DiagnosticsBackend } from "./ipc.diagnostics";
 
 /** Mirrors `mangas_core::domain::Manga`. */
 export type Manga = {
@@ -116,7 +117,7 @@ export type DetectorsStatus = {
 
 export type Unlisten = () => void;
 
-export type Backend = {
+export type Backend = DiagnosticsBackend & {
   listLibrary(): Promise<Manga[]>;
   listDevices(): Promise<Device[]>;
   getSettings(): Promise<Settings>;
@@ -147,6 +148,8 @@ export type Backend = {
 };
 
 export const DEFAULT_SOURCE = "mangadex";
+/** Chapter language the app fetches; there is no language preference yet. */
+export const DEFAULT_LANGUAGE = "en";
 
 export const isTauri = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 

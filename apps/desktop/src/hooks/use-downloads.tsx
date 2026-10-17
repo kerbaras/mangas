@@ -1,5 +1,7 @@
 import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
+import { downloadLabel } from "@/lib/download-labels";
 import { type DownloadProgress, onDownloadProgress } from "@/lib/ipc";
+import { notifyError } from "@/lib/notify";
 
 export type DownloadMap = ReadonlyMap<string, DownloadProgress>;
 
@@ -12,7 +14,13 @@ export function DownloadsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let unlisten: (() => void) | null = null;
     let alive = true;
-    onDownloadProgress((p) => setProgress((m) => new Map(m).set(p.chapter_id, p))).then((u) => {
+    onDownloadProgress((p) => {
+      setProgress((m) => new Map(m).set(p.chapter_id, p));
+      if (p.error)
+        notifyError(`${downloadLabel(p.chapter_id)} didn't download`, p.error, {
+          id: `download-${p.chapter_id}`,
+        });
+    }).then((u) => {
       if (alive) unlisten = u;
       else u();
     });

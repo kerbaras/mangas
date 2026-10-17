@@ -1,19 +1,22 @@
-import { Link2, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { ChallengePrompt } from "@/components/challenge-prompt";
 import { EmptyState } from "@/components/empty-state";
+import { RetryButton } from "@/components/error-alert";
 import { ProviderSelect } from "@/components/provider-select";
 import { ScreenHeader } from "@/components/screen-header";
 import { SearchResult } from "@/components/search-result";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDebounced } from "@/hooks/use-debounced";
 import { useLibrary } from "@/hooks/use-library";
 import { errorMessage, mangaKey } from "@/lib/format";
 import { DEFAULT_SOURCE, isChallenge, type Manga, searchManga } from "@/lib/ipc";
 import { useNavigation } from "@/lib/navigation";
-import { connectAndWait } from "@/lib/providers";
+import { notifyError } from "@/lib/notify";
 
 const SOURCE_KEY = "mangas.search.source";
+const SEARCH_TOAST = "search";
 const readSource = () => window.localStorage.getItem(SOURCE_KEY) || DEFAULT_SOURCE;
 
 type Results =
@@ -29,14 +32,14 @@ export function SearchScreen() {
   const [source, setSource] = useState(readSource);
   const [attempt, setAttempt] = useState(0);
   const debounced = useDebounced(query, 300);
+  const retry = () => setAttempt((a) => a + 1);
   const [results, setResults] = useState<Results>({ kind: "idle" });
   const [busy, setBusy] = useState<string | null>(null);
-  const [followError, setFollowError] = useState<string | null>(null);
 
+  useEffect(() => () => void toast.dismiss(SEARCH_TOAST), []);
   // biome-ignore lint/correctness/useExhaustiveDependencies: attempt reruns the search after connecting a provider
   useEffect(() => {
     const q = debounced.trim();
-    setFollowError(null);
     if (!q) {
       setResults({ kind: "idle" });
       return;
@@ -44,8 +47,23 @@ export function SearchScreen() {
     let alive = true;
     setResults({ kind: "searching" });
     searchManga(q, source)
-      .then((items) => alive && setResults({ kind: "ready", items }))
-      .catch((e: unknown) => alive && setResults({ kind: "error", message: errorMessage(e) }));
+      .then((items) => {
+        if (!alive) return;
+        toast.dismiss(SEARCH_TOAST);
+        setResults({ kind: "ready", items });
+      })
+      .catch((e: unknown) => {
+        if (!alive) return;
+        const message = errorMessage(e);
+        setResults({ kind: "error", message });
+        // Challenges get the inline Connect prompt; a toast on top would only repeat it.
+        if (isChallenge(message)) toast.dismiss(SEARCH_TOAST);
+        else
+          notifyError("Search failed", e, {
+            retry: () => setAttempt((n) => n + 1),
+            id: SEARCH_TOAST,
+          });
+      });
     return () => {
       alive = false;
     };
@@ -55,18 +73,17 @@ export function SearchScreen() {
     window.localStorage.setItem(SOURCE_KEY, id);
     setSource(id);
   };
-  const connect = async () => {
-    if (await connectAndWait(source)) setAttempt((a) => a + 1);
-  };
 
   const followed = new Set(library.kind === "ready" ? library.data.map(mangaKey) : []);
   const onFollow = async (m: Manga) => {
     setBusy(mangaKey(m));
-    setFollowError(null);
     try {
       await follow(m);
     } catch (e: unknown) {
-      setFollowError(`Couldn't follow ${m.title}: ${errorMessage(e)}`);
+      notifyError(`Couldn't follow ${m.title}`, e, {
+        source: m.source,
+        retry: () => void onFollow(m),
+      });
     } finally {
       setBusy(null);
     }
@@ -101,22 +118,12 @@ export function SearchScreen() {
           )}
           {results.kind === "searching" && <p className="text-ink-3">Searching {source}…</p>}
           {results.kind === "error" && isChallenge(results.message) && (
-            <EmptyState title="This site asks for a browser check">
-              <p className="mb-3">
-                Pass it once in its own window; the app keeps the session and retries.
-              </p>
-              <Button onClick={connect}>
-                <Link2 /> Connect {source}
-              </Button>
-            </EmptyState>
+            <ChallengePrompt source={source} onConnected={retry} />
           )}
           {results.kind === "error" && !isChallenge(results.message) && (
-            <p className="text-accent">Search failed: {results.message}</p>
-          )}
-          {followError && (
-            <p role="alert" className="mb-2 text-caption text-accent">
-              {followError}
-            </p>
+            <EmptyState title="Search didn't finish" action={<RetryButton onClick={retry} />}>
+              Try again, or pick another source.
+            </EmptyState>
           )}
           {results.kind === "ready" && results.items.length === 0 && (
             <EmptyState title={`No results for “${debounced.trim()}”`}>

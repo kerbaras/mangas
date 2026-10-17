@@ -98,6 +98,12 @@ pub async fn download_chapters(
             log::warn!("emit {DOWNLOAD_EVENT}: {e}");
         }
     };
+    for id in &missing {
+        emit(Event::Error {
+            chapter: ChapterId(id.clone()),
+            message: "not found: the source no longer lists this chapter".into(),
+        });
+    }
     let report = download::download_chapters(src.as_ref(), &lib, &selected, &root, &emit)
         .await
         .map_err(to_ipc)?;

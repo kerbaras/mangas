@@ -1,8 +1,10 @@
 import { FolderOpen, Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { DeviceSelect } from "@/components/device-select";
+import { DevicesPending } from "@/components/devices-pending";
 import { DownloadedPicker } from "@/components/downloaded-picker";
 import { EmptyState } from "@/components/empty-state";
+import { ErrorAlert } from "@/components/error-alert";
 import { ExportProgressPanel } from "@/components/export-progress";
 import { Field } from "@/components/field";
 import { PresetPicker } from "@/components/preset-picker";
@@ -83,13 +85,17 @@ export function KindleScreen({ chapterIds }: Props) {
   };
 
   const detectorHint =
-    detectors.state.kind !== "ready"
-      ? "Checking detector support…"
-      : detectors.state.data.available
-        ? `Speech-bubble and face detectors (${detectors.state.data.provider}) keep cuts away from dialogue and faces. ${
-            detectors.state.data.downloaded ? "Models are ready." : "Models download on first use."
-          }`
-        : "This build has no detector support; cuts follow gutters and panel edges only.";
+    detectors.state.kind === "error"
+      ? `Couldn't check detector support: ${detectors.state.message}`
+      : detectors.state.kind !== "ready"
+        ? "Checking detector support…"
+        : detectors.state.data.available
+          ? `Speech-bubble and face detectors (${detectors.state.data.provider}) keep cuts away from dialogue and faces. ${
+              detectors.state.data.downloaded
+                ? "Models are ready."
+                : "Models download on first use."
+            }`
+          : "This build has no detector support; cuts follow gutters and panel edges only.";
 
   return (
     <section className="flex h-full flex-col">
@@ -111,7 +117,13 @@ export function KindleScreen({ chapterIds }: Props) {
           {groups.state.kind === "loading" && (
             <p className="text-ink-3">Looking for downloaded chapters…</p>
           )}
-          {groups.state.kind === "error" && <p className="text-accent">{groups.state.message}</p>}
+          {groups.state.kind === "error" && (
+            <ErrorAlert
+              title="Couldn't list downloaded chapters"
+              message={groups.state.message}
+              onRetry={groups.reload}
+            />
+          )}
           {groups.state.kind === "ready" && groups.state.data.length === 0 && (
             <EmptyState
               title="Nothing downloaded yet"
@@ -138,7 +150,7 @@ export function KindleScreen({ chapterIds }: Props) {
                 onChange={setDevice}
               />
             ) : (
-              <p className="text-ink-3">Loading devices…</p>
+              <DevicesPending state={devices.state} />
             )}
           </Field>
           <Field
