@@ -51,7 +51,11 @@ export const tauriBackend: Backend = {
   followManga: async (source, id) => {
     const [first, ...rest] = languages();
     const manga = await invoke<Manga>("follow_manga", { source, id, language: first });
-    for (const language of rest) await invoke<Manga>("follow_manga", { source, id, language });
+    // Extra languages are best effort: the manga is followed once the first one succeeds.
+    for (const language of rest)
+      await invoke<Manga>("follow_manga", { source, id, language }).catch((e: unknown) =>
+        console.warn(`chapters in ${language} not synced`, e),
+      );
     return manga;
   },
   unfollowManga: async (source, id) => {

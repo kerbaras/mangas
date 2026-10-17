@@ -136,6 +136,7 @@ fn failed_home_nodes_fall_back_to_uploads() {
         uploads_mirror("https://uploads.mangadex.org/covers/m/c.jpg"),
         None
     );
+    assert_eq!(uploads_mirror("https://evil.example/data/h/1.png"), None);
     assert_eq!(uploads_mirror("not a url"), None);
 }
 

@@ -7,6 +7,9 @@ use super::api::AtHome;
 use super::mapping::parse;
 use mangas_core::domain::Error;
 
+/// MD@Home nodes handed out by `/at-home/server`; only their URLs get a mirror.
+const HOME_NODE_SUFFIX: &str = ".mangadex.network";
+
 /// Origin serving every chapter file; used when an MD@Home node fails.
 pub const UPLOADS_ORIGIN: &str = "https://uploads.mangadex.org";
 
@@ -31,12 +34,15 @@ pub fn parse_at_home_response(body: &str, data_saver: bool) -> Result<PageUrls, 
 }
 
 /// The same page on [`UPLOADS_ORIGIN`], for a page URL from [`parse_at_home_response`].
-/// `None` for anything else (already on uploads, not a chapter file).
+/// `None` for anything else (other hosts, not a chapter file).
 pub fn uploads_mirror(url: &str) -> Option<String> {
     let parsed = Url::parse(url).ok()?;
     let uploads = Url::parse(UPLOADS_ORIGIN).ok()?;
     let path = chapter_path(parsed.path())?;
-    (parsed.host() != uploads.host()).then(|| format!("{UPLOADS_ORIGIN}{path}"))
+    let on_home_node = parsed
+        .host_str()
+        .is_some_and(|h| h.ends_with(HOME_NODE_SUFFIX));
+    (on_home_node && parsed.host() != uploads.host()).then(|| format!("{UPLOADS_ORIGIN}{path}"))
 }
 
 /// `/data/...` or `/data-saver/...`; MD@Home nodes may prefix it with a token
