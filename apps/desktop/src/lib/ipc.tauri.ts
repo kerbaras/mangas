@@ -5,12 +5,14 @@ import type {
   Backend,
   Chapter,
   Device,
+  Diagnostics,
   ImportReport,
   Manga,
   ProviderInfo,
   ProviderStatus,
   Settings,
 } from "./ipc";
+import { DEFAULT_LANGUAGE } from "./ipc";
 import {
   type DownloadEvent,
   type ExportStats,
@@ -22,7 +24,6 @@ import {
   toExportProgress,
 } from "./ipc.wire";
 
-export const DEFAULT_LANGUAGE = "en";
 export const DOWNLOAD_EVENT = "download://progress";
 export const KINDLE_EVENT = "kindle-progress";
 const SEARCH_LIMIT = 20;
@@ -68,6 +69,9 @@ export const tauriBackend: Backend = {
   exportKindle: async (request) =>
     (await invoke<ExportStats>("export_kindle", toExportArgs(request))).output,
   detectorsStatus: async () => toDetectorsStatus(await invoke<MlStatus>("detectors_status")),
+  diagnostics: () => invoke<Diagnostics>("diagnostics"),
+  openLogs: () => invoke<void>("open_logs"),
+  reportError: (message) => invoke<void>("log_ui_error", { message }),
   onDownloadProgress: (cb) =>
     listen<DownloadEvent>(DOWNLOAD_EVENT, (e) => cb(toDownloadProgress(e.payload))),
   onExportProgress: (cb) =>

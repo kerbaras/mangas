@@ -1,6 +1,7 @@
 //! IPC surface. Each command parses its arguments, calls `mangas_core`, and returns JSON.
 
 pub mod catalog;
+pub mod diagnostics;
 pub mod import;
 pub mod kindle;
 pub mod providers;
@@ -14,9 +15,11 @@ use mangas_providers::Source;
 
 use crate::paths;
 
-/// Errors cross IPC as their display string.
+/// Errors cross IPC as their display string; each one is logged so a QA report can be traced.
 pub(super) fn to_ipc(e: impl std::fmt::Display) -> String {
-    e.to_string()
+    let message = e.to_string();
+    tracing::warn!("{message}");
+    message
 }
 
 pub(super) fn open_library() -> Result<Library, String> {

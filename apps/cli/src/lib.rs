@@ -12,6 +12,9 @@ use clap::{Parser, Subcommand};
 #[derive(Parser)]
 #[command(name = "mangas", version, about = "Manga library and Kindle exporter")]
 pub struct Cli {
+    /// Log more to stderr: -v info, -vv debug (MANGAS_LOG overrides)
+    #[arg(short, long, action = clap::ArgAction::Count, global = true)]
+    verbose: u8,
     #[command(subcommand)]
     command: Command,
 }
@@ -45,7 +48,10 @@ where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
-    match Cli::parse_from(args).command {
+    let cli = Cli::parse_from(args);
+    // Already initialised when embedded in a host that set up its own logging; keep that one.
+    let _ = mangas_core::logging::init_stderr(cli.verbose);
+    match cli.command {
         Command::List(args) => commands::list::run(args),
         Command::Search(args) => commands::search::run(args).await,
         Command::Add(args) => commands::add::run(args).await,

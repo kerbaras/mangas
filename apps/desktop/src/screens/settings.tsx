@@ -1,6 +1,8 @@
 import { FolderOpen, Terminal } from "lucide-react";
 import { useState } from "react";
 import { DeviceSelect } from "@/components/device-select";
+import { DevicesPending } from "@/components/devices-pending";
+import { DiagnosticsPanel } from "@/components/diagnostics-panel";
 import { Field } from "@/components/field";
 import { PresetPicker } from "@/components/preset-picker";
 import { ProvidersList } from "@/components/providers-list";
@@ -77,7 +79,7 @@ export function SettingsScreen() {
                   onChange={(id) => update({ defaultDevice: id })}
                 />
               ) : (
-                <p className="text-ink-3">Loading devices…</p>
+                <DevicesPending state={devices.state} />
               )}
             </Field>
             <Field label="Default cut preset">
@@ -100,6 +102,9 @@ export function SettingsScreen() {
                 {cliNote && <p className="text-caption text-ink-3">{cliNote}</p>}
               </div>
             </Field>
+          </Group>
+          <Group title="Diagnostics">
+            <DiagnosticsPanel />
           </Group>
         </div>
       </div>

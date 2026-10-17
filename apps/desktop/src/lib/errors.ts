@@ -1,0 +1,44 @@
+import { isChallenge } from "./ipc";
+
+export type ErrorInfo = {
+  /** A sentence a user can act on, when the error kind is known. */
+  hint: string | null;
+  /** The raw message, as logged. */
+  detail: string;
+  challenge: boolean;
+};
+
+/** Core error prefixes (`mangas_core::Error` display strings) and what they mean for a user. */
+const HINTS: [prefix: string, hint: string][] = [
+  ["network:", "Couldn't reach the site. Check your connection and try again."],
+  ["source ", "The site answered with something unexpected. It may be down or have changed."],
+  ["library:", "The library database couldn't be read or written."],
+  ["io:", "A file couldn't be read or written. Check the data folder in Settings."],
+  ["image:", "A page image couldn't be decoded."],
+  ["not found:", "It no longer exists on the site."],
+];
+
+/** Splits an IPC error message into a readable hint and the raw detail. */
+export function describeError(message: string): ErrorInfo {
+  const detail = message.trim() || "Unknown error";
+  if (isChallenge(detail))
+    return {
+      hint: "This site asks for a browser check. Connect once and the app reuses the session.",
+      detail,
+      challenge: true,
+    };
+  const lower = detail.toLowerCase();
+  const match = HINTS.find(([prefix]) => lower.startsWith(prefix));
+  return { hint: match?.[1] ?? null, detail, challenge: false };
+}
+
+/** Text for "Copy error" and the log: what crashed and where. */
+export function crashReport(error: Error, componentStack?: string | null): string {
+  return [
+    `${error.name}: ${error.message}`,
+    error.stack ?? "",
+    componentStack ? `Component stack:${componentStack}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}

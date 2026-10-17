@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { errorMessage } from "@/lib/format";
 import { type ExportProgress, type ExportRequest, exportKindle, onExportProgress } from "@/lib/ipc";
+import { notifyError } from "@/lib/notify";
 
 export type ExportState =
   | { kind: "idle" }
@@ -35,6 +36,7 @@ export function useExport() {
       setState({ kind: "done", output });
     } catch (e) {
       setState({ kind: "error", message: errorMessage(e) });
+      notifyError("Export failed", e, { id: "export" });
     } finally {
       running.current = false;
     }

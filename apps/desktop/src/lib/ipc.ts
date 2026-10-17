@@ -114,6 +114,9 @@ export type DetectorsStatus = {
   provider: string;
 };
 
+/** Settings → Diagnostics: the log folder and the plain-text report. */
+export type Diagnostics = { log_dir: string; report: string };
+
 export type Unlisten = () => void;
 
 export type Backend = {
@@ -142,11 +145,17 @@ export type Backend = {
   /** Resolves to the path of the EPUB written. */
   exportKindle(request: ExportRequest): Promise<string>;
   detectorsStatus(): Promise<DetectorsStatus>;
+  diagnostics(): Promise<Diagnostics>;
+  openLogs(): Promise<void>;
+  /** Writes a UI error (crash, unhandled rejection) to the app log. */
+  reportError(message: string): Promise<void>;
   onDownloadProgress(cb: (p: DownloadProgress) => void): Promise<Unlisten>;
   onExportProgress(cb: (p: ExportProgress) => void): Promise<Unlisten>;
 };
 
 export const DEFAULT_SOURCE = "mangadex";
+/** Chapter language the app fetches; there is no language preference yet. */
+export const DEFAULT_LANGUAGE = "en";
 
 export const isTauri = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -188,6 +197,9 @@ export const importLocal = async (paths: string[], title?: string) =>
   (await backend()).importLocal(paths, title);
 export const exportKindle = async (r: ExportRequest) => (await backend()).exportKindle(r);
 export const detectorsStatus = async () => (await backend()).detectorsStatus();
+export const diagnostics = async () => (await backend()).diagnostics();
+export const openLogs = async () => (await backend()).openLogs();
+export const reportError = async (message: string) => (await backend()).reportError(message);
 export const onDownloadProgress = async (cb: (p: DownloadProgress) => void) =>
   (await backend()).onDownloadProgress(cb);
 export const onExportProgress = async (cb: (p: ExportProgress) => void) =>

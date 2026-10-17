@@ -1,6 +1,7 @@
-import { Plus, Search } from "lucide-react";
+import { Library, Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { EmptyState } from "@/components/empty-state";
+import { ErrorAlert } from "@/components/error-alert";
 import { ImportMenu } from "@/components/import-menu";
 import { ImportStatusBar } from "@/components/import-status";
 import { MangaCard } from "@/components/manga-card";
@@ -13,6 +14,7 @@ import { useLibrary } from "@/hooks/use-library";
 import { mangaKey } from "@/lib/format";
 import type { Manga } from "@/lib/ipc";
 import { useNavigation } from "@/lib/navigation";
+import { notifyError } from "@/lib/notify";
 
 export function LibraryScreen() {
   const nav = useNavigation();
@@ -31,6 +33,8 @@ export function LibraryScreen() {
   }, [state, filter, sort]);
 
   const open = (m: Manga) => nav.go({ screen: "manga", manga: m });
+  const onUnfollow = (m: Manga) =>
+    unfollow(m).catch((e: unknown) => notifyError(`Couldn't unfollow ${m.title}`, e));
   const count = state.kind === "ready" ? state.data.length : null;
 
   return (
@@ -59,10 +63,11 @@ export function LibraryScreen() {
       <div className="flex-1 overflow-auto p-4">
         {state.kind === "loading" && <p className="text-ink-3">Loading…</p>}
         {state.kind === "error" && (
-          <p className="text-accent">Couldn't open the library: {state.message}</p>
+          <ErrorAlert title="Couldn't open the library" message={state.message} onRetry={reload} />
         )}
         {state.kind === "ready" && state.data.length === 0 && (
           <EmptyState
+            icon={<Library />}
             title="Nothing on the shelf yet"
             action={
               <Button variant="primary" onClick={() => nav.go({ screen: "search" })}>
@@ -70,8 +75,8 @@ export function LibraryScreen() {
               </Button>
             }
           >
-            Follow a title from a source, or import chapter folders and CBZ files you already have.
-            Chapters show up here, ready to send to your Kindle.
+            Search a source and follow a title, or import chapter folders and CBZ files you already
+            have. Chapters show up here, ready to send to your Kindle.
           </EmptyState>
         )}
         {state.kind === "ready" && state.data.length > 0 && items.length === 0 && (
@@ -83,7 +88,7 @@ export function LibraryScreen() {
           <ul className="grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-3">
             {items.map((m) => (
               <li key={mangaKey(m)}>
-                <MangaCard manga={m} onOpen={open} onUnfollow={unfollow} />
+                <MangaCard manga={m} onOpen={open} onUnfollow={onUnfollow} />
               </li>
             ))}
           </ul>

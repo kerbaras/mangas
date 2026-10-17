@@ -4,7 +4,7 @@ mod commands;
 mod paths;
 
 pub fn run() {
-    env_logger::init();
+    init_logging();
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -26,8 +26,26 @@ pub fn run() {
             commands::catalog::download_chapters,
             commands::import::import_local,
             commands::kindle::export_kindle,
-            commands::kindle::detectors_status
+            commands::kindle::detectors_status,
+            commands::diagnostics::diagnostics,
+            commands::diagnostics::open_logs,
+            commands::diagnostics::log_ui_error
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/// File logging under the platform data dir; the app still starts if the folder is unwritable.
+fn init_logging() {
+    let started = paths::log_dir()
+        .and_then(|dir| mangas_core::logging::init_file(&dir).map_err(|e| e.to_string()));
+    match started {
+        Ok(()) => tracing::info!(
+            version = env!("CARGO_PKG_VERSION"),
+            os = std::env::consts::OS,
+            arch = std::env::consts::ARCH,
+            "mangas started"
+        ),
+        Err(e) => eprintln!("logging disabled: {e}"),
+    }
 }

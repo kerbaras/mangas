@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use directories::ProjectDirs;
 use mangas_core::library::Settings;
 
-fn default_data_dir() -> Result<PathBuf, String> {
+/// Platform data dir: home of the library database and the log files.
+pub fn default_data_dir() -> Result<PathBuf, String> {
     ProjectDirs::from("dev", "kerbaras", "mangas")
         .map(|d| d.data_dir().to_path_buf())
         .ok_or_else(|| "no home directory".to_string())
@@ -31,4 +32,9 @@ pub fn downloads(settings: &Settings) -> Result<PathBuf, String> {
 /// Cache directory for downloaded ONNX detector models.
 pub fn models(settings: &Settings) -> Result<PathBuf, String> {
     Ok(data_dir(settings)?.join("models"))
+}
+
+/// Log files live next to the library database, whatever `data_dir` says.
+pub fn log_dir() -> Result<PathBuf, String> {
+    Ok(mangas_core::logging::log_dir(&default_data_dir()?))
 }
