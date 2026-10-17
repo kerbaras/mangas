@@ -18,7 +18,8 @@ import {
   sampleDevices,
   sampleLibrary,
 } from "./mock-data";
-import { mockFlags } from "./mock-flags";
+import { mockDiagnostics } from "./mock-diagnostics";
+import { failIfOffline, mockFlags } from "./mock-flags";
 import { mockImport } from "./mock-import";
 
 const DATA_DIR = "~/.local/share/mangas";
@@ -142,8 +143,7 @@ export const mockBackend: Backend = {
     await wait(450);
     const q = query.trim().toLowerCase();
     if (!q) return [];
-    if (mockFlags.offline || q === "offline")
-      throw new Error(`network: error sending request for url (${source}/search?q=${q})`);
+    failIfOffline(source, q);
     const info = providers.find((p) => p.id === source);
     if (info?.needs_browser_session && !settings.provider_sessions[source])
       throw new Error(`challenge: ${source} needs a browser session for ${info.site}`);
@@ -193,14 +193,7 @@ export const mockBackend: Backend = {
     await wait(120);
     return { available: true, downloaded: true, provider: "cpu" };
   },
-  async diagnostics() {
-    const report = `Mangas 0.0.0-mock\nOS: browser\nData folder: ${DATA_DIR}\nLogs: ${DATA_DIR}/logs\nProviders:\n${providers.map((p) => `  ${p.id}: ${p.needs_browser_session && !settings.provider_sessions[p.id] ? "needs a browser session" : "ready"}`).join("\n")}\n`;
-    return { log_dir: `${DATA_DIR}/logs`, report };
-  },
-  async openLogs() {},
-  async reportError(message) {
-    console.error(message);
-  },
+  ...mockDiagnostics(DATA_DIR, providers, () => settings),
   onDownloadProgress: (cb) => subscribe(downloadListeners, cb),
   onExportProgress: (cb) => subscribe(exportListeners, cb),
 };

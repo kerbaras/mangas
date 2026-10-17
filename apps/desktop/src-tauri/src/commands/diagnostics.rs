@@ -2,7 +2,6 @@
 //! for UI errors so crashes in the webview reach the log file too.
 
 use mangas_core::diagnostics::{self, ProviderStatus, Report};
-use mangas_providers::PROVIDERS;
 use serde::Serialize;
 use tauri::AppHandle;
 use tauri_plugin_opener::OpenerExt;
@@ -24,8 +23,8 @@ pub fn diagnostics() -> Result<Diagnostics, String> {
         .map_err(to_ipc)?
         .to_string_lossy()
         .into_owned();
-    let providers = PROVIDERS
-        .iter()
+    let providers = mangas_providers::providers()
+        .into_iter()
         .map(|p| ProviderStatus {
             id: p.id.to_string(),
             status: diagnostics::session_status(

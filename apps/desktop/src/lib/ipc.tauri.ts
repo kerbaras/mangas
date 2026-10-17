@@ -5,7 +5,6 @@ import type {
   Backend,
   Chapter,
   Device,
-  Diagnostics,
   ImportReport,
   Manga,
   ProviderInfo,
@@ -13,6 +12,7 @@ import type {
   Settings,
 } from "./ipc";
 import { DEFAULT_LANGUAGE } from "./ipc";
+import type { Diagnostics } from "./ipc.diagnostics";
 import {
   type DownloadEvent,
   type ExportStats,

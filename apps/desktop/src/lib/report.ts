@@ -1,5 +1,5 @@
 import { errorMessage } from "./format";
-import { reportError } from "./ipc";
+import { reportError } from "./ipc.diagnostics";
 
 /** Sends a UI error to the app log; never throws, logging must not cause a second failure. */
 export function logUiError(message: string) {

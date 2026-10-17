@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAsync } from "@/hooks/use-async";
 import { copyText } from "@/lib/clipboard";
-import { diagnostics, openLogs } from "@/lib/ipc";
+import { diagnostics, openLogs } from "@/lib/ipc.diagnostics";
 import { notifyError } from "@/lib/notify";
 
 /** Settings → Diagnostics: where the logs are, and a report to paste into a bug report. */
