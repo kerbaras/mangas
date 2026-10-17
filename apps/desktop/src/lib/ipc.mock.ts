@@ -18,8 +18,8 @@ import {
   sampleDevices,
   sampleLibrary,
 } from "./mock-data";
-import { mockImport } from "./mock-import";
 import { mockFlags } from "./mock-flags";
+import { mockImport } from "./mock-import";
 
 const DATA_DIR = "~/.local/share/mangas";
 
