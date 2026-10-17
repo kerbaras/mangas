@@ -1,11 +1,14 @@
 import { Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { EmptyState } from "@/components/empty-state";
+import { ImportMenu } from "@/components/import-menu";
+import { ImportStatusBar } from "@/components/import-status";
 import { MangaCard } from "@/components/manga-card";
 import { ScreenHeader } from "@/components/screen-header";
 import { type LibrarySort, SortMenu, sortLibrary } from "@/components/sort-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useImport } from "@/hooks/use-import";
 import { useLibrary } from "@/hooks/use-library";
 import { mangaKey } from "@/lib/format";
 import type { Manga } from "@/lib/ipc";
@@ -13,7 +16,8 @@ import { useNavigation } from "@/lib/navigation";
 
 export function LibraryScreen() {
   const nav = useNavigation();
-  const { state, unfollow } = useLibrary();
+  const { state, reload, unfollow } = useLibrary();
+  const imports = useImport(reload);
   const [filter, setFilter] = useState("");
   const [sort, setSort] = useState<LibrarySort>("title");
 
@@ -46,10 +50,12 @@ export function LibraryScreen() {
           </div>
         ) : null}
         {count ? <SortMenu value={sort} onChange={setSort} /> : null}
+        <ImportMenu busy={imports.status.kind === "busy"} onPick={imports.start} />
         <Button variant="primary" size="sm" onClick={() => nav.go({ screen: "search" })}>
           <Plus /> Follow a manga
         </Button>
       </ScreenHeader>
+      <ImportStatusBar status={imports.status} onDismiss={imports.dismiss} />
       <div className="flex-1 overflow-auto p-4">
         {state.kind === "loading" && <p className="text-ink-3">Loading…</p>}
         {state.kind === "error" && (
@@ -64,8 +70,8 @@ export function LibraryScreen() {
               </Button>
             }
           >
-            Follow a title from a source. Chapters you download show up here, ready to send to your
-            Kindle.
+            Follow a title from a source, or import chapter folders and CBZ files you already have.
+            Chapters show up here, ready to send to your Kindle.
           </EmptyState>
         )}
         {state.kind === "ready" && state.data.length > 0 && items.length === 0 && (

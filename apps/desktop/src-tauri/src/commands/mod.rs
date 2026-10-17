@@ -1,6 +1,7 @@
 //! IPC surface. Each command parses its arguments, calls `mangas_core`, and returns JSON.
 
 pub mod catalog;
+pub mod import;
 pub mod kindle;
 pub mod providers;
 

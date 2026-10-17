@@ -47,7 +47,8 @@ pub async fn list_chapters(
 ) -> Result<Vec<Chapter>, String> {
     let id = MangaId(manga_id);
     let lib = open_library()?;
-    if refresh {
+    // Imported manga have no provider to refresh from; the library is the only list.
+    if refresh && !library::is_local(&source) {
         let src = source_by_name(&source)?;
         let fresh = src.chapters(&id, &language).await.map_err(to_ipc)?;
         let followed = library::get_manga(&lib, &source, &id)

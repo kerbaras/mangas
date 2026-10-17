@@ -30,6 +30,8 @@ enum Command {
     Chapters(commands::chapters::Args),
     /// Download chapters of a followed manga
     Download(commands::download::Args),
+    /// Import chapter folders or .cbz files from disk into the library
+    Import(commands::import::Args),
     /// Export downloaded chapters as a Kindle-ready EPUB
     Kindle(commands::kindle::Args),
     /// List the providers and whether they are ready to use
@@ -50,6 +52,7 @@ where
         Command::Remove(args) => commands::remove::run(args),
         Command::Chapters(args) => commands::chapters::run(args).await,
         Command::Download(args) => commands::download::run(args).await,
+        Command::Import(args) => commands::import::run(args),
         Command::Kindle(args) => commands::kindle::run(args).await,
         Command::Providers(args) => commands::providers::run(args),
     }

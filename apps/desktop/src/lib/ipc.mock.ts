@@ -13,6 +13,7 @@ import type {
   Unlisten,
 } from "./ipc";
 import { sampleCatalog, sampleChapters, sampleDevices, sampleLibrary } from "./mock-data";
+import { mockImport } from "./mock-import";
 
 const DATA_DIR = "~/.local/share/mangas";
 
@@ -163,6 +164,13 @@ export const mockBackend: Backend = {
       for (const [i, chapter] of picked.entries()) await simulateDownload(chapter, i === 2);
     })();
     return [];
+  },
+  async importLocal(paths, title) {
+    await wait(700);
+    const { report, chapters } = mockImport(paths, title, DATA_DIR);
+    library.set(`${report.manga.source}:${report.manga.id}`, report.manga);
+    chapterCache.set(`${report.manga.source}:${report.manga.id}`, chapters);
+    return report;
   },
   async exportKindle(request) {
     await simulateExport(Math.max(1, request.chapter_dirs.length * 6));

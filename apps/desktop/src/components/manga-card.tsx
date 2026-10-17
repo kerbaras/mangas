@@ -1,5 +1,6 @@
 import { ExternalLink, Trash2 } from "lucide-react";
 import { Cover } from "@/components/cover";
+import { Badge } from "@/components/ui/badge";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -8,7 +9,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { statusLabel } from "@/lib/format";
-import type { Manga } from "@/lib/ipc";
+import { isLocal, type Manga } from "@/lib/ipc";
 
 type Props = { manga: Manga; onOpen: (m: Manga) => void; onUnfollow: (m: Manga) => void };
 
@@ -25,7 +26,10 @@ export function MangaCard({ manga, onOpen, onUnfollow }: Props) {
           <p className="mt-2 truncate text-body font-medium" title={manga.title}>
             {manga.title}
           </p>
-          <p className="truncate text-caption text-ink-3">{statusLabel[manga.status]}</p>
+          <div className="flex items-center gap-1.5 text-caption text-ink-3">
+            {isLocal(manga) && <Badge variant="outline">Local</Badge>}
+            {!isLocal(manga) && <span className="truncate">{statusLabel[manga.status]}</span>}
+          </div>
         </button>
       </ContextMenuTrigger>
       <ContextMenuContent>
@@ -34,7 +38,7 @@ export function MangaCard({ manga, onOpen, onUnfollow }: Props) {
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onSelect={() => onUnfollow(manga)}>
-          <Trash2 /> Unfollow
+          <Trash2 /> {isLocal(manga) ? "Remove" : "Unfollow"}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

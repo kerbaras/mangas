@@ -23,6 +23,7 @@ pub fn run() {
             commands::catalog::unfollow_manga,
             commands::catalog::list_chapters,
             commands::catalog::download_chapters,
+            commands::import::import_local,
             commands::kindle::export_kindle,
             commands::kindle::detectors_status
         ])
