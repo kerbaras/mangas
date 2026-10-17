@@ -1,4 +1,4 @@
-import { connectProvider, getSettings } from "./ipc";
+import { connectProvider, getSettings, type ProviderStatus } from "./ipc";
 
 const POLL_MS = 2000;
 const TIMEOUT_MS = 180_000;
@@ -31,4 +31,25 @@ export async function connectAndWait(id: string): Promise<boolean> {
   const previous = await savedAt(id);
   await connectProvider(id);
   return waitForSession(id, previous);
+}
+
+/** Status line shown next to a provider's site; `status` is undefined while the probe runs. */
+export function providerStatusText(
+  needsSession: boolean,
+  status: ProviderStatus | undefined,
+  savedAt: string | null | undefined,
+): string {
+  const connected =
+    savedAt !== undefined
+      ? `connected${savedAt ? ` ${new Date(savedAt).toLocaleDateString()}` : ""}`
+      : null;
+  if (!status) return connected ? `${connected} · checking…` : "checking…";
+  switch (status.state) {
+    case "ready":
+      return needsSession && connected ? connected : "ready";
+    case "needs_session":
+      return connected ? "session expired, connect again" : "needs a browser session";
+    case "unreachable":
+      return `unreachable (${status.reason})`;
+  }
 }

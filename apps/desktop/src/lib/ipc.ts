@@ -60,7 +60,10 @@ export type ProviderInfo = {
   id: string;
   name: string;
   site: string;
+  languages: string[];
+  capabilities: ("search" | "chapters" | "download")[];
   needs_browser_session: boolean;
+  icon_url: string | null;
 };
 
 /** Source name of manga imported from disk (`mangas_core::library::LOCAL_SOURCE`). */
@@ -73,6 +76,12 @@ export type ImportReport = {
   imported: { number: string; title: string | null; pages: number; path: string }[];
   skipped: { name: string; reason: string }[];
 };
+
+/** Mirrors `mangas_core::sources::ProviderStatus`. */
+export type ProviderStatus =
+  | { state: "ready" }
+  | { state: "needs_session" }
+  | { state: "unreachable"; reason: string };
 
 /** Errors from a provider that needs a browser session start with this marker. */
 export const CHALLENGE_PREFIX = "challenge:";
@@ -120,6 +129,8 @@ export type Backend = {
   /** Opens the provider's site in a window; the session is stored once the check is passed. */
   connectProvider(id: string): Promise<void>;
   disconnectProvider(id: string): Promise<void>;
+  /** One cheap request with the stored session: ready, needs a session, or unreachable. */
+  providerStatus(id: string): Promise<ProviderStatus>;
   searchManga(query: string, source: string): Promise<Manga[]>;
   followManga(source: string, id: string): Promise<Manga>;
   unfollowManga(source: string, id: string): Promise<void>;
@@ -164,6 +175,7 @@ export const installCli = async () => (await backend()).installCli();
 export const listProviders = async () => (await backend()).listProviders();
 export const connectProvider = async (id: string) => (await backend()).connectProvider(id);
 export const disconnectProvider = async (id: string) => (await backend()).disconnectProvider(id);
+export const providerStatus = async (id: string) => (await backend()).providerStatus(id);
 export const searchManga = async (q: string, s: string) => (await backend()).searchManga(q, s);
 export const followManga = async (s: string, id: string) => (await backend()).followManga(s, id);
 export const unfollowManga = async (s: string, id: string) =>

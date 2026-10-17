@@ -101,21 +101,31 @@ fn title_matching_is_word_based_and_case_insensitive() {
 }
 
 #[test]
-fn session_headers_stay_on_the_site() {
-    use mangas_providers::mangadot::same_site;
-    assert!(same_site(
-        "https://mangadot.net/chapters/x/001.webp",
-        "https://mangadot.net"
-    ));
-    assert!(same_site("https://mangadot.net", "https://mangadot.net"));
-    assert!(!same_site(
-        "https://mangadot.net.evil.io/a.webp",
-        "https://mangadot.net"
-    ));
-    assert!(!same_site(
-        "https://cdn.example/002.webp",
-        "https://mangadot.net"
-    ));
+fn page_headers_come_from_the_host_policy() {
+    use mangas_providers::mangadot::MangaDot;
+    use mangas_providers::{Session, Source};
+    let session = Session {
+        cookies: "cf_clearance=abc".into(),
+        user_agent: "UA".into(),
+        saved_at: None,
+    };
+    let source = MangaDot::new(Some(session)).unwrap();
+    let referer = ("referer".to_string(), "https://mangadot.net/".to_string());
+    let on_site = source.page_headers("https://mangadot.net/chapters/x/001.webp");
+    assert_eq!(
+        on_site,
+        vec![
+            referer.clone(),
+            ("cookie".into(), "cf_clearance=abc".into()),
+            ("user-agent".into(), "UA".into()),
+        ]
+    );
+    let lookalike = source.page_headers("https://mangadot.net.evil.io/a.webp");
+    assert_eq!(lookalike, vec![referer.clone()]);
+    assert_eq!(
+        source.page_headers("https://cdn.example/002.webp"),
+        vec![referer]
+    );
 }
 
 #[test]

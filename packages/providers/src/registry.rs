@@ -1,51 +1,54 @@
-use mangas_core::library::Settings;
-use mangas_core::sources::Source;
-use serde::Serialize;
+//! The only place that knows the providers: add one by appending its descriptor to
+//! [`PROVIDERS`].
 
-use crate::session::Session;
+use std::sync::Arc;
+
+use futures::future::join_all;
+use mangas_core::domain::{Error, Result};
+use mangas_core::library::Settings;
+use mangas_core::sources::{ProviderStatus, Source};
+
+use crate::provider::{Provider, ProviderInfo};
 use crate::{mangadex, mangadot};
 
-/// What the apps need to list a provider and decide whether to offer "Connect".
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-pub struct ProviderInfo {
-    /// Stable id stored with every manga (`Source::name`).
-    pub id: &'static str,
-    pub name: &'static str,
-    pub site: &'static str,
-    /// The site sits behind a browser verification; a stored [`Session`] is required.
-    pub needs_browser_session: bool,
-}
+const PROVIDERS: &[&dyn Provider] = &[&mangadex::MangaDexProvider, &mangadot::MangaDotProvider];
 
-pub const PROVIDERS: [ProviderInfo; 2] = [
-    ProviderInfo {
-        id: mangadex::SOURCE_NAME,
-        name: "MangaDex",
-        site: "https://mangadex.org",
-        needs_browser_session: false,
-    },
-    ProviderInfo {
-        id: mangadot::SOURCE_NAME,
-        name: "MangaDot",
-        site: mangadot::SITE,
-        needs_browser_session: true,
-    },
-];
+/// Every registered provider, in display order.
+pub fn providers() -> Vec<ProviderInfo> {
+    PROVIDERS.iter().map(|p| p.info()).collect()
+}
 
 pub fn info(id: &str) -> Option<ProviderInfo> {
-    PROVIDERS.iter().copied().find(|p| p.id == id)
+    find(id).map(|p| p.info())
 }
 
-/// The provider registered as `id`, configured with the session stored in `settings` if the
-/// site needs one.
-pub fn by_name(id: &str, settings: &Settings) -> Option<Box<dyn Source>> {
-    let session = Session::from_settings(settings, id);
-    match id {
-        mangadex::SOURCE_NAME => mangadex::MangaDex::new()
-            .ok()
-            .map(|s| Box::new(s) as Box<dyn Source>),
-        mangadot::SOURCE_NAME => mangadot::MangaDot::new(session)
-            .ok()
-            .map(|s| Box::new(s) as Box<dyn Source>),
-        _ => None,
+/// The provider registered as `id`, configured from `settings` (browser session, preferences).
+pub fn source(id: &str, settings: &Settings) -> Result<Arc<dyn Source>> {
+    find(id).ok_or_else(|| unknown(id))?.build(settings)
+}
+
+/// Whether `id` is usable now: one cheap request at most.
+pub async fn status(id: &str, settings: &Settings) -> ProviderStatus {
+    match source(id, settings) {
+        Ok(source) => source.status().await,
+        Err(e) => ProviderStatus::Unreachable {
+            reason: e.to_string(),
+        },
     }
+}
+
+/// Every provider with its status, probed concurrently.
+pub async fn statuses(settings: &Settings) -> Vec<(ProviderInfo, ProviderStatus)> {
+    let infos = providers();
+    let probes = infos.iter().map(|p| status(p.id, settings));
+    infos.iter().copied().zip(join_all(probes).await).collect()
+}
+
+fn find(id: &str) -> Option<&'static dyn Provider> {
+    PROVIDERS.iter().copied().find(|p| p.info().id == id)
+}
+
+fn unknown(id: &str) -> Error {
+    let ids: Vec<_> = PROVIDERS.iter().map(|p| p.info().id).collect();
+    Error::NotFound(format!("source '{id}' (try: {})", ids.join(", ")))
 }

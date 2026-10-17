@@ -24,9 +24,26 @@ let settings: Settings = {
   provider_sessions: {},
 };
 
+const capabilities: ProviderInfo["capabilities"] = ["search", "chapters", "download"];
 const providers: ProviderInfo[] = [
-  { id: "mangadex", name: "MangaDex", site: "https://mangadex.org", needs_browser_session: false },
-  { id: "mangadot", name: "MangaDot", site: "https://mangadot.net", needs_browser_session: true },
+  {
+    id: "mangadex",
+    name: "MangaDex",
+    site: "https://mangadex.org",
+    languages: ["en", "es", "fr"],
+    capabilities,
+    needs_browser_session: false,
+    icon_url: null,
+  },
+  {
+    id: "mangadot",
+    name: "MangaDot",
+    site: "https://mangadot.net",
+    languages: ["en"],
+    capabilities,
+    needs_browser_session: true,
+    icon_url: null,
+  },
 ];
 
 const library = new Map(sampleLibrary.map((m) => [`${m.source}:${m.id}`, m]));
@@ -126,6 +143,14 @@ export const mockBackend: Backend = {
   async disconnectProvider(id) {
     const { [id]: _, ...rest } = settings.provider_sessions;
     settings = { ...settings, provider_sessions: rest };
+  },
+  async providerStatus(id) {
+    await wait(300);
+    const info = providers.find((p) => p.id === id);
+    if (!info) return { state: "unreachable", reason: `not found: source '${id}'` };
+    if (info.needs_browser_session && !settings.provider_sessions[id])
+      return { state: "needs_session" };
+    return { state: "ready" };
   },
   async searchManga(query, source) {
     await wait(450);

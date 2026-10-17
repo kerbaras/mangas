@@ -3,25 +3,60 @@
 mod api;
 mod mapping;
 
-use async_trait::async_trait;
+use std::sync::Arc;
 
-use crate::http::ApiClient;
+use async_trait::async_trait;
+use mangas_core::library::Settings;
+
+use crate::http::{ClientConfig, SiteClient};
+use crate::provider::{Capability, Provider, ProviderInfo};
 
 pub const API_BASE: &str = "https://api.mangadex.org";
-const SITE: &str = "https://mangadex.org";
+/// MangaDex's global limit is 5 requests per second per client.
 const REQUESTS_PER_SECOND: u32 = 5;
+/// Cheap health endpoint (`pong`).
+const PROBE: &str = "/ping";
 pub use mapping::{
     cover_url, dedupe_and_sort, parse_at_home_response, parse_error_response, parse_feed_response,
     parse_manga_response, parse_search_response, FeedPage, SOURCE_NAME,
 };
 
 use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId, Result};
-use mangas_core::sources::{PageUrls, Source};
+use mangas_core::sources::{Header, PageUrls, ProviderStatus, Source};
 
 const FEED_PAGE_SIZE: u32 = 500;
 
+pub const INFO: ProviderInfo = ProviderInfo {
+    id: SOURCE_NAME,
+    name: "MangaDex",
+    site: "https://mangadex.org",
+    languages: &[
+        "en", "ja", "ko", "zh", "zh-hk", "es", "es-la", "fr", "de", "it", "pt-br", "ru", "pl",
+        "tr", "id", "vi", "th",
+    ],
+    capabilities: &[
+        Capability::Search,
+        Capability::Chapters,
+        Capability::Download,
+    ],
+    needs_browser_session: false,
+    icon_url: Some("https://mangadex.org/favicon.ico"),
+};
+
+pub struct MangaDexProvider;
+
+impl Provider for MangaDexProvider {
+    fn info(&self) -> ProviderInfo {
+        INFO
+    }
+
+    fn build(&self, _settings: &Settings) -> Result<Arc<dyn Source>> {
+        Ok(Arc::new(MangaDex::new()?))
+    }
+}
+
 pub struct MangaDex {
-    client: ApiClient,
+    client: SiteClient,
 }
 
 impl MangaDex {
@@ -31,8 +66,12 @@ impl MangaDex {
 
     /// Points the source at another base URL (tests, mirrors).
     pub fn with_base(base: &str) -> Result<Self> {
+        let config = ClientConfig {
+            requests_per_second: REQUESTS_PER_SECOND,
+            ..ClientConfig::new(INFO, base)
+        };
         Ok(Self {
-            client: ApiClient::new(SOURCE_NAME, SITE, base, REQUESTS_PER_SECOND)?,
+            client: SiteClient::new(config, None)?,
         })
     }
 }
@@ -93,5 +132,13 @@ impl Source for MangaDex {
     async fn pages(&self, chapter: &ChapterId) -> Result<PageUrls> {
         let body = self.get(&format!("/at-home/server/{chapter}"), &[]).await?;
         parse_at_home_response(&body)
+    }
+
+    fn page_headers(&self, url: &str) -> Vec<Header> {
+        self.client.page_headers(url)
+    }
+
+    async fn status(&self) -> ProviderStatus {
+        self.client.status(PROBE).await
     }
 }

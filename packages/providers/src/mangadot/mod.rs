@@ -5,9 +5,12 @@ mod api;
 mod mapping;
 mod search;
 
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId, Result};
-use mangas_core::sources::{Header, PageUrls, Source};
+use mangas_core::library::Settings;
+use mangas_core::sources::{Header, PageUrls, ProviderStatus, Source};
 
 pub use mapping::{
     chapter_id, images_path, loader_status, parse_chapters, parse_images, parse_manga_list,
@@ -15,20 +18,50 @@ pub use mapping::{
 };
 pub use search::{honoured, matches};
 
-use crate::http::ApiClient;
+use crate::http::{ClientConfig, SiteClient};
+use crate::provider::{Capability, Provider, ProviderInfo};
 use crate::session::Session;
 
 const API_BASE: &str = "https://mangadot.net/api";
 const REQUESTS_PER_SECOND: u32 = 3;
+/// One title of the catalogue: the cheapest API call that passes through the verification.
+const PROBE: &str = "/manga?limit=1&page=1";
 /// Titles per catalogue page when the text search has to be done locally.
 const CATALOGUE_PAGE: usize = 500;
 /// Upper bound of catalogue pages walked for one local search.
 const CATALOGUE_MAX_PAGES: usize = 20;
 
+pub const INFO: ProviderInfo = ProviderInfo {
+    id: SOURCE_NAME,
+    name: "MangaDot",
+    site: SITE,
+    languages: &["en"],
+    capabilities: &[
+        Capability::Search,
+        Capability::Chapters,
+        Capability::Download,
+    ],
+    needs_browser_session: true,
+    icon_url: Some("https://mangadot.net/favicon.ico"),
+};
+
+pub struct MangaDotProvider;
+
+impl Provider for MangaDotProvider {
+    fn info(&self) -> ProviderInfo {
+        INFO
+    }
+
+    fn build(&self, settings: &Settings) -> Result<Arc<dyn Source>> {
+        Ok(Arc::new(MangaDot::new(Session::from_settings(
+            settings, INFO.id,
+        ))?))
+    }
+}
+
 pub struct MangaDot {
-    api: ApiClient,
-    site: ApiClient,
-    session: Option<Session>,
+    api: SiteClient,
+    site: SiteClient,
 }
 
 impl MangaDot {
@@ -38,11 +71,15 @@ impl MangaDot {
 
     /// Points the source at other hosts (tests).
     pub fn with_base(site: &str, api: &str, session: Option<Session>) -> Result<Self> {
-        let rate = REQUESTS_PER_SECOND;
+        let config = |base| ClientConfig {
+            requests_per_second: REQUESTS_PER_SECOND,
+            // Mirrored chapters point at other sites' CDNs; they all get the referer.
+            image_hosts: &["*"],
+            ..ClientConfig::new(INFO, base)
+        };
         Ok(Self {
-            api: ApiClient::with_session(SOURCE_NAME, SITE, api, rate, session.clone())?,
-            site: ApiClient::with_session(SOURCE_NAME, SITE, site, rate, session.clone())?,
-            session,
+            api: SiteClient::new(config(api), session.clone())?,
+            site: SiteClient::new(config(site), session)?,
         })
     }
 
@@ -63,12 +100,6 @@ impl MangaDot {
         }
         Ok(found)
     }
-}
-
-/// True when `url` is on `site` (same scheme and host, any path).
-pub fn same_site(url: &str, site: &str) -> bool {
-    let rest = url.strip_prefix(site).unwrap_or(url);
-    rest.len() < url.len() && (rest.is_empty() || rest.starts_with('/') || rest.starts_with('?'))
 }
 
 #[async_trait]
@@ -114,13 +145,11 @@ impl Source for MangaDot {
         parse_images(&body)
     }
 
-    /// The referer always; the browser session only to the site itself, never to a CDN or
-    /// other image host a chapter may point at.
     fn page_headers(&self, url: &str) -> Vec<Header> {
-        let mut headers = vec![("referer".to_string(), format!("{SITE}/"))];
-        if let Some(session) = self.session.as_ref().filter(|_| same_site(url, SITE)) {
-            headers.extend(session.headers());
-        }
-        headers
+        self.api.page_headers(url)
+    }
+
+    async fn status(&self) -> ProviderStatus {
+        self.api.status(PROBE).await
     }
 }

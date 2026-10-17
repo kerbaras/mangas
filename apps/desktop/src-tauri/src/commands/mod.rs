@@ -8,6 +8,8 @@ pub mod providers;
 use mangas_core::domain::Manga;
 use mangas_core::export::kindle::{Device, DEVICES};
 use mangas_core::library::{self, Library, Settings};
+use std::sync::Arc;
+
 use mangas_providers::Source;
 
 use crate::paths;
@@ -22,9 +24,9 @@ pub(super) fn open_library() -> Result<Library, String> {
 }
 
 /// The provider called `name`, carrying the browser session stored for it in the settings.
-pub(super) fn source_by_name(name: &str) -> Result<Box<dyn Source>, String> {
+pub(super) fn source_by_name(name: &str) -> Result<Arc<dyn Source>, String> {
     let settings = settings_of(&open_library()?)?;
-    mangas_providers::by_name(name, &settings).ok_or_else(|| format!("unknown source '{name}'"))
+    mangas_providers::source(name, &settings).map_err(to_ipc)
 }
 
 pub(super) fn settings_of(lib: &Library) -> Result<Settings, String> {

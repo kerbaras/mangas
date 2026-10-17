@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 
+use super::ProviderStatus;
 use crate::domain::{Chapter, ChapterId, Manga, MangaId, Result};
 
 /// Image URLs of one chapter, in reading order.
@@ -24,5 +25,9 @@ pub trait Source: Send + Sync {
     fn page_headers(&self, url: &str) -> Vec<Header> {
         let _ = url;
         Vec::new()
+    }
+    /// One cheap request telling whether the provider is usable now (see [`ProviderStatus`]).
+    async fn status(&self) -> ProviderStatus {
+        ProviderStatus::Ready
     }
 }
