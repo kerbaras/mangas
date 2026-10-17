@@ -4,6 +4,8 @@ import { DeviceSelect } from "@/components/device-select";
 import { DevicesPending } from "@/components/devices-pending";
 import { DiagnosticsPanel } from "@/components/diagnostics-panel";
 import { Field } from "@/components/field";
+import { LanguagesPicker } from "@/components/languages-picker";
+import { MangaDexOptionsForm } from "@/components/mangadex-options";
 import { PresetPicker } from "@/components/preset-picker";
 import { ProvidersList } from "@/components/providers-list";
 import { ScreenHeader } from "@/components/screen-header";
@@ -63,6 +65,15 @@ export function SettingsScreen() {
               hint="Sites behind a verification wall open in their own window once; the session is reused by the app and the `mangas` command until it expires."
             >
               <ProvidersList />
+            </Field>
+            <Field
+              label="Chapter languages"
+              hint="Chapters are listed in these languages, numbered by preference; search only shows titles translated into one of them."
+            >
+              <LanguagesPicker />
+            </Field>
+            <Field label="MangaDex">
+              <MangaDexOptionsForm />
             </Field>
           </Group>
           <Group title="Kindle">

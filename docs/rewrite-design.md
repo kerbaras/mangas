@@ -68,6 +68,12 @@ Rules: the Tauri layer and the CLI contain no business logic. Everything testabl
   the referer only, over https (`"*"` = every host); anything else gets nothing, so cookies never leak to CDNs.
 - **`Session`**: cookies + user agent + `saved_at` from the settings; `ClientConfig.session_ttl`
   makes older sessions report `NeedsSession` without a request.
+- **Preferences**: `Settings.preferred_languages` (generic, never empty via
+  `Settings::languages()`) and `Settings.provider_options[<id>]`, a JSON value each provider
+  deserialises into its own typed options with defaults (e.g. `mangadex::MangaDexOptions`:
+  content ratings, data-saver, preferred groups). The core never knows their shape.
+- **Mirrors**: `Source::mirror_url(url)` names a second URL for a page; downloads retry a failed
+  page there once (`download::WithMirror`). MangaDex maps MD@Home nodes to `uploads.mangadex.org`.
 - **Status**: `SiteClient::status(probe)` does one cheap GET and maps it to `Ready`,
   `NeedsSession` (no or expired session, or a challenge page) or `Unreachable { reason }`.
 

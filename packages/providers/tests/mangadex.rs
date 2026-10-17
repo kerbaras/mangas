@@ -1,7 +1,8 @@
+use mangas_core::domain::Chapter;
 use mangas_core::domain::{Error, MangaId, MangaStatus};
 use mangas_providers::mangadex::{
-    cover_url, dedupe_and_sort, parse_at_home_response, parse_error_response, parse_feed_response,
-    parse_manga_response, parse_search_response,
+    cover_url, dedupe_chapters, parse_at_home_response, parse_error_response, parse_feed_response,
+    parse_manga_response, parse_search_response, FeedChapter,
 };
 
 const SOLO_LEVELING: &str = "32d76d19-8a05-4db0-9fc2-e0b0648fe9d0";
@@ -13,6 +14,10 @@ fn fixture(name: &str) -> String {
         env!("CARGO_MANIFEST_DIR")
     );
     std::fs::read_to_string(path).unwrap()
+}
+
+fn dedupe_and_sort(entries: Vec<FeedChapter>) -> Vec<Chapter> {
+    dedupe_chapters(entries, &[])
 }
 
 #[test]
@@ -32,7 +37,7 @@ fn search_maps_titles_status_and_covers() {
     assert!(cover.starts_with(&format!(
         "https://uploads.mangadex.org/covers/{SOLO_LEVELING}/"
     )));
-    assert!(cover.ends_with(".jpg.512.jpg"), "{cover}");
+    assert!(cover.ends_with(".jpg.256.jpg"), "256px thumbnail: {cover}");
     assert!(results.iter().all(|m| m.cover_url.is_some()));
 }
 
@@ -68,7 +73,7 @@ fn feed_maps_chapters_and_dedupes_by_number() {
         6,
         "three uploads of ch1, two of 2.1, one of 2.2"
     );
-    let first = &page.chapters[0];
+    let first = &page.chapters[0].chapter;
     assert_eq!(first.id.0, "6573cb1d-8153-4c2b-aadf-ccde663c50c6");
     assert_eq!(first.manga_id, id);
     assert_eq!(first.number, "1");
@@ -82,7 +87,7 @@ fn feed_maps_chapters_and_dedupes_by_number() {
     assert_eq!(numbers, ["1", "2.1", "2.2"]);
     assert_eq!(
         unique[0].id.0, "6573cb1d-8153-4c2b-aadf-ccde663c50c6",
-        "first upload wins"
+        "most recent upload wins"
     );
 }
 
@@ -99,8 +104,8 @@ fn dedupe_sorts_numerically_not_lexically() {
     let mut chapters = parse_feed_response(&fixture("feed_hosted.json"), &id, "en")
         .unwrap()
         .chapters;
-    chapters[1].number = "10".into();
-    chapters[2].number = "9.5".into();
+    chapters[1].chapter.number = "10".into();
+    chapters[2].chapter.number = "9.5".into();
     let numbers: Vec<String> = dedupe_and_sort(chapters)
         .into_iter()
         .map(|c| c.number)
@@ -114,8 +119,8 @@ fn dedupe_keeps_every_unnumbered_chapter() {
     let mut chapters = parse_feed_response(&fixture("feed_hosted.json"), &id, "en")
         .unwrap()
         .chapters;
-    chapters[1].number = String::new();
-    chapters[2].number = String::new();
+    chapters[1].chapter.number = String::new();
+    chapters[2].chapter.number = String::new();
     let unique = dedupe_and_sort(chapters);
     assert_eq!(unique.len(), 5);
     assert_eq!(unique.iter().filter(|c| c.number.is_empty()).count(), 2);
@@ -123,7 +128,7 @@ fn dedupe_keeps_every_unnumbered_chapter() {
 
 #[test]
 fn at_home_builds_full_quality_page_urls() {
-    let pages = parse_at_home_response(&fixture("at_home.json")).unwrap();
+    let pages = parse_at_home_response(&fixture("at_home.json"), false).unwrap();
     assert_eq!(pages.0.len(), 30);
     assert_eq!(
         pages.0[0],

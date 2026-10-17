@@ -4,6 +4,9 @@
  * Types here are what the screens consume; the Rust wire shapes live in `ipc.wire.ts`.
  */
 import type { DiagnosticsBackend } from "./ipc.diagnostics";
+import type { Settings } from "./ipc.settings";
+
+export type { ProviderSession, Settings } from "./ipc.settings";
 
 /** Mirrors `mangas_core::domain::Manga`. */
 export type Manga = {
@@ -26,6 +29,8 @@ export type Chapter = {
   number: string;
   /** Directory with the downloaded pages, once downloaded. */
   local_path: string | null;
+  /** Scanlation group(s) credited by the source ("A, B" when several). */
+  group?: string | null;
 };
 
 /** Mirrors `mangas_core::export::kindle::Device`. */
@@ -40,21 +45,6 @@ export type Device = {
 
 /** Mirrors `mangas_core::smartcut::Preset` (kebab-case on the wire). */
 export type Preset = "balanced" | "fewest-cuts" | "no-shrink";
-
-/** Browser session captured for a provider behind a verification wall. */
-export type ProviderSession = {
-  cookies: string;
-  user_agent: string;
-  saved_at: string | null;
-};
-
-/** Mirrors `mangas_core::library::Settings`; `null` means "use the default". */
-export type Settings = {
-  data_dir: string | null;
-  default_device: string | null;
-  default_preset: Preset | null;
-  provider_sessions: Record<string, ProviderSession>;
-};
 
 /** Mirrors `mangas_providers::ProviderInfo`. */
 export type ProviderInfo = {
@@ -148,7 +138,7 @@ export type Backend = DiagnosticsBackend & {
 };
 
 export const DEFAULT_SOURCE = "mangadex";
-/** Chapter language the app fetches; there is no language preference yet. */
+/** Fallback chapter language: imports and an empty `preferred_languages`. */
 export const DEFAULT_LANGUAGE = "en";
 
 export const isTauri = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;

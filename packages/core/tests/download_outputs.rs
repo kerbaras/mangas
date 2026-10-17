@@ -12,6 +12,7 @@ fn chapter(number: &str) -> Chapter {
         volume: None,
         number: number.into(),
         local_path: None,
+        group: None,
     }
 }
 

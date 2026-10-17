@@ -10,4 +10,4 @@ pub use chapter_repo::{list_chapters, mark_downloaded, upsert_chapters};
 pub use db::{open, open_in_memory, Library};
 pub use import::{import_paths, is_local, ImportReport, ImportRequest, LOCAL_SOURCE};
 pub use manga_repo::{get_manga, list_manga, remove_manga, upsert_manga};
-pub use settings_repo::{get_settings, set_settings, ProviderSession, Settings};
+pub use settings_repo::{get_settings, set_settings, ProviderSession, Settings, DEFAULT_LANGUAGE};

@@ -70,6 +70,7 @@ pub fn import_paths(lib: &Library, root: &Path, req: &ImportRequest) -> Result<I
             Ok(pages) => {
                 let chapter = Chapter {
                     local_path: Some(dest.to_string_lossy().into_owned()),
+                    group: None,
                     ..chapter
                 };
                 imported.push(ImportedChapter {

@@ -18,6 +18,9 @@ pub struct Chapter {
     pub number: String,
     /// Local directory with the downloaded pages, once downloaded.
     pub local_path: Option<String>,
+    /// Scanlation group(s) credited by the source ("A, B" when several).
+    #[serde(default)]
+    pub group: Option<String>,
 }
 
 impl Chapter {

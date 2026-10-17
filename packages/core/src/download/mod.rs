@@ -5,6 +5,7 @@ mod cbz;
 mod chapter;
 mod event;
 mod fetcher;
+mod mirror;
 mod pages;
 mod selection;
 
@@ -15,5 +16,6 @@ pub use chapter::{
 };
 pub use event::{Event, OnEvent};
 pub use fetcher::{is_public_http_url, HttpFetcher, PageFetcher};
+pub use mirror::{MirrorFor, WithMirror};
 pub use pages::{download_pages, page_file_name, plan, PageJob, CONCURRENCY};
 pub use selection::{parse_selection, select_chapters};

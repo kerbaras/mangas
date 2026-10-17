@@ -1,7 +1,11 @@
 //! MangaDex source (<https://api.mangadex.org>).
 
 mod api;
+mod dedupe;
 mod mapping;
+mod options;
+mod pages;
+mod query;
 
 use std::sync::Arc;
 
@@ -16,15 +20,17 @@ pub const API_BASE: &str = "https://api.mangadex.org";
 const REQUESTS_PER_SECOND: u32 = 5;
 /// Cheap health endpoint (`pong`).
 const PROBE: &str = "/ping";
+pub use dedupe::{dedupe_chapters, FeedChapter};
 pub use mapping::{
-    cover_url, dedupe_and_sort, parse_at_home_response, parse_error_response, parse_feed_response,
-    parse_manga_response, parse_search_response, FeedPage, SOURCE_NAME,
+    cover_url, parse_error_response, parse_feed_response, parse_manga_response,
+    parse_search_response, FeedPage, SOURCE_NAME,
 };
+pub use options::{MangaDexOptions, ALL_CONTENT_RATINGS};
+pub use pages::{parse_at_home_response, uploads_mirror, UPLOADS_ORIGIN};
+pub use query::{feed_query, manga_query, search_query, FEED_PAGE_SIZE};
 
 use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId, Result};
 use mangas_core::sources::{Header, PageUrls, ProviderStatus, Source};
-
-const FEED_PAGE_SIZE: u32 = 500;
 
 pub const INFO: ProviderInfo = ProviderInfo {
     id: SOURCE_NAME,
@@ -50,8 +56,12 @@ impl Provider for MangaDexProvider {
         INFO
     }
 
-    fn build(&self, _settings: &Settings) -> Result<Arc<dyn Source>> {
-        Ok(Arc::new(MangaDex::new()?))
+    fn build(&self, settings: &Settings) -> Result<Arc<dyn Source>> {
+        let source = MangaDex::new()?.with_preferences(
+            MangaDexOptions::from_settings(settings),
+            settings.languages(),
+        );
+        Ok(Arc::new(source))
     }
 
     fn build_at(&self, _settings: &Settings, base: &str) -> Result<Arc<dyn Source>> {
@@ -61,6 +71,8 @@ impl Provider for MangaDexProvider {
 
 pub struct MangaDex {
     client: SiteClient,
+    options: MangaDexOptions,
+    languages: Vec<String>,
 }
 
 impl MangaDex {
@@ -76,7 +88,18 @@ impl MangaDex {
         };
         Ok(Self {
             client: SiteClient::new(config, None)?,
+            options: MangaDexOptions::default(),
+            languages: Settings::default().languages(),
         })
+    }
+
+    /// Search filters, data-saver and group preference from the user's settings.
+    pub fn with_preferences(self, options: MangaDexOptions, languages: Vec<String>) -> Self {
+        Self {
+            options,
+            languages,
+            ..self
+        }
     }
 }
 
@@ -99,18 +122,14 @@ impl Source for MangaDex {
     }
 
     async fn search(&self, query: &str, limit: usize) -> Result<Vec<Manga>> {
-        let params = [
-            ("title", query.to_string()),
-            ("limit", limit.clamp(1, 100).to_string()),
-            ("includes[]", "cover_art".to_string()),
-        ];
+        let ratings = self.options.ratings();
+        let params = search_query(query, limit, &ratings, &self.languages);
         let body = self.get("/manga", &params).await?;
         parse_search_response(&body)
     }
 
     async fn manga(&self, id: &MangaId) -> Result<Manga> {
-        let params = [("includes[]", "cover_art".to_string())];
-        let body = self.get(&format!("/manga/{id}"), &params).await?;
+        let body = self.get(&format!("/manga/{id}"), &manga_query()).await?;
         parse_manga_response(&body)
     }
 
@@ -119,27 +138,25 @@ impl Source for MangaDex {
         let mut all = Vec::new();
         let mut offset = Some(0);
         while let Some(current) = offset {
-            let params = [
-                ("translatedLanguage[]", language.to_string()),
-                ("order[chapter]", "asc".to_string()),
-                ("limit", FEED_PAGE_SIZE.to_string()),
-                ("offset", current.to_string()),
-            ];
-            let body = self.get(&path, &params).await?;
+            let body = self.get(&path, &feed_query(language, current)).await?;
             let page = parse_feed_response(&body, id, language)?;
             all.extend(page.chapters);
             offset = page.next_offset;
         }
-        Ok(dedupe_and_sort(all))
+        Ok(dedupe_chapters(all, &self.options.preferred_groups))
     }
 
     async fn pages(&self, chapter: &ChapterId) -> Result<PageUrls> {
         let body = self.get(&format!("/at-home/server/{chapter}"), &[]).await?;
-        parse_at_home_response(&body)
+        parse_at_home_response(&body, self.options.data_saver)
     }
 
     fn page_headers(&self, url: &str) -> Vec<Header> {
         self.client.page_headers(url)
+    }
+
+    fn mirror_url(&self, url: &str) -> Option<String> {
+        uploads_mirror(url)
     }
 
     async fn status(&self) -> ProviderStatus {

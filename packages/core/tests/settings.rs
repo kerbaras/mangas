@@ -15,6 +15,12 @@ fn settings_round_trip_and_overwrite() {
         default_device: Some("kindle-scribe".into()),
         default_preset: Some(Preset::FewestCuts),
         provider_sessions: Default::default(),
+        preferred_languages: vec!["es-la".into(), "en".into()],
+        provider_options: [(
+            "mangadex".to_string(),
+            serde_json::json!({ "data_saver": true }),
+        )]
+        .into(),
     };
     library::set_settings(&lib, &first).unwrap();
     assert_eq!(library::get_settings(&lib).unwrap(), first);
@@ -44,4 +50,14 @@ fn settings_tolerate_unknown_and_missing_fields() {
     assert_eq!(got.default_device.as_deref(), Some("kindle-oasis3"));
     assert_eq!(got.data_dir, None);
     assert_eq!(got.default_preset, None);
+}
+
+#[test]
+fn languages_default_to_english_and_are_normalised() {
+    assert_eq!(Settings::default().languages(), [library::DEFAULT_LANGUAGE]);
+    let s = Settings {
+        preferred_languages: vec![" PT-BR ".into(), "".into(), "en".into()],
+        ..Settings::default()
+    };
+    assert_eq!(s.languages(), ["pt-br", "en"]);
 }

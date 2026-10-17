@@ -23,10 +23,17 @@ import {
   toExportArgs,
   toExportProgress,
 } from "./ipc.wire";
+import { readSettings } from "./settings";
 
 export const DOWNLOAD_EVENT = "download://progress";
 export const KINDLE_EVENT = "kindle-progress";
 const SEARCH_LIMIT = 20;
+
+/** Chapters are fetched and stored per language: one call per preferred language. */
+const languages = () => readSettings().preferredLanguages;
+const uniqueById = (lists: Chapter[][]) => [
+  ...new Map(lists.flat().map((c) => [c.id, c])).values(),
+];
 
 export const tauriBackend: Backend = {
   listLibrary: () => invoke<Manga[]>("list_library"),
@@ -41,23 +48,28 @@ export const tauriBackend: Backend = {
   providerStatus: (provider) => invoke<ProviderStatus>("provider_status", { provider }),
   searchManga: (query, source) =>
     invoke<Manga[]>("search_manga", { source, query, limit: SEARCH_LIMIT }),
-  followManga: (source, id) =>
-    invoke<Manga>("follow_manga", { source, id, language: DEFAULT_LANGUAGE }),
+  followManga: async (source, id) => {
+    const [first, ...rest] = languages();
+    const manga = await invoke<Manga>("follow_manga", { source, id, language: first });
+    for (const language of rest) await invoke<Manga>("follow_manga", { source, id, language });
+    return manga;
+  },
   unfollowManga: async (source, id) => {
     await invoke<boolean>("unfollow_manga", { source, id });
   },
-  listChapters: (source, mangaId, refresh = false) =>
-    invoke<Chapter[]>("list_chapters", {
-      source,
-      mangaId,
-      language: DEFAULT_LANGUAGE,
-      refresh,
-    }),
+  listChapters: async (source, mangaId, refresh = false) =>
+    uniqueById(
+      await Promise.all(
+        languages().map((language) =>
+          invoke<Chapter[]>("list_chapters", { source, mangaId, language, refresh }),
+        ),
+      ),
+    ),
   downloadChapters: (source, mangaId, chapterIds) =>
     invoke<string[]>("download_chapters", {
       source,
       mangaId,
-      language: DEFAULT_LANGUAGE,
+      language: languages()[0],
       chapterIds,
     }),
   importLocal: (paths, title) =>

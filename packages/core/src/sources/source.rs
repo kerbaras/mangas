@@ -26,6 +26,12 @@ pub trait Source: Send + Sync {
         let _ = url;
         Vec::new()
     }
+    /// Another URL serving the same page image, tried once when fetching `url` fails (e.g. a
+    /// CDN node that is down). `None` when the source has no mirror.
+    fn mirror_url(&self, url: &str) -> Option<String> {
+        let _ = url;
+        None
+    }
     /// One cheap request telling whether the provider is usable now (see [`ProviderStatus`]).
     async fn status(&self) -> ProviderStatus {
         ProviderStatus::Ready

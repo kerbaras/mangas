@@ -28,11 +28,13 @@ pub fn upsert_chapters(
             seen.execute(params![c.id.0])?;
         }
         let mut stmt = tx.prepare(
-            "INSERT INTO chapter (id, manga_id, source, title, language, volume, number)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+            "INSERT INTO chapter
+                (id, manga_id, source, title, language, volume, number, scanlation_group)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
              ON CONFLICT (source, id) DO UPDATE SET
                 title = excluded.title, language = excluded.language,
-                volume = excluded.volume, number = excluded.number",
+                volume = excluded.volume, number = excluded.number,
+                scanlation_group = excluded.scanlation_group",
         )?;
         for c in chapters {
             stmt.execute(params![
@@ -43,6 +45,7 @@ pub fn upsert_chapters(
                 c.language,
                 c.volume,
                 c.number,
+                c.group,
             ])?;
         }
         tx.execute(
@@ -66,7 +69,7 @@ pub fn list_chapters(
 ) -> Result<Vec<Chapter>> {
     let conn = lib.conn()?;
     let mut stmt = conn.prepare(
-        "SELECT id, manga_id, title, language, volume, number, local_path
+        "SELECT id, manga_id, title, language, volume, number, local_path, scanlation_group
          FROM chapter WHERE source = ?1 AND manga_id = ?2 AND (?3 IS NULL OR language = ?3)",
     )?;
     let rows = stmt.query_map(params![source, manga_id.0, language], row_to_chapter)?;
@@ -97,5 +100,6 @@ fn row_to_chapter(row: &Row<'_>) -> rusqlite::Result<Chapter> {
         volume: row.get(4)?,
         number: row.get(5)?,
         local_path: row.get(6)?,
+        group: row.get(7)?,
     })
 }

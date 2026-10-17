@@ -152,6 +152,7 @@ pub fn parse_chapters(body: &str, manga: &MangaId, language: &str) -> Result<Vec
             volume: Some(number_text(e.volume_number.as_ref())).filter(|v| !v.is_empty()),
             number: number_text(e.chapter_number.as_ref()),
             local_path: None,
+            group: None,
         })
         .collect();
     Ok(sort_by_number(chapters))
