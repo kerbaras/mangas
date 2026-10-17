@@ -17,7 +17,9 @@ function Description({ hint, detail }: { hint: string | null; detail: string }) 
   return (
     <span className="flex flex-col gap-0.5">
       {hint && <span>{hint}</span>}
-      <span className="break-words text-ink-3">{detail}</span>
+      <span title={detail} className="line-clamp-3 break-all text-ink-3">
+        {detail}
+      </span>
     </span>
   );
 }
