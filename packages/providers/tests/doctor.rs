@@ -48,6 +48,7 @@ impl Source for Fake {
                 volume: None,
                 number: n.to_string(),
                 local_path: None,
+                group: None,
             })
             .collect())
     }
