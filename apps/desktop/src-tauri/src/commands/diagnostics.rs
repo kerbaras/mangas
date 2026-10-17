@@ -20,7 +20,10 @@ pub struct Diagnostics {
 #[tauri::command]
 pub fn diagnostics() -> Result<Diagnostics, String> {
     let settings = settings_of(&open_library()?)?;
-    let log_dir = paths::log_dir()?.to_string_lossy().into_owned();
+    let log_dir = paths::log_dir()
+        .map_err(to_ipc)?
+        .to_string_lossy()
+        .into_owned();
     let providers = PROVIDERS
         .iter()
         .map(|p| ProviderStatus {
@@ -35,7 +38,10 @@ pub fn diagnostics() -> Result<Diagnostics, String> {
         version: env!("CARGO_PKG_VERSION").to_string(),
         os: std::env::consts::OS.to_string(),
         arch: std::env::consts::ARCH.to_string(),
-        data_dir: paths::data_dir(&settings)?.to_string_lossy().into_owned(),
+        data_dir: paths::data_dir(&settings)
+            .map_err(to_ipc)?
+            .to_string_lossy()
+            .into_owned(),
         log_dir: log_dir.clone(),
         providers,
     };
@@ -48,7 +54,7 @@ pub fn diagnostics() -> Result<Diagnostics, String> {
 /// Opens the log folder in the system file manager, creating it if logging never could.
 #[tauri::command]
 pub fn open_logs(app: AppHandle) -> Result<(), String> {
-    let dir = paths::log_dir()?;
+    let dir = paths::log_dir().map_err(to_ipc)?;
     std::fs::create_dir_all(&dir).map_err(to_ipc)?;
     app.opener()
         .open_path(dir.to_string_lossy(), None::<&str>)

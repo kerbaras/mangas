@@ -1,5 +1,6 @@
 import { BookOpen, Download, Send } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { ChallengePrompt } from "@/components/challenge-prompt";
 import { ChaptersTable } from "@/components/chapters-table";
 import { Cover } from "@/components/cover";
@@ -20,7 +21,7 @@ import {
   selectionSummary,
   sortChapters,
 } from "@/lib/chapters";
-import { rememberLabels } from "@/lib/download-labels";
+import { downloadLabel, rememberLabels } from "@/lib/download-labels";
 import { languageLabel } from "@/lib/format";
 import { DEFAULT_LANGUAGE, downloadChapters, isChallenge, type Manga } from "@/lib/ipc";
 import { loadChapters } from "@/lib/load-chapters";
@@ -32,15 +33,25 @@ type Props = { manga: Manga };
 export function MangaDetailsScreen({ manga }: Props) {
   const { source, id } = manga;
   const nav = useNavigation();
+  const refreshToast = `refresh-${source}:${id}`;
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      toast.dismiss(refreshToast);
+    };
+  }, [refreshToast]);
   const chapters = useAsync(
     () =>
-      loadChapters(source, id, (e) =>
+      loadChapters(source, id, (e) => {
+        if (!mounted.current) return;
         notifyError("Couldn't refresh chapters; showing the saved list", e, {
           source,
           retry: chapters.reload,
-          id: `refresh-${source}:${id}`,
-        }),
-      ),
+          id: refreshToast,
+        });
+      }),
     [source, id],
   );
   const downloads = useDownloads();
@@ -66,12 +77,16 @@ export function MangaDetailsScreen({ manga }: Props) {
   const download = async () => {
     rememberLabels(toDownload.map((c) => [c.id, `Chapter ${c.number} of ${manga.title}`]));
     try {
-      await downloadChapters(
+      const missing = await downloadChapters(
         source,
         id,
         toDownload.map((c) => c.id),
       );
       clear();
+      if (missing.length > 0)
+        toast.warning(`${missing.length} chapter(s) didn't download`, {
+          description: `${source} no longer lists: ${missing.map(downloadLabel).join(", ")}`,
+        });
     } catch (e: unknown) {
       notifyError("Download failed", e, { source, retry: download, id: `download-${source}` });
     }
