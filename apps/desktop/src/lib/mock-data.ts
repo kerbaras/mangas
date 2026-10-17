@@ -1,4 +1,4 @@
-import type { Chapter, Manga } from "./ipc";
+import type { Chapter, Manga, ProviderInfo } from "./ipc";
 
 export { sampleDevices } from "./mock-devices";
 
@@ -163,3 +163,25 @@ export function sampleChapters(manga: Manga, dataDir: string): Chapter[] {
   }
   return chapters;
 }
+
+const capabilities: ProviderInfo["capabilities"] = ["search", "chapters", "download"];
+export const sampleProviders: ProviderInfo[] = [
+  {
+    id: "mangadex",
+    name: "MangaDex",
+    site: "https://mangadex.org",
+    languages: ["en", "es", "fr"],
+    capabilities,
+    needs_browser_session: false,
+    icon_url: null,
+  },
+  {
+    id: "mangadot",
+    name: "MangaDot",
+    site: "https://mangadot.net",
+    languages: ["en"],
+    capabilities,
+    needs_browser_session: true,
+    icon_url: null,
+  },
+];

@@ -58,12 +58,12 @@ Rules: the Tauri layer and the CLI contain no business logic. Everything testabl
   `status(id, settings)` are what the CLI and the Tauri commands call.
 - **`SiteClient`** (`http/client.rs`): timeouts (30 s, 10 s connect), per-client token bucket,
   retries with exponential backoff (3 retries, 0.5 s doubling, capped at 30 s) that honour
-  `Retry-After`. GETs retry on 429/5xx and transport errors; POSTs only on 429/503 and failed
+  `Retry-After`. GETs retry on 429/5xx and transport errors; POSTs only on 429 and failed
   connections. A Cloudflare page becomes `Error::Challenge` (never retried) so the UI offers
   Connect. `get`, `get_json::<T>` (errors name the path) and `post_json`.
 - **`HostPolicy`** (`http/host_policy.rs`): page headers come from the client. The site and its
   subdomains (https only) get referer + session cookies + user agent; declared `image_hosts` get
-  the referer only (`"*"` = every host); anything else gets nothing, so cookies never leak to CDNs.
+  the referer only, over https (`"*"` = every host); anything else gets nothing, so cookies never leak to CDNs.
 - **`Session`**: cookies + user agent + `saved_at` from the settings; `ClientConfig.session_ttl`
   makes older sessions report `NeedsSession` without a request.
 - **Status**: `SiteClient::status(probe)` does one cheap GET and maps it to `Ready`,

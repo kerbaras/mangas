@@ -57,6 +57,7 @@ fn wildcard_image_hosts_get_the_referer_everywhere() {
         names(policy.headers_for("https://any.cdn/1.webp")),
         ["referer"]
     );
+    assert!(policy.headers_for("http://any.cdn/1.webp").is_empty());
 }
 
 #[test]

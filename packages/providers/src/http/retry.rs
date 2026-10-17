@@ -50,10 +50,11 @@ impl Default for RetryPolicy {
 }
 
 /// Statuses worth another try: rate limiting and server errors (except 501, which will not
-/// change). Non-idempotent requests (POST) only retry when the server says it did not act.
+/// change). Non-idempotent requests (POST) only retry on 429, which says the server did not
+/// act; a 503 may come after the write happened.
 pub fn retryable_status(status: u16, idempotent: bool) -> bool {
     match status {
-        429 | 503 => true,
+        429 => true,
         501 => false,
         500..=599 => idempotent,
         _ => false,

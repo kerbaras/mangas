@@ -5,7 +5,7 @@ use crate::session::Session;
 
 /// Which headers a page image request gets, by host: the site itself (and its subdomains, same
 /// scheme) gets the referer and the browser session; declared image hosts get the referer
-/// only; any other host gets nothing. Credentials never leave the site.
+/// only, over https; any other host gets nothing. Credentials never leave the site.
 #[derive(Debug, Clone)]
 pub struct HostPolicy {
     scheme: String,
@@ -43,10 +43,11 @@ impl HostPolicy {
         let host = url.host_str().unwrap_or_default();
         let on_site =
             !self.host.is_empty() && url.scheme() == self.scheme && host_matches(host, &self.host);
-        let image_host = self
-            .image_hosts
-            .iter()
-            .any(|pattern| *pattern == "*" || host_matches(host, pattern));
+        let image_host = url.scheme() == "https"
+            && self
+                .image_hosts
+                .iter()
+                .any(|pattern| *pattern == "*" || host_matches(host, pattern));
         let mut headers = Vec::new();
         if on_site || image_host {
             headers.push(("referer".to_string(), self.referer.clone()));

@@ -4,6 +4,7 @@
 mod client;
 mod config;
 mod host_policy;
+mod response;
 mod retry;
 mod status;
 

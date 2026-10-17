@@ -1,13 +1,14 @@
 use chrono::Utc;
 use mangas_core::domain::{Error, Result};
 use mangas_core::sources::{Header, ProviderStatus};
-use reqwest::{Client, RequestBuilder, Response};
+use reqwest::{Client, RequestBuilder};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
+use super::response::{mitigated, retry_after, retryable_transport, should_retry, Attempt};
 use super::{
-    header_map, is_challenge, parse_retry_after, probe_status, retryable_status, session_gate,
-    ClientConfig, HostPolicy, Reply, RetryPolicy, USER_AGENT,
+    header_map, is_challenge, probe_status, session_gate, ClientConfig, HostPolicy, Reply,
+    RetryPolicy, USER_AGENT,
 };
 use crate::rate_limit::TokenBucket;
 use crate::session::Session;
@@ -109,34 +110,42 @@ impl SiteClient {
         let mut attempt = 0;
         loop {
             self.bucket.acquire().await;
-            let outcome = request().send().await;
-            let asked = match &outcome {
-                Ok(r) if should_retry(r, idempotent) => Some(retry_after(r)),
-                Err(e) if retryable_transport(e, idempotent) => Some(None),
-                _ => None,
-            };
+            let (result, asked) = self.attempt(request(), idempotent).await;
             match asked.and_then(|after| retry.delay(attempt, after)) {
                 Some(wait) => {
                     log::debug!("{}: retry {} in {wait:?}", self.config.info.id, attempt + 1);
                     tokio::time::sleep(wait).await;
                     attempt += 1;
                 }
-                None => return self.reply(outcome?).await,
+                None => return result,
             }
         }
     }
 
-    async fn reply(&self, response: Response) -> Result<Reply> {
+    /// One request including its body, so a connection dropped mid-body is retried too.
+    async fn attempt(&self, request: RequestBuilder, idempotent: bool) -> Attempt {
+        let response = match request.send().await {
+            Ok(response) => response,
+            Err(e) => {
+                let retry = retryable_transport(&e, idempotent).then_some(None);
+                return (Err(e.into()), retry);
+            }
+        };
+        let retry = should_retry(&response, idempotent).then(|| retry_after(&response));
         let status = response.status().as_u16();
         let mitigated = mitigated(&response);
-        let body = response.text().await?;
-        if is_challenge(status, &mitigated, &body) {
-            return Err(Error::Challenge {
-                name: self.config.info.id.to_string(),
-                site: self.config.info.site.to_string(),
-            });
+        match response.text().await {
+            Err(e) => (Err(e.into()), idempotent.then_some(None)),
+            Ok(body) if is_challenge(status, &mitigated, &body) => (Err(self.challenge()), None),
+            Ok(body) => (Ok(Reply { status, body }), retry),
         }
-        Ok(Reply { status, body })
+    }
+
+    fn challenge(&self) -> Error {
+        Error::Challenge {
+            name: self.config.info.id.to_string(),
+            site: self.config.info.site.to_string(),
+        }
     }
 
     fn url(&self, path: &str) -> String {
@@ -161,30 +170,4 @@ impl SiteClient {
             message,
         }
     }
-}
-
-fn mitigated(response: &Response) -> String {
-    response
-        .headers()
-        .get("cf-mitigated")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or_default()
-        .to_string()
-}
-
-/// A challenge is never retried: only the user can pass it.
-fn should_retry(response: &Response, idempotent: bool) -> bool {
-    retryable_status(response.status().as_u16(), idempotent)
-        && !mitigated(response).eq_ignore_ascii_case("challenge")
-}
-
-fn retry_after(response: &Response) -> Option<std::time::Duration> {
-    let value = response.headers().get("retry-after")?.to_str().ok()?;
-    parse_retry_after(value, Utc::now())
-}
-
-/// A failed connection never reached the server; a timeout or a dropped connection might have,
-/// so only idempotent requests retry those.
-fn retryable_transport(e: &reqwest::Error, idempotent: bool) -> bool {
-    e.is_connect() || (idempotent && (e.is_timeout() || e.is_request()))
 }

@@ -8,11 +8,16 @@ import type {
   DownloadProgress,
   ExportProgress,
   Manga,
-  ProviderInfo,
   Settings,
   Unlisten,
 } from "./ipc";
-import { sampleCatalog, sampleChapters, sampleDevices, sampleLibrary } from "./mock-data";
+import {
+  sampleProviders as providers,
+  sampleCatalog,
+  sampleChapters,
+  sampleDevices,
+  sampleLibrary,
+} from "./mock-data";
 import { mockImport } from "./mock-import";
 
 const DATA_DIR = "~/.local/share/mangas";
@@ -23,28 +28,6 @@ let settings: Settings = {
   default_preset: null,
   provider_sessions: {},
 };
-
-const capabilities: ProviderInfo["capabilities"] = ["search", "chapters", "download"];
-const providers: ProviderInfo[] = [
-  {
-    id: "mangadex",
-    name: "MangaDex",
-    site: "https://mangadex.org",
-    languages: ["en", "es", "fr"],
-    capabilities,
-    needs_browser_session: false,
-    icon_url: null,
-  },
-  {
-    id: "mangadot",
-    name: "MangaDot",
-    site: "https://mangadot.net",
-    languages: ["en"],
-    capabilities,
-    needs_browser_session: true,
-    icon_url: null,
-  },
-];
 
 const library = new Map(sampleLibrary.map((m) => [`${m.source}:${m.id}`, m]));
 const chapterCache = new Map<string, Chapter[]>();

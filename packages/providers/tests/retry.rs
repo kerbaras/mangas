@@ -42,7 +42,8 @@ fn retryable_statuses() {
         assert!(!retryable_status(status, true), "{status}");
     }
     assert!(retryable_status(429, false));
-    assert!(retryable_status(503, false));
+    assert!(retryable_status(429, false));
+    assert!(!retryable_status(503, false));
     assert!(!retryable_status(500, false));
     assert!(!retryable_status(502, false));
 }
