@@ -2,8 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { exportSummary, notifyExported } from "@/lib/export-summary";
 import { toExportResult } from "@/lib/ipc.wire";
 
-const toast = vi.hoisted(() => ({ success: vi.fn(), warning: vi.fn() }));
+const toast = vi.hoisted(() => ({ success: vi.fn(), warning: vi.fn(), error: vi.fn() }));
 vi.mock("sonner", () => ({ toast }));
+const openLogs = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/ipc.diagnostics", () => ({ openLogs }));
 
 const result = { output: "/books/Solo ch 1.epub", pages: 30, skipped: 0 };
 
@@ -41,6 +43,14 @@ describe("notifyExported", () => {
     const [, opts] = toast.warning.mock.calls[0] ?? [];
     expect(opts).toMatchObject({ description: "2 unsupported files skipped — see logs" });
     expect(opts.action.label).toBe("Open logs");
+  });
+  it("says so when the logs folder can't be opened", async () => {
+    openLogs.mockRejectedValueOnce(new Error("no file manager"));
+    notifyExported({ ...result, skipped: 1 });
+    const [, opts] = toast.warning.mock.calls[0] ?? [];
+    opts.action.onClick();
+    await vi.waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(toast.error.mock.calls[0]?.[0]).toBe("Couldn't open the logs folder");
   });
 });
 

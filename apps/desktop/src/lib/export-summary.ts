@@ -2,6 +2,7 @@
 import { toast } from "sonner";
 import type { ExportResult } from "./ipc";
 import { openLogs } from "./ipc.diagnostics";
+import { notifyError } from "./notify";
 
 const fileName = (path: string): string =>
   path.slice(Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")) + 1);
@@ -16,6 +17,9 @@ export function exportSummary({ output, pages, skipped }: ExportResult) {
   };
 }
 
+const openLogsOrSay = () =>
+  openLogs().catch((e: unknown) => notifyError("Couldn't open the logs folder", e));
+
 export function notifyExported(result: ExportResult) {
   const { title, warning } = exportSummary(result);
   if (!warning) {
@@ -26,6 +30,6 @@ export function notifyExported(result: ExportResult) {
     id: "export",
     description: warning,
     duration: 15_000,
-    action: { label: "Open logs", onClick: () => void openLogs() },
+    action: { label: "Open logs", onClick: () => void openLogsOrSay() },
   });
 }
