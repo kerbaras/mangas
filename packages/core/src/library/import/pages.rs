@@ -2,7 +2,7 @@
 //! in natural order, so the exporter's name sort reads them in reading order.
 
 use std::fs::File;
-use std::io;
+use std::io::{self, Read};
 use std::path::Path;
 
 use super::names::{extension, is_page_image, natural_cmp};
@@ -61,10 +61,18 @@ fn extract_cbz(src: &Path, dest: &Path) -> Result<usize> {
     for (n, (index, name)) in pages.iter().enumerate() {
         let mut file = archive.by_index(*index).map_err(zip_error)?;
         let mut out = File::create(dest.join(page_name(n, name)))?;
-        io::copy(&mut file, &mut out)?;
+        let written = io::copy(&mut (&mut file).take(MAX_PAGE_BYTES + 1), &mut out)?;
+        if written > MAX_PAGE_BYTES {
+            return Err(Error::Other(format!(
+                "cbz: page {name} is larger than 256 MiB"
+            )));
+        }
     }
     Ok(pages.len())
 }
+
+/// No real page comes close; stops a crafted archive from filling the disk.
+const MAX_PAGE_BYTES: u64 = 256 * 1024 * 1024;
 
 fn zip_error(e: zip::result::ZipError) -> Error {
     Error::Other(format!("cbz: {e}"))

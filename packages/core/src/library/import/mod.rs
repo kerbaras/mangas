@@ -44,7 +44,10 @@ pub fn import_paths(lib: &Library, root: &Path, req: &ImportRequest) -> Result<I
         .map(str::trim)
         .filter(|t| !t.is_empty())
         .map_or(scan.title, str::to_string);
-    let manga = plan::manga_for(&title);
+    let mut manga = plan::manga_for(&title);
+    if get_manga(lib, LOCAL_SOURCE, &manga.id)?.is_some_and(|m| m.title != title) {
+        manga = plan::with_distinct_id(manga);
+    }
     let mut known = list_chapters(lib, LOCAL_SOURCE, &manga.id, None)?;
     let mut skipped = scan.skipped;
     let mut imported = Vec::new();
@@ -56,6 +59,13 @@ pub fn import_paths(lib: &Library, root: &Path, req: &ImportRequest) -> Result<I
             continue;
         }
         let dest = unique_chapter_dir(chapter_dir(root, LOCAL_SOURCE, &chapter), &chapter, &known);
+        if overlaps(&entry.path, &dest) {
+            skipped.push(Skipped::new(
+                &entry.name,
+                "already inside the library folder",
+            ));
+            continue;
+        }
         let reason = match pages::write_pages(&entry, &dest) {
             Ok(0) => "no images".to_string(),
             Ok(pages) => {
@@ -84,7 +94,7 @@ pub fn import_paths(lib: &Library, root: &Path, req: &ImportRequest) -> Result<I
             describe(&req.paths)
         )));
     }
-    save(lib, &manga, &req.language, &added)?;
+    save(lib, &manga, &req.language, &known, &added)?;
     let manga = get_manga(lib, LOCAL_SOURCE, &manga.id)?.unwrap_or(manga);
     Ok(ImportReport {
         manga,
@@ -102,12 +112,28 @@ fn on_disk(known: &[Chapter], chapter: &Chapter) -> bool {
     })
 }
 
-fn save(lib: &Library, manga: &crate::Manga, language: &str, added: &[Chapter]) -> Result<()> {
+/// Whether writing `dest` would delete or overwrite the source (one contains the other).
+fn overlaps(src: &Path, dest: &Path) -> bool {
+    match (src.canonicalize(), dest.canonicalize()) {
+        (Ok(s), Ok(d)) => s.starts_with(&d) || d.starts_with(&s),
+        _ => false,
+    }
+}
+
+/// Upserts every known chapter (not only the new ones): the sync drops non-downloaded rows
+/// missing from the list, which would lose rows left by an earlier failed import.
+fn save(
+    lib: &Library,
+    manga: &crate::Manga,
+    language: &str,
+    known: &[Chapter],
+    added: &[Chapter],
+) -> Result<()> {
     if added.is_empty() {
         return Ok(());
     }
     upsert_manga(lib, manga)?;
-    upsert_chapters(lib, LOCAL_SOURCE, &manga.id, language, added)?;
+    upsert_chapters(lib, LOCAL_SOURCE, &manga.id, language, known)?;
     for c in added {
         if let Some(path) = &c.local_path {
             mark_downloaded(lib, LOCAL_SOURCE, &c.id, Path::new(path))?;

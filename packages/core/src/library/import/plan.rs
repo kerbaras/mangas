@@ -26,6 +26,16 @@ pub fn manga_for(title: &str) -> Manga {
     }
 }
 
+/// Same manga under `<slug>-<hash>`: another title already owns the plain slug (`A B` vs `A! B`).
+pub fn with_distinct_id(manga: Manga) -> Manga {
+    let hash = short_hash(&manga.title);
+    let id = format!("{}-{}", manga.id.0, &hash[..6.min(hash.len())]);
+    Manga {
+        id: MangaId(id),
+        ..manga
+    }
+}
+
 /// One chapter per entry. Ids hash the manga id and the entry name, so importing the same
 /// folder again yields the same ids; numbers and volumes come from the names. Sorted by
 /// chapter number; unnumbered entries keep their (natural) name order at the end.

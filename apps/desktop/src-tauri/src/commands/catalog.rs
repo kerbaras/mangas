@@ -59,7 +59,9 @@ pub async fn list_chapters(
         }
         library::upsert_chapters(&lib, src.name(), &id, &language, &fresh).map_err(to_ipc)?;
     }
-    library::list_chapters(&lib, &source, &id, Some(&language)).map_err(to_ipc)
+    // Local chapters keep the language they were imported with (`mangas import --lang`).
+    let language = (!library::is_local(&source)).then_some(language.as_str());
+    library::list_chapters(&lib, &source, &id, language).map_err(to_ipc)
 }
 
 /// Downloads the given chapters, emitting [`DOWNLOAD_EVENT`] as pages and chapters finish.
