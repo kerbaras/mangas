@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { loadCover } from "@/lib/covers";
+import { forgetCover, loadCover } from "@/lib/covers";
 import type { Manga } from "@/lib/ipc";
 
 /** The cover's displayable URL plus whether the image has loaded or failed to. */
@@ -28,6 +28,9 @@ export function useCover({ source, id, cover_url }: Manga) {
     src: failed ? null : src,
     loaded: loaded && !failed,
     onLoad: () => setLoaded(true),
-    onError: () => setFailed(true),
+    onError: () => {
+      forgetCover({ source, id, cover_url });
+      setFailed(true);
+    },
   };
 }

@@ -64,8 +64,10 @@ impl CoverCache {
         let name = format!("{}.{ext}", file_stem(source, manga_id, url));
         let path = self.dir.join(&name);
         let tmp = self.dir.join(format!(".{name}.{}.tmp", unique()));
-        fs::write(&tmp, bytes)?;
-        fs::rename(&tmp, &path)?;
+        if let Err(e) = fs::write(&tmp, bytes).and_then(|()| fs::rename(&tmp, &path)) {
+            let _ = fs::remove_file(&tmp);
+            return Err(e.into());
+        }
         self.remove_older(&manga_prefix(source, manga_id), &name);
         self.trim();
         Ok(path)

@@ -62,6 +62,18 @@ describe("Cover", () => {
     expect(placeholder()).toBeInTheDocument();
   });
 
+  it("asks the backend again after a cached file stops loading", async () => {
+    const coverSrc = vi.fn(async () => "asset://localhost/covers/m1.jpg");
+    useBackend(coverSrc);
+    const first = render(<Cover manga={manga} />);
+    await act(async () => {});
+    fireEvent.error(image(first.container) as HTMLImageElement);
+    first.unmount();
+    render(<Cover manga={manga} />);
+    await act(async () => {});
+    expect(coverSrc).toHaveBeenCalledTimes(2);
+  });
+
   it("asks the backend once per cover across screens", async () => {
     const coverSrc = vi.fn(async () => "asset://localhost/covers/m1.jpg");
     useBackend(coverSrc);

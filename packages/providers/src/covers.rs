@@ -3,6 +3,7 @@
 //! per-host rate limit and the client retry policy. Plugs into `mangas_core::covers::cover`.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use chrono::Utc;
@@ -22,6 +23,8 @@ const REQUESTS_PER_SECOND: u32 = 3;
 /// Larger bodies are not covers.
 const MAX_BYTES: usize = 20 * 1024 * 1024;
 const MAX_REDIRECTS: usize = 5;
+/// A stalled CDN fails the cover (and frees its placeholder for a retry) instead of hanging.
+const TIMEOUT: Duration = Duration::from_secs(30);
 
 pub struct CoverFetcher {
     source: Arc<dyn Source>,
@@ -46,6 +49,7 @@ impl CoverFetcher {
     fn build(source: Arc<dyn Source>, retry: RetryPolicy, public_only: bool) -> Result<Self> {
         let http = Client::builder()
             .user_agent(USER_AGENT)
+            .timeout(TIMEOUT)
             .redirect(Policy::custom(move |attempt| {
                 if attempt.previous().len() >= MAX_REDIRECTS {
                     attempt.error("too many redirects")
@@ -114,10 +118,14 @@ impl PageFetcher for CoverFetcher {
         {
             return Err(too_big());
         }
-        let bytes = response.bytes().await?;
-        if bytes.len() > MAX_BYTES {
-            return Err(too_big());
+        let mut response = response;
+        let mut body = Vec::new();
+        while let Some(chunk) = response.chunk().await? {
+            if body.len() + chunk.len() > MAX_BYTES {
+                return Err(too_big());
+            }
+            body.extend_from_slice(&chunk);
         }
-        Ok(bytes.to_vec())
+        Ok(body)
     }
 }
