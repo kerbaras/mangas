@@ -39,6 +39,8 @@ pub async fn run_until_settled(
         let gate = library::queue_gate(lib)?;
         let any = |state: JobState| jobs.iter().any(|j| j.state == state);
         // A chapter running in another process is not done yet, whatever the gate says.
+        // One whose process died stops counting once `worker.run`'s step takes its expired
+        // lease back (at most `LEASE_MS`): it is queued again, still owed by this run.
         if !any(JobState::Running) && (gate.paused || !any(JobState::Queued)) {
             let paused = gate.paused;
             return Ok(Settled { jobs, paused });
