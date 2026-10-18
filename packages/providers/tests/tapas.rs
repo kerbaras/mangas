@@ -1,4 +1,4 @@
-use mangas_core::domain::{ChapterId, MangaId, MangaStatus};
+use mangas_core::domain::{Availability, Chapter, ChapterId, MangaId, MangaStatus};
 use mangas_providers::tapas::{
     next_episode_page, parse_episodes, parse_pages, parse_search, parse_series, to_chapters,
     MAX_EPISODE_PAGES,
@@ -57,7 +57,7 @@ fn episodes_report_pagination() {
     assert_eq!(first.len(), 2);
     assert!(more);
     let (last, more) = parse_episodes(&fixture("contract/episodes_2.json")).unwrap();
-    assert_eq!(last.len(), 1);
+    assert_eq!(last.len(), 2);
     assert!(!more);
     assert!(parse_episodes("<html>sign in</html>").is_err());
 }
@@ -65,8 +65,8 @@ fn episodes_report_pagination() {
 #[test]
 fn free_episodes_become_numbered_english_chapters() {
     let (episodes, _) = parse_episodes(&fixture("contract/episodes_1.json")).unwrap();
-    let (chapters, locked) = to_chapters(&episodes, &series());
-    assert_eq!(locked, 0);
+    let chapters = to_chapters(&episodes, &series());
+    assert!(chapters.iter().all(|c| c.is_available()));
     assert_eq!(chapters[0].id, ChapterId("21321".into()));
     assert_eq!(chapters[0].number, "1");
     assert_eq!(chapters[0].language, "en");
@@ -74,20 +74,56 @@ fn free_episodes_become_numbered_english_chapters() {
     assert!(chapters[0].title.is_some());
 }
 
-#[test]
-fn paid_episodes_are_skipped_and_counted() {
-    let (episodes, _) = parse_episodes(&fixture("episodes_locked.json")).unwrap();
-    let (chapters, locked) = to_chapters(&episodes, &MangaId("205841".into()));
-    assert_eq!((chapters.len(), locked), (2, 1));
-    assert!(chapters.iter().all(|c| c.id != ChapterId("2140071".into())));
+fn availability_by_number(chapters: &[Chapter]) -> Vec<(&str, &Availability)> {
+    chapters
+        .iter()
+        .map(|c| (c.number.as_str(), &c.availability))
+        .collect()
 }
 
 #[test]
-fn early_access_episodes_are_skipped_and_counted() {
+fn paid_episodes_are_listed_as_locked_in_site_order() {
+    let (episodes, _) = parse_episodes(&fixture("episodes_locked.json")).unwrap();
+    let chapters = to_chapters(&episodes, &MangaId("205841".into()));
+    assert_eq!(chapters.len(), 3, "no episode is dropped");
+    let paid = chapters
+        .iter()
+        .find(|c| c.id == ChapterId("2140071".into()));
+    assert_eq!(paid.unwrap().availability, Availability::Locked);
+    assert_eq!(paid.unwrap().number, "3", "keeps the site's numbering");
+    assert_eq!(chapters.iter().filter(|c| c.is_available()).count(), 2);
+}
+
+#[test]
+fn early_access_episodes_are_listed_as_locked() {
     let (episodes, _) = parse_episodes(&fixture("episodes_early_access.json")).unwrap();
-    let (chapters, locked) = to_chapters(&episodes, &MangaId("171693".into()));
-    assert_eq!((chapters.len(), locked), (1, 1));
-    assert!(chapters.iter().all(|c| c.id != ChapterId("4009950".into())));
+    let chapters = to_chapters(&episodes, &MangaId("171693".into()));
+    let early = chapters
+        .iter()
+        .find(|c| c.id == ChapterId("4009950".into()));
+    assert_eq!(early.unwrap().availability, Availability::Locked);
+    assert_eq!(early.unwrap().number, "686", "numbered by pending_scene");
+    assert_eq!(chapters.iter().filter(|c| c.is_available()).count(), 1);
+}
+
+#[test]
+fn contract_list_keeps_the_paid_episode_after_the_free_ones() {
+    let (mut episodes, _) = parse_episodes(&fixture("contract/episodes_1.json")).unwrap();
+    episodes.extend(
+        parse_episodes(&fixture("contract/episodes_2.json"))
+            .unwrap()
+            .0,
+    );
+    let chapters = to_chapters(&episodes, &series());
+    assert_eq!(
+        availability_by_number(&chapters),
+        [
+            ("1", &Availability::Available),
+            ("2", &Availability::Available),
+            ("21", &Availability::Available),
+            ("22", &Availability::Locked),
+        ]
+    );
 }
 
 #[test]

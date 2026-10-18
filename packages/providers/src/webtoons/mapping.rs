@@ -134,6 +134,7 @@ pub fn to_chapters(manga: &MangaId, title: &Title, pages: Vec<EpisodePage>) -> V
             number: e.episode_no.to_string(),
             local_path: None,
             group: None,
+            availability: Default::default(),
         })
         .collect();
     let mut chapters = sort_by_number(chapters);

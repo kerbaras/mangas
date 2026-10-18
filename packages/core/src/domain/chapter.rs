@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use serde::{Deserialize, Serialize};
 
-use super::MangaId;
+use super::{Availability, MangaId};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ChapterId(pub String);
@@ -21,11 +21,19 @@ pub struct Chapter {
     /// Scanlation group(s) credited by the source ("A, B" when several).
     #[serde(default)]
     pub group: Option<String>,
+    /// Whether the source lets this chapter be downloaded.
+    #[serde(default)]
+    pub availability: Availability,
 }
 
 impl Chapter {
     pub fn is_downloaded(&self) -> bool {
         self.local_path.is_some()
+    }
+
+    /// The source lets this chapter be downloaded.
+    pub fn is_available(&self) -> bool {
+        self.availability.is_available()
     }
 
     /// Numeric value of [`Chapter::number`], if it parses ("12.5" -> 12.5).

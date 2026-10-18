@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use mangas_core::domain::{sort_by_number, Chapter};
+use mangas_core::domain::{sort_by_number, Availability, Chapter};
 
 /// A mapped feed chapter plus what dedupe ranks it by.
 #[derive(Debug, Clone)]
@@ -12,9 +12,9 @@ pub struct FeedChapter {
     pub published_at: String,
 }
 
-/// Keeps one upload per chapter number and sorts by number. An upload by a preferred group
-/// (case-insensitive; earlier in `preferred_groups` wins) beats the rest, then the most recent
-/// `publishAt`. Chapters without a number (oneshots, extras) are all kept.
+/// Keeps one upload per chapter number and sorts by number. A downloadable upload beats an
+/// externally hosted one, then an upload by a preferred group (case-insensitive; earlier in
+/// `preferred_groups` wins), then the most recent `publishAt`. Chapters without a number (oneshots, extras) are all kept.
 pub fn dedupe_chapters(entries: Vec<FeedChapter>, preferred_groups: &[String]) -> Vec<Chapter> {
     let mut best: HashMap<String, FeedChapter> = HashMap::new();
     let mut unnumbered = Vec::new();
@@ -35,10 +35,19 @@ pub fn dedupe_chapters(entries: Vec<FeedChapter>, preferred_groups: &[String]) -
     sort_by_number(chapters.collect())
 }
 
-/// Lower is better: preferred-group position, then newest first.
-fn rank<'a>(entry: &'a FeedChapter, preferred: &[String]) -> (usize, std::cmp::Reverse<&'a str>) {
+/// Lower is better: downloadable first, then a readable link, preferred-group position, then
+/// newest first.
+fn rank<'a>(
+    entry: &'a FeedChapter,
+    preferred: &[String],
+) -> (u8, usize, std::cmp::Reverse<&'a str>) {
     let group = preference(entry.chapter.group.as_deref(), preferred);
-    (group, std::cmp::Reverse(entry.published_at.as_str()))
+    let tier = match &entry.chapter.availability {
+        Availability::Available => 0,
+        Availability::External { url: Some(_) } => 1,
+        _ => 2,
+    };
+    (tier, group, std::cmp::Reverse(entry.published_at.as_str()))
 }
 
 fn preference(groups: Option<&str>, preferred: &[String]) -> usize {

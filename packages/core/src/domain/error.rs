@@ -11,6 +11,10 @@ pub enum Error {
     /// in a window, let the user pass it and store the resulting session.
     #[error("challenge: {name} needs a browser session for {site}")]
     Challenge { name: String, site: String },
+    /// The chapter is listed but cannot be downloaded; `reason` comes from
+    /// [`crate::domain::Availability::reason`].
+    #[error("chapter {number} can't be downloaded: {reason}")]
+    Unavailable { number: String, reason: String },
     #[error("library: {0}")]
     Library(#[from] rusqlite::Error),
     #[error("network: {0}")]

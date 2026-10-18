@@ -100,6 +100,7 @@ fn to_chapter(entry: &ChapterEntry, manga: &MangaId) -> Chapter {
         number,
         local_path: None,
         group: Some(groups.join(", ")).filter(|g| !g.trim().is_empty()),
+        availability: Default::default(),
     }
 }
 

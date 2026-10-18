@@ -1,5 +1,5 @@
 use mangas_core::domain::Chapter;
-use mangas_core::domain::{Error, MangaId, MangaStatus};
+use mangas_core::domain::{Availability, Error, MangaId, MangaStatus};
 use mangas_providers::mangadex::{
     cover_url, dedupe_chapters, parse_at_home_response, parse_error_response, parse_feed_response,
     parse_manga_response, parse_search_response, FeedChapter,
@@ -54,13 +54,19 @@ fn manga_by_id_builds_cover_from_relationship() {
 }
 
 #[test]
-fn feed_drops_externally_hosted_chapters() {
+fn feed_lists_externally_hosted_chapters_as_external() {
     let id = MangaId(SOLO_LEVELING.into());
     let page = parse_feed_response(&fixture("feed.json"), &id, "en").unwrap();
-    assert!(
-        page.chapters.is_empty(),
-        "all chapters in this feed have an externalUrl"
+    assert_eq!(page.chapters.len(), 5, "every upload has an externalUrl");
+    let first = &page.chapters[0].chapter;
+    assert_eq!(first.number, "0");
+    assert_eq!(
+        first.availability,
+        Availability::External {
+            url: Some("https://www.webnovel.com/comic/15227640605485101/45196186038101142".into())
+        }
     );
+    assert!(page.chapters.iter().all(|c| !c.chapter.is_available()));
     assert_eq!(page.next_offset, Some(5), "limit 5 of total 24");
 }
 

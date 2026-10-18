@@ -1,6 +1,6 @@
 use anyhow::bail;
 use clap::Args as ClapArgs;
-use mangas_core::domain::MangaId;
+use mangas_core::domain::{Chapter, MangaId};
 use mangas_core::download::{self, Event};
 use mangas_core::library;
 
@@ -47,6 +47,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     if selected.is_empty() {
         bail!("no chapters match the selection");
     }
+    let selected = without_unavailable(selected, args.chapters.is_some())?;
     outln!("Downloading {} chapter(s) of {}", selected.len(), id)?;
     let root = paths::downloads()?;
     let report =
@@ -62,6 +63,30 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         bail!("{} chapter(s) failed", report.failed.len());
     }
     Ok(())
+}
+
+/// Drops locked and external chapters with a summary line; an explicit selection also names
+/// each one. Nothing left to download is an error that gives the reason.
+fn without_unavailable(selected: Vec<Chapter>, explicit: bool) -> anyhow::Result<Vec<Chapter>> {
+    let (available, skipped) = download::split_available(selected);
+    if let [only] = skipped.as_slice() {
+        if available.is_empty() {
+            download::ensure_available(only)?;
+        }
+    }
+    let reasons = skipped
+        .iter()
+        .filter_map(|c| download::ensure_available(c).err());
+    if explicit {
+        reasons.for_each(|e| eprintln!("  {e}"));
+    }
+    if let Some(summary) = download::skipped_summary(&skipped) {
+        if available.is_empty() {
+            bail!("nothing to download: {summary}");
+        }
+        outln!("{summary}")?;
+    }
+    Ok(available)
 }
 
 fn print_event(event: Event) {

@@ -1,5 +1,5 @@
 use clap::Args as ClapArgs;
-use mangas_core::domain::{Chapter, MangaId};
+use mangas_core::domain::{Availability, Chapter, MangaId};
 use mangas_core::library;
 
 use super::source_by_name;
@@ -46,10 +46,10 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         return Ok(());
     }
     outln!(
-        "{:<8} {:<5} {:<3} {:<36}  title",
+        "{:<8} {:<5} {:<8} {:<36}  title",
         "chapter",
         "vol",
-        "dl",
+        "status",
         "id"
     )?;
     for c in &chapters {
@@ -62,12 +62,28 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
 }
 
 fn format_row(c: &Chapter) -> String {
+    let title = c.title.as_deref().unwrap_or("");
+    let title = match &c.availability {
+        Availability::External { url: Some(url) } => {
+            format!("{title} (read at {url})").trim().to_string()
+        }
+        _ => title.to_string(),
+    };
     format!(
-        "{:<8} {:<5} {:<3} {:<36}  {}",
+        "{:<8} {:<5} {:<8} {:<36}  {title}",
         c.number,
         c.volume.as_deref().unwrap_or("-"),
-        if c.is_downloaded() { "yes" } else { "-" },
+        status(c),
         c.id,
-        c.title.as_deref().unwrap_or("")
     )
+}
+
+/// `on disk`, `locked`, `external` or `-` (downloadable, not downloaded yet).
+fn status(c: &Chapter) -> &'static str {
+    match (&c.availability, c.is_downloaded()) {
+        (_, true) => "on disk",
+        (Availability::Locked, false) => "locked",
+        (Availability::External { .. }, false) => "external",
+        (Availability::Available, false) => "-",
+    }
 }

@@ -3,7 +3,7 @@ use std::path::Path;
 use rusqlite::{params, Row};
 
 use super::Library;
-use crate::domain::{sort_by_number, Chapter, ChapterId, MangaId, Result};
+use crate::domain::{sort_by_number, Availability, Chapter, ChapterId, MangaId, Result};
 
 /// Stores the `language` chapter list of `manga_id` as the source currently reports it.
 /// Metadata is refreshed, `local_path` is left untouched so a re-sync never forgets what is
@@ -29,14 +29,17 @@ pub fn upsert_chapters(
         }
         let mut stmt = tx.prepare(
             "INSERT INTO chapter
-                (id, manga_id, source, title, language, volume, number, scanlation_group)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                (id, manga_id, source, title, language, volume, number, scanlation_group,
+                 availability, external_url)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
              ON CONFLICT (source, id) DO UPDATE SET
                 title = excluded.title, language = excluded.language,
                 volume = excluded.volume, number = excluded.number,
-                scanlation_group = excluded.scanlation_group",
+                scanlation_group = excluded.scanlation_group,
+                availability = excluded.availability, external_url = excluded.external_url",
         )?;
         for c in chapters {
+            let (availability, external_url) = c.availability.to_columns();
             stmt.execute(params![
                 c.id.0,
                 c.manga_id.0,
@@ -46,6 +49,8 @@ pub fn upsert_chapters(
                 c.volume,
                 c.number,
                 c.group,
+                availability,
+                external_url,
             ])?;
         }
         tx.execute(
@@ -71,7 +76,8 @@ pub fn list_chapters(
 ) -> Result<Vec<Chapter>> {
     let conn = lib.conn()?;
     let mut stmt = conn.prepare(
-        "SELECT id, manga_id, title, language, volume, number, local_path, scanlation_group
+        "SELECT id, manga_id, title, language, volume, number, local_path, scanlation_group,
+                availability, external_url
          FROM chapter WHERE source = ?1 AND manga_id = ?2
                AND (?3 IS NULL OR language = ?3 OR local_path IS NOT NULL)",
     )?;
@@ -104,5 +110,6 @@ fn row_to_chapter(row: &Row<'_>) -> rusqlite::Result<Chapter> {
         number: row.get(5)?,
         local_path: row.get(6)?,
         group: row.get(7)?,
+        availability: Availability::from_columns(&row.get::<_, String>(8)?, row.get(9)?),
     })
 }

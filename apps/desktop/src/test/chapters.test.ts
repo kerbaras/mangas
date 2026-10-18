@@ -3,11 +3,14 @@ import {
   chapterLabel,
   downloadable,
   exportable,
+  isUnavailable,
+  selectableIds,
   selectionSummary,
   selectRange,
   sortChapters,
   toggle,
   toggleAll,
+  unavailableSummary,
 } from "@/lib/chapters";
 import type { Chapter } from "@/lib/ipc";
 
@@ -84,5 +87,30 @@ describe("chapterLabel", () => {
   it("joins volume, chapter and title and skips blanks", () => {
     expect(chapterLabel(ch("12", { title: "The Brand" }))).toBe("Vol. 1 · Ch. 12 · The Brand");
     expect(chapterLabel(ch("3", { volume: null }))).toBe("Ch. 3");
+  });
+});
+
+describe("availability", () => {
+  const locked = ch("2", { availability: { kind: "locked" } });
+  const external = ch("3", {
+    availability: { kind: "external", url: "https://mangaplus.shueisha.co.jp/viewer/1" },
+  });
+  const lockedOnDisk = ch("4", { availability: { kind: "locked" }, local_path: "/d/4" });
+  const list = [ch("1"), locked, external, lockedOnDisk];
+
+  it("only locked or external chapters not on disk are unavailable", () => {
+    expect(list.map(isUnavailable)).toEqual([false, true, true, false]);
+    expect(selectableIds(list)).toEqual(["c1", "c4"]);
+  });
+
+  it("downloads skip unavailable chapters even when selected", () => {
+    const all = new Set(list.map((c) => c.id));
+    expect(downloadable(list, all).map((c) => c.number)).toEqual(["1"]);
+    expect(unavailableSummary(list)).toBe("1 locked, 1 on another site");
+    expect(unavailableSummary([ch("1")])).toBeNull();
+    expect(selectionSummary(list, new Set(["c1"]), [ch("1")])).toBe("1 selected, 1 to download");
+    expect(selectionSummary(list, new Set(["c1"]))).toBe(
+      "1 selected, 1 to download · 1 locked, 1 on another site skipped",
+    );
   });
 });

@@ -4,10 +4,10 @@ import { useMemo } from "react";
 import { describe, expect, it } from "vitest";
 import { ChaptersTable } from "@/components/chapters-table";
 import { useChapterSelection } from "@/hooks/use-chapter-selection";
-import { selectionSummary } from "@/lib/chapters";
+import { selectableIds, selectionSummary } from "@/lib/chapters";
 import type { Chapter } from "@/lib/ipc";
 
-const chapters: Chapter[] = [1, 2, 3, 4].map((n) => ({
+const base: Chapter[] = [1, 2, 3, 4].map((n) => ({
   id: `c${n}`,
   manga_id: "m",
   title: `Chapter ${n}`,
@@ -17,9 +17,21 @@ const chapters: Chapter[] = [1, 2, 3, 4].map((n) => ({
   local_path: n === 1 ? "/data/1" : null,
   group: n === 2 ? "Asura Scans" : null,
 }));
+const url = "https://mangaplus.shueisha.co.jp/viewer/1000000";
+const unavailable: Chapter[] = [
+  { ...base[3], id: "c5", number: "5", title: "Chapter 5", availability: { kind: "locked" } },
+  {
+    ...base[3],
+    id: "c6",
+    number: "6",
+    title: "Chapter 6",
+    availability: { kind: "external", url },
+  },
+];
+let chapters = base;
 
 function Harness() {
-  const ids = useMemo(() => chapters.map((c) => c.id), []);
+  const ids = useMemo(() => selectableIds(chapters), []);
   const sel = useChapterSelection(ids);
   return (
     <>
@@ -71,5 +83,33 @@ describe("ChaptersTable columns", () => {
     expect(screen.getByRole("columnheader", { name: "Group" })).toBeTruthy();
     expect(screen.getByText("Asura Scans")).toBeTruthy();
     expect(screen.getAllByText("English")).toHaveLength(4);
+  });
+});
+
+describe("ChaptersTable availability", () => {
+  it("locked and external rows can't be selected and select all skips them", async () => {
+    chapters = [...base, ...unavailable];
+    const user = userEvent.setup();
+    render(<Harness />);
+    const summary = screen.getByTestId("summary");
+    expect(summary).toHaveTextContent("1 locked, 1 on another site skipped");
+    expect(screen.getByLabelText("Select chapter 5")).toBeDisabled();
+    expect(screen.getByLabelText("Select chapter 6")).toBeDisabled();
+    await user.click(screen.getByText("Chapter 5"));
+    expect(summary).toHaveTextContent("No chapters selected");
+    await user.click(screen.getByLabelText("Select all chapters"));
+    expect(summary).toHaveTextContent("4 selected, 3 to download");
+    expect(screen.getByText("Locked")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /mangaplus.shueisha.co.jp/ })).toBeTruthy();
+    chapters = base;
+  });
+
+  it("an external chapter without a link shows a plain badge", () => {
+    const linkless: Chapter = { ...unavailable[1], availability: { kind: "external", url: null } };
+    chapters = [...base, linkless];
+    render(<Harness />);
+    expect(screen.getByText("Another site")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Another site/ })).toBeNull();
+    chapters = base;
   });
 });

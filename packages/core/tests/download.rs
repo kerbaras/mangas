@@ -48,16 +48,9 @@ impl Source for FakeSource {
 }
 
 fn urls(n: usize) -> PageUrls {
-    PageUrls(
-        (1..=n)
-            .map(|i| {
-                format!(
-                    "https://cdn.example/data/hash/{i}-abc.{}",
-                    if i % 2 == 0 { "jpg" } else { "png" }
-                )
-            })
-            .collect(),
-    )
+    let ext = |i: usize| if i.is_multiple_of(2) { "jpg" } else { "png" };
+    let url = |i: usize| format!("https://cdn.example/data/hash/{i}-abc.{}", ext(i));
+    PageUrls((1..=n).map(url).collect())
 }
 
 fn chapter(number: &str) -> Chapter {
@@ -70,6 +63,7 @@ fn chapter(number: &str) -> Chapter {
         number: number.into(),
         local_path: None,
         group: None,
+        availability: Default::default(),
     }
 }
 

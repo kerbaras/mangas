@@ -1,7 +1,7 @@
 //! Pure mapping from Tapas pages and the episodes JSON to domain types.
 
 use mangas_core::domain::{
-    sort_by_number, Chapter, ChapterId, Error, Manga, MangaId, MangaStatus, Result,
+    sort_by_number, Availability, Chapter, ChapterId, Error, Manga, MangaId, MangaStatus, Result,
 };
 use mangas_core::sources::PageUrls;
 
@@ -93,29 +93,32 @@ pub fn next_episode_page(
     }
 }
 
-/// Free episodes as chapters (numbered by `scene`), plus how many locked ones were left out:
-/// paid, wait-until-free and early access episodes cannot be read without an account.
-pub fn to_chapters(episodes: &[Episode], manga: &MangaId) -> (Vec<Chapter>, usize) {
+/// Every episode as a chapter, numbered by `scene`. Paid, wait-until-free and early access
+/// episodes cannot be read without an account, so they are listed as locked.
+pub fn to_chapters(episodes: &[Episode], manga: &MangaId) -> Vec<Chapter> {
     let chapters: Vec<Chapter> = episodes
         .iter()
-        .filter(|e| e.is_free())
         .map(|e| Chapter {
             id: ChapterId(e.id.to_string()),
             manga_id: manga.clone(),
             title: e.title.as_deref().map(clean_text).filter(|t| !t.is_empty()),
             language: "en".to_string(),
             volume: None,
-            number: if e.scene > 0 {
-                e.scene.to_string()
-            } else {
-                String::new()
+            number: match (e.scene, e.pending_scene) {
+                (0, 0) => String::new(),
+                (0, pending) => pending.to_string(),
+                (scene, _) => scene.to_string(),
             },
             local_path: None,
             group: None,
+            availability: if e.is_free() {
+                Availability::Available
+            } else {
+                Availability::Locked
+            },
         })
         .collect();
-    let locked = episodes.len() - chapters.len();
-    (sort_by_number(chapters), locked)
+    sort_by_number(chapters)
 }
 
 /// `GET /episode/{id}` -> the `img.content__img` URLs. A locked episode renders no images (or

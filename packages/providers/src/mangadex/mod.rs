@@ -23,7 +23,7 @@ const PROBE: &str = "/ping";
 pub use dedupe::{dedupe_chapters, FeedChapter};
 pub use mapping::{
     cover_url, parse_error_response, parse_feed_response, parse_manga_response,
-    parse_search_response, FeedPage, SOURCE_NAME,
+    parse_search_response, secure_link, FeedPage, SOURCE_NAME,
 };
 pub use options::{MangaDexOptions, ALL_CONTENT_RATINGS};
 pub use pages::{parse_at_home_response, uploads_mirror, UPLOADS_ORIGIN};

@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use super::availability::ensure_available;
 use super::event::{Event, OnEvent};
 use super::fetcher::{HttpFetcher, PageFetcher};
 use super::mirror::WithMirror;
@@ -79,6 +80,7 @@ pub async fn download_chapter_with(
     dest: &Path,
     on_event: OnEvent<'_>,
 ) -> Result<usize> {
+    ensure_available(chapter)?;
     let urls = source.pages(&chapter.id).await?;
     if urls.0.is_empty() {
         return Err(Error::Source {
