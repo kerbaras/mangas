@@ -1,6 +1,6 @@
 //! Chapter languages: which ones a command asks for, and picking among translations.
 
-use crate::domain::Chapter;
+use crate::domain::{Chapter, Error, Result};
 use crate::library::Settings;
 
 /// `"es-la, EN pt-br"` -> `["es-la", "en", "pt-br"]`: trimmed, lowercase, first mention kept.
@@ -16,6 +16,31 @@ pub fn parse_languages(input: &str) -> Vec<String> {
         }
     }
     out
+}
+
+/// [`parse_languages`] for a list to save: every code must look like `en`, `es-la` or `pt-br`
+/// (`^[a-z]{2,3}(-[a-z]{2,4})?$` once lowercased), and at least one is required.
+pub fn validate_languages(input: &str) -> Result<Vec<String>> {
+    let parsed = parse_languages(input);
+    if let Some(bad) = parsed.iter().find(|code| !well_formed(code)) {
+        return Err(Error::Other(format!(
+            "'{bad}' is not a language code; use forms like en, es-la or pt-br"
+        )));
+    }
+    match parsed.is_empty() {
+        true => Err(Error::Other(format!("no language in '{input}'"))),
+        false => Ok(parsed),
+    }
+}
+
+fn well_formed(code: &str) -> bool {
+    let letters = |s: &str, min: usize, max: usize| {
+        (min..=max).contains(&s.len()) && s.bytes().all(|b| b.is_ascii_lowercase())
+    };
+    match code.split_once('-') {
+        Some((base, region)) => letters(base, 2, 3) && letters(region, 2, 4),
+        None => letters(code, 2, 3),
+    }
 }
 
 /// The languages given on the command line (`--lang es,en`), else the saved preferences.

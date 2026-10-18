@@ -32,9 +32,7 @@ fn languages(args: LanguagesArgs) -> anyhow::Result<()> {
     let lib = library::open(&paths::library_db()?)?;
     let mut settings = library::get_settings(&lib)?;
     if let Some(list) = args.list {
-        let parsed = library::parse_languages(&list);
-        anyhow::ensure!(!parsed.is_empty(), "no language in '{list}'");
-        settings.preferred_languages = parsed;
+        settings.preferred_languages = library::validate_languages(&list)?;
         library::set_settings(&lib, &settings)?;
     }
     outln!("{}", settings.languages().join(","))?;

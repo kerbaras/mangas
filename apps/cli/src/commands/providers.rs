@@ -1,5 +1,5 @@
 use clap::{Args as ClapArgs, Subcommand};
-use mangas_core::library;
+use mangas_core::library::{self, Settings};
 use mangas_providers::{doctor, options, ProviderInfo, ProviderStatus};
 
 use super::stored_settings;
@@ -27,7 +27,8 @@ struct CheckArgs {
     /// Search text; the first results with chapters are used
     #[arg(long, default_value = "love")]
     query: String,
-    /// Language searched and whose chapters are walked [default: your first preferred one]
+    /// Languages to try in order, e.g. "es,en"; the first with chapters is walked [default: your
+    /// preferred ones]
     #[arg(long)]
     lang: Option<String>,
 }
@@ -63,15 +64,21 @@ async fn list() -> anyhow::Result<()> {
 
 /// Prints one line per step and fails (non-zero exit) unless every step passed.
 async fn check(args: CheckArgs) -> anyhow::Result<()> {
-    let mut settings = stored_settings();
-    let lang = library::requested_languages(args.lang.as_deref(), &settings)
-        .into_iter()
-        .next()
-        .unwrap_or_default();
-    // Search filters by the preferred languages too, so it must look for `lang` alone.
-    settings.preferred_languages = vec![lang.clone()];
-    let source = mangas_providers::source(&args.id, &settings)?;
-    let report = doctor::check(&*source, &args.query, &lang).await;
+    let settings = stored_settings();
+    let languages = library::requested_languages(args.lang.as_deref(), &settings);
+    let report = doctor::first_language(&languages, |lang| {
+        // Search filters by the preferred languages too, so each walk looks for `lang` alone.
+        let settings = Settings {
+            preferred_languages: vec![lang.clone()],
+            ..settings.clone()
+        };
+        let (id, query) = (args.id.clone(), args.query.clone());
+        async move {
+            let source = mangas_providers::source(&id, &settings)?;
+            anyhow::Ok(doctor::check(&*source, &query, &lang).await)
+        }
+    })
+    .await?;
     for line in doctor::lines(&report) {
         outln!("{line}")?;
     }

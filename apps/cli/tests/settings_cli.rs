@@ -34,6 +34,14 @@ fn preferred_languages_round_trip() {
     assert!(!mangas(home.path(), &["settings", "languages", " , "])
         .status
         .success());
+    let bad = mangas(home.path(), &["settings", "languages", "es,english"]);
+    assert!(!bad.status.success());
+    let err = String::from_utf8_lossy(&bad.stderr);
+    assert!(err.contains("'english' is not a language code"), "{err}");
+    assert_eq!(
+        stdout(&mangas(home.path(), &["settings", "languages"])),
+        "es-la,en\n"
+    );
 }
 
 #[test]

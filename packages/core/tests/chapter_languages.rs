@@ -156,3 +156,27 @@ async fn sync_stores_every_language() {
     stored_ids.sort();
     assert_eq!(stored_ids, ["en1", "es1"]);
 }
+
+#[test]
+fn saved_language_codes_must_be_well_formed() {
+    use mangas_core::library::validate_languages;
+    assert_eq!(
+        validate_languages("en, es-la PT-BR fil zh-hant").unwrap(),
+        ["en", "es-la", "pt-br", "fil", "zh-hant"]
+    );
+    for bad in [
+        "english",
+        "e",
+        "en_us",
+        "es-l",
+        "es-latam1",
+        "en-",
+        "-la",
+        "e1",
+        "es-la-x",
+    ] {
+        let err = validate_languages(bad).unwrap_err().to_string();
+        assert!(err.contains("is not a language code"), "{bad}: {err}");
+    }
+    assert!(validate_languages(" , ").is_err());
+}

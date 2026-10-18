@@ -2,6 +2,7 @@
 //! chapters → pages → first page image) and reports each step with its timing.
 
 mod fetch;
+mod languages;
 mod report;
 
 use std::future::Future;
@@ -12,6 +13,7 @@ use mangas_core::sources::{Header, ProviderStatus, Source};
 use reqwest::redirect::Policy;
 use reqwest::Client;
 
+pub use languages::first_language;
 pub use report::{lines, Report, Step, StepReport, STEPS};
 
 use crate::http::USER_AGENT;
