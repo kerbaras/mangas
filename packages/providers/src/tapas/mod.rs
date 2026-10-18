@@ -9,7 +9,7 @@ mod mapping;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId, Result};
+use mangas_core::domain::{Chapter, ChapterId, Error, Manga, MangaId, Result};
 use mangas_core::library::Settings;
 use mangas_core::sources::{Header, PageUrls, ProviderStatus, Source};
 
@@ -27,7 +27,8 @@ use crate::session::Session;
 const AGE_COOKIES: &str = "birthDate=2000-01-01; adjustedBirthDate=2000-01-01";
 /// Episode list of a series running since 2013: a small JSON answer from the same backend.
 const PROBE: &str = "/series/2101/episodes?page=1";
-/// Upper bound of episode-list pages (20 episodes each) walked for one series.
+/// Upper bound of episode-list pages (20 episodes each) walked for one series; a longer list
+/// is an error rather than a silently truncated chapter list.
 const MAX_EPISODE_PAGES: u32 = 500;
 
 pub const INFO: ProviderInfo = ProviderInfo {
@@ -106,17 +107,23 @@ impl Source for Tapas {
         }
         let path = format!("/series/{id}/episodes");
         let mut episodes = Vec::new();
-        for page in 1..=MAX_EPISODE_PAGES {
+        let mut page = 0;
+        let mut more = true;
+        while more {
+            if page == MAX_EPISODE_PAGES {
+                return Err(Error::Source {
+                    name: SOURCE_NAME.to_string(),
+                    message: format!("series {id} has more than {MAX_EPISODE_PAGES} episode pages"),
+                });
+            }
+            page += 1;
             let body = self
                 .client
                 .get(&path, &[("page", page.to_string())])
                 .await?;
             let (batch, has_next) = parse_episodes(&body)?;
-            let done = !has_next || batch.is_empty();
+            more = has_next && !batch.is_empty();
             episodes.extend(batch);
-            if done {
-                break;
-            }
         }
         let (chapters, locked) = to_chapters(&episodes, id);
         if locked > 0 {
