@@ -19,15 +19,15 @@ pub fn parse_languages(input: &str) -> Vec<String> {
 }
 
 /// [`parse_languages`] for a list to save: every code must look like `en`, `es-la`, `pt-br` or
-/// `es-419` (`^[a-z]{2,3}(-([a-z]{2,4}|[0-9]{3}))?$`, lowercase), and at least one is required.
+/// `es-419` (`^[a-z]{2,3}(-([a-z]{2,4}|[0-9]{3}))?$` once lowercased, so `EN` saves as `en`), and at
+/// least one is required.
 pub fn validate_languages(input: &str) -> Result<Vec<String>> {
-    let codes = input.split(|c: char| c == ',' || c.is_whitespace());
-    if let Some(bad) = codes.filter(|c| !c.is_empty()).find(|c| !well_formed(c)) {
+    let parsed = parse_languages(input);
+    if let Some(bad) = parsed.iter().find(|code| !well_formed(code)) {
         return Err(Error::Other(format!(
             "'{bad}' is not a language code; use forms like en, es-la or pt-br"
         )));
     }
-    let parsed = parse_languages(input);
     match parsed.is_empty() {
         true => Err(Error::Other(format!("no language in '{input}'"))),
         false => Ok(parsed),

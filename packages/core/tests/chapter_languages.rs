@@ -162,8 +162,8 @@ async fn sync_stores_every_language() {
 fn saved_language_codes_must_be_well_formed() {
     use mangas_core::library::validate_languages;
     assert_eq!(
-        validate_languages("en, es-la pt-br fil zh-hans es-419").unwrap(),
-        ["en", "es-la", "pt-br", "fil", "zh-hans", "es-419"]
+        validate_languages("EN, es-la pt-BR fil zh-Hant es-419").unwrap(),
+        ["en", "es-la", "pt-br", "fil", "zh-hant", "es-419"]
     );
     let bad = [
         "english",
@@ -176,8 +176,6 @@ fn saved_language_codes_must_be_well_formed() {
         "e1",
         "es-la-x",
         "xx-klingon",
-        "EN",
-        "es-LA",
         "es-41",
         "es-4190",
     ];
