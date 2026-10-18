@@ -43,4 +43,31 @@ describe("useShelf", () => {
     const state = result.current.state;
     expect(state.kind === "ready" && state.data.entries[0].categories).toEqual([1, 2]);
   });
+
+  it("saves one change after another and reloads when a save fails", async () => {
+    const { result } = renderHook(() => useShelf());
+    await waitFor(() => expect(result.current.state.kind).toBe("ready"));
+    let finishFirst = () => {};
+    vi.mocked(setMangaCategories)
+      .mockClear()
+      .mockImplementationOnce(() => new Promise<void>((r) => (finishFirst = r)))
+      .mockRejectedValueOnce("database is locked");
+    const loads = vi.mocked(listEntries).mock.calls.length;
+
+    let first: Promise<void> = Promise.resolve();
+    let second: Promise<unknown> = Promise.resolve();
+    act(() => {
+      first = result.current.toggleCategory(entry, 1, true);
+      second = result.current.toggleCategory(entry, 2, true).catch((e: unknown) => e);
+    });
+    await Promise.resolve();
+    expect(setMangaCategories).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      finishFirst();
+      await first;
+      expect(await second).toBe("database is locked");
+    });
+    expect(setMangaCategories).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(vi.mocked(listEntries).mock.calls.length).toBeGreaterThan(loads));
+  });
 });

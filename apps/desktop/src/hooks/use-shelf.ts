@@ -52,8 +52,9 @@ export function useShelf() {
   );
 
   // Latest requested categories per title, so quick toggles build on each other, not on a
-  // render that hasn't caught up yet.
+  // render that hasn't caught up yet; saves run one after another so the last one wins.
   const pending = useRef(new Map<string, number[]>());
+  const saves = useRef(Promise.resolve());
   const toggleCategory = useCallback(
     async (e: LibraryEntry, id: number, on: boolean) => {
       const key = mangaKey(e);
@@ -62,14 +63,19 @@ export function useShelf() {
         (a, b) => a - b,
       );
       pending.current.set(key, next);
+      const save = saves.current.then(() => setMangaCategories(e.source, e.id, next));
+      saves.current = save.catch(() => {});
       try {
-        await setMangaCategories(e.source, e.id, next);
+        await save;
         if (pending.current.get(key) === next) patchEntry(e, (x) => ({ ...x, categories: next }));
+      } catch (err) {
+        reload();
+        throw err;
       } finally {
         if (pending.current.get(key) === next) pending.current.delete(key);
       }
     },
-    [patchEntry],
+    [patchEntry, reload],
   );
 
   const addCategory = useCallback(

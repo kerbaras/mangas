@@ -44,15 +44,18 @@ pub struct ChapterMark {
 
 /// "12" and "12.0" are the same chapter; labels that aren't numbers compare as written, and a
 /// chapter without a number is only ever itself.
-fn number_key(mark: &ChapterMark) -> String {
+fn number_key(mark: &ChapterMark) -> (bool, String) {
     match mark.number.trim() {
-        "" => format!("id:{}", mark.id),
-        n => parse_number(n).map_or_else(|| n.to_string(), |v| v.to_string()),
+        "" => (true, mark.id.clone()),
+        n => (
+            false,
+            parse_number(n).map_or_else(|| n.to_string(), |v| v.to_string()),
+        ),
     }
 }
 
 pub fn count_chapters(marks: &[ChapterMark]) -> ChapterCounts {
-    let numbers = |keep: fn(&ChapterMark) -> bool| -> BTreeSet<String> {
+    let numbers = |keep: fn(&ChapterMark) -> bool| -> BTreeSet<(bool, String)> {
         marks.iter().filter(|m| keep(m)).map(number_key).collect()
     };
     let exported = numbers(|m| m.exported);
