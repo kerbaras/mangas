@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { mangaKey } from "@/lib/format";
 import { unfollowManga } from "@/lib/ipc";
 import {
@@ -51,11 +51,23 @@ export function useShelf() {
     [patchEntry],
   );
 
-  const setCategories = useCallback(
-    async (e: LibraryEntry, ids: number[]) => {
-      const sorted = [...new Set(ids)].sort((a, b) => a - b);
-      await setMangaCategories(e.source, e.id, sorted);
-      patchEntry(e, (x) => ({ ...x, categories: sorted }));
+  // Latest requested categories per title, so quick toggles build on each other, not on a
+  // render that hasn't caught up yet.
+  const pending = useRef(new Map<string, number[]>());
+  const toggleCategory = useCallback(
+    async (e: LibraryEntry, id: number, on: boolean) => {
+      const key = mangaKey(e);
+      const base = pending.current.get(key) ?? e.categories;
+      const next = [...new Set(on ? [...base, id] : base.filter((c) => c !== id))].sort(
+        (a, b) => a - b,
+      );
+      pending.current.set(key, next);
+      try {
+        await setMangaCategories(e.source, e.id, next);
+        if (pending.current.get(key) === next) patchEntry(e, (x) => ({ ...x, categories: next }));
+      } finally {
+        if (pending.current.get(key) === next) pending.current.delete(key);
+      }
     },
     [patchEntry],
   );
@@ -96,7 +108,7 @@ export function useShelf() {
     reload,
     unfollow,
     setStatus,
-    setCategories,
+    toggleCategory,
     addCategory,
     renameCategory: renameOne,
     removeCategory,

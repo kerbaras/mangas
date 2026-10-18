@@ -72,15 +72,14 @@ pub async fn export_kindle(
     .await
     .map_err(to_ipc)?
     .map_err(to_ipc)?;
-    mark_exported(&dirs);
+    mark_exported(&stats.exported_chapters(&dirs));
     Ok(stats)
 }
 
 /// The EPUB is written either way; a library that can't record it only loses the "exported" mark.
-fn mark_exported(dirs: &[PathBuf]) {
-    let dirs: Vec<&std::path::Path> = dirs.iter().map(PathBuf::as_path).collect();
+fn mark_exported(dirs: &[&std::path::Path]) {
     if let Err(e) =
-        open_library().and_then(|lib| library::mark_exported(&lib, &dirs).map_err(to_ipc))
+        open_library().and_then(|lib| library::mark_exported(&lib, dirs).map_err(to_ipc))
     {
         tracing::warn!("could not mark chapters exported: {e}");
     }

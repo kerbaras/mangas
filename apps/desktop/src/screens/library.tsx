@@ -51,7 +51,7 @@ export function LibraryScreen() {
       shelf.setStatus(e, status).catch((err: unknown) => notifyError("Couldn't set status", err)),
     onToggleCategory: (e, id, on) =>
       shelf
-        .setCategories(e, on ? [...e.categories, id] : e.categories.filter((c) => c !== id))
+        .toggleCategory(e, id, on)
         .catch((err: unknown) => notifyError("Couldn't change categories", err)),
     onEditCategories: () => setEditing(true),
   };
@@ -139,7 +139,10 @@ export function LibraryScreen() {
         categories={categories}
         onCreate={shelf.addCategory}
         onRename={shelf.renameCategory}
-        onDelete={shelf.removeCategory}
+        onDelete={async (id) => {
+          await shelf.removeCategory(id);
+          if (stored.category === id) setView({ category: null });
+        }}
       />
     </section>
   );

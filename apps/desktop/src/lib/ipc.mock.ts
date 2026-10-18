@@ -27,7 +27,6 @@ import { mockSearch } from "./mock-search";
 import { mockStorage } from "./mock-storage";
 
 const DATA_DIR = "~/.local/share/mangas";
-
 let settings: Settings = {
   data_dir: null,
   default_device: null,
@@ -38,7 +37,6 @@ let settings: Settings = {
 };
 
 const failSettingsUntil = mockFlags.settingsFail ? Date.now() + 1500 : 0;
-
 const library = new Map(
   (mockFlags.emptyLibrary ? [] : sampleLibrary).map((m) => [`${m.source}:${m.id}`, m]),
 );

@@ -35,26 +35,25 @@ pub struct ChapterCounts {
 /// One stored chapter, reduced to what [`count_chapters`] needs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChapterMark {
+    pub id: String,
     pub number: String,
     pub available: bool,
     pub downloaded: bool,
     pub exported: bool,
 }
 
-/// "12" and "12.0" are the same chapter; labels that aren't numbers compare as written.
-fn number_key(number: &str) -> String {
-    parse_number(number)
-        .map(|n| n.to_string())
-        .unwrap_or_else(|| number.trim().to_string())
+/// "12" and "12.0" are the same chapter; labels that aren't numbers compare as written, and a
+/// chapter without a number is only ever itself.
+fn number_key(mark: &ChapterMark) -> String {
+    match mark.number.trim() {
+        "" => format!("id:{}", mark.id),
+        n => parse_number(n).map_or_else(|| n.to_string(), |v| v.to_string()),
+    }
 }
 
 pub fn count_chapters(marks: &[ChapterMark]) -> ChapterCounts {
     let numbers = |keep: fn(&ChapterMark) -> bool| -> BTreeSet<String> {
-        marks
-            .iter()
-            .filter(|m| keep(m))
-            .map(|m| number_key(&m.number))
-            .collect()
+        marks.iter().filter(|m| keep(m)).map(number_key).collect()
     };
     let exported = numbers(|m| m.exported);
     ChapterCounts {
@@ -122,11 +121,12 @@ fn categories_by_manga(conn: &Connection) -> Result<HashMap<Key, Vec<i64>>> {
 fn marks_by_manga(conn: &Connection) -> Result<HashMap<Key, Vec<ChapterMark>>> {
     let mut stmt = conn.prepare(
         "SELECT source, manga_id, number, availability = 'available',
-                local_path IS NOT NULL, exported_at IS NOT NULL
+                local_path IS NOT NULL, exported_at IS NOT NULL, id
          FROM chapter",
     )?;
     let rows = stmt.query_map([], |r| {
         let mark = ChapterMark {
+            id: r.get(6)?,
             number: r.get(2)?,
             available: r.get(3)?,
             downloaded: r.get(4)?,
@@ -148,6 +148,7 @@ mod tests {
 
     fn mark(number: &str, available: bool, downloaded: bool, exported: bool) -> ChapterMark {
         ChapterMark {
+            id: format!("c{number}"),
             number: number.into(),
             available,
             downloaded,
@@ -176,5 +177,18 @@ mod tests {
             }
         );
         assert_eq!(count_chapters(&[]), ChapterCounts::default());
+    }
+
+    #[test]
+    fn chapters_without_a_number_each_count() {
+        let unnumbered = |id: &str| ChapterMark {
+            id: id.into(),
+            number: " ".into(),
+            available: true,
+            downloaded: false,
+            exported: false,
+        };
+        let counts = count_chapters(&[unnumbered("a"), unnumbered("b")]);
+        assert_eq!((counts.total, counts.unread), (2, 2));
     }
 }

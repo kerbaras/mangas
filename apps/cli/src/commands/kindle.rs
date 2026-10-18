@@ -164,18 +164,22 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             stats.skipped
         )?;
     }
-    mark_exported(&req.chapter_dirs);
+    mark_exported(&stats.exported_chapters(&req.chapter_dirs));
     Ok(())
 }
 
 /// Library chapters among `dirs` count as read from now on; folders from elsewhere are ignored.
-/// The EPUB is already written, so a library that can't be updated only gets a warning.
-fn mark_exported(dirs: &[PathBuf]) {
-    let absolute: Vec<PathBuf> = dirs
+/// Each folder is matched as made absolute and as resolved (symlinks), since the library may
+/// store either spelling. The EPUB is already written, so a failed update only gets a warning.
+fn mark_exported(dirs: &[&Path]) {
+    let mut spellings: Vec<PathBuf> = dirs
         .iter()
-        .map(|d| d.canonicalize().unwrap_or_else(|_| d.clone()))
+        .flat_map(|d| [std::path::absolute(d).ok(), d.canonicalize().ok()])
+        .flatten()
         .collect();
-    let dirs: Vec<&Path> = absolute.iter().map(PathBuf::as_path).collect();
+    spellings.sort();
+    spellings.dedup();
+    let dirs: Vec<&Path> = spellings.iter().map(PathBuf::as_path).collect();
     let marked = paths::library_db()
         .and_then(|db| Ok(library::open(&db)?))
         .and_then(|lib| Ok(library::mark_exported(&lib, &dirs)?));

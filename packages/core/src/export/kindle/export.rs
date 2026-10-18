@@ -51,8 +51,21 @@ pub struct ExportStats {
     /// Files left out because their format cannot be decoded (each one is logged).
     #[serde(default)]
     pub skipped: usize,
+    /// Chapter folders that gave no page (nothing decodable in them): not part of the book.
+    #[serde(default)]
+    pub empty_chapters: Vec<PathBuf>,
     /// File actually written (differs from the request when the name was already taken).
     pub output: PathBuf,
+}
+
+impl ExportStats {
+    /// The requested chapter folders that made it into the book.
+    pub fn exported_chapters<'a>(&self, dirs: &'a [PathBuf]) -> Vec<&'a Path> {
+        dirs.iter()
+            .filter(|d| !self.empty_chapters.contains(d))
+            .map(PathBuf::as_path)
+            .collect()
+    }
 }
 
 struct Run<'a> {
@@ -111,6 +124,9 @@ impl Run<'_> {
             tracing::warn!(file = %file.display(), "export: skipping unsupported file");
         }
         self.stats.skipped += skipped.len();
+        if files.is_empty() {
+            self.stats.empty_chapters.push(dir.to_path_buf());
+        }
         for (i, file) in files.iter().enumerate() {
             let img = decode(file)?;
             let (w, h) = (img.width(), img.height());
@@ -150,6 +166,7 @@ pub fn export(
             pagination_ms: 0,
             filters_ms: 0,
             skipped: 0,
+            empty_chapters: Vec::new(),
             output: PathBuf::new(),
         },
         progress,
