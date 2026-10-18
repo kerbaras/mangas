@@ -21,12 +21,20 @@ use crate::library::{get_settings, list_manga_with_added, read_snapshot, Library
 /// Writes a backup of `lib` to `path` (through a temporary file, so a failed write never
 /// leaves half a backup behind).
 pub fn export_to(lib: &Library, path: &Path, app_version: &str) -> Result<ExportSummary> {
-    let entries: Vec<_> = list_manga_with_added(lib)?
+    let titles = list_manga_with_added(lib)?;
+    let state = read_snapshot(lib)?;
+    // A title unfollowed between the two reads has no state left: leave it out.
+    let entries: Vec<_> = titles
         .into_iter()
+        .filter(|(m, _)| {
+            state
+                .titles
+                .iter()
+                .any(|t| t.source == m.source && t.id == m.id.0)
+        })
         .map(|(manga, added)| (manga, created_millis(&added)))
         .collect();
     let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
-    let state = read_snapshot(lib)?;
     let (backup, summary) = build(&entries, state, &get_settings(lib)?, &now, app_version);
     let json =
         serde_json::to_string_pretty(&backup).map_err(|e| Error::Other(format!("backup: {e}")))?;
