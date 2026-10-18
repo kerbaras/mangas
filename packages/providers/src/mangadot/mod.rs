@@ -7,6 +7,7 @@ mod mapping;
 mod metadata;
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId, Result};
@@ -24,6 +25,9 @@ use crate::session::Session;
 
 const API_BASE: &str = "https://mangadot.net/api";
 const REQUESTS_PER_SECOND: u32 = 3;
+/// The whole chapter list comes in one response; a big title's (2098: 671 rows) has been seen
+/// taking ~17 s, so it gets more than the client's default timeout.
+pub const LIST_TIMEOUT: Duration = Duration::from_secs(90);
 /// One title of the catalogue: the cheapest API call that passes through the verification.
 const PROBE: &str = "/manga?limit=1&page=1";
 
@@ -110,7 +114,7 @@ impl Source for MangaDot {
     async fn chapters(&self, id: &MangaId, language: &str) -> Result<Vec<Chapter>> {
         let body = self
             .api
-            .get(&format!("/manga/{id}/chapters/list"), &[])
+            .get_within(&format!("/manga/{id}/chapters/list"), &[], LIST_TIMEOUT)
             .await?;
         parse_chapters(&body, id, language)
     }

@@ -1,5 +1,6 @@
 mod hop;
 mod transport;
+mod within;
 
 use std::sync::Arc;
 
@@ -67,7 +68,8 @@ impl SiteClient {
         log::debug!("{id}: GET {url} {}", redact_query(query));
         log::trace!("{id}: GET {url} {query:?}");
         let request = Outgoing::new(Method::GET, self.parse(&url, query)?, None);
-        self.send(path, request, self.config.retry).await
+        self.send(path, request, self.config.retry, self.config.timeout)
+            .await
     }
 
     /// GET returning the body of a 2xx response; other statuses become errors ([`status_error`]).
@@ -107,7 +109,9 @@ impl SiteClient {
         log::debug!("{}: POST {url}", self.config.info.id);
         let json = serde_json::to_vec(body).map_err(|e| self.error(format!("{path}: {e}")))?;
         let request = Outgoing::new(Method::POST, self.parse(&url, &[])?, Some(json));
-        let reply = self.send(path, request, self.config.retry).await?;
+        let reply = self
+            .send(path, request, self.config.retry, self.config.timeout)
+            .await?;
         let text = self.ok_body(path, reply)?;
         self.decode(path, &text)
     }
@@ -123,7 +127,8 @@ impl SiteClient {
         let reply = match self.parse(&self.url(probe), &[]) {
             Ok(url) => {
                 let request = Outgoing::new(Method::GET, url, None);
-                self.send(probe, request, RetryPolicy::NONE).await
+                self.send(probe, request, RetryPolicy::NONE, self.config.timeout)
+                    .await
             }
             Err(e) => Err(e),
         };

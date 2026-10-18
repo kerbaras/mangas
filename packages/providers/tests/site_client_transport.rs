@@ -97,3 +97,26 @@ async fn off_site_redirects_drop_the_session_cookie() {
     let landed = &elsewhere.received_requests().await.unwrap()[0];
     assert!(!landed.headers.contains_key("cookie"));
 }
+
+#[tokio::test]
+async fn a_slow_call_can_take_longer_than_the_client_timeout() {
+    let server = MockServer::start().await;
+    Mock::given(path("/list"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_string("671 rows")
+                .set_delay(Duration::from_millis(600)),
+        )
+        .mount(&server)
+        .await;
+    let config = ClientConfig {
+        retry: RetryPolicy::NONE,
+        requests_per_second: 1000,
+        timeout: Duration::from_millis(200),
+        ..ClientConfig::new(mangadot::INFO, &server.uri())
+    };
+    let client = SiteClient::new(config, None).unwrap();
+    assert!(client.get("/list", &[]).await.is_err(), "default timeout");
+    let long = client.get_within("/list", &[], Duration::from_secs(5));
+    assert_eq!(long.await.unwrap(), "671 rows");
+}

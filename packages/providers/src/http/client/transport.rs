@@ -26,13 +26,14 @@ impl SiteClient {
         path: &str,
         first: Outgoing,
         retry: RetryPolicy,
+        timeout: Duration,
     ) -> Result<Reply> {
         let origin = first.url.clone();
         let mut request = first;
-        let mut budget = self.config.timeout;
+        let mut budget = timeout;
         for _ in 0..=MAX_REDIRECTS {
             match self
-                .send_hop(path, &request, &origin, retry, &mut budget)
+                .send_hop(path, &request, &origin, retry, (timeout, &mut budget))
                 .await?
             {
                 Step::Reply(reply) => return Ok(reply),
@@ -54,7 +55,7 @@ impl SiteClient {
         request: &Outgoing,
         origin: &Url,
         retry: RetryPolicy,
-        budget: &mut Duration,
+        (timeout, budget): (Duration, &mut Duration),
     ) -> Result<Step> {
         let headers = self.hop_headers(&request.url, origin)?;
         let bucket = self.hop_bucket(&request.url);
@@ -75,7 +76,7 @@ impl SiteClient {
                     log::debug!("{}: retry {} in {wait:?}", self.config.info.id, attempt + 1);
                     tokio::time::sleep(wait).await;
                     attempt += 1;
-                    *budget = self.config.timeout;
+                    *budget = timeout;
                 }
                 (result, None) => {
                     *budget = budget.saturating_sub(started.elapsed());
