@@ -14,11 +14,11 @@ use super::chapters::{parse_label, Label};
 /// their neighbours (see [`fill_gaps`]).
 pub fn number_chapters(listed: Vec<(ChapterId, String)>, manga: &MangaId) -> Vec<Chapter> {
     let mut seen = HashSet::new();
-    let reading: Vec<_> = listed
+    let mut reading: Vec<_> = listed
         .into_iter()
-        .rev()
         .filter(|(id, _)| seen.insert(id.clone()))
         .collect();
+    reading.reverse();
     let labels: Vec<Label> = reading.iter().map(|(_, l)| parse_label(l)).collect();
     let seasonal = labels.iter().any(|l| matches!(l, Label::Season { .. }));
     let (numbers, titles): (Vec<_>, Vec<_>) = reading
@@ -51,7 +51,9 @@ pub fn number_chapters(listed: Vec<(ChapterId, String)>, manga: &MangaId) -> Vec
 
 /// Numbers in reading order with the gaps filled: a run of `None` is spread evenly between
 /// the numbers around it (a run before the first number ends there, one after the last starts
-/// there; each spans one unit). `[None, None, "1"]` gives `["0.33", "0.67", "1"]`.
+/// there; each spans one unit, and never goes below 0 unless the first number does). Decimals
+/// are just enough to keep the numbers distinct and strictly between their neighbours.
+/// `[None, None, "1"]` gives `["0.3", "0.7", "1"]`.
 pub fn fill_gaps(numbers: Vec<Option<String>>) -> Vec<String> {
     let values: Vec<Option<f64>> = numbers
         .iter()
@@ -81,12 +83,14 @@ fn gap_number(values: &[Option<f64>], i: usize) -> String {
     let (low, high) = match (before, after) {
         (Some(b), Some(a)) if a > b => (b, a),
         (Some(b), _) => (b, b + 1.0),
+        (None, Some(a)) if a > 0.0 => ((a - 1.0).max(0.0), a),
         (None, Some(a)) => (a - 1.0, a),
         (None, None) => (0.0, 1.0),
     };
-    let run = end - start;
-    let value = low + (high - low) * (i - start + 1) as f64 / (run + 1) as f64;
-    let decimals = run.to_string().len() + 1;
+    let step = (high - low) / (end - start + 1) as f64;
+    let value = low + step * (i - start + 1) as f64;
+    // Rounding to `step / 2` moves a number by at most `step / 4`.
+    let decimals = (-(step / 2.0).log10()).ceil().clamp(1.0, 9.0) as usize;
     let text = format!("{value:.decimals$}");
     text.trim_end_matches('0').trim_end_matches('.').to_string()
 }
