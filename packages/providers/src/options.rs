@@ -33,16 +33,19 @@ pub fn set_options(id: &str, settings: &Settings, assignments: &[String]) -> Res
     let mut next = settings.clone();
     next.provider_options
         .insert(id.to_string(), Value::Object(current.clone()));
-    // The provider reads values back normalised; anything it changed was not accepted as given.
+    // The provider reads values back normalised (list order, case); anything it changed beyond
+    // that was not accepted as given. The normalised form is what gets stored.
     let read = options(id, &next)?;
     for (key, raw) in assigned {
-        if read.get(key) != current.get(key) {
+        if !same_value(read.get(key), current.get(key)) {
             let shown = read.get(key).map(display_value).unwrap_or_default();
             return Err(Error::Other(format!(
                 "{id} does not accept {key}={raw} (it would read as '{shown}')"
             )));
         }
     }
+    next.provider_options
+        .insert(id.to_string(), Value::Object(read));
     Ok(next)
 }
 
@@ -65,6 +68,22 @@ pub fn display_value(value: &Value) -> String {
             .join(","),
         other => other.to_string(),
     }
+}
+
+/// Equal, or lists holding the same strings in any order and case.
+fn same_value(a: Option<&Value>, b: Option<&Value>) -> bool {
+    let normal = |v: &Value| match v {
+        Value::Array(items) => {
+            let mut s: Vec<String> = items
+                .iter()
+                .map(|i| display_value(i).to_lowercase())
+                .collect();
+            s.sort();
+            Value::from(s)
+        }
+        other => other.clone(),
+    };
+    a.map(normal) == b.map(normal)
 }
 
 fn split_assignment(assignment: &str) -> Result<(&str, &str)> {

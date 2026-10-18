@@ -57,9 +57,11 @@ fn values_the_provider_would_ignore_are_rejected() {
         .unwrap_err()
         .to_string();
     assert!(err.contains("would read as 'safe,suggestive'"), "{err}");
-    let ok = set(&base, &["content_ratings=safe,erotica"]).unwrap();
+    let ok = set(&base, &["content_ratings=Erotica,safe"]).unwrap();
     let shown = options("mangadex", &ok).unwrap();
     assert_eq!(display_value(&shown["content_ratings"]), "safe,erotica");
+    let stored = &ok.provider_options["mangadex"]["content_ratings"];
+    assert_eq!(display_value(stored), "safe,erotica");
 }
 
 #[test]
