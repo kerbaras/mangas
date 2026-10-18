@@ -36,7 +36,7 @@ fn file_name(path: Option<&Path>) -> Option<String> {
 
 /// Deletes the downloaded chapter folders (and `.cbz` archives) of one followed manga under
 /// `chapters_root` and forgets them; the manga, its chapter list and metadata stay so chapters
-/// can be downloaded again. Paths are resolved first, so a link can't lead outside the root.
+/// can be downloaded again. Links and plain files on record are kept, never followed.
 pub fn delete_downloads(
     lib: &Library,
     chapters_root: &Path,
@@ -55,7 +55,9 @@ pub fn delete_downloads(
     for chapter in downloaded_chapters(lib, Some((source, manga_id)))? {
         let recorded = Path::new(&chapter.path);
         let path = fs::canonicalize(recorded).unwrap_or_else(|_| recorded.to_path_buf());
-        if !in_download_layout(&path, &root, source, manga_id) {
+        let link = fs::symlink_metadata(recorded).is_ok_and(|m| m.is_symlink());
+        let file = path.exists() && !path.is_dir();
+        if link || file || !in_download_layout(&path, &root, source, manga_id) {
             deleted.kept.push(chapter.path.clone());
             continue;
         }

@@ -260,3 +260,19 @@ fn moving_copies_the_contents_of_linked_pages() {
         .join("chapters/mangadex/a/1/002.jpg");
     assert_eq!(fs::metadata(copied).unwrap().len(), 30);
 }
+
+#[cfg(unix)]
+#[test]
+fn deleting_keeps_chapters_recorded_as_links() {
+    let tmp = tempfile::tempdir().unwrap();
+    let f = folders(tmp.path());
+    let lib = open_in_memory().unwrap();
+    downloaded(&lib, &f.data_dir, "mangadex", "a", &[("1", 10)]);
+    let manga = f.chapters().join("mangadex/a");
+    fs::rename(manga.join("1"), manga.join("real")).unwrap();
+    std::os::unix::fs::symlink(manga.join("real"), manga.join("1")).unwrap();
+    write(&manga.join("real.cbz"), 5);
+    let deleted = delete_downloads(&lib, &f.chapters(), "mangadex", "a").unwrap();
+    assert_eq!((deleted.chapters, deleted.kept.len()), (0, 1));
+    assert!(manga.join("real.cbz").exists() && manga.join("real/001.jpg").exists());
+}
