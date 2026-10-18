@@ -32,14 +32,21 @@ describe("detectPlatform", () => {
     });
   });
 
-  it("detects Windows x64 from the user agent and arm64 from hints", () => {
+  it("guesses Windows x64 from the user agent and trusts arch hints", () => {
+    // Windows on Arm browsers send "Win64; x64" too, so the user agent alone is a guess.
     expect(detectPlatform({ userAgent: WIN_CHROME })).toEqual({
       os: "windows",
       arch: "x64",
+      archKnown: false,
+    });
+    const x64 = { platform: "Windows", architecture: "x86", bitness: "64" };
+    expect(detectPlatform({ userAgent: WIN_CHROME, hints: x64 })?.archKnown).toBe(true);
+    const arm = { platform: "Windows", architecture: "arm", bitness: "64" };
+    expect(detectPlatform({ userAgent: WIN_CHROME, hints: arm })).toEqual({
+      os: "windows",
+      arch: "arm64",
       archKnown: true,
     });
-    const arm = { platform: "Windows", architecture: "arm", bitness: "64" };
-    expect(detectPlatform({ userAgent: WIN_CHROME, hints: arm })?.arch).toBe("arm64");
   });
 
   it("detects Linux x64 and arm64", () => {

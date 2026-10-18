@@ -42,5 +42,7 @@ export function detectPlatform(info: BrowserInfo): Platform | null {
   const os = osFrom(info);
   if (!os) return null;
   const arch = archFrom(info);
-  return { os, arch: arch ?? DEFAULT_ARCH[os], archKnown: arch !== null };
+  // Windows on Arm browsers send the same "Win64; x64" user agent, so only a hint is certain there.
+  const archKnown = arch !== null && (os !== "windows" || Boolean(info.hints?.architecture));
+  return { os, arch: arch ?? DEFAULT_ARCH[os], archKnown };
 }

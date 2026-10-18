@@ -53,10 +53,18 @@ async function latestRelease(): Promise<Release | null> {
     });
     if (!res.ok) return null;
     const release: Release = await res.json();
-    sessionStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), release }));
+    remember(release);
     return release;
   } catch {
     return null;
+  }
+}
+
+function remember(release: Release) {
+  try {
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), release }));
+  } catch {
+    // Storage blocked or full: the page still works, it just asks the API again next time.
   }
 }
 
