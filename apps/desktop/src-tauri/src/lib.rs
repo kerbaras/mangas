@@ -80,7 +80,8 @@ pub fn run() {
             commands::storage::import_backup,
             commands::updates::check_updates,
             commands::updates::mark_viewed,
-            commands::updates::set_auto_download
+            commands::updates::set_auto_download,
+            commands::updates::set_chapter_group
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

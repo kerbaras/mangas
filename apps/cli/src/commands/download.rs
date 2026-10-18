@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use anyhow::bail;
 use clap::Args as ClapArgs;
-use mangas_core::domain::{Chapter, MangaId};
+use mangas_core::domain::{in_group, normalize_group, Chapter, MangaId};
 use mangas_core::download;
 use mangas_core::download::queue::{self, JobState, Scope};
 use mangas_core::library;
@@ -33,6 +33,13 @@ pub struct Args {
     /// Also queue chapters already on disk and download every page again, overwriting the files
     #[arg(long)]
     pub force: bool,
+    /// Only chapters of this scanlation group, instead of the one saved for the title
+    /// (`mangas group`)
+    #[arg(long, conflicts_with = "all_groups")]
+    pub group: Option<String>,
+    /// Chapters of every group, ignoring the group saved for the title
+    #[arg(long)]
+    pub all_groups: bool,
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
@@ -52,6 +59,15 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let requested = library::requested_languages(args.lang.as_deref(), &stored_settings());
     let languages = mangas_providers::languages_for(&args.source, &requested);
     let synced = library::sync_chapters(&lib, source.as_ref(), &id, &languages).await?;
+    let saved = library::chapter_group(&lib, &args.source, &id)?;
+    let group = pick_group(args.group.as_deref(), args.all_groups, saved);
+    let synced = in_group(synced, group.as_deref());
+    if let (Some(group), true) = (&group, synced.is_empty()) {
+        bail!("no chapters of group \"{group}\" (`mangas chapters {id}` lists the groups; --all-groups ignores it)");
+    }
+    if let Some(group) = &group {
+        outln!("Group: {group}")?;
+    }
     let all = library::prefer_languages(&synced, &languages);
     let selected = match &args.chapters {
         Some(spec) => download::select_chapters(&all, spec)?,
@@ -123,4 +139,33 @@ fn without_unavailable(selected: Vec<Chapter>, explicit: bool) -> anyhow::Result
         outln!("{summary}")?;
     }
     Ok(available)
+}
+
+/// `--group` wins over the title's saved group; `--all-groups` drops it.
+fn pick_group(explicit: Option<&str>, all_groups: bool, saved: Option<String>) -> Option<String> {
+    match normalize_group(explicit) {
+        Some(group) => Some(group),
+        None if all_groups => None,
+        None => saved,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::pick_group;
+
+    #[test]
+    fn explicit_group_overrides_the_saved_one() {
+        let saved = || Some("Official".to_string());
+        assert_eq!(
+            pick_group(Some("K Manga"), false, saved()).as_deref(),
+            Some("K Manga")
+        );
+        assert_eq!(
+            pick_group(None, false, saved()).as_deref(),
+            Some("Official")
+        );
+        assert_eq!(pick_group(None, true, saved()), None);
+        assert_eq!(pick_group(Some(" "), false, None), None);
+    }
 }

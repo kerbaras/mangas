@@ -7,4 +7,6 @@ export const tauriUpdates: UpdatesBackend = {
   markViewed: (source, mangaId) => invoke<boolean>("mark_viewed", { source, mangaId }),
   setAutoDownload: (source, mangaId, on) =>
     invoke<boolean>("set_auto_download", { source, mangaId, on }),
+  setChapterGroup: (source, mangaId, group) =>
+    invoke<boolean>("set_chapter_group", { source, mangaId, group }),
 };

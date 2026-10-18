@@ -21,6 +21,7 @@ fn entry(source: &str, id: &str, status: ReadingStatus) -> LibraryEntry {
         updated_at: String::new(),
         chapters: ChapterCounts::default(),
         auto_download: id == "auto",
+        chapter_group: None,
     }
 }
 
@@ -95,6 +96,7 @@ fn update(title: &str, chapters: Vec<Chapter>) -> TitleUpdate {
         manga_id: MangaId(title.into()),
         title: title.into(),
         auto_download: false,
+        chapter_group: None,
         chapters,
     }
 }

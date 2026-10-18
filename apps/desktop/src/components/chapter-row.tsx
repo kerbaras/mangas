@@ -3,6 +3,7 @@ import type { MouseEvent, ReactNode } from "react";
 import { AvailabilityCell } from "@/components/availability-cell";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
+import { sourceRef } from "@/lib/chapter-groups";
 import { isUnavailable } from "@/lib/chapters";
 import { cn } from "@/lib/cn";
 import { languageLabel } from "@/lib/format";
@@ -12,6 +13,8 @@ import { isUnlisted } from "@/lib/ipc.downloads";
 type Props = {
   chapter: Chapter;
   selected: boolean;
+  /** Another row has the same number, language and group: show the source's id to tell them apart. */
+  showSourceId?: boolean;
   progress: DownloadProgress | undefined;
   onToggle: (id: string, shift: boolean) => void;
 };
@@ -85,7 +88,7 @@ function StateCell({ chapter, progress }: Pick<Props, "chapter" | "progress">) {
   return <span className="text-caption text-ink-3">—</span>;
 }
 
-export function ChapterRow({ chapter, selected, progress, onToggle }: Props) {
+export function ChapterRow({ chapter, selected, showSourceId, progress, onToggle }: Props) {
   const off = isUnavailable(chapter);
   const handle = (e: MouseEvent) => {
     if (!off) onToggle(chapter.id, e.shiftKey);
@@ -117,6 +120,9 @@ export function ChapterRow({ chapter, selected, progress, onToggle }: Props) {
       </td>
       <td className="w-40 truncate pr-4 text-ink-2" title={chapter.group ?? undefined}>
         {chapter.group ?? <span className="text-ink-3">—</span>}
+        {showSourceId && (
+          <span className="ml-1 text-caption text-ink-3">{sourceRef(chapter.id)}</span>
+        )}
       </td>
       <td className="w-28 text-ink-2">{languageLabel(chapter.language)}</td>
       <td className="w-44 pr-4">

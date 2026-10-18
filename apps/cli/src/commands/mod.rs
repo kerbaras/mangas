@@ -8,6 +8,7 @@ pub mod export;
 mod export_args;
 mod export_cover;
 mod export_preset;
+pub mod group;
 pub mod import;
 pub mod info;
 pub mod kindle;

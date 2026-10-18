@@ -1,5 +1,7 @@
 use clap::Args as ClapArgs;
-use mangas_core::domain::{sort_by_number, Availability, Chapter, MangaId};
+use mangas_core::domain::{
+    in_group, normalize_group, sort_by_number, Availability, Chapter, MangaId,
+};
 use mangas_core::library;
 
 use super::{source_by_name, stored_settings};
@@ -18,6 +20,9 @@ pub struct Args {
     /// Read from the library instead of asking the source
     #[arg(long)]
     pub offline: bool,
+    /// Only the chapters of this scanlation group (the name in the group column)
+    #[arg(long)]
+    pub group: Option<String>,
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
@@ -40,17 +45,24 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             sort_by_number(lists.into_iter().flat_map(|(_, c)| c).collect())
         }
     };
+    let group = normalize_group(args.group.as_deref());
+    let chapters = in_group(chapters, group.as_deref());
+    if let (Some(group), true) = (&group, chapters.is_empty()) {
+        outln!("No chapters of group \"{group}\" for {id}; drop --group to list every group")?;
+        return Ok(());
+    }
     if chapters.is_empty() {
         let langs = languages.join("/");
         outln!("No {langs} chapters hosted on {} for {id}", args.source)?;
         return Ok(());
     }
     outln!(
-        "{:<8} {:<5} {:<9} {:<6} {:<36}  title",
+        "{:<8} {:<5} {:<9} {:<6} {:<GROUP_WIDTH$} {:<36}  title",
         "chapter",
         "vol",
         "status",
         "lang",
+        "group",
         "id"
     )?;
     for c in &chapters {
@@ -71,13 +83,28 @@ fn format_row(c: &Chapter) -> String {
         _ => title.to_string(),
     };
     format!(
-        "{:<8} {:<5} {:<9} {:<6} {:<36}  {title}",
+        "{:<8} {:<5} {:<9} {:<6} {:<GROUP_WIDTH$} {:<36}  {title}",
         c.number,
         c.volume.as_deref().unwrap_or("-"),
         status(c),
         c.language,
+        group_cell(c.group.as_deref()),
         c.id,
     )
+}
+
+const GROUP_WIDTH: usize = 20;
+
+/// The group name cut to the column, `-` when the source names none.
+fn group_cell(group: Option<&str>) -> String {
+    match group {
+        None => "-".into(),
+        Some(g) if g.chars().count() <= GROUP_WIDTH => g.into(),
+        Some(g) => {
+            let cut: String = g.chars().take(GROUP_WIDTH - 1).collect();
+            format!("{cut}…")
+        }
+    }
 }
 
 /// `exported`, `on disk`, `locked`, `external` or `-` (downloadable, not downloaded yet).

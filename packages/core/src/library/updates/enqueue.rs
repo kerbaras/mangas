@@ -4,26 +4,25 @@ use std::collections::BTreeSet;
 
 use super::plan::number_key;
 use super::{TitleUpdate, UpdateReport};
-use crate::domain::{Chapter, Result};
+use crate::domain::{in_group, Chapter, Result};
 use crate::download::queue::{self, JobId};
 use crate::library::Library;
 
 /// The chapters to queue for one title: one per number, in the most preferred language
-/// (the check lists languages in preference order) that can actually be downloaded.
+/// (the check lists languages in preference order) that can actually be downloaded, from the
+/// title's group when it is narrowed to one.
 pub fn to_download(update: &TitleUpdate) -> Vec<Chapter> {
-    let downloadable: BTreeSet<String> = update
-        .chapters
+    let chapters = in_group(update.chapters.clone(), update.chapter_group.as_deref());
+    let downloadable: BTreeSet<String> = chapters
         .iter()
         .filter(|c| c.is_available())
         .map(number_key)
         .collect();
     let mut seen = BTreeSet::new();
-    update
-        .chapters
-        .iter()
+    chapters
+        .into_iter()
         .filter(|c| c.is_available() || !downloadable.contains(&number_key(c)))
         .filter(|c| seen.insert(number_key(c)))
-        .cloned()
         .collect()
 }
 

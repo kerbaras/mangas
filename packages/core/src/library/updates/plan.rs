@@ -21,6 +21,7 @@ pub struct UpdatePolicy {
 pub struct Target {
     pub manga: Manga,
     pub auto_download: bool,
+    pub chapter_group: Option<String>,
 }
 
 /// Splits the library into the titles to check and the number left out: local imports have
@@ -41,6 +42,7 @@ pub fn select(entries: &[LibraryEntry], policy: &UpdatePolicy) -> (Vec<Target>, 
         .map(|e| Target {
             manga: e.manga.clone(),
             auto_download: e.auto_download,
+            chapter_group: e.chapter_group.clone(),
         })
         .collect();
     let skipped = entries.len() - targets.len();

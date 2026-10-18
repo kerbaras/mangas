@@ -40,6 +40,7 @@ fn update(id: &str, auto_download: bool, chapters: Vec<Chapter>) -> TitleUpdate 
         manga_id: MangaId(id.into()),
         title: id.into(),
         auto_download,
+        chapter_group: None,
         chapters,
     }
 }
@@ -94,5 +95,31 @@ fn a_locked_preferred_release_falls_back_to_one_that_can_be_downloaded() {
         ids,
         ["en-5", "es-6"],
         "6 has no other release; the queue reports it locked"
+    );
+}
+
+#[test]
+fn auto_download_takes_only_the_titles_group() {
+    let grouped = |id: &str, number: &str, group: &str| Chapter {
+        id: ChapterId(id.into()),
+        number: number.into(),
+        language: "en".into(),
+        group: Some(group.into()),
+        ..Default::default()
+    };
+    let chapters = vec![
+        grouped("mirror-7", "7", "MangaDot mirror"),
+        grouped("k-7", "7", "K Manga"),
+        grouped("mirror-8", "8", "MangaDot mirror"),
+        grouped("k-9", "9", "K Manga"),
+    ];
+    let ids =
+        |u: &TitleUpdate| -> Vec<String> { to_download(u).into_iter().map(|c| c.id.0).collect() };
+    let mut narrowed = update("a", true, chapters.clone());
+    narrowed.chapter_group = Some("K Manga".into());
+    assert_eq!(ids(&narrowed), ["k-7", "k-9"]);
+    assert_eq!(
+        ids(&update("a", true, chapters)),
+        ["mirror-7", "mirror-8", "k-9"]
     );
 }

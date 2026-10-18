@@ -22,6 +22,9 @@ pub struct TitleUpdate {
     pub title: String,
     /// The title's "download new chapters" flag, so callers know what to queue.
     pub auto_download: bool,
+    /// The group the title is narrowed to: auto-download takes only its chapters.
+    #[serde(default)]
+    pub chapter_group: Option<String>,
     pub chapters: Vec<Chapter>,
 }
 

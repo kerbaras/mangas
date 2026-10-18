@@ -7,7 +7,7 @@ import type {
   LibraryEntry,
   ReadingStatus,
 } from "./ipc.library";
-import { mockAutoDownload, mockNewCount } from "./mock-updates";
+import { mockAutoDownload, mockChapterGroup, mockNewCount } from "./mock-updates";
 
 const DAY = 86_400_000;
 const key = (source: string, id: string) => `${source}:${id}`;
@@ -68,6 +68,7 @@ export function mockLibrary(
         new: mockNewCount(m.source, m.id, chaptersOf(m.source, m.id)),
       },
       auto_download: mockAutoDownload(m.source, m.id),
+      chapter_group: mockChapterGroup(m.source, m.id),
     };
   };
   const taken = (name: string, except?: number) =>

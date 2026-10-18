@@ -1,6 +1,7 @@
 import { ChapterRow } from "@/components/chapter-row";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { DownloadMap } from "@/hooks/use-downloads";
+import { duplicateIds } from "@/lib/chapter-groups";
 import { isUnavailable, type Selection } from "@/lib/chapters";
 import type { Chapter } from "@/lib/ipc";
 
@@ -16,6 +17,7 @@ export function ChaptersTable({ chapters, selected, downloads, onToggle, onToggl
   const selectable = chapters.filter((c) => !isUnavailable(c));
   const allOn = selectable.length > 0 && selectable.every((c) => selected.has(c.id));
   const someOn = !allOn && selectable.some((c) => selected.has(c.id));
+  const twins = duplicateIds(chapters);
   return (
     <table className="w-full table-fixed border-collapse">
       <thead className="sticky top-0 z-10 bg-canvas text-left text-caption font-medium text-ink-3">
@@ -45,6 +47,7 @@ export function ChaptersTable({ chapters, selected, downloads, onToggle, onToggl
             key={c.id}
             chapter={c}
             selected={selected.has(c.id)}
+            showSourceId={twins.has(c.id)}
             progress={downloads.get(c.id)}
             onToggle={onToggle}
           />

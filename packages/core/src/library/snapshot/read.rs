@@ -52,7 +52,8 @@ fn titles(conn: &Connection) -> Result<Vec<TitleState>> {
     )?;
     let mut presets = grouped(conn, "SELECT source, manga_id, preset FROM export_preset")?;
     let mut stmt = conn.prepare(
-        "SELECT source, id, added_at, updated_at, reading_status, auto_download, last_viewed_at
+        "SELECT source, id, added_at, updated_at, reading_status, auto_download, last_viewed_at,
+                chapter_group
          FROM manga ORDER BY rowid",
     )?;
     let rows = stmt.query_map([], |r| {
@@ -64,6 +65,7 @@ fn titles(conn: &Connection) -> Result<Vec<TitleState>> {
             reading_status: ReadingStatus::parse(&r.get::<_, String>(4)?),
             auto_download: r.get(5)?,
             last_viewed_at: r.get(6)?,
+            chapter_group: r.get(7)?,
             ..Default::default()
         })
     })?;

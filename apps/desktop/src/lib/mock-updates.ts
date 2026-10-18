@@ -9,6 +9,7 @@ import { summarise, type TitleUpdate, type UpdatesBackend } from "./ipc.updates"
 const key = (source: string, id: string) => `${source}:${id}`;
 const fresh = new Map<string, Set<string>>();
 const auto = new Set<string>();
+const groups = new Map<string, string>();
 
 /** Chapter numbers of the title still badged as new. */
 export function mockNewCount(source: string, id: string, chapters: Chapter[]): number {
@@ -18,6 +19,7 @@ export function mockNewCount(source: string, id: string, chapters: Chapter[]): n
 }
 
 export const mockAutoDownload = (source: string, id: string) => auto.has(key(source, id));
+export const mockChapterGroup = (source: string, id: string) => groups.get(key(source, id)) ?? null;
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -82,6 +84,11 @@ export function mockUpdates(
     async setAutoDownload(source, id, on) {
       if (on) auto.add(key(source, id));
       else auto.delete(key(source, id));
+      return library.has(key(source, id));
+    },
+    async setChapterGroup(source, id, group) {
+      if (group?.trim()) groups.set(key(source, id), group.trim());
+      else groups.delete(key(source, id));
       return library.has(key(source, id));
     },
   };

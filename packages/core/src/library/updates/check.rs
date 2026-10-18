@@ -92,6 +92,7 @@ async fn check_title(lib: &Library, source: &SourceFor, target: Target) -> Outco
             manga_id: target.manga.id,
             title: target.manga.title,
             auto_download: target.auto_download,
+            chapter_group: target.chapter_group,
             chapters,
         }),
         Err(e) => failed(&target, &e),
