@@ -2,6 +2,7 @@
 //! follows them hop by hop, see [`super::PageClient::get`]) and, for real downloads, DNS that
 //! only connects to public addresses.
 
+#[cfg(any(test, feature = "test-support"))]
 use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -26,6 +27,7 @@ pub(crate) fn build_http(public_only: bool) -> Result<Client> {
 }
 
 /// A public-only client whose DNS answers every name with `ip` (tests only).
+#[cfg(any(test, feature = "test-support"))]
 pub(super) fn build_http_resolving(ip: IpAddr) -> Result<Client> {
     let resolver = PublicResolver { fixed: Some(ip) };
     Ok(builder().dns_resolver(Arc::new(resolver)).build()?)

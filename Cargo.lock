@@ -2692,6 +2692,7 @@ dependencies = [
  "html-escape",
  "log",
  "mangas-core",
+ "mangas-providers",
  "reqwest",
  "scraper",
  "serde",

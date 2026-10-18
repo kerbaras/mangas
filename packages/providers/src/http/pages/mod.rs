@@ -7,6 +7,7 @@ mod attempt;
 mod redirect;
 mod resolver;
 
+#[cfg(any(test, feature = "test-support"))]
 use std::net::IpAddr;
 use std::time::Duration;
 
@@ -96,6 +97,7 @@ impl<'a> PageClient<'a> {
     }
 
     /// Resolves every host name to `ip`, still refusing non-public ones: only for tests.
+    #[cfg(any(test, feature = "test-support"))]
     pub fn resolving_to(self, ip: IpAddr) -> Result<Self> {
         Ok(Self {
             http: redirect::build_http_resolving(ip)?,

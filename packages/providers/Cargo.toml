@@ -24,6 +24,11 @@ futures = "0.3"
 scraper = "0.27"
 html-escape = "0.2"
 
+[features]
+# Test-only constructors (`PageClient::resolving_to`) for this crate's integration tests.
+test-support = []
+
 [dev-dependencies]
+mangas-providers = { path = ".", features = ["test-support"] }
 tempfile = "3"
 wiremock = "0.6"
