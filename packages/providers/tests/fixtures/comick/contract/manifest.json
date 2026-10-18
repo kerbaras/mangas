@@ -1,0 +1,12 @@
+{
+  "_comment": "comick.live, recorded 2026-10-18 from the Devin VM and trimmed: manga.html (#comic-data), chapters.json (page 1 of chapter-list, plus one es-419 entry) and chapter.html (#sv-data) are real. search.json is hand-written in the item shape of the open /api/comics/top, because /api/search is Cloudflare-gated from the VM.",
+  "query": "solo leveling",
+  "language": "en",
+  "pages_need_referer": true,
+  "routes": [
+    { "path": "/api/search", "query": { "q": "solo leveling", "type": "comic" }, "file": "search.json" },
+    { "path": "/comic/00-solo-leveling", "file": "manga.html" },
+    { "path": "/api/comics/00-solo-leveling/chapter-list", "query": { "lang": "en", "page": "1" }, "file": "chapters.json" },
+    { "path": "/comic/00-solo-leveling/lkRE7-chapter-0-en", "file": "chapter.html" }
+  ]
+}

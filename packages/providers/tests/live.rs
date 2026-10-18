@@ -1,11 +1,14 @@
 //! Live smoke tests against the real sites. Ignored by default and skipped unless
 //! `MANGAS_LIVE=1`: `MANGAS_LIVE=1 cargo test -p mangas-providers --test live -- --ignored`.
 //! MangaDot is behind a Cloudflare verification, so only MangaDex, WeebCentral and Tapas run here.
+//! Comick's search is gated the same way, so its tests walk the open endpoints and check the
+//! missing-session report.
 
 mod contract;
 
 use contract::{headers, manifest, walk};
-use mangas_core::library::Settings;
+use mangas_core::domain::{Error, MangaId};
+use mangas_core::library::{ProviderSession, Settings};
 use mangas_providers::{doctor, info, source, ProviderStatus};
 
 fn live() -> bool {
@@ -79,4 +82,61 @@ async fn tapas_live_check() {
     if live() {
         live_doctor("tapas").await;
     }
+}
+
+/// A Comick title with chapters in English, for the endpoints that need no session.
+const COMICK_SLUG: &str = "00-solo-leveling";
+
+#[tokio::test]
+#[ignore = "hits comick.live; run with MANGAS_LIVE=1"]
+async fn comick_live_open_endpoints() {
+    if !live() {
+        return;
+    }
+    let info = info("comick").unwrap();
+    let source = source("comick", &Settings::default()).unwrap();
+    assert_eq!(source.status().await, ProviderStatus::NeedsSession);
+    let id = MangaId(COMICK_SLUG.into());
+    let manga = source.manga(&id).await.unwrap();
+    assert_eq!(manga.id, id);
+    let chapters = source.chapters(&id, "en").await.unwrap();
+    assert!(chapters.len() > 100, "{} chapters", chapters.len());
+    assert!(chapters.iter().all(|c| c.language == "en"));
+    let pages = source.pages(&chapters[0].id).await.unwrap();
+    assert!(!pages.0.is_empty(), "{}: no pages", chapters[0].id);
+    headers::assert_page_headers(&*source, &info, &pages.0, true, None);
+}
+
+#[tokio::test]
+#[ignore = "hits comick.live; run with MANGAS_LIVE=1"]
+async fn comick_live_check_reports_needs_session() {
+    if !live() {
+        return;
+    }
+    let manifest = manifest::load("comick").unwrap();
+    let source = source("comick", &Settings::default()).unwrap();
+    let report = doctor::check(&*source, &manifest.query, &manifest.language).await;
+    let table = doctor::lines(&report).join("\n");
+    println!("{table}");
+    assert!(!report.passed());
+    assert!(table.contains("needs a browser session"), "{table}");
+}
+
+#[tokio::test]
+#[ignore = "hits comick.live; run with MANGAS_LIVE=1"]
+async fn comick_live_stale_session_search_is_a_challenge() {
+    if !live() {
+        return;
+    }
+    let mut settings = Settings::default();
+    let stale = ProviderSession {
+        cookies: "cf_clearance=stale".into(),
+        user_agent: "Mozilla/5.0 (X11; Linux x86_64) Gecko/20100101 Firefox/140.0".into(),
+        saved_at: None,
+    };
+    settings.provider_sessions.insert("comick".into(), stale);
+    let source = source("comick", &settings).unwrap();
+    let err = source.search("solo leveling", 5).await.unwrap_err();
+    assert!(matches!(err, Error::Challenge { .. }), "{err:?}");
+    assert_eq!(source.status().await, ProviderStatus::NeedsSession);
 }
