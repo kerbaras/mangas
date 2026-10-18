@@ -6,6 +6,7 @@ use super::job::{GateStatus, Job, JobId, JobState};
 use super::lease::{mark_stale, LEASE_MS};
 use super::transitions::{apply, recover, Action};
 use crate::domain::{Chapter, Error, Result};
+use crate::download::complete::is_complete;
 use crate::download::split_available;
 use crate::library::{self, Library};
 
@@ -71,29 +72,20 @@ fn with_stored_paths(lib: &Library, source: &str, chapters: Vec<Chapter>) -> Res
         .collect())
 }
 
-/// Forgets the path of a chapter whose folder was deleted or emptied outside the app (or holds
-/// only interrupted `.part` writes), so it is downloaded again instead of skipped.
+/// Forgets the path of a chapter whose folder is missing pages (deleted or emptied outside the
+/// app, or a re-download that never finished), so it is downloaded again instead of skipped;
+/// the pages still there are kept.
 fn still_on_disk(chapters: Vec<Chapter>) -> Vec<Chapter> {
     chapters
         .into_iter()
         .map(|c| match c.local_path.as_deref() {
-            Some(dir) if !has_files(Path::new(dir)) => Chapter {
+            Some(dir) if !is_complete(Path::new(dir)) => Chapter {
                 local_path: None,
                 ..c
             },
             _ => c,
         })
         .collect()
-}
-
-fn has_files(dir: &Path) -> bool {
-    std::fs::read_dir(dir)
-        .map(|mut entries| entries.any(|e| e.is_ok_and(|e| is_page(&e.path()))))
-        .unwrap_or(false)
-}
-
-fn is_page(path: &Path) -> bool {
-    path.is_file() && path.extension().is_none_or(|ext| ext != "part")
 }
 
 /// Which jobs an action is for.

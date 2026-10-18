@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use super::availability::ensure_available;
+use super::complete::mark_expected;
 use super::event::{Event, OnEvent};
 use super::fetcher::PageFetcher;
 use super::mirror::WithMirror;
@@ -90,6 +91,7 @@ async fn download_chapter_into(
             message: format!("chapter {} has no pages", chapter.number),
         });
     }
+    mark_expected(dest, urls.0.len())?;
     let pages = download_pages_with(fetcher, &chapter.id, &urls, dest, on_disk, on_event).await?;
     on_event(Event::ChapterDone {
         chapter: chapter.id.clone(),
