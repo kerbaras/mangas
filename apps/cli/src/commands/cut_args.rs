@@ -8,11 +8,14 @@ use mangas_core::smartcut::{Options, Preset, RowPenalizer};
 
 use crate::paths;
 
+/// The profile when neither `--profile` nor a stored default names one.
+pub const DEFAULT_PROFILE: &str = "kindle-paperwhite12";
+
 #[derive(ClapArgs)]
 pub struct CutArgs {
     /// Target e-reader profile id (see `mangas kindle --list-profiles`)
-    #[arg(long, visible_alias = "profile", default_value = "kindle-paperwhite12")]
-    pub device: String,
+    #[arg(long, visible_alias = "profile")]
+    pub device: Option<String>,
     /// Smart-cut preset for long strips
     #[arg(long, value_enum, default_value_t = PresetArg::Balanced)]
     pub cut_preset: PresetArg,
@@ -45,10 +48,12 @@ impl From<PresetArg> for Preset {
 }
 
 impl CutArgs {
-    pub fn device(&self) -> anyhow::Result<Device> {
-        match device(&self.device) {
+    /// The `--profile` given, else `fallback`.
+    pub fn device_or(&self, fallback: &str) -> anyhow::Result<Device> {
+        let id = self.device.as_deref().unwrap_or(fallback);
+        match device(id) {
             Some(d) => Ok(d),
-            None => bail!("unknown profile '{}' (try --list-profiles)", self.device),
+            None => bail!("unknown profile '{id}' (try --list-profiles)"),
         }
     }
 

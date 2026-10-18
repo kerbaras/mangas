@@ -9,9 +9,8 @@ use mangas_core::export::kindle::{export, ExportRequest};
 use mangas_core::export::{Format, Labels, PROFILES};
 use mangas_core::library;
 
-use super::cut_args::{print_progress, CutArgs};
+use super::cut_args::{print_progress, CutArgs, DEFAULT_PROFILE};
 use super::export_args::FormatArg;
-use super::stored_settings;
 use crate::output::outln;
 use crate::paths;
 
@@ -21,7 +20,7 @@ pub struct Args {
     pub chapters: Vec<PathBuf>,
     #[command(flatten)]
     pub cut: CutArgs,
-    /// File format [default: the output's extension, the stored default, else what the profile recommends]
+    /// File format [default: the output's extension, else epub]
     #[arg(long, value_enum)]
     pub format: Option<FormatArg>,
     /// Book title (defaults to the first chapter directory's parent name)
@@ -63,6 +62,13 @@ fn default_title(chapters: &[PathBuf]) -> String {
         .unwrap_or_else(|| "Manga".to_string())
 }
 
+/// `--format`, else the output's extension, else EPUB.
+fn legacy_format(explicit: Option<Format>, output: Option<&Path>) -> Format {
+    explicit
+        .or_else(|| output.and_then(Format::of_path))
+        .unwrap_or(Format::Epub)
+}
+
 pub async fn run(args: Args) -> anyhow::Result<()> {
     if args.list_profiles {
         return list_profiles();
@@ -70,10 +76,11 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     if args.chapters.is_empty() {
         bail!("no chapter directories given");
     }
-    let dev = args.cut.device()?;
-    let explicit = args.format.map(Format::from);
-    let stored = stored_settings().default_format;
-    let format = Format::resolve(explicit, args.output.as_deref(), stored, &dev)?;
+    // Kept from before other formats existed: a Paperwhite EPUB unless the flags say
+    // otherwise, whatever the stored defaults are.
+    let dev = args.cut.device_or(DEFAULT_PROFILE)?;
+    let explicit = legacy_format(args.format.map(Format::from), args.output.as_deref());
+    let format = Format::resolve(Some(explicit), args.output.as_deref(), None, &dev)?;
     let output = args
         .output
         .clone()
@@ -153,4 +160,16 @@ fn spellings(dirs: &[&Path]) -> Vec<PathBuf> {
     spellings.sort();
     spellings.dedup();
     spellings
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn kindle_writes_epub_unless_the_flags_say_otherwise() {
+        assert_eq!(legacy_format(None, None), Format::Epub);
+        assert_eq!(legacy_format(None, Some(Path::new("b.pdf"))), Format::Pdf);
+        assert_eq!(legacy_format(Some(Format::Cbz), None), Format::Cbz);
+    }
 }

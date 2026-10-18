@@ -11,7 +11,7 @@ use mangas_core::export::Format;
 use mangas_core::library;
 use mangas_providers::covers::CoverFetcher;
 
-use super::cut_args::{print_progress, CutArgs};
+use super::cut_args::{print_progress, CutArgs, DEFAULT_PROFILE};
 use super::export_args::FormatArg;
 use super::kindle::mark_exported;
 use super::{source_by_name, stored_settings};
@@ -135,9 +135,11 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             args.manga_id
         );
     }
-    let device = args.cut.device()?;
+    let stored = stored_settings();
+    let saved = stored.default_device.as_deref().unwrap_or(DEFAULT_PROFILE);
+    let device = args.cut.device_or(saved)?;
     let explicit = args.format.map(Format::from);
-    let format = Format::resolve(explicit, None, stored_settings().default_format, &device)?;
+    let format = Format::resolve(explicit, None, stored.default_format, &device)?;
     for p in &plans {
         let (first, last) = (
             &p.chapters[0].number,
