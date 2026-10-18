@@ -19,7 +19,7 @@ import {
   sampleLibrary,
 } from "./mock-data";
 import { mockDiagnostics } from "./mock-diagnostics";
-import { failIfOffline, mockFlags } from "./mock-flags";
+import { failIfOffline, mockExportResult, mockFlags } from "./mock-flags";
 import { mockImport } from "./mock-import";
 
 const DATA_DIR = "~/.local/share/mangas";
@@ -189,7 +189,7 @@ export const mockBackend: Backend = {
   },
   async exportKindle(request) {
     await simulateExport(Math.max(1, request.chapter_dirs.length * 6));
-    return request.output;
+    return mockExportResult(request.output, request.chapter_dirs.length);
   },
   async detectorsStatus() {
     await wait(120);

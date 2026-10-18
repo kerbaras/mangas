@@ -4,6 +4,8 @@ use std::cmp::Ordering;
 
 use sha2::{Digest, Sha256};
 
+use crate::images::is_page_extension;
+
 /// Chapter and volume numbers read from a name like `Vol.2 Ch.012.5 - Title`.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ParsedName {
@@ -13,7 +15,6 @@ pub struct ParsedName {
 
 const CHAPTER_WORDS: [&str; 6] = ["chapter", "chap", "ch", "c", "episode", "ep"];
 const VOLUME_WORDS: [&str; 3] = ["volume", "vol", "v"];
-const PAGE_EXTENSIONS: [&str; 4] = ["jpg", "jpeg", "png", "webp"];
 
 #[derive(Debug, PartialEq)]
 enum Token {
@@ -147,10 +148,10 @@ pub fn short_hash(input: &str) -> String {
         .collect()
 }
 
-/// A page the exporter can read (`jpg`, `jpeg`, `png`, `webp`); hidden files never count.
+/// A page the exporter can decode (see [`crate::images`]); hidden files never count.
 pub fn is_page_image(name: &str) -> bool {
     let base = name.rsplit(['/', '\\']).next().unwrap_or(name);
-    !base.starts_with('.') && extension(base).is_some_and(|e| PAGE_EXTENSIONS.contains(&e.as_str()))
+    !base.starts_with('.') && extension(base).is_some_and(|e| is_page_extension(&e))
 }
 
 pub fn extension(name: &str) -> Option<String> {

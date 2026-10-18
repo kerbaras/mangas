@@ -8,7 +8,7 @@ pub mod process;
 use serde::{Deserialize, Serialize};
 
 pub use export::{export, ExportRequest, ExportStats, Progress};
-pub use input::{chapter_images, decode};
+pub use input::{chapter_files, chapter_images, decode, ChapterFiles};
 pub use process::{process_page, EncodedPage, ImageSettings};
 
 /// Screen of a target e-reader in pixels.

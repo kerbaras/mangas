@@ -7,6 +7,7 @@ import type {
   DownloadProgress,
   ExportProgress,
   ExportRequest,
+  ExportResult,
   Preset,
 } from "./ipc";
 
@@ -34,9 +35,17 @@ export type ExportStats = {
   source_rows: number;
   pagination_ms: number;
   filters_ms: number;
+  /** Files left out because their format cannot be decoded. */
+  skipped: number;
   /** File actually written; differs from the request when that name was taken. */
   output: string;
 };
+
+export const toExportResult = ({ output, pages, skipped }: ExportStats): ExportResult => ({
+  output,
+  pages,
+  skipped: skipped ?? 0,
+});
 
 /** Mirrors `mangas_core::ml::Status`. */
 export type MlStatus = {

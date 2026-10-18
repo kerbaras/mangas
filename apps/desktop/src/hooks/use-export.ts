@@ -1,12 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { notifyExported } from "@/lib/export-summary";
 import { errorMessage } from "@/lib/format";
-import { type ExportProgress, type ExportRequest, exportKindle, onExportProgress } from "@/lib/ipc";
+import {
+  type ExportProgress,
+  type ExportRequest,
+  type ExportResult,
+  exportKindle,
+  onExportProgress,
+} from "@/lib/ipc";
 import { notifyError } from "@/lib/notify";
 
 export type ExportState =
   | { kind: "idle" }
   | { kind: "running"; progress: ExportProgress | null }
-  | { kind: "done"; output: string }
+  | { kind: "done"; result: ExportResult }
   | { kind: "error"; message: string };
 
 export function useExport() {
@@ -32,8 +39,9 @@ export function useExport() {
     running.current = true;
     setState({ kind: "running", progress: null });
     try {
-      const output = await exportKindle(request);
-      setState({ kind: "done", output });
+      const result = await exportKindle(request);
+      setState({ kind: "done", result });
+      notifyExported(result);
     } catch (e) {
       setState({ kind: "error", message: errorMessage(e) });
       notifyError("Export failed", e, { id: "export" });

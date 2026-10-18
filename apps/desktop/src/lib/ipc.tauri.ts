@@ -22,6 +22,7 @@ import {
   toDownloadProgress,
   toExportArgs,
   toExportProgress,
+  toExportResult,
 } from "./ipc.wire";
 import { readSettings } from "./settings";
 
@@ -83,7 +84,7 @@ export const tauriBackend: Backend = {
       language: DEFAULT_LANGUAGE,
     }),
   exportKindle: async (request) =>
-    (await invoke<ExportStats>("export_kindle", toExportArgs(request))).output,
+    toExportResult(await invoke<ExportStats>("export_kindle", toExportArgs(request))),
   detectorsStatus: async () => toDetectorsStatus(await invoke<MlStatus>("detectors_status")),
   diagnostics: () => invoke<Diagnostics>("diagnostics"),
   openLogs: () => invoke<void>("open_logs"),

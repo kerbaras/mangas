@@ -152,5 +152,11 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         stats.filters_ms,
         started.elapsed().as_millis()
     );
+    if stats.skipped > 0 {
+        println!(
+            "skipped {} unsupported file(s), listed in the warnings above",
+            stats.skipped
+        );
+    }
     Ok(())
 }
