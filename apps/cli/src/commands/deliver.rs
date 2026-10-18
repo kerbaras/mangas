@@ -51,8 +51,15 @@ pub async fn deliver(
         }
         SendArg::Usb => {
             let kindle = usb::choose(kindle, usb::find_kindles())?;
-            let copied = usb::copy_to_kindle(file, &kindle, &mut print_copy)?;
-            eprintln!();
+            let mut shown = false;
+            let copied = usb::copy_to_kindle(file, &kindle, &mut |done, total| {
+                shown = true;
+                print_copy(done, total);
+            });
+            if shown {
+                eprintln!();
+            }
+            let copied = copied?;
             if copied.already_there {
                 outln!("already on {}: {}", kindle.name, copied.path.display())?;
                 return Ok(());

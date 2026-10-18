@@ -18,9 +18,11 @@ pub struct Copied {
     pub already_there: bool,
 }
 
-/// Copies `file` into the Kindle's `documents/` folder, replacing a book of the same name. `on_progress(done, total)` gets the bytes copied so far. The data
-/// goes to a hidden `.part` file that is flushed and then renamed over the target, so a failed copy
-/// leaves no partial file and keeps a book that was already there.
+/// Copies `file` into the Kindle's `documents/` folder, replacing a book of the same name.
+/// `on_progress(done, total)` gets the bytes copied so far; it isn't called when `file` is
+/// already that book. The data goes to a hidden `.part` file that is flushed and then renamed
+/// over the target, so a failed copy leaves no partial file and keeps a book that was already
+/// there.
 pub fn copy_to_kindle(
     file: &Path,
     kindle: &KindleVolume,
@@ -37,8 +39,6 @@ pub fn copy_to_kindle(
     }
     let dest = kindle.documents.join(name);
     if same_file(file, &dest) {
-        let total = std::fs::metadata(file)?.len();
-        on_progress(total, total);
         return Ok(Copied {
             path: dest,
             already_there: true,

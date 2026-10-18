@@ -149,7 +149,7 @@ fn sending_a_book_already_in_documents_leaves_it_intact() {
     let copied = copy_to_kindle(&onboard, &kindle, &mut |d, t| seen.push((d, t))).unwrap();
     assert_eq!((copied.path, copied.already_there), (onboard.clone(), true));
     assert_eq!(std::fs::read(&onboard).unwrap(), b"book");
-    assert_eq!(seen, vec![(4, 4)]);
+    assert!(seen.is_empty(), "{seen:?}");
 }
 
 #[cfg(unix)]
