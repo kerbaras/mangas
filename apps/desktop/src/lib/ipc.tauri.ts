@@ -14,6 +14,7 @@ import type {
 } from "./ipc";
 import { DEFAULT_LANGUAGE } from "./ipc";
 import type { Diagnostics } from "./ipc.diagnostics";
+import type { Enqueued } from "./ipc.downloads";
 import type { Category, LibraryEntry } from "./ipc.library";
 import { tauriDownloads } from "./ipc.tauri-downloads";
 import { tauriStorage } from "./ipc.tauri-storage";
@@ -79,12 +80,13 @@ export const tauriBackend: Backend = {
         ),
       ),
     ),
-  downloadChapters: (source, mangaId, chapterIds) =>
-    invoke<string[]>("download_chapters", {
+  downloadChapters: (source, mangaId, chapterIds, force = false) =>
+    invoke<Enqueued>("download_chapters", {
       source,
       mangaId,
       language: languages(source)[0],
       chapterIds,
+      force,
     }),
   importLocal: (paths, title) =>
     invoke<ImportReport>("import_local", {

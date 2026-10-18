@@ -11,11 +11,12 @@ import {
   sampleLibrary,
 } from "./mock-data";
 import { mockDiagnostics } from "./mock-diagnostics";
+import { type Failure, simulateDownload } from "./mock-download";
 import { simulateExport } from "./mock-export";
 import { mockExportResult, mockFlags } from "./mock-flags";
 import { mockImport } from "./mock-import";
 import { markExported, mockLibrary } from "./mock-library";
-import { emitJob, mockJobState, simulatedQueue } from "./mock-queue-sim";
+import { emitJob, simulatedQueue } from "./mock-queue-sim";
 import { mockSearch } from "./mock-search";
 import { mockStorage } from "./mock-storage";
 import { mockUpdates } from "./mock-updates";
@@ -52,25 +53,6 @@ function chaptersOf(source: string, id: string): Chapter[] {
   const list = manga ? sampleChapters(manga, DATA_DIR) : [];
   chapterCache.set(key, list);
   return list;
-}
-
-type Failure = { page: number; error: string };
-
-async function simulateDownload(chapter: Chapter, source: string, failure: Failure | null) {
-  const pages = 18 + (chapter.id.length % 7);
-  emitJob(chapter, source, { state: "running", attempts: 1, pages_total: pages });
-  for (let page = 1; page <= pages; page++) {
-    await wait(90 + Math.random() * 120);
-    if (mockJobState(chapter.id) !== "running") return;
-    if (failure && page === failure.page) {
-      emitJob(chapter, source, { state: "failed", pages_done: page - 1, error: failure.error });
-      return;
-    }
-    const done = page === pages;
-    if (done) chapter.local_path = `${DATA_DIR}/${source}/${chapter.manga_id}/${chapter.number}`;
-    const state = done ? "done" : "running";
-    emitJob(chapter, source, { state, pages_done: page, local_path: chapter.local_path });
-  }
 }
 
 /** The core's challenge error for a provider behind a browser check that has no session yet. */
@@ -157,11 +139,12 @@ export const mockBackend: Backend = {
     await wait(refresh ? 600 : 300);
     return chaptersOf(source, id).map((c) => ({ ...c }));
   },
-  async downloadChapters(source, mangaId, chapterIds) {
+  async downloadChapters(source, mangaId, chapterIds, force = false) {
     const manga = sampleCatalog.find((m) => m.source === source && m.id === mangaId);
     if (manga) library.set(`${source}:${mangaId}`, manga);
     const all = chaptersOf(source, mangaId);
-    const picked = chapterIds.flatMap((id) => all.filter((c) => c.id === id));
+    const asked = chapterIds.flatMap((id) => all.filter((c) => c.id === id));
+    const picked = asked.filter((c) => force || !c.local_path);
     for (const c of picked)
       emitJob(c, source, { state: "queued", manga_title: manga?.title ?? "" });
     void (async () => {
@@ -171,9 +154,11 @@ export const mockBackend: Backend = {
           chapter,
           source,
           wall ?? (i === 2 ? { page: 9, error: "HTTP 429 from source" } : null),
+          DATA_DIR,
         );
     })();
-    return [];
+    const on_disk = asked.filter((c) => !picked.includes(c)).map((c) => c.id);
+    return { queued: picked.length, missing: [], on_disk };
   },
   async importLocal(paths, title) {
     await wait(700);

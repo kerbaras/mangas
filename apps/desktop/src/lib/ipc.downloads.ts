@@ -36,6 +36,15 @@ export type DownloadJob = {
   local_path: string | null;
 };
 
+/** Mirrors the desktop's `DownloadReport`: what one download request queued and skipped. */
+export type Enqueued = {
+  queued: number;
+  /** Ids the source no longer lists: nothing was queued for them. */
+  missing: string[];
+  /** Ids already on disk, left alone unless asked to download again. */
+  on_disk: string[];
+};
+
 /** Mirrors `mangas_core::download::queue::QueueEvent` (serde tag = "kind"). */
 export type QueueEvent =
   | {

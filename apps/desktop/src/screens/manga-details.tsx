@@ -1,4 +1,4 @@
-import { Download, Send } from "lucide-react";
+import { Download, RotateCcw, Send } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ChallengePrompt } from "@/components/challenge-prompt";
@@ -14,23 +14,24 @@ import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAsync } from "@/hooks/use-async";
+import { useChapterDownload } from "@/hooks/use-chapter-download";
 import { useChapterSelection } from "@/hooks/use-chapter-selection";
-import { chapterFailed, useDownloads } from "@/hooks/use-downloads";
+import { useDownloads } from "@/hooks/use-downloads";
 import { useLibraryEntry } from "@/hooks/use-library-entry";
 import { useMangaDetails } from "@/hooks/use-manga-details";
 import {
   chapterSummary,
-  downloadable,
   exportable,
   filterByLanguage,
+  isUnavailable,
   languagesOf,
+  pickSelected,
   selectableIds,
   selectionSummary,
   sortChapters,
 } from "@/lib/chapters";
-import { rememberDownloads } from "@/lib/download-labels";
 import { languageLabel } from "@/lib/format";
-import { downloadChapters, isChallenge, type Manga } from "@/lib/ipc";
+import { isChallenge, type Manga } from "@/lib/ipc";
 import { loadChapters } from "@/lib/load-chapters";
 import { useNavigation } from "@/lib/navigation";
 import { notifyError } from "@/lib/notify";
@@ -89,31 +90,10 @@ export function MangaDetailsScreen({ manga: card }: Props) {
   const visibleIds = useMemo(() => selectableIds(visible), [visible]);
   const { selected, onToggle, onToggleAll, clear } = useChapterSelection(visibleIds);
 
-  const toDownload = downloadable(all, selected);
+  const toDownload = pickSelected(all, selected).filter((c) => !isUnavailable(c));
   const toExport = exportable(all, selected);
 
-  const download = async () => {
-    rememberDownloads(
-      toDownload.map((c) => [
-        c.id,
-        { label: `Chapter ${c.number} of ${manga.title}`, source, mangaId: id },
-      ]),
-    );
-    try {
-      // Queued chapters report through the queue; these ids were not queued at all.
-      const missing = await downloadChapters(
-        source,
-        id,
-        toDownload.map((c) => c.id),
-      );
-      for (const gone of missing)
-        chapterFailed(gone, "not found: the source no longer lists this chapter");
-      clear();
-    } catch (e: unknown) {
-      notifyError("Download failed", e, { source, retry: download, id: `download-${source}` });
-    }
-  };
-
+  const download = useChapterDownload({ source, mangaId: id, title: manga.title }, clear);
   return (
     <section className="flex h-full flex-col">
       <ScreenHeader back title={manga.title} subtitle={source} />
@@ -166,7 +146,17 @@ export function MangaDetailsScreen({ manga: card }: Props) {
           >
             <Send /> Send to Kindle
           </Button>
-          <Button size="sm" variant="primary" disabled={toDownload.length === 0} onClick={download}>
+          {toExport.length > 0 && (
+            <Button size="sm" onClick={() => void download(toExport, true)}>
+              <RotateCcw /> Download again
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={toDownload.length === 0}
+            onClick={() => void download(toDownload)}
+          >
             <Download /> Download selected
           </Button>
         </div>
