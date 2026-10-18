@@ -7,7 +7,7 @@ use anyhow::bail;
 use clap::Args as ClapArgs;
 use mangas_core::export::kindle::{export, ExportRequest};
 use mangas_core::export::{Format, Labels, PROFILES};
-use mangas_core::library;
+use mangas_core::library::{self, Library};
 
 use super::cut_args::{print_progress, CutArgs, DEFAULT_PROFILE};
 use super::export_args::FormatArg;
@@ -23,7 +23,8 @@ pub struct Args {
     /// File format [default: the output's extension, else epub]
     #[arg(long, value_enum)]
     pub format: Option<FormatArg>,
-    /// Book title (defaults to the first chapter directory's parent name)
+    /// Book title (defaults to the series in the library, else the first chapter directory's
+    /// parent name)
     #[arg(long)]
     pub title: Option<String>,
     /// Output file [default: out.<format>]
@@ -50,15 +51,15 @@ fn list_profiles() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn default_title(chapters: &[PathBuf]) -> String {
-    chapters
-        .first()
-        .and_then(|c| c.canonicalize().ok())
-        .and_then(|c| {
-            c.parent()
-                .and_then(|p| p.file_name())
-                .map(|n| n.to_string_lossy().into_owned())
-        })
+/// The library's series for the chapters, else the first folder's parent name.
+fn default_title(series: Option<&str>, chapters: &[PathBuf]) -> String {
+    let folder = || {
+        let dir = chapters.first()?.canonicalize().ok()?;
+        Some(dir.parent()?.file_name()?.to_string_lossy().into_owned())
+    };
+    series
+        .map(str::to_owned)
+        .or_else(folder)
         .unwrap_or_else(|| "Manga".to_string())
 }
 
@@ -86,6 +87,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .clone()
         .unwrap_or_else(|| PathBuf::from(format!("out.{format}")));
     let penalizer = args.cut.penalizer().await?;
+    let labels = labels_of(&args.chapters);
     let req = ExportRequest {
         chapter_dirs: args.chapters.clone(),
         device: dev,
@@ -94,11 +96,11 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         title: args
             .title
             .clone()
-            .unwrap_or_else(|| default_title(&args.chapters)),
+            .unwrap_or_else(|| default_title(labels.series.as_deref(), &args.chapters)),
         title_explicit: args.title.is_some(),
         output: output.clone(),
         meta: Default::default(),
-        labels: labels_of(&args.chapters),
+        labels,
     };
     let started = Instant::now();
     let stats = export(&req, penalizer, &mut print_progress)?;
@@ -138,23 +140,33 @@ pub(super) fn mark_exported(dirs: &[&Path]) {
 
 /// Series/chapter/volume labels from the library; folders it doesn't know export unlabelled.
 fn labels_of(chapters: &[PathBuf]) -> Labels {
-    let refs: Vec<&Path> = chapters.iter().map(PathBuf::as_path).collect();
-    let spellings = spellings(&refs);
-    let dirs: Vec<&Path> = spellings.iter().map(PathBuf::as_path).collect();
     paths::library_db()
         .and_then(|db| Ok(library::open(&db)?))
-        .and_then(|lib| Ok(library::export_labels(&lib, &dirs, chapters.len())?))
+        .and_then(|lib| labels_in(&lib, chapters))
         .unwrap_or_else(|e: anyhow::Error| {
             eprintln!("warning: could not read the chapters' series and numbers: {e}");
             Labels::default()
         })
 }
 
-/// Each folder made absolute and resolved (symlinks), since the library may store either spelling.
+fn labels_in(lib: &Library, chapters: &[PathBuf]) -> anyhow::Result<Labels> {
+    let refs: Vec<&Path> = chapters.iter().map(PathBuf::as_path).collect();
+    let spellings = spellings(&refs);
+    let dirs: Vec<&Path> = spellings.iter().map(PathBuf::as_path).collect();
+    Ok(library::export_labels(lib, &dirs, chapters.len())?)
+}
+
+/// Each folder as given, made absolute and resolved (symlinks): the library may store any of them.
 fn spellings(dirs: &[&Path]) -> Vec<PathBuf> {
     let mut spellings: Vec<PathBuf> = dirs
         .iter()
-        .flat_map(|d| [std::path::absolute(d).ok(), d.canonicalize().ok()])
+        .flat_map(|d| {
+            [
+                Some(d.to_path_buf()),
+                std::path::absolute(d).ok(),
+                d.canonicalize().ok(),
+            ]
+        })
         .flatten()
         .collect();
     spellings.sort();
@@ -163,13 +175,5 @@ fn spellings(dirs: &[&Path]) -> Vec<PathBuf> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn kindle_writes_epub_unless_the_flags_say_otherwise() {
-        assert_eq!(legacy_format(None, None), Format::Epub);
-        assert_eq!(legacy_format(None, Some(Path::new("b.pdf"))), Format::Pdf);
-        assert_eq!(legacy_format(Some(Format::Cbz), None), Format::Cbz);
-    }
-}
+#[path = "kindle_tests.rs"]
+mod tests;
