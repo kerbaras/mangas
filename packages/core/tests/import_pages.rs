@@ -16,6 +16,12 @@ fn encoded(format: image::ImageFormat) -> Vec<u8> {
     out.into_inner()
 }
 
+fn image_dimensions_from_memory_ok(bytes: &[u8]) -> bool {
+    image::ImageReader::new(std::io::Cursor::new(bytes))
+        .with_guessed_format()
+        .is_ok_and(|r| r.into_dimensions().is_ok())
+}
+
 /// 11 bytes with a `.jpg` name, as in the QA report of #89.
 const FAKE: &[u8] = b"not a page!";
 
@@ -153,6 +159,10 @@ fn check_page_names_what_is_wrong() {
     assert_eq!(check_page(&jpeg), Ok("jpg"));
     assert_eq!(check_page(FAKE), Err("not an image".to_string()));
     assert_eq!(check_page(&png[..20]), Err("damaged PNG image".to_string()));
+    // Header intact (the size reads fine), pixel data cut off: only a full decode catches it.
+    let cut_pixels = &png[..png.len() - 16];
+    assert!(image_dimensions_from_memory_ok(cut_pixels));
+    assert_eq!(check_page(cut_pixels), Err("damaged PNG image".to_string()));
     assert_eq!(
         check_page(&jpeg[..jpeg.len() - 10]),
         Err("damaged JPG image".to_string())

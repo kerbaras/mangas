@@ -36,20 +36,17 @@ pub fn sniff_extension(bytes: &[u8]) -> Option<&'static str> {
     }
 }
 
-/// The shared page check: a body in a decodable page format whose header gives a non-empty
-/// size, and, for JPEG, not cut off. `Ok` is the extension to store it under; `Err` says why
-/// the page can't be used. Reads only the header, so it stays cheap on big imports.
+/// The shared page check, the same one the cover cache uses: a body in a decodable page format
+/// that decodes completely to a non-empty image and, for JPEG, is not cut off. `Ok` is the
+/// extension to store it under; `Err` says why the page can't be used. Decoding the whole image
+/// catches damaged pixel data that would otherwise fail later, at export.
 pub fn check_page(bytes: &[u8]) -> Result<&'static str, String> {
     let ext = sniff_extension(bytes).ok_or("not an image")?;
     if !is_page_extension(ext) {
         return Err(format!("{} images aren't supported", ext.to_uppercase()));
     }
-    let size = image::ImageReader::new(std::io::Cursor::new(bytes))
-        .with_guessed_format()
-        .ok()
-        .and_then(|r| r.into_dimensions().ok());
-    match size {
-        Some((w, h)) if w > 0 && h > 0 && !truncated_jpeg(ext, bytes) => Ok(ext),
+    match image::load_from_memory(bytes) {
+        Ok(img) if img.width() > 0 && img.height() > 0 && !truncated_jpeg(ext, bytes) => Ok(ext),
         _ => Err(format!("damaged {} image", ext.to_uppercase())),
     }
 }
