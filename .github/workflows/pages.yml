@@ -1,0 +1,68 @@
+name: Pages
+
+# Pull requests run the same build so a broken site fails before merge; only main deploys.
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/web/**
+      - apps/desktop/src/styles/tokens.css
+      - apps/desktop/src-tauri/icons/**
+      - package.json
+      - pnpm-workspace.yaml
+      - pnpm-lock.yaml
+      - biome.json
+      - .github/workflows/pages.yml
+  pull_request:
+    paths:
+      - apps/web/**
+      - apps/desktop/src/styles/tokens.css
+      - apps/desktop/src-tauri/icons/**
+      - package.json
+      - pnpm-workspace.yaml
+      - pnpm-lock.yaml
+      - biome.json
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.event_name == 'pull_request' && github.ref || 'deploy' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      # The whole workspace: the site imports the desktop tokens, which import desktop's tailwindcss.
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -C apps/web build
+      - if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/web/dist
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - id: deployment
+        uses: actions/deploy-pages@v4

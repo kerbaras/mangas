@@ -22,6 +22,9 @@ app, small CLI. The original Go/TUI implementation was removed once the Rust por
   calls into core. The shipped `mangas` executable is the desktop one: with arguments it runs
   this CLI, without them it opens the app.
 - `apps/desktop`: Tauri shell in `src-tauri` (IPC commands only, no logic) and React UI in `src`.
+- `apps/web`: the static landing page (Astro + Tailwind, desktop tokens and icon), deployed to
+  GitHub Pages by `.github/workflows/pages.yml`. Its only script resolves the latest release's
+  installer (`src/lib`); every link works without it.
 - `docs/rewrite-design.md`: architecture and decisions.
 
 ## Commands

@@ -1,0 +1,46 @@
+/* The desktop app's tokens (colours, Fluent 2 type ramp, radii), so site and app match. */
+@import "../../../desktop/src/styles/tokens.css";
+
+@theme {
+  /* Fluent 2 display sizes, for the hero only. */
+  --text-large-title: 40px;
+  --text-large-title--line-height: 52px;
+  --text-display: 68px;
+  --text-display--line-height: 76px;
+  /* The download button keeps the light accent in both schemes: white text on the dark-mode
+     accent is under 4.5:1. */
+  --color-cta: #b3261e;
+  --color-cta-hover: #9a1f18;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-cta-hover: #c4342b;
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: light dark;
+  }
+
+  body {
+    @apply bg-canvas text-ink font-sans text-body-lg antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+  }
+
+  a {
+    text-underline-offset: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must beat utility classes */
+    transition: none !important;
+  }
+}

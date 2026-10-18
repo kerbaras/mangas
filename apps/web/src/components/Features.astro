@@ -1,0 +1,27 @@
+---
+const features = [
+  {
+    title: "A library that keeps up",
+    body: "Follow series from MangaDex, MangaDot, WeebCentral, Tapas, Comick and Webtoons. Mangas checks for new chapters and works through a download queue that picks up where it left off after a restart.",
+  },
+  {
+    title: "Smart cut for webtoons",
+    body: "Long strips are split into pages at the gaps between panels instead of every few hundred pixels, so speech bubbles and faces stay in one piece. Preview the pages before you export.",
+  },
+  {
+    title: "EPUB, CBZ or PDF, then to your Kindle",
+    body: "Export single chapters or whole volumes sized for your e-reader, then send them to your Kindle address by email or copy them over USB.",
+  },
+];
+---
+
+<section aria-label="Features" class="grid gap-x-10 gap-y-8 md:grid-cols-3">
+  {
+    features.map((f) => (
+      <div class="flex flex-col gap-2 border-t border-stroke pt-5">
+        <h2 class="text-body-lg font-semibold">{f.title}</h2>
+        <p class="text-body text-ink-2">{f.body}</p>
+      </div>
+    ))
+  }
+</section>

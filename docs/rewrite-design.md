@@ -14,6 +14,7 @@ packages/core        mangas-core: domain, sources, library (SQLite), download, e
 apps/cli         mangas: clap CLI, one file per subcommand, calls core only
 apps/desktop       Tauri 2 shell (src-tauri) + React/Vite/Tailwind UI (src); IPC commands are thin
                    wrappers over core
+apps/web           Astro + Tailwind landing page (static, GitHub Pages), reuses the desktop tokens
 docs/              design notes
 ```
 

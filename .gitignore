@@ -4,3 +4,5 @@ target/
 node_modules/
 apps/desktop/dist/
 apps/desktop/src-tauri/gen/
+apps/web/dist/
+apps/web/.astro/

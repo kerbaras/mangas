@@ -6,3 +6,5 @@ allowBuilds:
   "@biomejs/biome": true
   "@tauri-apps/cli": true
   esbuild: true
+  # the site uses Astro's passthrough image service, so sharp never runs
+  sharp: false

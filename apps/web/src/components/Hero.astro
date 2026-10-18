@@ -1,0 +1,28 @@
+---
+import { icon, RELEASES } from "../brand";
+---
+
+<header class="flex flex-col items-start gap-6">
+  <img src={icon.src} alt="" width="72" height="72" class="size-18 rounded-2xl" />
+  <div class="flex flex-col gap-3">
+    <h1 class="text-large-title font-semibold tracking-tight sm:text-display">Mangas</h1>
+    <p class="max-w-[34ch] text-subtitle text-ink-2">
+      Follow manga and webtoons, download new chapters, and read them on your Kindle.
+    </p>
+  </div>
+  <div class="flex flex-col gap-3">
+    <a
+      id="download"
+      href={RELEASES}
+      class="inline-flex w-fit flex-col rounded-lg bg-cta px-6 py-3 text-white no-underline transition-colors hover:bg-cta-hover"
+    >
+      <span id="download-label" class="text-body-lg font-semibold">Download</span>
+      <span id="download-meta" class="text-caption text-white/85">macOS, Windows and Linux</span>
+    </a>
+    <p class="flex flex-wrap gap-x-4 gap-y-1 text-body text-ink-2">
+      <span data-version>Free and open source</span>
+      <a id="download-alt" href={RELEASES} class="underline hover:text-ink" hidden>Other build</a>
+      <a href="#downloads" class="underline hover:text-ink">All downloads</a>
+    </p>
+  </div>
+</header>
