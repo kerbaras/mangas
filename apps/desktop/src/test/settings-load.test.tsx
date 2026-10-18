@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type Backend, setBackend } from "@/lib/ipc";
+import { mockBackend } from "@/lib/ipc.mock";
 import { loadSettings, readSettingsLoad, writeSettings } from "@/lib/settings";
 import { SettingsScreen } from "@/screens/settings";
 
@@ -35,5 +36,18 @@ describe("settings load", () => {
     expect(screen.getByText("library: database is locked")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /try again/i }));
     await waitFor(() => expect(getSettings).toHaveBeenCalledTimes(2));
+  });
+
+  it("keeps settings that loaded when an overlapping load fails later", async () => {
+    const stored = await mockBackend.getSettings();
+    let calls = 0;
+    backend(async () => {
+      calls += 1;
+      if (calls === 1) return stored;
+      await new Promise((r) => setTimeout(r, 10));
+      throw "library: database is locked";
+    });
+    await Promise.all([loadSettings(), loadSettings()]);
+    expect(readSettingsLoad()).toEqual({ kind: "ready" });
   });
 });

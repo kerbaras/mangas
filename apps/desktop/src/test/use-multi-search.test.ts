@@ -1,8 +1,9 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useMultiSearch } from "@/hooks/use-multi-search";
 import { type Backend, type SearchGroup, setBackend } from "@/lib/ipc";
 import { cachedResults, forgetSearch, rememberResults } from "@/lib/search-session";
+import { writeSettings } from "@/lib/settings";
 
 const answer = (provider: string): SearchGroup => ({
   provider,
@@ -69,5 +70,17 @@ describe("useMultiSearch", () => {
     rerender({ q: "berserk" });
     await waitFor(() => expect(searchAll).toHaveBeenCalledTimes(2));
     expect(searchAll).toHaveBeenLastCalledWith("berserk", ["mangadex"]);
+  });
+
+  it("searches again after the settings change", async () => {
+    const searchAll = backend();
+    const first = renderHook(() => useMultiSearch("dandadan", ["mangadex"]));
+    await waitFor(() => expect(first.result.current.groups.mangadex?.kind).toBe("done"));
+    first.unmount();
+    act(() => writeSettings({ defaultDevice: "kindle-scribe" }));
+
+    const again = renderHook(() => useMultiSearch("dandadan", ["mangadex"]));
+    await waitFor(() => expect(searchAll).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(again.result.current.groups.mangadex?.kind).toBe("done"));
   });
 });

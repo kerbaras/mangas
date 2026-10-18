@@ -83,18 +83,21 @@ export const readSettingsLoad = (): SettingsLoad => load;
 
 /**
  * Hydrates from the backend; the platform data dir replaces the `~` placeholder default. Never
- * throws: a failure is kept in `readSettingsLoad()` for the Settings screen to show and retry.
+ * throws: a failure is kept in `readSettingsLoad()` for the Settings screen to show and retry,
+ * unless settings already loaded (an overlapping or later reload can't hide them again).
  */
 export async function loadSettings(): Promise<void> {
-  load = { kind: "loading" };
-  notify();
+  if (load.kind !== "ready") {
+    load = { kind: "loading" };
+    notify();
+  }
   try {
     const [stored, platform] = await Promise.all([getSettings(), defaultDataDir()]);
     platformDataDir = platform || DEFAULTS.dataDir;
     cached = fromStored(stored, platformDataDir);
     load = { kind: "ready" };
   } catch (e: unknown) {
-    load = { kind: "failed", error: errorMessage(e) };
+    if (load.kind !== "ready") load = { kind: "failed", error: errorMessage(e) };
   }
   notify();
 }
