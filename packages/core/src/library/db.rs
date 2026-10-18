@@ -80,4 +80,36 @@ mod tests {
         migrate(&mut conn, &[create, "ALTER TABLE t ADD COLUMN b TEXT;"]).unwrap();
         assert_eq!(version(&conn), 2);
     }
+
+    /// Parallel branches that both add `000N_*.sql` collide here instead of one silently never running.
+    #[test]
+    fn migration_files_are_numbered_once_each_and_all_registered_in_order() {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
+        let mut files: Vec<(u32, String)> = std::fs::read_dir(&dir)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().into_string().unwrap())
+            .filter(|name| name.ends_with(".sql"))
+            .map(|name| (name[..4].parse().unwrap(), name))
+            .collect();
+        files.sort();
+
+        let numbers: Vec<u32> = files.iter().map(|(n, _)| *n).collect();
+        let expected: Vec<u32> = (1..=files.len() as u32).collect();
+        assert_eq!(
+            numbers, expected,
+            "migration numbers must be unique and consecutive: {files:?}"
+        );
+        assert_eq!(
+            MIGRATIONS.len(),
+            files.len(),
+            "every migration file is in MIGRATIONS"
+        );
+        for ((_, name), sql) in files.iter().zip(MIGRATIONS) {
+            assert_eq!(
+                std::fs::read_to_string(dir.join(name)).unwrap(),
+                *sql,
+                "{name} out of order"
+            );
+        }
+    }
 }
