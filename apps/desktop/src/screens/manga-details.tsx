@@ -35,7 +35,7 @@ type Props = { manga: Manga };
 
 export function MangaDetailsScreen({ manga: card }: Props) {
   const { source, id } = card;
-  const { manga, loading } = useMangaDetails(card);
+  const { manga, loading, reload: reloadManga } = useMangaDetails(card);
   const nav = useNavigation();
   const refreshToast = `refresh-${source}:${id}`;
   const mounted = useRef(true);
@@ -58,6 +58,11 @@ export function MangaDetailsScreen({ manga: card }: Props) {
       }),
     [source, id],
   );
+  // Refreshing a followed title's chapters also saves its source record; show what that filled.
+  const refreshed = chapters.state.kind === "ready";
+  useEffect(() => {
+    if (refreshed) reloadManga();
+  }, [refreshed, reloadManga]);
   const downloads = useDownloads();
   const [language, setLanguage] = useState<string | null>(null);
 
