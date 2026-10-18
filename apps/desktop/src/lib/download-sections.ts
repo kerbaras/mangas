@@ -21,7 +21,10 @@ const SECTION_OF: Record<JobState, SectionKey> = {
 
 export const sectionOf = (job: DownloadJob): SectionKey => SECTION_OF[job.state];
 
-/** Active and queued keep queue order (oldest first); failed and completed show the latest first. */
+/**
+ * Active and queued keep queue order (the worker picks by `created_at`, which a retry resets);
+ * failed and completed show the latest first.
+ */
 export function groupJobs(jobs: Iterable<DownloadJob>): Record<SectionKey, DownloadJob[]> {
   const out: Record<SectionKey, DownloadJob[]> = {
     active: [],
@@ -30,10 +33,10 @@ export function groupJobs(jobs: Iterable<DownloadJob>): Record<SectionKey, Downl
     completed: [],
   };
   for (const job of jobs) out[sectionOf(job)].push(job);
-  const byId = (a: DownloadJob, b: DownloadJob) => a.id - b.id;
+  const inQueue = (a: DownloadJob, b: DownloadJob) => a.created_at - b.created_at || a.id - b.id;
   const latest = (a: DownloadJob, b: DownloadJob) => b.updated_at - a.updated_at || b.id - a.id;
-  out.active.sort(byId);
-  out.queued.sort(byId);
+  out.active.sort(inQueue);
+  out.queued.sort(inQueue);
   out.failed.sort(latest);
   out.completed.sort(latest);
   return out;

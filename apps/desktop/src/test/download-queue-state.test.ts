@@ -38,6 +38,9 @@ describe("speed from progress deltas", () => {
       { at: SPEED_WINDOW_MS + 1, pages: 5 },
     ]);
     expect(track([{ at: 0, pages: 9 }], running(2), 500)).toEqual([{ at: 500, pages: 2 }]);
+    expect(track(old, running(1), SPEED_WINDOW_MS + 1)).toEqual([
+      { at: SPEED_WINDOW_MS + 1, pages: 1 },
+    ]);
     expect(track(old, makeJob({ state: "paused", pages_done: 3 }), 900)).toBeUndefined();
     expect(track(undefined, makeJob({ state: "running" }), 0)).toBeUndefined();
   });

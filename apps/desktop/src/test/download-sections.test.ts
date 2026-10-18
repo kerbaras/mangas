@@ -31,6 +31,11 @@ describe("downloads sections", () => {
     expect(g.completed.map((j) => j.id)).toEqual([5, 4]);
   });
 
+  it("puts a retried job at the back of the queue, where the worker picks it", () => {
+    const g = groupJobs([makeJob({ id: 1, created_at: 50 }), makeJob({ id: 2, created_at: 20 })]);
+    expect(g.queued.map((j) => j.id)).toEqual([2, 1]);
+  });
+
   it("labels every state, with starting before the pages are listed", () => {
     const label = (patch: Parameters<typeof makeJob>[0]) => stateLabel(makeJob(patch));
     expect(label({ state: "queued" })).toBe("Queued");

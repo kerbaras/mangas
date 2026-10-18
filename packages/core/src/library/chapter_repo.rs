@@ -64,6 +64,16 @@ pub fn upsert_chapters(
                 seen_before,
             ])?;
         }
+        // A chapter the source lists again is no longer "unlisted": its job retries normally
+        // and clearing it keeps the chapter.
+        tx.execute(
+            "UPDATE download_jobs
+             SET error = CASE WHEN error = ?2 THEN NULL
+                              ELSE replace(error, ?2, 'chapter was missing from a listing') END
+             WHERE source = ?1 AND instr(COALESCE(error, ''), ?2) > 0
+               AND chapter_id IN (SELECT id FROM synced)",
+            params![source, UNLISTED],
+        )?;
         // A dropped chapter that still has a download on its way keeps its row: the job fails
         // with the reason instead of vanishing with it, and stays until the user clears it.
         tx.execute(

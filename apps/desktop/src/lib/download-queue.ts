@@ -30,10 +30,11 @@ export function track(
   at: number,
 ): Sample[] | undefined {
   if (job.state !== "running" || job.pages_total === 0) return undefined;
-  const kept = (samples ?? []).filter((s) => s.pages <= job.pages_done);
+  const kept = (samples ?? []).filter(
+    (s) => s.pages <= job.pages_done && at - s.at <= SPEED_WINDOW_MS,
+  );
   const last = kept[kept.length - 1];
-  if (last?.pages === job.pages_done) return kept;
-  return [...kept, { at, pages: job.pages_done }].filter((s) => at - s.at <= SPEED_WINDOW_MS);
+  return last?.pages === job.pages_done ? kept : [...kept, { at, pages: job.pages_done }];
 }
 
 /** Pages per second over the samples, or null until two of them are far enough apart. */
