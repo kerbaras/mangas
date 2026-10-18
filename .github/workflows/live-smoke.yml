@@ -1,7 +1,7 @@
 name: Live smoke
 
 # Manual: runs the provider contract and `providers check` against the real sites. MangaDot is
-# behind a Cloudflare verification that CI cannot pass, so only MangaDex and WeebCentral run here.
+# behind a Cloudflare verification that CI cannot pass, so only MangaDex, WeebCentral and Tapas run here.
 on:
   workflow_dispatch:
 
@@ -39,3 +39,17 @@ jobs:
         run: cargo test -p mangas-providers --test live -- --ignored --nocapture weebcentral
       - name: providers check weebcentral
         run: cargo run -q -p mangas-cli -- providers check weebcentral
+
+  tapas:
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Contract tests (live)
+        env:
+          MANGAS_LIVE: "1"
+        run: cargo test -p mangas-providers --test live -- --ignored --nocapture tapas
+      - name: providers check tapas
+        run: cargo run -q -p mangas-cli -- providers check tapas
