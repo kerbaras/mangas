@@ -3,6 +3,7 @@ use std::path::Path;
 
 use futures::stream::{self, StreamExt};
 
+use super::cbz::is_image;
 use super::event::{Event, OnEvent};
 use super::fetcher::PageFetcher;
 use super::incomplete::{incomplete, missing_on_disk};
@@ -25,8 +26,11 @@ pub fn page_file_name(index: usize, url: &str) -> String {
     format!("{index:04}.{}", extension_of(url))
 }
 
-/// Pages still to fetch given the files already in the chapter directory (resume).
+/// Pages still to fetch given the files already in the chapter directory (resume). A page
+/// counts as present by its index, whatever its extension: `0003.png` from a full-quality run
+/// is page 3 even when the URL now ends in `.jpg` (data saver), so no duplicate gets written.
 pub fn plan(urls: &PageUrls, existing: &HashSet<String>) -> Vec<PageJob> {
+    let present = present_indexes(existing);
     urls.0
         .iter()
         .enumerate()
@@ -35,7 +39,21 @@ pub fn plan(urls: &PageUrls, existing: &HashSet<String>) -> Vec<PageJob> {
             url: url.clone(),
             file_name: page_file_name(i + 1, url),
         })
-        .filter(|job| !existing.contains(&job.file_name))
+        .filter(|job| !present.contains(&job.index))
+        .collect()
+}
+
+/// Indexes of the finished page images among `names` (`0003.png`, not `0003.png.part` or
+/// `0003.txt`).
+fn present_indexes(names: &HashSet<String>) -> HashSet<usize> {
+    names
+        .iter()
+        .filter(|name| is_image(name))
+        .filter_map(|name| {
+            let (stem, _) = name.rsplit_once('.')?;
+            let numbered = !stem.is_empty() && stem.chars().all(|c| c.is_ascii_digit());
+            numbered.then(|| stem.parse().ok()).flatten()
+        })
         .collect()
 }
 

@@ -1,12 +1,16 @@
+use std::path::Path;
+use std::sync::Arc;
+
 use anyhow::bail;
 use clap::Args as ClapArgs;
 use mangas_core::domain::{Chapter, MangaId};
-use mangas_core::download::{self, Event};
+use mangas_core::download;
+use mangas_core::download::queue::{self, JobState, Scope};
 use mangas_core::library;
-use mangas_providers::http::PageClient;
 
+use super::watch::{count, run_until_settled};
 use super::{source_by_name, stored_settings};
-use crate::output::{out, outln};
+use crate::output::outln;
 use crate::paths;
 
 #[derive(ClapArgs)]
@@ -25,6 +29,9 @@ pub struct Args {
     /// Also pack each chapter into a .cbz next to its directory
     #[arg(long)]
     pub cbz: bool,
+    /// Also queue chapters already on disk; their missing pages get downloaded
+    #[arg(long)]
+    pub force: bool,
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
@@ -33,7 +40,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     }
     let source = source_by_name(&args.source)?;
     let id = MangaId(args.manga_id.clone());
-    let lib = library::open(&paths::library_db()?)?;
+    let lib = Arc::new(library::open(&paths::library_db()?)?);
     if library::get_manga(&lib, &args.source, &id)?.is_none() {
         bail!(
             "{} is not in your library; run `mangas add {}` first",
@@ -53,27 +60,34 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         bail!("no chapters match the selection");
     }
     let selected = without_unavailable(selected, args.chapters.is_some())?;
-    outln!("Downloading {} chapter(s) of {}", selected.len(), id)?;
-    let root = paths::downloads()?;
-    let pages = PageClient::for_source(source.as_ref())?;
-    let report = download::download_chapters(
-        source.as_ref(),
-        &pages,
-        &lib,
-        &selected,
-        &root,
-        &print_event,
-    )
-    .await?;
+    let queued = queue::enqueue(&lib, &args.source, selected, args.force)?;
+    if !queued.on_disk.is_empty() {
+        outln!(
+            "skipped {} chapter(s) already on disk (--force downloads them again)",
+            queued.on_disk.len()
+        )?;
+    }
+    if queued.jobs.is_empty() {
+        return Ok(());
+    }
+    outln!("Downloading {} chapter(s) of {}", queued.jobs.len(), id)?;
+    let jobs = run_until_settled(lib, Scope::Jobs(queued.jobs.into_iter().collect())).await?;
     if args.cbz {
-        for dir in &report.downloaded {
-            let out = download::cbz_path(dir);
-            let pages = download::write_cbz(dir, &out)?;
-            outln!("packed {pages} pages -> {}", out.display())?;
+        for job in jobs.iter().filter(|j| j.state == JobState::Done) {
+            if let Some(dir) = &job.local_path {
+                let out = download::cbz_path(Path::new(dir));
+                let pages = download::write_cbz(Path::new(dir), &out)?;
+                outln!("packed {pages} pages -> {}", out.display())?;
+            }
         }
     }
-    if !report.failed.is_empty() {
-        bail!("{} chapter(s) failed", report.failed.len());
+    let paused = count(&jobs, JobState::Paused);
+    if paused > 0 {
+        outln!("{paused} chapter(s) paused; `mangas queue resume --all` continues them")?;
+    }
+    let failed = count(&jobs, JobState::Failed);
+    if failed > 0 {
+        bail!("{failed} chapter(s) failed; `mangas queue retry --all` tries them again");
     }
     Ok(())
 }
@@ -100,17 +114,4 @@ fn without_unavailable(selected: Vec<Chapter>, explicit: bool) -> anyhow::Result
         outln!("{summary}")?;
     }
     Ok(available)
-}
-
-fn print_event(event: Event) {
-    match event {
-        Event::PageDone { page, total, .. } => {
-            // Progress only: a closed stdout must not stop the download.
-            let _ = out!("\r  page {page}/{total}");
-        }
-        Event::ChapterDone { path, pages, .. } => {
-            let _ = outln!("\r  {pages} pages -> {path}");
-        }
-        Event::Error { chapter, message } => eprintln!("\r  {chapter}: {message}"),
-    }
 }

@@ -11,6 +11,7 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
             allow_covers(app.handle());
+            start_downloads(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -29,7 +30,13 @@ pub fn run() {
             commands::catalog::get_manga,
             commands::catalog::unfollow_manga,
             commands::catalog::list_chapters,
-            commands::catalog::download_chapters,
+            commands::downloads::download_chapters,
+            commands::downloads::list_downloads,
+            commands::downloads::pause_download,
+            commands::downloads::resume_download,
+            commands::downloads::cancel_download,
+            commands::downloads::retry_download,
+            commands::downloads::clear_downloads,
             commands::covers::cover_path,
             commands::organisation::list_entries,
             commands::organisation::list_categories,
@@ -53,6 +60,43 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/// Starts the download queue worker: jobs left from a previous run resume, and every change
+/// reaches the UI as a [`commands::downloads::QUEUE_EVENT`].
+fn start_downloads(app: &tauri::AppHandle) {
+    use std::sync::Arc;
+    use tauri::{Emitter, Manager};
+    let runner = mangas_providers::QueueRunner::new(Box::new(|settings| {
+        paths::downloads(settings).map_err(mangas_core::Error::Other)
+    }));
+    let queue = paths::library_db()
+        .and_then(|db| mangas_core::library::open(&db).map_err(|e| e.to_string()))
+        .map(|lib| {
+            let config = mangas_core::download::queue::QueueConfig::default();
+            Arc::new(mangas_core::download::queue::Queue::new(
+                Arc::new(lib),
+                Arc::new(runner),
+                config,
+            ))
+        });
+    if let Ok(queue) = &queue {
+        let (queue, handle) = (queue.clone(), app.clone());
+        tauri::async_runtime::spawn(async move {
+            let emit = |event: mangas_core::download::queue::QueueEvent| {
+                if let Err(e) = handle.emit(commands::downloads::QUEUE_EVENT, &event) {
+                    tracing::warn!("emit download event: {e}");
+                }
+            };
+            let scope = mangas_core::download::queue::Scope::All;
+            if let Err(e) = queue.run(scope, false, &emit).await {
+                tracing::error!("download queue stopped: {e}");
+            }
+        });
+    } else if let Err(e) = &queue {
+        tracing::error!("download queue unavailable: {e}");
+    }
+    app.manage(commands::downloads::Downloads(queue));
 }
 
 /// Lets the webview load cached covers through the asset protocol, and nothing else on disk.

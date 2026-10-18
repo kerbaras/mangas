@@ -2,15 +2,7 @@
  * In-browser stand-in for the Tauri shell. Keeps a library in memory, fakes network latency and
  * drives the same progress events the Rust side emits, so every screen works in `pnpm dev:web`.
  */
-import type {
-  Backend,
-  Chapter,
-  DownloadProgress,
-  ExportProgress,
-  Manga,
-  Settings,
-  Unlisten,
-} from "./ipc";
+import type { Backend, Chapter, ExportProgress, Manga, Settings, Unlisten } from "./ipc";
 import {
   sampleProviders as providers,
   sampleCatalog,
@@ -23,6 +15,7 @@ import { simulateExport } from "./mock-export";
 import { mockExportResult, mockFlags } from "./mock-flags";
 import { mockImport } from "./mock-import";
 import { markExported, mockLibrary } from "./mock-library";
+import { emitJob, mockJobState, mockQueue } from "./mock-queue";
 import { mockSearch } from "./mock-search";
 import { mockStorage } from "./mock-storage";
 
@@ -41,7 +34,6 @@ const library = new Map(
   (mockFlags.emptyLibrary ? [] : sampleLibrary).map((m) => [`${m.source}:${m.id}`, m]),
 );
 const chapterCache = new Map<string, Chapter[]>();
-const downloadListeners = new Set<(p: DownloadProgress) => void>();
 const exportListeners = new Set<(p: ExportProgress) => void>();
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -63,19 +55,20 @@ function chaptersOf(source: string, id: string): Chapter[] {
 
 type Failure = { page: number; error: string };
 
-async function simulateDownload(chapter: Chapter, failure: Failure | null) {
+async function simulateDownload(chapter: Chapter, source: string, failure: Failure | null) {
   const pages = 18 + (chapter.id.length % 7);
+  emitJob(chapter, source, { state: "running", attempts: 1, pages_total: pages });
   for (let page = 1; page <= pages; page++) {
     await wait(90 + Math.random() * 120);
+    if (mockJobState(chapter.id) !== "running") return;
     if (failure && page === failure.page) {
-      for (const cb of downloadListeners)
-        cb({ chapter_id: chapter.id, page, pages, done: true, error: failure.error });
+      emitJob(chapter, source, { state: "failed", pages_done: page - 1, error: failure.error });
       return;
     }
     const done = page === pages;
-    if (done) chapter.local_path = `${DATA_DIR}/mangadex/${chapter.manga_id}/${chapter.number}`;
-    for (const cb of downloadListeners)
-      cb({ chapter_id: chapter.id, page, pages, done, error: null });
+    if (done) chapter.local_path = `${DATA_DIR}/${source}/${chapter.manga_id}/${chapter.number}`;
+    const state = done ? "done" : "running";
+    emitJob(chapter, source, { state, pages_done: page, local_path: chapter.local_path });
   }
 }
 
@@ -167,11 +160,14 @@ export const mockBackend: Backend = {
     if (manga) library.set(`${source}:${mangaId}`, manga);
     const all = chaptersOf(source, mangaId);
     const picked = chapterIds.flatMap((id) => all.filter((c) => c.id === id));
+    for (const c of picked)
+      emitJob(c, source, { state: "queued", manga_title: manga?.title ?? "" });
     void (async () => {
       const wall = wallOf(source);
       for (const [i, chapter] of picked.entries())
         await simulateDownload(
           chapter,
+          source,
           wall ?? (i === 2 ? { page: 9, error: "HTTP 429 from source" } : null),
         );
     })();
@@ -202,6 +198,6 @@ export const mockBackend: Backend = {
     },
   }),
   ...mockLibrary(library, chaptersOf),
-  onDownloadProgress: (cb) => subscribe(downloadListeners, cb),
+  ...mockQueue,
   onExportProgress: (cb) => subscribe(exportListeners, cb),
 };

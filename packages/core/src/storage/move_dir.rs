@@ -35,6 +35,8 @@ pub fn move_data_dir(
     to: &Path,
     on_progress: &mut dyn FnMut(MoveProgress),
 ) -> Result<Moved> {
+    // A download in any process (app or CLI) would keep writing into the old folder.
+    crate::download::queue::ensure_idle(lib)?;
     fs::create_dir_all(to)?;
     let to = fs::canonicalize(to)?;
     let from_resolved = fs::canonicalize(from).unwrap_or_else(|_| from.to_path_buf());

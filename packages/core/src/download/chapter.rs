@@ -106,16 +106,10 @@ pub async fn download_chapters(
     root: &Path,
     on_event: OnEvent<'_>,
 ) -> Result<Report> {
-    let fetcher = WithMirror::for_source(fetcher, source);
     let mut report = Report::default();
     for chapter in chapters {
-        let known = library::list_chapters(lib, source.name(), &chapter.manga_id, None)?;
-        let dest = unique_chapter_dir(chapter_dir(root, source.name(), chapter), chapter, &known);
-        match download_chapter_with(source, &fetcher, chapter, &dest, on_event).await {
-            Ok(_) => {
-                library::mark_downloaded(lib, source.name(), &chapter.id, &dest)?;
-                report.downloaded.push(dest);
-            }
+        match download_into_library(source, fetcher, lib, chapter, root, on_event).await {
+            Ok(dest) => report.downloaded.push(dest),
             Err(e) => {
                 on_event(Event::Error {
                     chapter: chapter.id.clone(),
@@ -126,4 +120,22 @@ pub async fn download_chapters(
         }
     }
     Ok(report)
+}
+
+/// Downloads `chapter` into its directory under `root` (one more try per page on the source's
+/// mirror) and records it in the library. Returns the chapter directory.
+pub async fn download_into_library(
+    source: &dyn Source,
+    fetcher: &dyn PageFetcher,
+    lib: &Library,
+    chapter: &Chapter,
+    root: &Path,
+    on_event: OnEvent<'_>,
+) -> Result<PathBuf> {
+    let fetcher = WithMirror::for_source(fetcher, source);
+    let known = library::list_chapters(lib, source.name(), &chapter.manga_id, None)?;
+    let dest = unique_chapter_dir(chapter_dir(root, source.name(), chapter), chapter, &known);
+    download_chapter_with(source, &fetcher, chapter, &dest, on_event).await?;
+    library::mark_downloaded(lib, source.name(), &chapter.id, &dest)?;
+    Ok(dest)
 }

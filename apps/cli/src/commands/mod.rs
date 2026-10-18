@@ -7,10 +7,12 @@ pub mod info;
 pub mod kindle;
 pub mod list;
 pub mod providers;
+pub mod queue;
 pub mod remove;
 pub mod search;
 pub mod settings;
 pub mod storage;
+mod watch;
 
 use std::sync::Arc;
 

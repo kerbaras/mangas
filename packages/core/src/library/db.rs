@@ -12,6 +12,7 @@ const MIGRATIONS: &[&str] = &[
     include_str!("../../migrations/0004_chapter_availability.sql"),
     include_str!("../../migrations/0005_manga_metadata.sql"),
     include_str!("../../migrations/0006_library_organisation.sql"),
+    include_str!("../../migrations/0007_download_jobs.sql"),
 ];
 
 /// Handle to the library database. The connection sits behind a mutex so a handle can be shared
@@ -42,7 +43,10 @@ pub fn open_in_memory() -> Result<Library> {
 }
 
 fn init(mut conn: Connection) -> Result<Library> {
-    conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")?;
+    // The desktop app and the CLI share the file: wait for the other's write instead of failing.
+    conn.execute_batch(
+        "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;",
+    )?;
     migrate(&mut conn, MIGRATIONS)?;
     Ok(Library {
         conn: Mutex::new(conn),

@@ -5,6 +5,7 @@
  */
 import type { DiagnosticsBackend } from "./ipc.diagnostics";
 import type { LibraryBackend } from "./ipc.library";
+import type { DownloadsBackend, JobState } from "./ipc.downloads";
 import type { Settings } from "./ipc.settings";
 import type { StorageBackend } from "./ipc.storage";
 
@@ -98,8 +99,12 @@ export type SearchGroup = { provider: string; status: ProviderStatus; items: Man
 export const CHALLENGE_PREFIX = "challenge:";
 export const isChallenge = (message: string) => message.includes(CHALLENGE_PREFIX);
 
+/** A chapter's download as its row shows it (see `toDownloadProgress`). */
 export type DownloadProgress = {
   chapter_id: string;
+  state: JobState;
+  /** Why the last attempt failed, while a queued job waits to try again. */
+  retrying: string | null;
   page: number;
   pages: number;
   done: boolean;
@@ -130,6 +135,7 @@ export type DetectorsStatus = {
 export type Unlisten = () => void;
 
 export type Backend = DiagnosticsBackend &
+  DownloadsBackend &
   LibraryBackend &
   StorageBackend & {
     listLibrary(): Promise<Manga[]>;
@@ -155,14 +161,13 @@ export type Backend = DiagnosticsBackend &
     getManga(source: string, id: string): Promise<Manga>;
     unfollowManga(source: string, id: string): Promise<void>;
     listChapters(source: string, mangaId: string, refresh?: boolean): Promise<Chapter[]>;
-    /** Follows the manga if needed, then resolves to the ids of chapters that failed; progress arrives via `onDownloadProgress`. */
+    /** Follows the manga if needed and queues the chapters; resolves to the ids the source no longer lists. */
     downloadChapters(source: string, mangaId: string, chapterIds: string[]): Promise<string[]>;
     /** Imports chapter folders / .cbz files (or one series folder) as a `local` manga. */
     importLocal(paths: string[], title?: string): Promise<ImportReport>;
     /** Resolves to the EPUB written, its page count and the files skipped as unsupported. */
     exportKindle(request: ExportRequest): Promise<ExportResult>;
     detectorsStatus(): Promise<DetectorsStatus>;
-    onDownloadProgress(cb: (p: DownloadProgress) => void): Promise<Unlisten>;
     onExportProgress(cb: (p: ExportProgress) => void): Promise<Unlisten>;
   };
 
@@ -213,7 +218,5 @@ export const importLocal = async (paths: string[], title?: string) =>
   (await backend()).importLocal(paths, title);
 export const exportKindle = async (r: ExportRequest) => (await backend()).exportKindle(r);
 export const detectorsStatus = async () => (await backend()).detectorsStatus();
-export const onDownloadProgress = async (cb: (p: DownloadProgress) => void) =>
-  (await backend()).onDownloadProgress(cb);
 export const onExportProgress = async (cb: (p: ExportProgress) => void) =>
   (await backend()).onExportProgress(cb);

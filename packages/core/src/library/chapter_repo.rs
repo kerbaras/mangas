@@ -4,10 +4,12 @@ use rusqlite::{params, Row};
 
 use super::Library;
 use crate::domain::{sort_by_number, Availability, Chapter, ChapterId, MangaId, Result};
+use crate::download::queue::{now_ms, UNLISTED};
 
 /// Stores the `language` chapter list of `manga_id` as the source currently reports it.
 /// Metadata is refreshed, `local_path` is left untouched so a re-sync never forgets what is
-/// on disk, and chapters the source no longer lists are dropped unless downloaded. An empty
+/// on disk, and chapters the source no longer lists are dropped unless downloaded or still in
+/// the download queue (their job fails with [`UNLISTED`]). An empty
 /// `chapters` therefore clears every non-downloaded chapter of that language.
 /// The manga must be followed.
 pub fn upsert_chapters(
@@ -61,10 +63,23 @@ pub fn upsert_chapters(
                 external_url,
             ])?;
         }
+        // A dropped chapter that still has a download on its way keeps its row: the job fails
+        // with the reason instead of vanishing with it, and stays until the user clears it.
+        tx.execute(
+            "UPDATE download_jobs
+             SET state = 'failed', error = ?4, owner = NULL, not_before = 0, updated_at = ?5
+             WHERE source = ?1 AND state IN ('queued', 'running', 'paused')
+               AND chapter_id IN (SELECT id FROM chapter
+                   WHERE source = ?1 AND manga_id = ?2 AND language = ?3 AND local_path IS NULL
+                     AND id NOT IN (SELECT id FROM synced))",
+            params![source, manga_id.0, language, UNLISTED, now_ms()],
+        )?;
         tx.execute(
             "DELETE FROM chapter
              WHERE source = ?1 AND manga_id = ?2 AND language = ?3 AND local_path IS NULL
-               AND id NOT IN (SELECT id FROM synced)",
+               AND id NOT IN (SELECT id FROM synced)
+               AND id NOT IN (SELECT chapter_id FROM download_jobs
+                   WHERE source = ?1 AND state IN ('queued', 'running', 'paused', 'failed'))",
             params![source, manga_id.0, language],
         )?;
     }

@@ -36,6 +36,8 @@ enum Command {
     Chapters(commands::chapters::Args),
     /// Download chapters of a followed manga
     Download(commands::download::Args),
+    /// Show and control the download queue shared with the desktop app
+    Queue(commands::queue::Args),
     /// Import chapter folders or .cbz files from disk into the library
     Import(commands::import::Args),
     /// Export downloaded chapters as a Kindle-ready EPUB
@@ -72,6 +74,7 @@ async fn dispatch(command: Command) -> anyhow::Result<()> {
         Command::Info(args) => commands::info::run(args).await,
         Command::Chapters(args) => commands::chapters::run(args).await,
         Command::Download(args) => commands::download::run(args).await,
+        Command::Queue(args) => commands::queue::run(args).await,
         Command::Import(args) => commands::import::run(args),
         Command::Kindle(args) => commands::kindle::run(args).await,
         Command::Providers(args) => commands::providers::run(args).await,
