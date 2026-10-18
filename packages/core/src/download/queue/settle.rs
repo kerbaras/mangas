@@ -19,9 +19,9 @@ pub struct Settled {
     pub paused: bool,
 }
 
-/// Runs `scope` until none of it is queued or running. A storage move's hold is waited out
-/// (`on_hold` is called once per hold) and the jobs carry on; the user's pause ends the run
-/// with jobs still queued.
+/// Runs `scope` until none of it is queued or running, in this process or another. A storage
+/// move's hold is waited out (`on_hold` is called once per hold) and the jobs carry on; the
+/// user's pause ends the run, once nothing is running, with jobs still queued.
 pub async fn run_until_settled(
     worker: &Queue,
     scope: Scope,
@@ -37,19 +37,19 @@ pub async fn run_until_settled(
             .filter(|j| scope.contains(j.id))
             .collect();
         let gate = library::queue_gate(lib)?;
-        let queued = jobs.iter().any(|j| j.state == JobState::Queued);
-        if !queued || gate.paused {
+        let any = |state: JobState| jobs.iter().any(|j| j.state == state);
+        // A chapter running in another process is not done yet, whatever the gate says.
+        if !any(JobState::Running) && (gate.paused || !any(JobState::Queued)) {
             let paused = gate.paused;
             return Ok(Settled { jobs, paused });
         }
-        if gate.held(now_ms()) {
-            if !waiting_out_hold {
-                on_hold();
-            }
-            waiting_out_hold = true;
+        let now = now_ms();
+        if gate.held(now) && !waiting_out_hold {
+            on_hold();
+        }
+        waiting_out_hold = gate.held(now);
+        if gate.closed(now) {
             tokio::time::sleep(HELD_POLL).await;
-        } else {
-            waiting_out_hold = false;
         }
     }
 }
