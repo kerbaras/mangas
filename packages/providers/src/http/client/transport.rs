@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 use mangas_core::domain::Result;
 use reqwest::{RequestBuilder, Url};
 
+use super::super::network;
 use super::super::redirect::{hop_for, MAX_REDIRECTS};
 use super::super::response::{
     edge_rejected, mitigated, retry_after, retryable_transport, should_retry, Attempt,
@@ -106,7 +107,8 @@ impl SiteClient {
                 if wait.is_none() && attempt > 0 {
                     log::warn!("{id}: giving up on {path} after {}: {e}", attempts(attempt));
                 }
-                return (Err(e.into()), wait);
+                let error = network::transport_error(e, &self.config.network);
+                return (Err(error), wait);
             }
         };
         if let Some(hop) = hop_for(&request.method, &response) {

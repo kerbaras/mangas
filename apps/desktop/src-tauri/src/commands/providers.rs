@@ -2,7 +2,7 @@
 //! site opens in its own window, the user passes the check, and the resulting cookies are
 //! stored with the user agent that obtained them for the Rust HTTP client to reuse.
 
-use mangas_core::library::{self, ProviderSession};
+use mangas_core::library::{self, ProviderSession, ProxyMode, Settings};
 use mangas_providers::{ProviderInfo, ProviderStatus};
 use tauri::{AppHandle, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
@@ -30,6 +30,21 @@ pub fn list_providers() -> Vec<ProviderInfo> {
 pub async fn provider_status(provider: String) -> Result<ProviderStatus, String> {
     let settings = settings_of(&open_library()?)?;
     Ok(mangas_providers::status(&provider, &settings).await)
+}
+
+/// Probes MangaDex through the proxy being edited (`mode`, `url`), before it is saved.
+#[tauri::command]
+#[tracing::instrument(level = "error", skip_all)]
+pub async fn test_proxy(mode: ProxyMode, url: String) -> Result<ProviderStatus, String> {
+    if mode == ProxyMode::Custom {
+        library::proxy_url(&url).map_err(to_ipc)?;
+    }
+    let settings = Settings {
+        proxy_mode: Some(mode),
+        proxy_url: Some(url),
+        ..settings_of(&open_library()?)?
+    };
+    Ok(mangas_providers::status("mangadex", &settings).await)
 }
 
 /// Opens `provider`'s site in a private window, so only a clearance earned there is seen. Once

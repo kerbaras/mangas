@@ -32,12 +32,12 @@ pub struct SiteClient {
 
 impl SiteClient {
     pub fn new(config: ClientConfig, session: Option<Session>) -> Result<Self> {
-        let http = Client::builder()
+        let builder = Client::builder()
             .user_agent(USER_AGENT)
             .redirect(Policy::none())
             .timeout(config.timeout)
-            .connect_timeout(config.connect_timeout)
-            .build()?;
+            .connect_timeout(config.connect_timeout);
+        let http = super::network::apply(builder, &config.network)?.build()?;
         let limiters = HostLimiters::shared();
         let bucket = limiters.bucket(&config.base, config.requests_per_second);
         limiters.declare_image_hosts(config.image_hosts, config.requests_per_second);

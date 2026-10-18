@@ -25,6 +25,7 @@ pub mod search;
 pub mod send;
 pub mod settings;
 mod settings_email;
+mod settings_show;
 mod settled;
 pub mod storage;
 pub mod update;

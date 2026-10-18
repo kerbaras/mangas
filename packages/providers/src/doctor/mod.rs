@@ -13,6 +13,8 @@ use mangas_core::sources::{Header, ProviderStatus, Source};
 pub use languages::first_language;
 pub use report::{lines, Report, Step, StepReport, STEPS};
 
+use mangas_core::library::Network;
+
 use crate::http::PageClient;
 
 /// Search results asked for, and how many of them are tried until one has chapters (popular
@@ -23,8 +25,8 @@ const CANDIDATES: usize = 5;
 /// Runs the check against the real site. The image step is a one-byte ranged GET of the first
 /// page through the downloader's [`PageClient`]: same page headers, pacing, retries and
 /// public-hosts-only rule.
-pub async fn check(source: &dyn Source, query: &str, language: &str) -> Report {
-    let client = PageClient::for_source(source).map_err(|e| e.to_string());
+pub async fn check(source: &dyn Source, query: &str, language: &str, network: &Network) -> Report {
+    let client = PageClient::via(source, network).map_err(|e| e.to_string());
     let client = &client;
     check_with(source, query, language, |url, _headers| async move {
         let client = client.as_ref().map_err(Clone::clone)?;

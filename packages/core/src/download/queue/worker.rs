@@ -13,7 +13,7 @@ use super::lease::{new_owner, Clock};
 use super::ops::now_ms;
 use super::retry::Failure;
 use super::runner::JobRunner;
-use super::schedule::{is_settled, Scope};
+use super::schedule::{is_settled, Limits, Scope};
 use super::task::{Outcome, Progress, Task};
 use super::tick::{plan_tick, QueueConfig, TickInput, TickPlan};
 use super::transitions::is_run_by;
@@ -29,6 +29,7 @@ pub struct Queue {
     lib: Arc<Library>,
     runner: Arc<dyn JobRunner>,
     config: QueueConfig,
+    follow_settings: bool,
     owner: String,
     wake: Arc<Notify>,
     clock: Clock,
@@ -40,6 +41,7 @@ impl Queue {
             lib,
             runner,
             config,
+            follow_settings: false,
             owner: new_owner(),
             wake: Arc::default(),
             clock: Arc::new(now_ms),
@@ -49,6 +51,24 @@ impl Queue {
     /// Uses `clock` for every time decision (claims, heartbeats, lease expiry, backoff).
     pub fn with_clock(self, clock: Clock) -> Self {
         Queue { clock, ..self }
+    }
+
+    /// Reads the limits from the download concurrency setting before every step, so a change
+    /// applies on the next tick; `config.limits` stays the fallback.
+    pub fn following_settings(self) -> Self {
+        Queue {
+            follow_settings: true,
+            ..self
+        }
+    }
+
+    fn limits(&self) -> Limits {
+        if !self.follow_settings {
+            return self.config.limits;
+        }
+        library::get_settings(&self.lib)
+            .map(|s| Limits::for_concurrency(s.concurrency()))
+            .unwrap_or(self.config.limits)
     }
 
     pub fn library(&self) -> &Library {
@@ -140,13 +160,17 @@ impl Queue {
             .chain(finished.iter().map(|(id, _)| id))
             .map(|id| (*id, pages.get(id).copied()))
             .collect();
+        let config = QueueConfig {
+            limits: self.limits(),
+            ..self.config
+        };
         let input = TickInput {
             owner: &self.owner,
             now: (self.clock)(),
             in_flight: &in_flight,
             finished,
             scope,
-            config: &self.config,
+            config: &config,
             paused: false,
         };
         library::update_jobs_gated(&self.lib, |jobs, gate| {

@@ -20,6 +20,18 @@ impl Default for Limits {
     }
 }
 
+impl Limits {
+    /// `n` chapters at once ([`crate::library::Settings::concurrency`]), at most half of them
+    /// from one provider but never fewer than two, so 4 gives the default 2 / 4.
+    pub fn for_concurrency(n: u8) -> Self {
+        let global = usize::from(n.max(1));
+        Limits {
+            per_provider: global.div_ceil(2).max(2).min(global),
+            global,
+        }
+    }
+}
+
 /// The jobs one worker may claim: every job, or only the ones it queued (the CLI).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Scope {

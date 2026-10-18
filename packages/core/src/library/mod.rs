@@ -20,6 +20,7 @@ mod manga_repo;
 mod reading_status;
 mod refresh;
 mod settings_merge;
+mod settings_prefs;
 mod settings_repo;
 mod snapshot;
 mod stored_releases;
@@ -60,10 +61,11 @@ pub use manga_repo::{get_manga, list_manga, remove_manga, upsert_manga};
 pub use reading_status::{set_reading_status, ReadingStatus};
 pub use refresh::{refresh_from_source, Refreshed};
 pub use settings_merge::merge_edit;
-pub use settings_repo::{
-    edit_settings, get_settings, set_settings, ProviderSession, Settings, DEFAULT_LANGUAGE,
+pub use settings_prefs::{
+    proxy_url, Network, ProxyMode, Theme, CONCURRENCY_RANGE, DEFAULT_CONCURRENCY, DEFAULT_LANGUAGE,
     DEFAULT_UPDATE_HOURS,
 };
+pub use settings_repo::{edit_settings, get_settings, set_settings, ProviderSession, Settings};
 pub use snapshot::{
     read_snapshot, restore_snapshot, CategoryState, ChapterState, LibrarySnapshot, TitleState,
 };

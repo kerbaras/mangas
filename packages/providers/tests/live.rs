@@ -42,7 +42,13 @@ async fn live_contract(id: &str) {
 async fn live_doctor(id: &str) {
     let manifest = manifest::load(id).unwrap();
     let source = source(id, &Settings::default()).unwrap();
-    let report = doctor::check(&*source, &manifest.query, &manifest.language).await;
+    let report = doctor::check(
+        &*source,
+        &manifest.query,
+        &manifest.language,
+        &Default::default(),
+    )
+    .await;
     let table = doctor::lines(&report).join("\n");
     println!("{table}");
     assert!(report.passed(), "{id}:\n{table}");
@@ -127,7 +133,13 @@ async fn comick_live_check_reports_needs_session() {
     }
     let manifest = manifest::load("comick").unwrap();
     let source = source("comick", &Settings::default()).unwrap();
-    let report = doctor::check(&*source, &manifest.query, &manifest.language).await;
+    let report = doctor::check(
+        &*source,
+        &manifest.query,
+        &manifest.language,
+        &Default::default(),
+    )
+    .await;
     let table = doctor::lines(&report).join("\n");
     println!("{table}");
     assert!(!report.passed());

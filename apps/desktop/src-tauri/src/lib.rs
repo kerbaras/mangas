@@ -29,6 +29,7 @@ pub fn run() {
             commands::install_cli,
             commands::providers::list_providers,
             commands::providers::provider_status,
+            commands::providers::test_proxy,
             commands::providers::connect_provider,
             commands::providers::disconnect_provider,
             commands::catalog::search_all,
@@ -110,11 +111,10 @@ fn start_downloads(app: &tauri::AppHandle) {
                 Err(e) => tracing::warn!("reclaim orphaned downloads: {e}"),
             }
             let config = mangas_core::download::queue::QueueConfig::default();
-            Arc::new(mangas_core::download::queue::Queue::new(
-                Arc::new(lib),
-                Arc::new(runner),
-                config,
-            ))
+            Arc::new(
+                mangas_core::download::queue::Queue::new(Arc::new(lib), Arc::new(runner), config)
+                    .following_settings(),
+            )
         });
     if let Ok(queue) = &queue {
         let (queue, handle) = (queue.clone(), app.clone());

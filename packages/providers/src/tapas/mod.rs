@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId, Result};
-use mangas_core::library::Settings;
+use mangas_core::library::{Network, Settings};
 use mangas_core::sources::{Header, PageUrls, ProviderStatus, Source};
 
 pub use api::Episode;
@@ -57,8 +57,8 @@ impl Provider for TapasProvider {
         self.build_at(settings, SITE)
     }
 
-    fn build_at(&self, _settings: &Settings, base: &str) -> Result<Arc<dyn Source>> {
-        Ok(Arc::new(Tapas::with_base(base)?))
+    fn build_at(&self, settings: &Settings, base: &str) -> Result<Arc<dyn Source>> {
+        Ok(Arc::new(Tapas::at(base, settings.network())?))
     }
 }
 
@@ -73,12 +73,19 @@ impl Tapas {
 
     /// Points the source at another host (tests).
     pub fn with_base(base: &str) -> Result<Self> {
+        Self::at(base, Network::System)
+    }
+
+    fn at(base: &str, network: Network) -> Result<Self> {
         let age = Session {
             cookies: AGE_COOKIES.to_string(),
             user_agent: String::new(),
             saved_at: None,
         };
-        let config = ClientConfig::new(INFO, base);
+        let config = ClientConfig {
+            network,
+            ..ClientConfig::new(INFO, base)
+        };
         Ok(Self {
             client: SiteClient::new(config, Some(age))?,
         })
