@@ -92,7 +92,9 @@ export function MangaDetailsScreen({ manga: card }: Props) {
   // Other groups' rows are out of the picture: no selection, download or export reaches them.
   const pool = useMemo(() => filterByGroup(all, group), [all, group]);
   const languages = useMemo(() => languagesOf(pool), [pool]);
-  const visible = useMemo(() => sortChapters(filterByLanguage(pool, language)), [pool, language]);
+  // A tab the new group doesn't have would hide every row (and its tabs may be gone).
+  const lang = language && languages.includes(language) ? language : null;
+  const visible = useMemo(() => sortChapters(filterByLanguage(pool, lang)), [pool, lang]);
   const visibleIds = useMemo(() => selectableIds(visible), [visible]);
   const { selected, onToggle, onToggleAll, clear } = useChapterSelection(visibleIds);
 
@@ -129,10 +131,17 @@ export function MangaDetailsScreen({ manga: card }: Props) {
       </div>
       <div className="flex h-11 shrink-0 items-center gap-3 border-b border-stroke px-4">
         {(groups.length > 1 || group) && (
-          <GroupSelect groups={groups} value={group} onChange={setGroup} />
+          <GroupSelect
+            groups={groups}
+            value={group}
+            onChange={(g) => {
+              clear();
+              setGroup(g);
+            }}
+          />
         )}
         {languages.length > 1 && (
-          <LanguageTabs languages={languages} value={language} onChange={setLanguage} />
+          <LanguageTabs languages={languages} value={lang} onChange={setLanguage} />
         )}
         <span className="text-caption text-ink-3">{selectionSummary(pool, selected, visible)}</span>
         <div className="ml-auto flex gap-2">
