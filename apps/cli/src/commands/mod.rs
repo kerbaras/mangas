@@ -10,6 +10,7 @@ pub mod import;
 pub mod info;
 pub mod kindle;
 mod kindle_record;
+mod kindle_titles;
 pub mod list;
 pub mod providers;
 pub mod queue;

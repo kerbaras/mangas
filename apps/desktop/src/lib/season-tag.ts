@@ -1,10 +1,10 @@
 import type { Chapter } from "./ipc";
 
-const SEASON_TAG = /^S\d+ Ep\. \d+(?:\.\d+)?(?=$| )/;
+const SEASON_TAG = /^S\d+ (?:Ep\. \d+(?:\.\d+)?|\p{L}+)(?=$| )/u;
 
 /**
- * The `S2 Ep. 5` prefix the core gives season-numbered titles (Webtoons), if any. A season
- * without an episode number (`S2 Prologue`) has no tag, so it falls back to its chapter number.
+ * The `S2 Ep. 5` or `S2 Prologue` prefix the core gives season-numbered titles (Webtoons), if
+ * any. Mirrors `domain::season_tag`; `season-tag.test.ts` runs the core's fixture against it.
  */
 export const seasonTag = (c: Chapter): string | null => c.title?.match(SEASON_TAG)?.[0] ?? null;
 

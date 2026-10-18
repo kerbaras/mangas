@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use anyhow::bail;
 use clap::Args as ClapArgs;
-use mangas_core::export::kindle::{export, ExportRequest};
+use mangas_core::export::kindle::{export, BookMeta, ExportRequest};
 use mangas_core::export::{Format, Labels, PROFILES};
 use mangas_core::library::{self, Library};
 
@@ -13,6 +13,7 @@ use super::cut_args::{print_progress, CutArgs, DEFAULT_PROFILE};
 use super::deliver::{deliver, SendArg};
 use super::export_args::FormatArg;
 use super::kindle_record;
+use super::kindle_titles::{spellings, titles_in};
 use crate::output::outln;
 use crate::{paths, Exit};
 
@@ -95,7 +96,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .clone()
         .unwrap_or_else(|| PathBuf::from(format!("out.{format}")));
     let penalizer = args.cut.penalizer().await?;
-    let (labels, series) = from_library(&args.chapters);
+    let (labels, series, chapter_titles) = from_library(&args.chapters);
     let req = ExportRequest {
         chapter_dirs: args.chapters.clone(),
         device: dev,
@@ -107,7 +108,10 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             .unwrap_or_else(|| default_title(series.as_deref(), &args.chapters)),
         title_explicit: args.title.is_some(),
         output: output.clone(),
-        meta: Default::default(),
+        meta: BookMeta {
+            chapter_titles,
+            ..Default::default()
+        },
         labels,
     };
     let started = Instant::now();
@@ -153,14 +157,22 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
 }
 
 /// Series/chapter/volume labels from the library (folders it doesn't know export unlabelled),
-/// plus the first chapter's series for the default title, which a mixed export lacks in `Labels`.
-fn from_library(chapters: &[PathBuf]) -> (Labels, Option<String>) {
+/// plus the first chapter's series for the default title, which a mixed export lacks in `Labels`,
+/// and the TOC entries.
+fn from_library(chapters: &[PathBuf]) -> (Labels, Option<String>, Vec<String>) {
     paths::library_db()
         .and_then(|db| Ok(library::open(&db)?))
-        .and_then(|lib| Ok((labels_in(&lib, chapters)?, first_series(&lib, chapters)?)))
+        .and_then(|lib| {
+            let titles = titles_in(&lib, chapters)?;
+            Ok((
+                labels_in(&lib, chapters)?,
+                first_series(&lib, chapters)?,
+                titles,
+            ))
+        })
         .unwrap_or_else(|e: anyhow::Error| {
             eprintln!("warning: could not read the chapters' series and numbers: {e}");
-            (Labels::default(), None)
+            (Labels::default(), None, Vec::new())
         })
 }
 
@@ -173,24 +185,6 @@ fn labels_in(lib: &Library, chapters: &[PathBuf]) -> anyhow::Result<Labels> {
     let spellings = spellings(&refs);
     let dirs: Vec<&Path> = spellings.iter().map(PathBuf::as_path).collect();
     Ok(library::export_labels(lib, &dirs, chapters.len())?)
-}
-
-/// Each folder as given, made absolute and resolved (symlinks): the library may store any of them.
-fn spellings(dirs: &[&Path]) -> Vec<PathBuf> {
-    let mut spellings: Vec<PathBuf> = dirs
-        .iter()
-        .flat_map(|d| {
-            [
-                Some(d.to_path_buf()),
-                std::path::absolute(d).ok(),
-                d.canonicalize().ok(),
-            ]
-        })
-        .flatten()
-        .collect();
-    spellings.sort();
-    spellings.dedup();
-    spellings
 }
 
 #[cfg(test)]

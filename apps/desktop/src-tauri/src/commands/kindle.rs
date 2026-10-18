@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use mangas_core::export::kindle::{self, ExportRequest, ExportStats, Progress};
+use mangas_core::export::kindle::{self, BookMeta, ExportRequest, ExportStats, Progress};
 use mangas_core::export::{Format, Labels};
 use mangas_core::library;
 use mangas_core::ml;
@@ -53,6 +53,7 @@ pub async fn export_kindle(
         kindle::device(&device).ok_or_else(|| to_ipc(format!("unknown device '{device}'")))?;
     let format = Format::resolve(format, Some(&output), None, &dev).map_err(to_ipc)?;
     let penalizer = penalizer(&app, detectors).await?;
+    let req_dirs = chapter_dirs.clone();
     let req = ExportRequest {
         labels: labels_of(&chapter_dirs),
         // The desktop always sends a generated title, so the chapter's own title wins.
@@ -63,7 +64,10 @@ pub async fn export_kindle(
         format,
         cut: preset.options(),
         output,
-        meta: Default::default(),
+        meta: BookMeta {
+            chapter_titles: titles_of(&req_dirs),
+            ..Default::default()
+        },
     };
     let title = req.title.clone();
     let handle = app.clone();
@@ -118,6 +122,17 @@ fn labels_of(dirs: &[PathBuf]) -> Labels {
         .unwrap_or_else(|e| {
             tracing::warn!("could not read chapter labels: {e}");
             Labels::default()
+        })
+}
+
+/// Season-aware TOC entries from the library; empty (folder names) when it doesn't know them.
+fn titles_of(dirs: &[PathBuf]) -> Vec<String> {
+    let spellings: Vec<Vec<&std::path::Path>> = dirs.iter().map(|d| vec![d.as_path()]).collect();
+    open_library()
+        .and_then(|lib| library::chapter_titles(&lib, &spellings).map_err(to_ipc))
+        .unwrap_or_else(|e| {
+            tracing::warn!("could not read chapter titles: {e}");
+            Vec::new()
         })
 }
 

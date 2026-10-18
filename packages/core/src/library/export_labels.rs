@@ -2,10 +2,10 @@
 
 use std::path::Path;
 
-use rusqlite::params;
+use rusqlite::{params, OptionalExtension};
 
 use super::Library;
-use crate::domain::Result;
+use crate::domain::{toc_label, Result};
 use crate::export::Labels;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -48,6 +48,35 @@ pub fn export_labels(lib: &Library, dirs: &[&Path], chapters: usize) -> Result<L
         }
     }
     Ok(labels_of(&rows, chapters))
+}
+
+/// Table-of-contents entries for `dirs` (each folder with its possible spellings), in order;
+/// empty unless the library knows every folder, so the export falls back to folder names.
+pub fn chapter_titles(lib: &Library, dirs: &[Vec<&Path>]) -> Result<Vec<String>> {
+    let conn = lib.conn()?;
+    let mut stmt = conn.prepare(
+        "SELECT number, title FROM chapter
+         WHERE local_path IS NOT NULL AND rtrim(local_path, '/\\') = ?1 LIMIT 1",
+    )?;
+    let mut out = Vec::with_capacity(dirs.len());
+    for spellings in dirs {
+        let found = spellings
+            .iter()
+            .find_map(|dir| {
+                let path = dir.to_string_lossy();
+                stmt.query_row(params![path.trim_end_matches(['/', '\\'])], |r| {
+                    Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?))
+                })
+                .optional()
+                .transpose()
+            })
+            .transpose()?;
+        match found {
+            Some((number, title)) => out.push(toc_label(&number, title.as_deref())),
+            None => return Ok(Vec::new()),
+        }
+    }
+    Ok(out)
 }
 
 /// Each label is kept only when it holds for every exported chapter; a volume needs one series.

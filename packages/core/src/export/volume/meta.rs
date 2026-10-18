@@ -3,20 +3,13 @@
 use std::path::PathBuf;
 
 use super::Volume;
-use crate::domain::{Chapter, Manga};
+use crate::domain::{toc_label, Chapter, Manga};
 use crate::export::epub::Series;
 use crate::export::kindle::BookMeta;
 
-/// "Chapter 12: The title", "Chapter 12", or the bare title for unnumbered chapters.
+/// The table-of-contents entry of `c` (see [`toc_label`]).
 pub fn chapter_label(c: &Chapter) -> String {
-    let number = c.number.trim();
-    let title = c.title.as_deref().map(str::trim).filter(|t| !t.is_empty());
-    match (number.is_empty(), title) {
-        (false, Some(t)) => format!("Chapter {number}: {t}"),
-        (false, None) => format!("Chapter {number}"),
-        (true, Some(t)) => t.to_string(),
-        (true, None) => "Chapter".to_string(),
-    }
+    toc_label(&c.number, c.title.as_deref())
 }
 
 /// The language every chapter shares, if they agree.
