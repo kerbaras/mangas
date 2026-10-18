@@ -44,6 +44,10 @@ enum Command {
     Providers(commands::providers::Args),
     /// Show or change app settings shared with the desktop app
     Settings(commands::settings::Args),
+    /// Show disk usage, delete downloads, clear caches or move the data folder
+    Storage(commands::storage::Args),
+    /// Export or import a library backup (followed titles and preferences)
+    Backup(commands::backup::Args),
 }
 
 /// Parses `args` (including the program name) and runs the command. Exits on `--help`,
@@ -72,5 +76,7 @@ async fn dispatch(command: Command) -> anyhow::Result<()> {
         Command::Kindle(args) => commands::kindle::run(args).await,
         Command::Providers(args) => commands::providers::run(args).await,
         Command::Settings(args) => commands::settings::run(args),
+        Command::Storage(args) => commands::storage::run(args),
+        Command::Backup(args) => commands::backup::run(args),
     }
 }

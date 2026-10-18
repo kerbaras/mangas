@@ -1,4 +1,5 @@
 pub mod add;
+pub mod backup;
 pub mod chapters;
 pub mod download;
 pub mod import;
@@ -9,6 +10,7 @@ pub mod providers;
 pub mod remove;
 pub mod search;
 pub mod settings;
+pub mod storage;
 
 use std::sync::Arc;
 

@@ -2,6 +2,7 @@
 //!
 //! Business logic lives here; `apps/desktop` and `apps/cli` only translate input and output.
 
+pub mod backup;
 pub mod covers;
 pub mod diagnostics;
 pub mod domain;
@@ -13,5 +14,6 @@ pub mod logging;
 pub mod ml;
 pub mod smartcut;
 pub mod sources;
+pub mod storage;
 
 pub use domain::{Chapter, Error, Manga, Result};

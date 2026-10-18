@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use anyhow::Context;
 use directories::ProjectDirs;
 use mangas_core::library;
+use mangas_core::storage::Folders;
 
 fn dirs() -> anyhow::Result<ProjectDirs> {
     ProjectDirs::from("dev", "kerbaras", "mangas").context("no home directory")
@@ -35,4 +36,15 @@ pub fn downloads() -> anyhow::Result<PathBuf> {
 /// Cache directory for downloaded ONNX detector models.
 pub fn models() -> anyhow::Result<PathBuf> {
     Ok(data_dir()?.join("models"))
+}
+
+/// Every folder the app writes to, for storage usage and maintenance.
+pub fn folders() -> anyhow::Result<Folders> {
+    let app = dirs()?.data_dir().to_path_buf();
+    Ok(Folders {
+        data_dir: data_dir()?,
+        database: library_db()?,
+        covers: app.join("covers"),
+        logs: mangas_core::logging::log_dir(&app),
+    })
 }

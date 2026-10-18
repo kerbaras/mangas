@@ -36,7 +36,13 @@ pub fn run() {
             commands::kindle::detectors_status,
             commands::diagnostics::diagnostics,
             commands::diagnostics::open_logs,
-            commands::diagnostics::log_ui_error
+            commands::diagnostics::log_ui_error,
+            commands::storage::storage_usage,
+            commands::storage::delete_downloads,
+            commands::storage::clear_cache,
+            commands::storage::move_data_dir,
+            commands::storage::export_backup,
+            commands::storage::import_backup
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -86,7 +86,7 @@ pub struct ProviderSession {
     pub saved_at: Option<String>,
 }
 
-const KEY: &str = "app";
+pub(crate) const KEY: &str = "app";
 
 fn json_error(e: serde_json::Error) -> Error {
     Error::Other(format!("settings: {e}"))
@@ -104,8 +104,12 @@ pub fn get_settings(lib: &Library) -> Result<Settings> {
     })
 }
 
+pub(crate) fn encode(settings: &Settings) -> Result<String> {
+    serde_json::to_string(settings).map_err(json_error)
+}
+
 pub fn set_settings(lib: &Library, settings: &Settings) -> Result<()> {
-    let json = serde_json::to_string(settings).map_err(json_error)?;
+    let json = encode(settings)?;
     lib.conn()?.execute(
         "INSERT INTO setting (key, value) VALUES (?1, ?2)
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",

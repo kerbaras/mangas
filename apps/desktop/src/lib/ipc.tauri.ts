@@ -14,6 +14,7 @@ import type {
 } from "./ipc";
 import { DEFAULT_LANGUAGE } from "./ipc";
 import type { Diagnostics } from "./ipc.diagnostics";
+import { tauriStorage } from "./ipc.tauri-storage";
 import {
   type DownloadEvent,
   type ExportStats,
@@ -96,6 +97,7 @@ export const tauriBackend: Backend = {
   diagnostics: () => invoke<Diagnostics>("diagnostics"),
   openLogs: () => invoke<void>("open_logs"),
   reportError: (message, level = "error") => invoke<void>("log_ui_error", { message, level }),
+  ...tauriStorage,
   onDownloadProgress: (cb) =>
     listen<DownloadEvent>(DOWNLOAD_EVENT, (e) => cb(toDownloadProgress(e.payload))),
   onExportProgress: (cb) =>

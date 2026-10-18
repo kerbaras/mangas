@@ -41,6 +41,16 @@ pub fn list_manga(lib: &Library) -> Result<Vec<Manga>> {
     Ok(rows.collect::<std::result::Result<_, _>>()?)
 }
 
+/// All followed manga with when they were followed (`YYYY-MM-DD HH:MM:SS`, UTC), oldest first.
+pub(crate) fn list_manga_with_added(lib: &Library) -> Result<Vec<(Manga, String)>> {
+    let conn = lib.conn()?;
+    let mut stmt = conn.prepare(&format!(
+        "SELECT {COLUMNS}, added_at FROM manga ORDER BY rowid"
+    ))?;
+    let rows = stmt.query_map([], |r| Ok((row_to_manga(r)?, r.get(10)?)))?;
+    Ok(rows.collect::<std::result::Result<_, _>>()?)
+}
+
 /// One followed manga, if present.
 pub fn get_manga(lib: &Library, source: &str, id: &MangaId) -> Result<Option<Manga>> {
     let conn = lib.conn()?;

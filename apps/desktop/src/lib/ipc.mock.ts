@@ -23,6 +23,7 @@ import { simulateExport } from "./mock-export";
 import { mockExportResult, mockFlags } from "./mock-flags";
 import { mockImport } from "./mock-import";
 import { mockSearch } from "./mock-search";
+import { mockStorage } from "./mock-storage";
 
 const DATA_DIR = "~/.local/share/mangas";
 
@@ -193,6 +194,13 @@ export const mockBackend: Backend = {
     return { available: true, downloaded: true, provider: "cpu" };
   },
   ...mockDiagnostics(DATA_DIR, providers, () => settings),
+  ...mockStorage({
+    library: () => [...library.values()],
+    dataDir: () => settings.data_dir ?? DATA_DIR,
+    setDataDir: (dir) => {
+      settings = { ...settings, data_dir: dir };
+    },
+  }),
   onDownloadProgress: (cb) => subscribe(downloadListeners, cb),
   onExportProgress: (cb) => subscribe(exportListeners, cb),
 };
