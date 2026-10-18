@@ -113,15 +113,25 @@ fn remove_stale_pages(dest: &Path, written: &HashSet<String>) -> Result<()> {
     Ok(())
 }
 
-/// Drops `.part` files left by an interrupted run. Their name came from that run's bytes (or
-/// the URL, before pages were named by format), so this run may never overwrite them.
+/// Drops page `.part` files (`0007.png.part`) left by an interrupted run. Their name came from
+/// that run's bytes (or the URL, before pages were named by format), so this run may never
+/// overwrite them.
 fn remove_partials(dest: &Path) -> Result<()> {
     for name in existing_files(dest)? {
-        if name.ends_with(".part") {
+        if name.strip_suffix(".part").is_some_and(is_page_name) {
             std::fs::remove_file(dest.join(name))?;
         }
     }
     Ok(())
+}
+
+/// A page image name: digits, a dot, an image extension.
+fn is_page_name(name: &str) -> bool {
+    let numbered = |stem: &str| !stem.is_empty() && stem.chars().all(|c| c.is_ascii_digit());
+    is_image(name)
+        && name
+            .rsplit_once('.')
+            .is_some_and(|(stem, _)| numbered(stem))
 }
 
 /// Writes to `<name>.part` first so an interrupted download never leaves a truncated page

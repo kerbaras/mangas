@@ -127,10 +127,14 @@ async fn downloading_again_renames_misnamed_pages() {
 async fn partial_files_from_an_interrupted_run_are_removed() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(dir.path().join("0001.png.part"), b"half").unwrap();
+    std::fs::write(dir.path().join("notes.part"), b"mine").unwrap();
     let fetcher = JpegEverywhere::default();
     let chapter = ChapterId("c".into());
     download_pages(&fetcher, &chapter, &png_urls(1), dir.path(), &ignore)
         .await
         .unwrap();
-    assert_eq!(names(dir.path()), HashSet::from(["0001.jpg".to_string()]));
+    assert_eq!(
+        names(dir.path()),
+        ["0001.jpg", "notes.part"].map(String::from).into()
+    );
 }
