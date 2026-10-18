@@ -71,7 +71,8 @@ pub fn sort_by_number(mut chapters: Vec<Chapter>) -> Vec<Chapter> {
 }
 
 impl std::fmt::Display for ChapterId {
+    /// `pad` keeps width and alignment (`{:<36}`) working in CLI tables.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
+        f.pad(&self.0)
     }
 }

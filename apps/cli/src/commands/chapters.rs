@@ -55,8 +55,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         outln!("No {langs} chapters hosted on {} for {id}", args.source)?;
         return Ok(());
     }
+    let id_width = id_width(&chapters);
     outln!(
-        "{:<8} {:<5} {:<9} {:<6} {:<GROUP_WIDTH$} {:<36}  title",
+        "{:<8} {:<5} {:<9} {:<6} {:<GROUP_WIDTH$} {:<id_width$}  title",
         "chapter",
         "vol",
         "status",
@@ -65,7 +66,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         "id"
     )?;
     for c in &chapters {
-        outln!("{}", format_row(c))?;
+        outln!("{}", format_row(c, id_width))?;
     }
     if !followed {
         let add = hint(&format!("add {id}"), &args.source);
@@ -74,7 +75,15 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn format_row(c: &Chapter) -> String {
+/// The id column fits the longest id (MangaDex UUIDs, `en-webtoon-95-653`, `u:1833853`).
+fn id_width(chapters: &[Chapter]) -> usize {
+    chapters
+        .iter()
+        .map(|c| c.id.0.chars().count())
+        .fold("id".len(), usize::max)
+}
+
+fn format_row(c: &Chapter, id_width: usize) -> String {
     let title = c.title.as_deref().unwrap_or("");
     let title = match &c.availability {
         Availability::External { url: Some(url) } => {
@@ -83,7 +92,7 @@ fn format_row(c: &Chapter) -> String {
         _ => title.to_string(),
     };
     format!(
-        "{:<8} {:<5} {:<9} {:<6} {:<GROUP_WIDTH$} {:<36}  {title}",
+        "{:<8} {:<5} {:<9} {:<6} {:<GROUP_WIDTH$} {:<id_width$}  {title}",
         c.number,
         c.volume.as_deref().unwrap_or("-"),
         status(c),
@@ -115,5 +124,56 @@ fn status(c: &Chapter) -> &'static str {
         (Availability::Locked, false) => "locked",
         (Availability::External { .. }, false) => "external",
         (Availability::Available, false) => "-",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mangas_core::domain::ChapterId;
+
+    fn chapter(id: &str, title: &str) -> Chapter {
+        Chapter {
+            id: ChapterId(id.into()),
+            number: "1".into(),
+            title: Some(title.into()),
+            language: "en".into(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn titles_start_in_one_column_whatever_the_id_length() {
+        let rows = [
+            chapter("en-webtoon-95-1", "S1 Ep. 0"),
+            chapter("en-webtoon-95-653", "S3 Ep. 235"),
+            chapter("u:1833853", "Chapter 0"),
+        ];
+        let width = id_width(&rows);
+        assert_eq!(width, "en-webtoon-95-653".len());
+        let starts: Vec<usize> = rows
+            .iter()
+            .map(|c| {
+                let title = c.title.as_deref().unwrap_or_default();
+                format_row(c, width).find(title).unwrap_or_default()
+            })
+            .collect();
+        assert!(
+            starts.iter().all(|s| *s == starts[0] && *s > 0),
+            "{starts:?}"
+        );
+    }
+
+    #[test]
+    fn an_id_longer_than_a_uuid_widens_the_column() {
+        let long = "x".repeat(50);
+        assert_eq!(id_width(&[chapter(&long, "t")]), 50);
+        assert_eq!(id_width(&[]), 2);
+    }
+
+    #[test]
+    fn ids_honour_width_like_strings() {
+        assert_eq!(format!("{:<5}|", ChapterId("ab".into())), "ab   |");
+        assert_eq!(format!("{:<5}|", MangaId("ab".into())), "ab   |");
     }
 }
