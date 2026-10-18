@@ -44,6 +44,8 @@ describe("send panel", () => {
     await waitFor(() =>
       expect(sendUsb).toHaveBeenCalledWith(FILE, "Solo Leveling 1-3", kindle.root),
     );
+    expect(await screen.findByText("Looking for a Kindle…")).toBeTruthy();
+    expect(screen.queryByText(/Copying to/)).toBeNull();
     progress()?.({ done: 5_000_000, total: 10_000_000 });
     expect(await screen.findByText("5.0 MB / 10.0 MB")).toBeTruthy();
     finish({ path: "/media/me/Kindle/documents/Solo Leveling 1-3.epub", already_there: false });
@@ -70,7 +72,7 @@ describe("send panel", () => {
     expect(screen.getByRole("button", { name: "Set up email" })).toBeTruthy();
   });
 
-  it("disables Email for a CBZ and says why, while USB stays available", () => {
+  it("disables Email for a CBZ and says why on focus, while USB stays available", async () => {
     writeSettings({
       kindleEmail: { ...readSettings().kindleEmail, to: "reader@kindle.com", host: "smtp.test" },
     });
@@ -85,6 +87,8 @@ describe("send panel", () => {
     const usb = screen.getByRole("button", { name: /Copy over USB/ }) as HTMLButtonElement;
     expect(usb.disabled).toBe(false);
     expect(screen.queryByRole("button", { name: "Set up email" })).toBeNull();
+    fireEvent.focus(email.parentElement as HTMLElement);
+    expect(await screen.findAllByText(/takes EPUB or PDF, not a CBZ/)).not.toHaveLength(0);
   });
 
   it("shows the server's refusal when the email fails", async () => {

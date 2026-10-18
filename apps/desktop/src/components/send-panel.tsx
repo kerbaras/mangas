@@ -39,7 +39,10 @@ export function SendPanel({ file, onSent }: Props) {
           {refusal ? (
             <Tooltip>
               <TooltipTrigger asChild>
-                <span>{emailButton}</span>
+                {/* biome-ignore lint/a11y/noNoninteractiveTabindex: focus shows why Email is disabled */}
+                <span tabIndex={0} className="rounded-md">
+                  {emailButton}
+                </span>
               </TooltipTrigger>
               <TooltipContent className="max-w-64">{refusal}</TooltipContent>
             </Tooltip>
