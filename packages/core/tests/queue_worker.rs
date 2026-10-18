@@ -7,7 +7,7 @@ use std::time::Duration;
 use mangas_core::domain::Error;
 use mangas_core::download::queue::{self, Action, JobState, Queue, QueueEvent, Scope, Target};
 use mangas_core::library;
-use queue_support::{eventually, fast_config, follow, states, FakeRunner};
+use queue_support::{eventually, fast_config, follow, started, states, FakeRunner};
 
 fn runner(delay_ms: u64) -> FakeRunner {
     FakeRunner {
@@ -103,7 +103,8 @@ async fn pause_stops_a_running_download_and_resume_finishes_it() {
     let background = worker.clone();
     let task = tokio::spawn(async move { background.run(Scope::All, false, &|_| {}).await });
     let state = || queue::list(&lib).unwrap()[0].state;
-    eventually(|| state() == JobState::Running).await;
+    started(&fake, 1).await;
+    assert_eq!(state(), JobState::Running);
 
     queue::control(&lib, Target::All, Action::Pause).unwrap();
     eventually(|| fake.aborted.load(Ordering::SeqCst)).await;
@@ -128,7 +129,8 @@ async fn a_pause_and_resume_between_ticks_never_runs_the_chapter_twice() {
     let background = worker.clone();
     let task = tokio::spawn(async move { background.run(Scope::All, false, &|_| {}).await });
     let state = || queue::list(&lib).unwrap()[0].state;
-    eventually(|| state() == JobState::Running).await;
+    started(&fake, 1).await;
+    assert_eq!(state(), JobState::Running);
 
     // No nudge in between: the worker sees the job queued again, never paused.
     queue::control(&lib, Target::All, Action::Pause).unwrap();
@@ -156,7 +158,7 @@ async fn cancel_stops_a_running_download_for_good() {
     let worker = Arc::new(Queue::new(lib.clone(), fake.clone(), fast_config()));
     let background = worker.clone();
     let task = tokio::spawn(async move { background.run(Scope::All, false, &|_| {}).await });
-    eventually(|| queue::list(&lib).unwrap()[0].state == JobState::Running).await;
+    started(&fake, 1).await;
     let id = queue::list(&lib).unwrap()[0].id;
     queue::control(&lib, Target::Job(id), Action::Cancel).unwrap();
     eventually(|| fake.aborted.load(Ordering::SeqCst)).await;

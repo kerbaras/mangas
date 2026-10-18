@@ -73,6 +73,9 @@ pub struct FakeRunner {
     pub max_per_source: Mutex<HashMap<String, usize>>,
     pub max_total: AtomicUsize,
     pub aborted: AtomicBool,
+    /// Runs that have read their delay and begun; a test waits on this (not on the job's
+    /// `Running` row, written before the task is first polled) before it stops a run.
+    pub started: AtomicUsize,
 }
 
 struct Leave<'a>(&'a FakeRunner, String, bool);
@@ -107,6 +110,7 @@ impl JobRunner for FakeRunner {
             *n
         };
         let delay = *self.delay.lock().unwrap();
+        self.started.fetch_add(1, Ordering::SeqCst);
         for page in 1..=4 {
             tokio::time::sleep(delay / 4).await;
             on_event(Event::PageDone {
@@ -125,6 +129,12 @@ impl JobRunner for FakeRunner {
 
 pub fn states(jobs: &[Job]) -> Vec<JobState> {
     jobs.iter().map(|j| j.state).collect()
+}
+
+/// Waits until `fake` has begun `runs` runs: from then on an abort drops a live run, which
+/// records `aborted`, and a changed delay no longer applies to it.
+pub async fn started(fake: &FakeRunner, runs: usize) {
+    eventually(|| fake.started.load(Ordering::SeqCst) >= runs).await;
 }
 
 /// Polls `check` every 10 ms for up to 5 s.
