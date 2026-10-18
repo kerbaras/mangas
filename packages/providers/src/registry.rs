@@ -9,9 +9,13 @@ use mangas_core::library::Settings;
 use mangas_core::sources::{ProviderStatus, Source};
 
 use crate::provider::{Provider, ProviderInfo};
-use crate::{mangadex, mangadot};
+use crate::{mangadex, mangadot, weebcentral};
 
-const PROVIDERS: &[&dyn Provider] = &[&mangadex::MangaDexProvider, &mangadot::MangaDotProvider];
+const PROVIDERS: &[&dyn Provider] = &[
+    &mangadex::MangaDexProvider,
+    &mangadot::MangaDotProvider,
+    &weebcentral::WeebCentralProvider,
+];
 
 /// Every registered provider, in display order.
 pub fn providers() -> Vec<ProviderInfo> {

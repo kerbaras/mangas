@@ -1,0 +1,12 @@
+{
+  "_comment": "Recorded from weebcentral.com with scripts/record-fixture.sh, then trimmed: the series page to its head, title, status and description; the chapter list to its two newest and two oldest entries. The site serves pages and HTMX fragments from its root.",
+  "query": "solo leveling",
+  "language": "en",
+  "pages_need_referer": true,
+  "routes": [
+    { "path": "/search/data", "query": { "text": "solo leveling", "display_mode": "Minimal Display" }, "file": "search.html" },
+    { "path": "/series/01J76XYCPSY3C4BNPBRY8JMCBE", "file": "series.html" },
+    { "path": "/series/01J76XYCPSY3C4BNPBRY8JMCBE/full-chapter-list", "file": "chapters.html" },
+    { "path": "/chapters/01J76XYXYZGGRVGEGATYQWFTD8/images", "query": { "reading_style": "long_strip" }, "file": "images.html" }
+  ]
+}

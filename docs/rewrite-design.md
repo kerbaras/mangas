@@ -79,6 +79,11 @@ Rules: the Tauri layer and the CLI contain no business logic. Everything testabl
 - **Status**: `SiteClient::status(probe)` does one cheap GET and maps it to `Ready`,
   `NeedsSession` (no or expired session, or a challenge page) or `Unreachable { reason }`.
 
+- **HTML** (`html/`): sites without a JSON API parse with pure functions over `scraper`:
+  `parse(body)`, `select`/`first` (CSS selectors; an invalid one is an error, not a panic),
+  `text`, `text_lines`, `attr`, `meta` (`og:*` and named tags) and `absolute(base, href)`.
+  WeebCentral is the reference: one module per page kind, each `fn(&str) -> Result<_>`.
+
 Recipe (`packages/providers/src/<site>/mod.rs`, mapping in `mapping.rs` tested on fixtures):
 
 ```rust
@@ -146,7 +151,7 @@ Every registered provider goes through the same contract suite
 4. Live: add `<id>_live_contract` / `<id>_live_check` to `tests/live.rs` if CI can reach the
    site. They are `#[ignore]` and do nothing unless `MANGAS_LIVE=1`:
    `MANGAS_LIVE=1 cargo test -p mangas-providers --test live -- --ignored <id>`. The manual
-   `live-smoke` workflow runs them (MangaDex only; MangaDot is Cloudflare-gated from CI).
+   `live-smoke` workflow runs them (MangaDex and WeebCentral; MangaDot is Cloudflare-gated from CI).
 5. By hand: `mangas providers check <id> [--query q] [--lang en]` walks status → search → manga
    → chapters → pages → a one-byte GET of the first page with the provider's headers. It
    prints one line per step with timings and exits non-zero on failure. The walk is

@@ -1,6 +1,6 @@
 //! Live smoke tests against the real sites. Ignored by default and skipped unless
 //! `MANGAS_LIVE=1`: `MANGAS_LIVE=1 cargo test -p mangas-providers --test live -- --ignored`.
-//! MangaDot is behind a Cloudflare verification, so only MangaDex runs here.
+//! MangaDot is behind a Cloudflare verification, so only MangaDex and WeebCentral run here.
 
 mod contract;
 
@@ -46,5 +46,21 @@ async fn mangadex_live_contract() {
 async fn mangadex_live_check() {
     if live() {
         live_doctor("mangadex").await;
+    }
+}
+
+#[tokio::test]
+#[ignore = "hits weebcentral.com; run with MANGAS_LIVE=1"]
+async fn weebcentral_live_contract() {
+    if live() {
+        live_contract("weebcentral").await;
+    }
+}
+
+#[tokio::test]
+#[ignore = "hits weebcentral.com; run with MANGAS_LIVE=1"]
+async fn weebcentral_live_check() {
+    if live() {
+        live_doctor("weebcentral").await;
     }
 }

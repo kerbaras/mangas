@@ -24,7 +24,10 @@ fn every_provider_builds_under_its_own_id() {
 #[test]
 fn unknown_ids_list_the_known_ones() {
     let err = source("nope", &Settings::default()).err().unwrap();
-    assert!(err.to_string().contains("mangadex, mangadot"), "{err}");
+    assert!(
+        err.to_string().contains("mangadex, mangadot, weebcentral"),
+        "{err}"
+    );
     assert_eq!(info("nope"), None);
 }
 

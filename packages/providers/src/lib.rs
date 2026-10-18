@@ -1,8 +1,9 @@
-//! Manga providers. Each provider maps one site's API onto the core [`Source`] trait on top of
-//! the common [`http::SiteClient`] / [`http::HostPolicy`]; [`registry`] is the only place that
-//! knows them by name. See "Provider harness" in `docs/rewrite-design.md`.
+//! Manga providers. Each provider maps one site's API (or its HTML pages, via [`html`]) onto
+//! the core [`Source`] trait on top of the common [`http::SiteClient`] / [`http::HostPolicy`];
+//! [`registry`] is the only place that knows them by name. See "Provider harness" in `docs/rewrite-design.md`.
 
 pub mod doctor;
+pub mod html;
 pub mod http;
 pub mod mangadex;
 pub mod mangadot;
@@ -10,6 +11,7 @@ mod provider;
 mod rate_limit;
 mod registry;
 mod session;
+pub mod weebcentral;
 
 pub use mangas_core::sources::{Header, PageUrls, ProviderStatus, Source};
 pub use provider::{Capability, Provider, ProviderInfo};
