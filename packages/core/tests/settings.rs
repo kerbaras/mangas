@@ -23,6 +23,8 @@ fn settings_round_trip_and_overwrite() {
         .into(),
         providers_enabled: [("mangadot".to_string(), false)].into(),
         provider_languages: [("mangadex".to_string(), vec!["es".to_string()])].into(),
+        update_check_hours: Some(0),
+        update_notifications: Some(false),
     };
     library::set_settings(&lib, &first).unwrap();
     assert_eq!(library::get_settings(&lib).unwrap(), first);
@@ -101,4 +103,18 @@ fn settings_stored_before_provider_management_enable_every_provider() {
     assert!(got.providers_enabled.is_empty());
     assert!(got.provider_enabled("mangadex"));
     assert_eq!(got.languages_for("mangadex"), ["en"]);
+}
+
+#[test]
+fn update_checks_default_to_every_six_hours_with_notifications() {
+    let defaults = Settings::default();
+    assert_eq!(defaults.update_hours(), library::DEFAULT_UPDATE_HOURS);
+    assert_eq!(defaults.update_hours(), 6);
+    assert!(defaults.notify_updates());
+    let off = Settings {
+        update_check_hours: Some(0),
+        update_notifications: Some(false),
+        ..Settings::default()
+    };
+    assert_eq!((off.update_hours(), off.notify_updates()), (0, false));
 }

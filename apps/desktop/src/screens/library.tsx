@@ -1,6 +1,7 @@
 import { Library, Plus, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CategoriesDialog } from "@/components/categories-dialog";
+import { CheckUpdatesButton } from "@/components/check-updates-button";
 import { EmptyState } from "@/components/empty-state";
 import type { EntryHandlers } from "@/components/entry-menu";
 import { ErrorAlert } from "@/components/error-alert";
@@ -19,6 +20,7 @@ import type { Category } from "@/lib/ipc.library";
 import { filterEntries, liveView, sortEntries } from "@/lib/library-view";
 import { useNavigation } from "@/lib/navigation";
 import { notifyError } from "@/lib/notify";
+import { useUpdates } from "@/lib/updates";
 
 const noCategories: Category[] = [];
 
@@ -30,6 +32,10 @@ export function LibraryScreen() {
   const [query, setQuery] = useState("");
   const [stored, setView] = useLibraryView();
   const [editing, setEditing] = useState(false);
+  const { found } = useUpdates();
+  useEffect(() => {
+    if (found > 0) reload();
+  }, [found, reload]);
 
   const entries = state.kind === "ready" ? state.data.entries : [];
   const categories = state.kind === "ready" ? state.data.categories : noCategories;
@@ -74,6 +80,7 @@ export function LibraryScreen() {
             />
           </div>
         ) : null}
+        {count ? <CheckUpdatesButton /> : null}
         <ImportMenu busy={imports.busy} onPick={imports.start} />
         <Button variant="primary" size="sm" onClick={() => nav.go({ screen: "search" })}>
           <Plus /> Follow a manga

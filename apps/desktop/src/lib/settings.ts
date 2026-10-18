@@ -25,6 +25,9 @@ export type Settings = {
   providersEnabled: Record<string, boolean>;
   /** Chapter languages per provider, overriding `preferredLanguages` when not empty. */
   providerLanguages: Record<string, string[]>;
+  /** Hours between background update checks; 0 turns them off. */
+  updateCheckHours: number;
+  updateNotifications: boolean;
 };
 
 const DEFAULTS: Settings = {
@@ -35,6 +38,8 @@ const DEFAULTS: Settings = {
   providerOptions: {},
   providersEnabled: {},
   providerLanguages: {},
+  updateCheckHours: 6,
+  updateNotifications: true,
 };
 
 const listeners = new Set<() => void>();
@@ -50,6 +55,8 @@ const fromStored = (s: Stored, platformDataDir: string): Settings => ({
   providerOptions: s.provider_options ?? {},
   providersEnabled: s.providers_enabled ?? {},
   providerLanguages: s.provider_languages ?? {},
+  updateCheckHours: s.update_check_hours ?? DEFAULTS.updateCheckHours,
+  updateNotifications: s.update_notifications ?? DEFAULTS.updateNotifications,
 });
 
 /** Platform default; a `dataDir` equal to it is stored as `null` so the default can move. */
@@ -65,6 +72,8 @@ const toStored = (s: Settings): Stored => ({
   provider_options: s.providerOptions,
   providers_enabled: s.providersEnabled,
   provider_languages: s.providerLanguages,
+  update_check_hours: s.updateCheckHours,
+  update_notifications: s.updateNotifications,
 });
 
 const notify = () => {

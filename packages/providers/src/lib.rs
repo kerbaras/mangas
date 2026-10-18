@@ -18,6 +18,7 @@ mod registry;
 mod search;
 mod session;
 pub mod tapas;
+pub mod updates;
 pub mod webtoons;
 pub mod weebcentral;
 

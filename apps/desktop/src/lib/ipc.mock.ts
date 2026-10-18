@@ -18,6 +18,7 @@ import { markExported, mockLibrary } from "./mock-library";
 import { emitJob, mockJobState, mockQueue } from "./mock-queue";
 import { mockSearch } from "./mock-search";
 import { mockStorage } from "./mock-storage";
+import { mockUpdates } from "./mock-updates";
 
 const DATA_DIR = "~/.local/share/mangas";
 let settings: Settings = {
@@ -199,5 +200,6 @@ export const mockBackend: Backend = {
   }),
   ...mockLibrary(library, chaptersOf),
   ...mockQueue,
+  ...mockUpdates(library, chaptersOf, () => settings.update_notifications !== false),
   onExportProgress: (cb) => subscribe(exportListeners, cb),
 };

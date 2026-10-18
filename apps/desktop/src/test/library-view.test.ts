@@ -20,7 +20,8 @@ const entry = (id: string, over: Partial<LibraryEntry> = {}): LibraryEntry => ({
   categories: [],
   added_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
-  chapters: { total: 10, downloaded: 0, exported: 0, unread: 0 },
+  chapters: { total: 10, downloaded: 0, exported: 0, unread: 0, new: 0 },
+  auto_download: false,
   ...over,
 });
 
@@ -30,11 +31,11 @@ const all = [
     source: "weebcentral",
     reading_status: "on_hold",
     added_at: "2026-02-01T00:00:00Z",
-    chapters: { total: 10, downloaded: 4, exported: 1, unread: 9 },
+    chapters: { total: 10, downloaded: 4, exported: 1, unread: 9, new: 0 },
   }),
   entry("Akira", {
     categories: [2],
-    chapters: { total: 3, downloaded: 3, exported: 0, unread: 3 },
+    chapters: { total: 3, downloaded: 3, exported: 0, unread: 3, new: 0 },
   }),
 ];
 const titles = (list: LibraryEntry[]) => list.map((e) => e.title);

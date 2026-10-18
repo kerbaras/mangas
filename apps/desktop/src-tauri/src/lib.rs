@@ -9,6 +9,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             allow_covers(app.handle());
             start_downloads(app.handle());
@@ -56,7 +57,10 @@ pub fn run() {
             commands::storage::clear_cache,
             commands::storage::move_data_dir,
             commands::storage::export_backup,
-            commands::storage::import_backup
+            commands::storage::import_backup,
+            commands::updates::check_updates,
+            commands::updates::mark_viewed,
+            commands::updates::set_auto_download
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

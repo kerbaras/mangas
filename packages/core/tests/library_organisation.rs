@@ -137,6 +137,7 @@ fn exports_mark_chapters_and_drive_the_unread_count() {
             downloaded: 2,
             exported: 1,
             unread: 1,
+            new: 0,
         }
     );
 }

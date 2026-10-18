@@ -13,6 +13,7 @@ const MIGRATIONS: &[&str] = &[
     include_str!("../../migrations/0005_manga_metadata.sql"),
     include_str!("../../migrations/0006_library_organisation.sql"),
     include_str!("../../migrations/0007_download_jobs.sql"),
+    include_str!("../../migrations/0008_update_checks.sql"),
 ];
 
 /// Handle to the library database. The connection sits behind a mutex so a handle can be shared

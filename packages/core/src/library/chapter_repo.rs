@@ -37,11 +37,19 @@ pub fn upsert_chapters(
                     SELECT 1 FROM chapter c WHERE c.source = ?1 AND c.id = s.id))",
             params![source, manga_id.0],
         )?;
+        // A language synced before makes its unseen chapters new; a first sync is the baseline.
+        let seen_before: bool = tx.query_row(
+            "SELECT EXISTS (SELECT 1 FROM manga_language_sync
+                            WHERE source = ?1 AND manga_id = ?2 AND language = ?3)",
+            params![source, manga_id.0, language],
+            |r| r.get(0),
+        )?;
         let mut stmt = tx.prepare(
             "INSERT INTO chapter
                 (id, manga_id, source, title, language, volume, number, scanlation_group,
-                 availability, external_url)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                 availability, external_url, first_seen_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
+                     CASE WHEN ?11 THEN strftime('%Y-%m-%d %H:%M:%f', 'now') END)
              ON CONFLICT (source, id) DO UPDATE SET
                 title = excluded.title, language = excluded.language,
                 volume = excluded.volume, number = excluded.number,
@@ -61,6 +69,7 @@ pub fn upsert_chapters(
                 c.group,
                 availability,
                 external_url,
+                seen_before,
             ])?;
         }
         // A dropped chapter that still has a download on its way keeps its row: the job fails
@@ -73,6 +82,11 @@ pub fn upsert_chapters(
                    WHERE source = ?1 AND manga_id = ?2 AND language = ?3 AND local_path IS NULL
                      AND id NOT IN (SELECT id FROM synced))",
             params![source, manga_id.0, language, UNLISTED, now_ms()],
+        )?;
+        tx.execute(
+            "INSERT OR IGNORE INTO manga_language_sync (source, manga_id, language)
+             SELECT source, id, ?3 FROM manga WHERE source = ?1 AND id = ?2",
+            params![source, manga_id.0, language],
         )?;
         tx.execute(
             "DELETE FROM chapter

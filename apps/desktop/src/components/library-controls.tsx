@@ -1,4 +1,5 @@
 import { Tags } from "lucide-react";
+import { AutoDownloadSwitch } from "@/components/auto-download-switch";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -33,7 +34,7 @@ type Props = {
 export function LibraryControls({ entry, categories, onStatus, onToggle }: Props) {
   const names = categories.filter((c) => entry.categories.includes(c.id)).map((c) => c.name);
   return (
-    <div className="mt-3 flex items-center gap-2">
+    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
       <Select
         value={entry.reading_status}
         onValueChange={(v) =>
@@ -80,6 +81,7 @@ export function LibraryControls({ entry, categories, onStatus, onToggle }: Props
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
+      <AutoDownloadSwitch key={`${entry.source}:${entry.id}`} entry={entry} />
     </div>
   );
 }

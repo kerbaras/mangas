@@ -17,6 +17,7 @@ import type { Diagnostics } from "./ipc.diagnostics";
 import type { DownloadJob, QueueEvent } from "./ipc.downloads";
 import type { Category, LibraryEntry } from "./ipc.library";
 import { tauriStorage } from "./ipc.tauri-storage";
+import { tauriUpdates } from "./ipc.tauri-updates";
 import {
   type ExportStats,
   type KindleEvent,
@@ -107,6 +108,7 @@ export const tauriBackend: Backend = {
   openLogs: () => invoke<void>("open_logs"),
   reportError: (message, level = "error") => invoke<void>("log_ui_error", { message, level }),
   ...tauriStorage,
+  ...tauriUpdates,
   listDownloads: () => invoke<DownloadJob[]>("list_downloads"),
   pauseDownload: (id) => invoke<DownloadJob[]>("pause_download", { id }),
   resumeDownload: (id) => invoke<DownloadJob[]>("resume_download", { id }),
