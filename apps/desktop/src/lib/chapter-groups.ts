@@ -40,7 +40,7 @@ export function splitGroup(name: string, tail = 10): [string, string] {
   if (name.length <= tail + 4) return [name, ""];
   const space = name.lastIndexOf(" ");
   const at = space > 0 && name.length - space - 1 <= tail + 4 ? space + 1 : name.length - tail;
-  // Spaces go to the kept end: a clipped start drops its trailing ones.
+  // The space goes to the kept end (a clipped start drops trailing ones), one is enough.
   const head = name.slice(0, at).trimEnd();
-  return [head, name.slice(head.length)];
+  return [head, name.slice(head.length).replace(/^\s+/, " ")];
 }

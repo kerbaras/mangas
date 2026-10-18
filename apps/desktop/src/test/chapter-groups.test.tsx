@@ -111,7 +111,7 @@ describe("splitGroup", () => {
 
   it("keeps the spaces before the kept end with the end", () => {
     expect(splitGroup("MangaDot mirror")).toEqual(["MangaDot", " mirror"]);
-    expect(splitGroup("Wicked House   Translation")).toEqual(["Wicked House", "   Translation"]);
+    expect(splitGroup("Wicked House   Translation")).toEqual(["Wicked House", " Translation"]);
     expect(splitGroup("abcd efgh ijklmnopqrstuvwxyz")).toEqual([
       "abcd efgh ijklmnop",
       "qrstuvwxyz",
