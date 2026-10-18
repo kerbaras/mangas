@@ -3,21 +3,42 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::job::{Job, JobId, JobState};
+use super::job::{GateStatus, Job, JobId, JobState};
 
 /// Serialised as `{"kind": "progress", "job": {...}}`; every event but `removed` carries the
 /// whole job as it is now.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum QueueEvent {
-    Queued { job: Job },
-    Started { job: Job },
-    Progress { job: Job },
-    Paused { job: Job },
-    Done { job: Job },
-    Failed { job: Job },
-    Cancelled { job: Job },
-    Removed { id: JobId },
+    Queued {
+        job: Job,
+    },
+    Started {
+        job: Job,
+    },
+    Progress {
+        job: Job,
+    },
+    Paused {
+        job: Job,
+    },
+    Done {
+        job: Job,
+    },
+    Failed {
+        job: Job,
+    },
+    Cancelled {
+        job: Job,
+    },
+    Removed {
+        id: JobId,
+    },
+    /// The queue-wide gate changed (pause all, resume all, a data-folder move's hold).
+    Gate {
+        paused: bool,
+        held: bool,
+    },
 }
 
 impl QueueEvent {
@@ -30,7 +51,7 @@ impl QueueEvent {
             | QueueEvent::Done { job }
             | QueueEvent::Failed { job }
             | QueueEvent::Cancelled { job } => Some(job),
-            QueueEvent::Removed { .. } => None,
+            QueueEvent::Removed { .. } | QueueEvent::Gate { .. } => None,
         }
     }
 }
@@ -52,6 +73,14 @@ pub fn diff(prev: &[Job], next: &[Job]) -> Vec<QueueEvent> {
         .filter(|p| !next.iter().any(|j| j.id == p.id))
         .map(|p| QueueEvent::Removed { id: p.id });
     changed.chain(removed).collect()
+}
+
+/// The gate event to send when the gate reads `next` and last read `prev` (`None`: first read).
+pub fn gate_event(prev: Option<GateStatus>, next: GateStatus) -> Option<QueueEvent> {
+    (prev != Some(next)).then_some(QueueEvent::Gate {
+        paused: next.paused,
+        held: next.held,
+    })
 }
 
 fn same(a: &Job, b: &Job) -> bool {

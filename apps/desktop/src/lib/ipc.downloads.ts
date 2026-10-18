@@ -42,7 +42,21 @@ export type QueueEvent =
       kind: "queued" | "started" | "progress" | "paused" | "done" | "failed" | "cancelled";
       job: DownloadJob;
     }
-  | { kind: "removed"; id: number };
+  | { kind: "removed"; id: number }
+  | ({ kind: "gate" } & QueueStatus);
+
+/** Mirrors `mangas_core::download::queue::GateStatus`: nothing new starts while either is set. */
+export type QueueStatus = {
+  /** Pause all (desktop or `mangas queue pause --all`); lifted by resume all. */
+  paused: boolean;
+  /** A data-folder move holds the queue until it finishes; read-only for the user. */
+  held: boolean;
+};
+
+/** `mangas_core::download::queue::UNLISTED`: the source stopped listing the chapter. */
+export const UNLISTED = "chapter no longer listed by the source";
+export const isUnlisted = (job: Pick<DownloadJob, "error">) =>
+  job.error?.includes(UNLISTED) ?? false;
 
 export type DownloadsBackend = {
   /** Every job in queue order. */
@@ -54,6 +68,11 @@ export type DownloadsBackend = {
   retryDownload(id: number | null): Promise<DownloadJob[]>;
   /** Removes done and cancelled jobs; resolves to how many. */
   clearDownloads(): Promise<number>;
+  /** Removes one done, failed or cancelled job (and a chapter row kept only for it). */
+  dismissDownload(id: number): Promise<void>;
+  queueStatus(): Promise<QueueStatus>;
+  /** Opens the downloaded chapter folder of job `id` in the file manager. */
+  openDownloadFolder(id: number): Promise<void>;
   onQueueEvent(cb: (e: QueueEvent) => void): Promise<Unlisten>;
 };
 
@@ -63,6 +82,9 @@ export const resumeDownload = async (id: number | null) => (await backend()).res
 export const cancelDownload = async (id: number | null) => (await backend()).cancelDownload(id);
 export const retryDownload = async (id: number | null) => (await backend()).retryDownload(id);
 export const clearDownloads = async () => (await backend()).clearDownloads();
+export const dismissDownload = async (id: number) => (await backend()).dismissDownload(id);
+export const queueStatus = async () => (await backend()).queueStatus();
+export const openDownloadFolder = async (id: number) => (await backend()).openDownloadFolder(id);
 export const onQueueEvent = async (cb: (e: QueueEvent) => void) =>
   (await backend()).onQueueEvent(cb);
 

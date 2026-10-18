@@ -8,8 +8,8 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::{mpsc, Notify};
 use tokio::task::JoinHandle;
 
-use super::events::{diff, QueueEvent};
-use super::job::{Job, JobId};
+use super::events::{diff, gate_event, QueueEvent};
+use super::job::{GateStatus, Job, JobId};
 use super::lease::{new_owner, Clock};
 use super::ops::now_ms;
 use super::retry::{classify, Failure};
@@ -75,7 +75,7 @@ impl Queue {
         let mut finished: Vec<(JobId, Option<Failure>)> = Vec::new();
         let mut runs: u64 = 0;
         let mut prev = library::list_jobs(&self.lib)?;
-        let mut held = false;
+        let mut gate: Option<GateStatus> = None;
         loop {
             while let Ok(outcome) = rx.try_recv() {
                 arrived.push(outcome);
@@ -87,8 +87,7 @@ impl Queue {
                 }
             }
             match self.step(&scope, &tasks, &progress, &finished) {
-                Ok((plan, paused)) => {
-                    held = paused;
+                Ok((plan, status)) => {
                     finished.clear();
                     for job in plan.claimed {
                         // Paused and resumed since the last step: the old run must be gone
@@ -103,11 +102,14 @@ impl Queue {
                     }
                     self.stop_lost(&plan.jobs, &mut tasks, &progress);
                     diff(&prev, &plan.jobs).into_iter().for_each(on_event);
+                    gate_event(gate, status).into_iter().for_each(on_event);
                     prev = plan.jobs;
+                    gate = Some(status);
                 }
                 Err(e) => log::warn!("download queue: {e}"),
             }
             // With the queue-wide gate closed nothing more will start: a settling worker stops.
+            let held = gate.is_some_and(|g| g.paused || g.held);
             if settle && tasks.is_empty() && (held || is_settled(&prev, &scope)) {
                 return Ok(());
             }
@@ -125,7 +127,7 @@ impl Queue {
         tasks: &Tasks,
         progress: &Progress,
         finished: &[(JobId, Option<Failure>)],
-    ) -> Result<(TickPlan, bool)> {
+    ) -> Result<(TickPlan, GateStatus)> {
         let pages = progress.lock().map(|p| p.clone()).unwrap_or_default();
         let in_flight = tasks
             .keys()
@@ -143,7 +145,7 @@ impl Queue {
         library::update_jobs_gated(&self.lib, |jobs, gate| {
             let paused = gate.closed(input.now);
             let plan = plan_tick(jobs, &TickInput { paused, ..input });
-            (plan.changed.clone(), (plan, paused))
+            (plan.changed.clone(), (plan, gate.status(input.now)))
         })
     }
 

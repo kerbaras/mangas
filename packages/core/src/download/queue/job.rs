@@ -132,4 +132,18 @@ impl QueueGate {
     pub fn closed(&self, now: i64) -> bool {
         self.paused || self.held(now)
     }
+
+    pub fn status(&self, now: i64) -> GateStatus {
+        GateStatus {
+            paused: self.paused,
+            held: self.held(now),
+        }
+    }
+}
+
+/// What the UIs show of the gate: the user's pause, and a data-folder move's hold.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GateStatus {
+    pub paused: bool,
+    pub held: bool,
 }

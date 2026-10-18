@@ -15,7 +15,7 @@ import { simulateExport } from "./mock-export";
 import { mockExportResult, mockFlags } from "./mock-flags";
 import { mockImport } from "./mock-import";
 import { markExported, mockLibrary } from "./mock-library";
-import { emitJob, mockJobState, mockQueue } from "./mock-queue";
+import { emitJob, mockJobState, simulatedQueue } from "./mock-queue-sim";
 import { mockSearch } from "./mock-search";
 import { mockStorage } from "./mock-storage";
 import { mockUpdates } from "./mock-updates";
@@ -200,7 +200,7 @@ export const mockBackend: Backend = {
     },
   }),
   ...mockLibrary(library, chaptersOf),
-  ...mockQueue,
+  ...simulatedQueue(),
   ...mockUpdates(library, chaptersOf, () => settings.update_notifications !== false),
   onExportProgress: (cb) => subscribe(exportListeners, cb),
 };

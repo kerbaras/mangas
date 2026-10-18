@@ -1,4 +1,4 @@
-import { AlertCircle, Check, Clock, Pause, Send } from "lucide-react";
+import { AlertCircle, Ban, Check, Clock, EyeOff, Pause, Send } from "lucide-react";
 import type { MouseEvent, ReactNode } from "react";
 import { AvailabilityCell } from "@/components/availability-cell";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -7,6 +7,7 @@ import { isUnavailable } from "@/lib/chapters";
 import { cn } from "@/lib/cn";
 import { languageLabel } from "@/lib/format";
 import type { Chapter, DownloadProgress } from "@/lib/ipc";
+import { isUnlisted } from "@/lib/ipc.downloads";
 
 type Props = {
   chapter: Chapter;
@@ -24,6 +25,15 @@ function Waiting({ icon, label, title }: { icon: ReactNode; label: string; title
 }
 
 function StateCell({ chapter, progress }: Pick<Props, "chapter" | "progress">) {
+  // Kept only for its download job; cleared from the Downloads screen.
+  if (progress && !chapter.local_path && isUnlisted({ error: progress.error ?? progress.retrying }))
+    return (
+      <Waiting
+        icon={<EyeOff className="size-3.5" />}
+        label="No longer listed"
+        title="The source stopped listing this chapter. Clear it from Downloads."
+      />
+    );
   if (progress?.state === "queued") {
     const label = progress.retrying ? "Retrying" : "Queued";
     const title = progress.retrying ?? undefined;
@@ -48,6 +58,9 @@ function StateCell({ chapter, progress }: Pick<Props, "chapter" | "progress">) {
         <AlertCircle className="size-3.5" /> Failed
       </span>
     );
+  }
+  if (progress?.state === "cancelled" && !chapter.local_path) {
+    return <Waiting icon={<Ban className="size-3.5" />} label="Cancelled" />;
   }
   if (chapter.availability && isUnavailable(chapter)) {
     return <AvailabilityCell availability={chapter.availability} />;

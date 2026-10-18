@@ -4,9 +4,10 @@
 use std::sync::Arc;
 
 use mangas_core::domain::{Chapter, ChapterId, MangaId};
-use mangas_core::download::queue::{self, Action, Job, JobId, Queue, Target};
+use mangas_core::download::queue::{self, Action, GateStatus, Job, JobId, Queue, Target};
 use mangas_core::library::{self, Library};
-use tauri::State;
+use tauri::{AppHandle, State};
+use tauri_plugin_opener::OpenerExt;
 
 use super::{source_by_name, to_ipc};
 
@@ -109,6 +110,38 @@ pub fn clear_downloads(downloads: State<'_, Downloads>) -> Result<usize, String>
     let removed = queue::clear_finished(queue.library()).map_err(to_ipc)?;
     queue.nudge();
     Ok(removed)
+}
+
+/// Removes one done, failed or cancelled job (and a chapter row kept only for it).
+#[tauri::command]
+#[tracing::instrument(level = "error", skip_all)]
+pub fn dismiss_download(downloads: State<'_, Downloads>, id: JobId) -> Result<(), String> {
+    let queue = downloads.queue()?;
+    queue::dismiss(queue.library(), id).map_err(to_ipc)?;
+    queue.nudge();
+    Ok(())
+}
+
+/// The queue-wide pause and data-folder-move hold; later changes arrive as `gate` events.
+#[tauri::command]
+#[tracing::instrument(level = "error", skip_all)]
+pub fn queue_status(downloads: State<'_, Downloads>) -> Result<GateStatus, String> {
+    queue::gate_status(downloads.queue()?.library()).map_err(to_ipc)
+}
+
+/// Opens the chapter folder of job `id` in the file manager.
+#[tauri::command]
+#[tracing::instrument(level = "error", skip_all)]
+pub fn open_download_folder(
+    app: AppHandle,
+    downloads: State<'_, Downloads>,
+    id: JobId,
+) -> Result<(), String> {
+    let job = queue::find(downloads.queue()?.library(), id).map_err(to_ipc)?;
+    let dir = job
+        .local_path
+        .ok_or_else(|| to_ipc(format!("chapter {} is not on disk", job.number)))?;
+    app.opener().open_path(dir, None::<&str>).map_err(to_ipc)
 }
 
 fn control(downloads: &Downloads, id: Option<JobId>, action: Action) -> Result<Vec<Job>, String> {

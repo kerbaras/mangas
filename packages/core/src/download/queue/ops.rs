@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use super::job::{Job, JobId, JobState};
+use super::job::{GateStatus, Job, JobId, JobState};
 use super::lease::{mark_stale, LEASE_MS};
 use super::transitions::{apply, recover, Action};
 use crate::domain::{Chapter, Error, Result};
@@ -144,6 +144,28 @@ pub fn clear_finished(lib: &Library) -> Result<usize> {
     library::delete_jobs(lib, &[JobState::Done, JobState::Cancelled])
 }
 
+/// Removes one done, failed or cancelled job from the list (a chapter row kept only for it
+/// goes too, see [`library::delete_job`]). Refuses a job still on its way.
+pub fn dismiss(lib: &Library, id: JobId) -> Result<()> {
+    let finished = [JobState::Done, JobState::Failed, JobState::Cancelled];
+    if library::delete_job(lib, id, &finished)? {
+        return Ok(());
+    }
+    let job = find(lib, id)?;
+    Err(Error::Other(format!(
+        "download {id} is {}; pause or cancel it first",
+        job.state.as_str()
+    )))
+}
+
+/// Job `id`, or `NotFound`.
+pub fn find(lib: &Library, id: JobId) -> Result<Job> {
+    list(lib)?
+        .into_iter()
+        .find(|j| j.id == id)
+        .ok_or_else(|| Error::NotFound(format!("download {id}")))
+}
+
 /// Every job in queue order, running ones whose lease expired marked `stale_lease`.
 pub fn list(lib: &Library) -> Result<Vec<Job>> {
     Ok(mark_stale(library::list_jobs(lib)?, now_ms(), LEASE_MS))
@@ -159,6 +181,11 @@ pub fn reclaim_orphans(lib: &Library, now: i64) -> Result<Vec<Job>> {
             .collect();
         (back.clone(), back)
     })
+}
+
+/// The queue-wide gate as the UIs show it.
+pub fn gate_status(lib: &Library) -> Result<GateStatus> {
+    Ok(library::queue_gate(lib)?.status(now_ms()))
 }
 
 pub fn now_ms() -> i64 {

@@ -14,8 +14,8 @@ import type {
 } from "./ipc";
 import { DEFAULT_LANGUAGE } from "./ipc";
 import type { Diagnostics } from "./ipc.diagnostics";
-import type { DownloadJob, QueueEvent } from "./ipc.downloads";
 import type { Category, LibraryEntry } from "./ipc.library";
+import { tauriDownloads } from "./ipc.tauri-downloads";
 import { tauriStorage } from "./ipc.tauri-storage";
 import { tauriUpdates } from "./ipc.tauri-updates";
 import {
@@ -30,7 +30,6 @@ import {
 import { languagesFor } from "./provider-prefs";
 import { readSettings } from "./settings";
 
-export const QUEUE_EVENT = "download://queue";
 export const KINDLE_EVENT = "kindle-progress";
 const SEARCH_LIMIT = 20;
 
@@ -110,13 +109,7 @@ export const tauriBackend: Backend = {
   reportError: (message, level = "error") => invoke<void>("log_ui_error", { message, level }),
   ...tauriStorage,
   ...tauriUpdates,
-  listDownloads: () => invoke<DownloadJob[]>("list_downloads"),
-  pauseDownload: (id) => invoke<DownloadJob[]>("pause_download", { id }),
-  resumeDownload: (id) => invoke<DownloadJob[]>("resume_download", { id }),
-  cancelDownload: (id) => invoke<DownloadJob[]>("cancel_download", { id }),
-  retryDownload: (id) => invoke<DownloadJob[]>("retry_download", { id }),
-  clearDownloads: () => invoke<number>("clear_downloads"),
-  onQueueEvent: (cb) => listen<QueueEvent>(QUEUE_EVENT, (e) => cb(e.payload)),
+  ...tauriDownloads,
   onExportProgress: (cb) =>
     listen<KindleEvent>(KINDLE_EVENT, (e) => cb(toExportProgress(e.payload))),
 };

@@ -78,9 +78,10 @@ fn print_event(event: QueueEvent) {
         }
         QueueEvent::Paused { job } => outln!("\r  {}: paused", label(job)),
         QueueEvent::Cancelled { job } => outln!("\r  {}: cancelled", label(job)),
-        QueueEvent::Started { .. } | QueueEvent::Progress { .. } | QueueEvent::Removed { .. } => {
-            Ok(())
-        }
+        QueueEvent::Started { .. }
+        | QueueEvent::Progress { .. }
+        | QueueEvent::Removed { .. }
+        | QueueEvent::Gate { .. } => Ok(()),
     };
 }
 

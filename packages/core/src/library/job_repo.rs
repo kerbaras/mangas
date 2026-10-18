@@ -6,7 +6,7 @@ use rusqlite::{params, Connection, Row, TransactionBehavior};
 use super::gate_repo::read_gate;
 use super::Library;
 use crate::domain::{ChapterId, MangaId, Result};
-use crate::download::queue::{enqueue_job, Job, JobId, JobState, QueueGate};
+use crate::download::queue::{enqueue_job, Job, JobId, JobState, QueueGate, UNLISTED};
 
 const SELECT: &str = "SELECT j.id, j.source, c.manga_id, j.chapter_id, j.state, j.attempts,
         j.error, j.pages_done, j.pages_total, j.not_before, j.owner, j.heartbeat_at,
@@ -87,16 +87,38 @@ pub fn enqueue_jobs(
     Ok(ids)
 }
 
-/// Deletes the jobs in `states`; returns how many.
+/// Deletes the jobs in `states`; returns how many. See [`delete_job`] for unlisted chapters.
 pub fn delete_jobs(lib: &Library, states: &[JobState]) -> Result<usize> {
-    let conn = lib.conn()?;
+    delete_where(lib, None, states)
+}
+
+/// Deletes job `id` if it is in one of `states`; returns whether it did. A chapter row the
+/// library kept only for this job (the source stopped listing it, see [`UNLISTED`]) goes with
+/// it: nothing else holds it, and it would still count as a chapter of the title.
+pub fn delete_job(lib: &Library, id: JobId, states: &[JobState]) -> Result<bool> {
+    Ok(delete_where(lib, Some(id), states)? == 1)
+}
+
+fn delete_where(lib: &Library, id: Option<JobId>, states: &[JobState]) -> Result<usize> {
+    let mut conn = lib.conn()?;
+    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
     let mut removed = 0;
     for state in states {
-        removed += conn.execute(
-            "DELETE FROM download_jobs WHERE state = ?1",
-            params![state.as_str()],
+        // Deleting the chapter row cascades to its job.
+        removed += tx.execute(
+            "DELETE FROM chapter WHERE local_path IS NULL AND EXISTS (
+                SELECT 1 FROM download_jobs j
+                WHERE j.source = chapter.source AND j.chapter_id = chapter.id
+                  AND j.state = ?1 AND (?2 IS NULL OR j.id = ?2)
+                  AND instr(COALESCE(j.error, ''), ?3) > 0)",
+            params![state.as_str(), id, UNLISTED],
+        )?;
+        removed += tx.execute(
+            "DELETE FROM download_jobs WHERE state = ?1 AND (?2 IS NULL OR id = ?2)",
+            params![state.as_str(), id],
         )?;
     }
+    tx.commit()?;
     Ok(removed)
 }
 
