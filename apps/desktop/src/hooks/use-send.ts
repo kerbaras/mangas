@@ -42,6 +42,7 @@ export function useSend(onSent?: () => void) {
         const [kindle] = await findKindles();
         if (!kindle) return setState({ kind: "no-device" });
         device.current = kindle.name;
+        setState({ kind: "copying", device: kindle.name, done: 0, total: 0 });
         const copy = await sendUsb(file, title, kindle.root);
         const verb = copy.already_there ? "Already on" : "Copied to";
         setState({ kind: "done", via: "usb", message: `${verb} ${kindle.name}: ${copy.path}` });

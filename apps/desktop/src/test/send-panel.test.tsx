@@ -44,8 +44,6 @@ describe("send panel", () => {
     await waitFor(() =>
       expect(sendUsb).toHaveBeenCalledWith(FILE, "Solo Leveling 1-3", kindle.root),
     );
-    expect(await screen.findByText("Looking for a Kindle…")).toBeTruthy();
-    expect(screen.queryByText(/Copying to/)).toBeNull();
     progress()?.({ done: 5_000_000, total: 10_000_000 });
     expect(await screen.findByText("5.0 MB / 10.0 MB")).toBeTruthy();
     finish({ path: "/media/me/Kindle/documents/Solo Leveling 1-3.epub", already_there: false });
