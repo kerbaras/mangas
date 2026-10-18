@@ -29,6 +29,7 @@ fn emit(app: &AppHandle, event: ExportEvent) {
 }
 
 #[tauri::command]
+#[tracing::instrument(level = "error", skip_all)]
 pub async fn export_kindle(
     app: AppHandle,
     chapter_dirs: Vec<PathBuf>,
@@ -38,7 +39,8 @@ pub async fn export_kindle(
     output: PathBuf,
     title: Option<String>,
 ) -> Result<ExportStats, String> {
-    let dev = kindle::device(&device).ok_or_else(|| format!("unknown device '{device}'"))?;
+    let dev =
+        kindle::device(&device).ok_or_else(|| to_ipc(format!("unknown device '{device}'")))?;
     let penalizer = if detectors {
         let cache = models_dir()?;
         let mut on_progress = |id: &str, done: u64, total: Option<u64>| {
@@ -61,17 +63,19 @@ pub async fn export_kindle(
         output,
     };
     let handle = app.clone();
+    // Mapped here, not in the closure, so the error is logged under this command's span.
     tauri::async_runtime::spawn_blocking(move || {
         let mut on_progress = |p: Progress| emit(&handle, ExportEvent::Export(p));
-        kindle::export(&req, penalizer, &mut on_progress).map_err(to_ipc)
+        kindle::export(&req, penalizer, &mut on_progress)
     })
     .await
     .map_err(to_ipc)?
+    .map_err(to_ipc)
 }
 
 fn models_dir() -> Result<PathBuf, String> {
     let lib = open_library()?;
-    paths::models(&settings_of(&lib)?)
+    paths::models(&settings_of(&lib)?).map_err(to_ipc)
 }
 
 fn default_title(chapter_dirs: &[PathBuf]) -> String {
@@ -83,6 +87,7 @@ fn default_title(chapter_dirs: &[PathBuf]) -> String {
 }
 
 #[tauri::command]
+#[tracing::instrument(level = "error", skip_all)]
 pub fn detectors_status() -> Result<ml::Status, String> {
     Ok(ml::status(&models_dir()?))
 }

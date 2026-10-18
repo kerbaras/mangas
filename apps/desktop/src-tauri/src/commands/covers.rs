@@ -7,6 +7,7 @@ use crate::paths;
 /// Local file of a manga's cover, fetched through its provider and cached under the data dir.
 /// The UI loads it through the asset protocol; an error means "show the placeholder".
 #[tauri::command]
+#[tracing::instrument(level = "error", skip_all)]
 pub async fn cover_path(source: String, manga_id: String, url: String) -> Result<String, String> {
     let fetcher = CoverFetcher::for_source(source_by_name(&source)?).map_err(to_ipc)?;
     let cache = CoverCache::new(paths::covers()?, Limits::default());
