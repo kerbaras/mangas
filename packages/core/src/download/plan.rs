@@ -50,7 +50,7 @@ pub fn plan(urls: &PageUrls, existing: &HashSet<String>) -> Vec<PageJob> {
 
 /// Indexes of the finished page images among `names` (`0003.png`, not `0003.png.part` or
 /// `0003.txt`).
-fn present_indexes(names: &HashSet<String>) -> HashSet<usize> {
+pub(super) fn present_indexes(names: &HashSet<String>) -> HashSet<usize> {
     names
         .iter()
         .filter(|name| is_image(name))

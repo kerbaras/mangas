@@ -4,11 +4,13 @@
 mod queue_support;
 
 use std::path::PathBuf;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::time::Duration;
 
 use mangas_core::download::queue::{self, JobState, Queue, Scope};
 use mangas_core::library;
-use queue_support::pages::{Fetcher, Runner};
+use queue_support::pages::{pages_on_disk, Fetcher, Runner};
 use queue_support::{fast_config, follow};
 
 async fn run(lib: &Arc<library::Library>, fetcher: &Arc<Fetcher>, root: &std::path::Path) {
@@ -42,6 +44,7 @@ async fn a_partial_folder_fetches_only_its_missing_pages() {
     let root = tempfile::tempdir().unwrap();
     let (lib, chapters, dir) = downloaded(root.path()).await;
     std::fs::write(dir.join("0001.jpg"), b"kept").unwrap();
+    std::fs::write(dir.join("0001.png"), b"an extra image").unwrap();
     std::fs::remove_file(dir.join("0002.jpg")).unwrap();
     std::fs::remove_file(dir.join("0005.jpg")).unwrap();
 
@@ -93,4 +96,42 @@ async fn a_folder_from_before_the_marker_counts_when_it_has_pages() {
     }
     let queued = queue::enqueue(&lib, "a", chapters, false).unwrap();
     assert_eq!(queued.jobs.len(), 1, "an emptied folder downloads again");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_page_count_is_recorded_before_the_pages_arrive() {
+    let lib = Arc::new(library::open_in_memory().unwrap());
+    let root = tempfile::tempdir().unwrap();
+    queue::enqueue(&lib, "a", follow(&lib, "a", 1), false).unwrap();
+    let fetcher = Arc::new(Fetcher::default());
+    fetcher.hang.store(true, Ordering::SeqCst);
+    let worker = {
+        let (lib, fetcher, root) = (lib.clone(), fetcher.clone(), root.path().to_path_buf());
+        tokio::spawn(async move { run(&lib, &fetcher, &root).await })
+    };
+    for _ in 0..500 {
+        if pages_on_disk(root.path()).len() == 2 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    worker.abort();
+
+    assert_eq!(
+        find_marker(root.path()).as_deref(),
+        Some("6\n"),
+        "a run that dies mid-way leaves the full count"
+    );
+}
+
+fn find_marker(dir: &std::path::Path) -> Option<String> {
+    let marker = dir.join(".mangas-pages");
+    if marker.exists() {
+        return std::fs::read_to_string(marker).ok();
+    }
+    std::fs::read_dir(dir)
+        .ok()?
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.is_dir())
+        .find_map(|p| find_marker(&p))
 }
