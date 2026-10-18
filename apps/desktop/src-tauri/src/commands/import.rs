@@ -8,7 +8,7 @@ use crate::paths;
 /// Imports chapter folders / `.cbz` files (or one series folder) as a `local` manga. Pages are
 /// copied off the UI thread; the report lists imported and skipped entries.
 #[tauri::command]
-#[tracing::instrument(skip_all)]
+#[tracing::instrument(level = "error", skip_all)]
 pub async fn import_local(
     paths: Vec<PathBuf>,
     title: Option<String>,

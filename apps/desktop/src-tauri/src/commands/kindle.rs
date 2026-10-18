@@ -29,7 +29,7 @@ fn emit(app: &AppHandle, event: ExportEvent) {
 }
 
 #[tauri::command]
-#[tracing::instrument(skip_all)]
+#[tracing::instrument(level = "error", skip_all)]
 pub async fn export_kindle(
     app: AppHandle,
     chapter_dirs: Vec<PathBuf>,
@@ -87,7 +87,7 @@ fn default_title(chapter_dirs: &[PathBuf]) -> String {
 }
 
 #[tauri::command]
-#[tracing::instrument(skip_all)]
+#[tracing::instrument(level = "error", skip_all)]
 pub fn detectors_status() -> Result<ml::Status, String> {
     Ok(ml::status(&models_dir()?))
 }

@@ -33,7 +33,7 @@ pub(super) fn settings_of(lib: &Library) -> Result<Settings, String> {
 }
 
 #[tauri::command]
-#[tracing::instrument(skip_all)]
+#[tracing::instrument(level = "error", skip_all)]
 pub fn list_library() -> Result<Vec<Manga>, String> {
     library::list_manga(&open_library()?).map_err(to_ipc)
 }
@@ -45,7 +45,7 @@ pub fn list_devices() -> Vec<Device> {
 
 /// Platform data folder used for chapters and models when no `data_dir` setting is stored.
 #[tauri::command]
-#[tracing::instrument(skip_all)]
+#[tracing::instrument(level = "error", skip_all)]
 pub fn default_data_dir() -> Result<String, String> {
     Ok(paths::data_dir(&Settings::default())
         .map_err(to_ipc)?
@@ -54,7 +54,7 @@ pub fn default_data_dir() -> Result<String, String> {
 }
 
 #[tauri::command]
-#[tracing::instrument(skip_all)]
+#[tracing::instrument(level = "error", skip_all)]
 pub fn get_settings() -> Result<Settings, String> {
     settings_of(&open_library()?)
 }
@@ -62,7 +62,7 @@ pub fn get_settings() -> Result<Settings, String> {
 /// Preferences from the UI; provider sessions are owned by `connect_provider` /
 /// `disconnect_provider` and never replaced from here.
 #[tauri::command]
-#[tracing::instrument(skip_all)]
+#[tracing::instrument(level = "error", skip_all)]
 pub fn set_settings(settings: Settings) -> Result<(), String> {
     let lib = open_library()?;
     let settings = Settings {
@@ -75,7 +75,7 @@ pub fn set_settings(settings: Settings) -> Result<(), String> {
 /// Links this executable as `mangas` on the user's PATH (macOS/Linux). Returns the link path,
 /// or the `ln -s` command to run by hand when the directory is not writable.
 #[tauri::command]
-#[tracing::instrument(skip_all)]
+#[tracing::instrument(level = "error", skip_all)]
 pub fn install_cli() -> Result<String, String> {
     // Inside an AppImage `current_exe` is the temporary mount; `APPIMAGE` is the real file.
     let exe = match std::env::var_os("APPIMAGE") {

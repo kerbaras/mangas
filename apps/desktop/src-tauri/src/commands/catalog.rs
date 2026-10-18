@@ -14,7 +14,7 @@ pub const DOWNLOAD_EVENT: &str = "download://progress";
 /// provider that fails or needs a session reports it in its group; the call itself only fails
 /// when the settings cannot be read.
 #[tauri::command]
-#[tracing::instrument(skip_all)]
+#[tracing::instrument(level = "error", skip_all)]
 pub async fn search_all(
     query: String,
     limit: usize,
@@ -25,7 +25,7 @@ pub async fn search_all(
 }
 
 #[tauri::command]
-#[tracing::instrument(skip_all)]
+#[tracing::instrument(level = "error", skip_all)]
 pub async fn follow_manga(source: String, id: String, language: String) -> Result<Manga, String> {
     let source = source_by_name(&source)?;
     let id = MangaId(id);
@@ -40,7 +40,7 @@ pub async fn follow_manga(source: String, id: String, language: String) -> Resul
 /// The stored record of a followed manga, otherwise the source's full details (not saved).
 /// Search results can be sparse, so the details screen never relies on them alone.
 #[tauri::command]
-#[tracing::instrument(skip_all)]
+#[tracing::instrument(level = "error", skip_all)]
 pub async fn get_manga(source: String, id: String) -> Result<Manga, String> {
     let id = MangaId(id);
     if let Some(stored) = library::get_manga(&open_library()?, &source, &id).map_err(to_ipc)? {
@@ -50,7 +50,7 @@ pub async fn get_manga(source: String, id: String) -> Result<Manga, String> {
 }
 
 #[tauri::command]
-#[tracing::instrument(skip_all)]
+#[tracing::instrument(level = "error", skip_all)]
 pub fn unfollow_manga(source: String, id: String) -> Result<bool, String> {
     library::remove_manga(&open_library()?, &source, &MangaId(id)).map_err(to_ipc)
 }
@@ -58,7 +58,7 @@ pub fn unfollow_manga(source: String, id: String) -> Result<bool, String> {
 /// Chapters from the library; `refresh` re-syncs them from the source first. A manga that is not
 /// followed yet has nothing stored, so a refresh returns the source's list without saving it.
 #[tauri::command]
-#[tracing::instrument(skip_all)]
+#[tracing::instrument(level = "error", skip_all)]
 pub async fn list_chapters(
     source: String,
     manga_id: String,
@@ -89,7 +89,7 @@ pub async fn list_chapters(
 /// a followed manga whose chapter list never got saved is re-synced the same way.
 /// Returns the chapter ids that failed (empty on full success).
 #[tauri::command]
-#[tracing::instrument(skip_all)]
+#[tracing::instrument(level = "error", skip_all)]
 pub async fn download_chapters(
     app: AppHandle,
     source: String,
