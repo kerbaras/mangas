@@ -12,8 +12,8 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const KONYAKU: &str = r#"{"manga_list":[{"id":32807,"title":"Konyaku Hakisarete"}]}"#;
 const KONYAKU_DETAIL: &str = r#"{"manga":{"id":32807,"title":"Konyaku Hakisarete"}}"#;
-const OTHER: &str = r#"{"manga_list":[{"id":1,"title":"Naruto"}]}"#;
-const EMPTY: &str = r#"{"manga_list":[]}"#;
+/// As the API ranks it: best matches first, then fuzzy ones that do not contain the words.
+const RANKED: &str = r#"{"manga_list":[{"id":115,"title":"BERSERK"},{"id":7,"title":"Gaiden"},{"id":9,"title":"Bersaga"}]}"#;
 
 fn session() -> Session {
     Session {
@@ -122,36 +122,18 @@ async fn a_request_without_the_referer_still_reads_as_a_challenge() {
 }
 
 #[tokio::test]
-async fn catalogue_walk_goes_past_a_short_page_and_stops_on_an_empty_one() {
+async fn search_keeps_the_api_ranking_without_filtering_or_walking_the_catalogue() {
     let server = edge().await;
-    api(&server, "/api/search", None, OTHER).await;
-    api(&server, "/api/manga", Some(("page", "1")), OTHER).await;
-    api(&server, "/api/manga", Some(("page", "2")), KONYAKU).await;
-    api(&server, "/api/manga", Some(("page", "3")), EMPTY).await;
+    api(&server, "/api/search", Some(("search", "berserk")), RANKED).await;
     let found = source(&server, Some(session()))
-        .search("konyaku", 5)
+        .search("berserk", 2)
         .await
         .unwrap();
     let ids: Vec<_> = found.iter().map(|m| m.id.0.as_str()).collect();
-    assert_eq!(ids, ["32807"]);
-    let pages: Vec<_> = sent(&server, "/api/manga")
-        .await
-        .iter()
-        .filter_map(|r| r.url.query_pairs().find(|(k, _)| k == "page"))
-        .map(|(_, v)| v.into_owned())
-        .collect();
-    assert_eq!(pages, ["1", "2", "3"]);
-}
-
-#[tokio::test]
-async fn catalogue_walk_stops_after_twenty_pages() {
-    let server = edge().await;
-    api(&server, "/api/search", None, OTHER).await;
-    api(&server, "/api/manga", None, OTHER).await;
-    let found = source(&server, Some(session()))
-        .search("konyaku", 5)
-        .await
-        .unwrap();
-    assert!(found.is_empty());
-    assert_eq!(sent(&server, "/api/manga").await.len(), 20);
+    assert_eq!(ids, ["115", "7"]);
+    let search = &sent(&server, "/api/search").await;
+    assert_eq!(search.len(), 1);
+    let limit = search[0].url.query_pairs().find(|(k, _)| k == "limit");
+    assert_eq!(limit.map(|(_, v)| v.into_owned()).as_deref(), Some("2"));
+    assert!(sent(&server, "/api/manga").await.is_empty());
 }

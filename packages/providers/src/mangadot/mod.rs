@@ -3,7 +3,6 @@
 
 mod api;
 mod mapping;
-mod search;
 
 use std::sync::Arc;
 
@@ -16,7 +15,6 @@ pub use mapping::{
     chapter_id, images_path, parse_chapters, parse_images, parse_manga_detail, parse_manga_list,
     site_url, SITE, SOURCE_NAME,
 };
-pub use search::{honoured, matches};
 
 use crate::http::{ClientConfig, SiteClient};
 use crate::provider::{Capability, Provider, ProviderInfo};
@@ -26,10 +24,6 @@ const API_BASE: &str = "https://mangadot.net/api";
 const REQUESTS_PER_SECOND: u32 = 3;
 /// One title of the catalogue: the cheapest API call that passes through the verification.
 const PROBE: &str = "/manga?limit=1&page=1";
-/// Titles per catalogue page when the text search has to be done locally.
-const CATALOGUE_PAGE: usize = 500;
-/// Upper bound of catalogue pages walked for one local search.
-const CATALOGUE_MAX_PAGES: usize = 20;
 
 pub const INFO: ProviderInfo = ProviderInfo {
     id: SOURCE_NAME,
@@ -86,28 +80,6 @@ impl MangaDot {
             api: SiteClient::new(config, session)?,
         })
     }
-
-    /// Walks the catalogue page by page, keeping titles that match `query`, until an empty page,
-    /// `limit` matches or [`CATALOGUE_MAX_PAGES`].
-    async fn search_catalogue(&self, query: &str, limit: usize) -> Result<Vec<Manga>> {
-        let mut found = Vec::new();
-        for page in 1..=CATALOGUE_MAX_PAGES {
-            let params = [
-                ("limit", CATALOGUE_PAGE.to_string()),
-                ("page", page.to_string()),
-            ];
-            let items = parse_manga_list(&self.api.get("/manga", &params).await?)?;
-            // Like the site's own lister: only an empty page ends the catalogue.
-            if items.is_empty() {
-                break;
-            }
-            found.extend(search::filter(items, query, limit - found.len()));
-            if found.len() >= limit {
-                break;
-            }
-        }
-        Ok(found)
-    }
 }
 
 #[async_trait]
@@ -116,23 +88,16 @@ impl Source for MangaDot {
         SOURCE_NAME
     }
 
-    /// Tries the search endpoint first; if it ignores the text (the results do not mostly
-    /// match it), filters the catalogue locally instead.
+    /// The API ranks by relevance and pads the tail with fuzzy matches; its order is kept.
     async fn search(&self, query: &str, limit: usize) -> Result<Vec<Manga>> {
         let limit = limit.clamp(1, 100);
-        // `search` is the name the site's own search page uses for the text (its route reads
-        // and writes `?search=`); the API is assumed to take the same one.
         let params = [
             ("search", query.to_string()),
             ("limit", limit.to_string()),
             ("page", "1".to_string()),
         ];
         let items = parse_manga_list(&self.api.get("/search", &params).await?)?;
-        if search::honoured(&items, query) {
-            Ok(search::filter(items, query, limit))
-        } else {
-            self.search_catalogue(query, limit).await
-        }
+        Ok(items.into_iter().take(limit).collect())
     }
 
     async fn manga(&self, id: &MangaId) -> Result<Manga> {

@@ -1,7 +1,6 @@
 use mangas_core::domain::{ChapterId, Error, MangaId, MangaStatus};
 use mangas_providers::mangadot::{
-    images_path, matches, parse_chapters, parse_images, parse_manga_detail, parse_manga_list,
-    site_url,
+    images_path, parse_chapters, parse_images, parse_manga_detail, parse_manga_list, site_url,
 };
 
 const SEARCH: &str = r#"{"manga_list":[{"id":32807,"title":"Konyaku Hakisarete","genres":["Comedy"],"status":"Ongoing","photo":"/uploads/ea2cc63c.webp","date_added":"2026-06-30 07:25:30+00","description":"The protagonist"}]}"#;
@@ -102,13 +101,6 @@ fn manga_detail_without_a_record_is_not_found() {
 }
 
 #[test]
-fn title_matching_is_word_based_and_case_insensitive() {
-    assert!(matches("Jujutsu Kaisen", "kaisen"));
-    assert!(matches("Jujutsu Kaisen", "JUJUTSU kai"));
-    assert!(!matches("Jujutsu Kaisen", "naruto"));
-}
-
-#[test]
 fn page_headers_come_from_the_host_policy() {
     use mangas_providers::mangadot::MangaDot;
     use mangas_providers::{Session, Source};
@@ -134,20 +126,6 @@ fn page_headers_come_from_the_host_policy() {
         source.page_headers("https://cdn.example/002.webp"),
         vec![referer]
     );
-}
-
-#[test]
-fn search_endpoint_is_trusted_only_when_results_mostly_match() {
-    use mangas_providers::mangadot::honoured;
-    let items = parse_manga_list(SEARCH).unwrap();
-    assert!(honoured(&items, "konyaku"));
-    let latest: Vec<_> = (0..3)
-        .flat_map(|_| parse_manga_list(SEARCH).unwrap())
-        .collect();
-    let mut mixed = latest;
-    mixed[0].title = "Naruto".into();
-    assert!(!honoured(&mixed, "naruto"));
-    assert!(!honoured(&[], "naruto"));
 }
 
 #[test]
