@@ -71,6 +71,7 @@ pub fn import_paths(lib: &Library, root: &Path, req: &ImportRequest) -> Result<I
                 let chapter = Chapter {
                     local_path: Some(dest.to_string_lossy().into_owned()),
                     group: None,
+                    availability: Default::default(),
                     ..chapter
                 };
                 imported.push(ImportedChapter {

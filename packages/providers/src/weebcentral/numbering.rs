@@ -44,6 +44,7 @@ pub fn number_chapters(listed: Vec<(ChapterId, String)>, manga: &MangaId) -> Vec
             number,
             local_path: None,
             group: None,
+            availability: Default::default(),
         })
         .collect();
     sort_by_number(chapters)

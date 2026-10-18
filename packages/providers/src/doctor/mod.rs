@@ -146,8 +146,9 @@ async fn search(source: &dyn Source, query: &str) -> Result<(String, Vec<Manga>)
     }
 }
 
-/// The first chapter of the first result (among [`CANDIDATES`]) that has any in `language`;
-/// the results passed over are named so the title differing from the manga step is explained.
+/// The first downloadable chapter of the first result (among [`CANDIDATES`]) that has one in
+/// `language`; locked and externally hosted chapters have no pages to check. The results passed
+/// over are named so the title differing from the manga step is explained.
 async fn first_chapter(
     source: &dyn Source,
     found: &[Manga],
@@ -160,7 +161,7 @@ async fn first_chapter(
             .await
             .map_err(|e| e.to_string())?;
         let count = chapters.len();
-        if let Some(first) = chapters.into_iter().next() {
+        if let Some(first) = chapters.into_iter().find(|c| c.is_available()) {
             let used = format!("{count} ({language}) in \"{}\"", manga.title);
             return Ok((with_skipped(used, &skipped, language), first));
         }

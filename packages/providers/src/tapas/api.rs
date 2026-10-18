@@ -22,7 +22,7 @@ pub struct Pagination {
 }
 
 /// One episode as listed, oldest first. `scene` is its position in the series; early access
-/// episodes report `0` until they are released.
+/// episodes report `0` until they are released and give their position in `pending_scene`.
 #[derive(Debug, Clone, Deserialize)]
 pub struct Episode {
     pub id: u64,
@@ -30,6 +30,8 @@ pub struct Episode {
     pub title: Option<String>,
     #[serde(default)]
     pub scene: u32,
+    #[serde(default)]
+    pub pending_scene: u32,
     #[serde(default)]
     pub free: bool,
     #[serde(default)]

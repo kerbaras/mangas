@@ -64,8 +64,27 @@ export function toggleAll(selected: Selection, visibleIds: string[]): Set<string
 
 export const isDownloaded = (c: Chapter) => c.local_path !== null;
 
+/** Locked or externally hosted and not on disk: listed, but nothing to download or export. */
+export const isUnavailable = (c: Chapter) =>
+  !isDownloaded(c) && (c.availability?.kind ?? "available") !== "available";
+
+/** Rows that can be selected; select all and shift-click ranges skip the rest. */
+export const selectableIds = (chapters: Chapter[]) =>
+  chapters.filter((c) => !isUnavailable(c)).map((c) => c.id);
+
+/** "3 locked, 1 on another site", or null when every chapter can be downloaded. */
+export function unavailableSummary(chapters: Chapter[]): string | null {
+  const off = chapters.filter(isUnavailable);
+  const locked = off.filter((c) => c.availability?.kind === "locked").length;
+  const parts = [
+    locked > 0 ? `${locked} locked` : null,
+    off.length > locked ? `${off.length - locked} on another site` : null,
+  ];
+  return off.length > 0 ? parts.filter(Boolean).join(", ") : null;
+}
+
 export const pickSelected = (chapters: Chapter[], selected: Selection) =>
-  chapters.filter((c) => selected.has(c.id));
+  chapters.filter((c) => selected.has(c.id) && !isUnavailable(c));
 
 /** What "Download selected" acts on: selected chapters that are not on disk yet. */
 export const downloadable = (chapters: Chapter[], selected: Selection) =>
@@ -75,10 +94,17 @@ export const downloadable = (chapters: Chapter[], selected: Selection) =>
 export const exportable = (chapters: Chapter[], selected: Selection) =>
   pickSelected(chapters, selected).filter(isDownloaded);
 
-export function selectionSummary(chapters: Chapter[], selected: Selection): string {
+/** `shown` (default: all of `chapters`) are the rows on screen, which the skipped count covers. */
+export function selectionSummary(
+  chapters: Chapter[],
+  selected: Selection,
+  shown: Chapter[] = chapters,
+): string {
+  const skipped = unavailableSummary(shown);
+  const tail = skipped ? ` · ${skipped} skipped` : "";
   const n = pickSelected(chapters, selected).length;
-  if (n === 0) return "No chapters selected";
+  if (n === 0) return `No chapters selected${tail}`;
   const toGet = downloadable(chapters, selected).length;
   const base = `${n} selected`;
-  return toGet === 0 ? `${base}, all downloaded` : `${base}, ${toGet} to download`;
+  return (toGet === 0 ? `${base}, all downloaded` : `${base}, ${toGet} to download`) + tail;
 }

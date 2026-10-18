@@ -1,7 +1,7 @@
 import { ChapterRow } from "@/components/chapter-row";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { DownloadMap } from "@/hooks/use-downloads";
-import type { Selection } from "@/lib/chapters";
+import { isUnavailable, type Selection } from "@/lib/chapters";
 import type { Chapter } from "@/lib/ipc";
 
 type Props = {
@@ -13,8 +13,9 @@ type Props = {
 };
 
 export function ChaptersTable({ chapters, selected, downloads, onToggle, onToggleAll }: Props) {
-  const allOn = chapters.length > 0 && chapters.every((c) => selected.has(c.id));
-  const someOn = !allOn && chapters.some((c) => selected.has(c.id));
+  const selectable = chapters.filter((c) => !isUnavailable(c));
+  const allOn = selectable.length > 0 && selectable.every((c) => selected.has(c.id));
+  const someOn = !allOn && selectable.some((c) => selected.has(c.id));
   return (
     <table className="w-full table-fixed border-collapse">
       <thead className="sticky top-0 z-10 bg-canvas text-left text-caption font-medium text-ink-3">
@@ -25,6 +26,7 @@ export function ChaptersTable({ chapters, selected, downloads, onToggle, onToggl
               ref={(el) => {
                 if (el) el.indeterminate = someOn;
               }}
+              disabled={selectable.length === 0}
               aria-label="Select all chapters"
               onChange={onToggleAll}
             />

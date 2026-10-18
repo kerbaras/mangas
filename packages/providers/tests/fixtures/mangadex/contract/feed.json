@@ -95,6 +95,25 @@
    ]
   },
   {
+   "id": "0e4f1a2b-3c4d-4e5f-8a9b-0c1d2e3f4a5b",
+   "type": "chapter",
+   "attributes": {
+    "volume": "1",
+    "chapter": "4",
+    "title": null,
+    "translatedLanguage": "en",
+    "externalUrl": "https://mangaplus.shueisha.co.jp/viewer/1000000",
+    "isUnavailable": false,
+    "pages": 0
+   },
+   "relationships": [
+    {
+     "id": "91d928a1-7237-4d03-abc3-4b1440cc7d55",
+     "type": "manga"
+    }
+   ]
+  },
+  {
    "id": "172189d8-b14f-4bc6-886b-90f448ca77e6",
    "type": "chapter",
    "attributes": {
@@ -187,7 +206,7 @@
    ]
   }
  ],
- "limit": 8,
+ "limit": 9,
  "offset": 0,
- "total": 8
+ "total": 9
 }

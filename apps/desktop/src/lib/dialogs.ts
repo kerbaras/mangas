@@ -31,3 +31,13 @@ export async function revealFolder(path: string): Promise<void> {
   const { openPath } = await import("@tauri-apps/plugin-opener");
   await openPath(path);
 }
+
+/** Opens a web page in the default browser (a new tab outside Tauri). */
+export async function openExternal(url: string): Promise<void> {
+  if (!isTauri()) {
+    window.open(url, "_blank", "noopener");
+    return;
+  }
+  const { openUrl } = await import("@tauri-apps/plugin-opener");
+  await openUrl(url);
+}

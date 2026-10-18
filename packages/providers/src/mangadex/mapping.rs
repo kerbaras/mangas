@@ -2,7 +2,7 @@
 
 use super::api::{ChapterData, Collection, Entity, ErrorBody, Localized, MangaData, Relationship};
 use super::dedupe::FeedChapter;
-use mangas_core::domain::{Chapter, ChapterId, Error, Manga, MangaId, MangaStatus};
+use mangas_core::domain::{Availability, Chapter, ChapterId, Error, Manga, MangaId, MangaStatus};
 
 pub const SOURCE_NAME: &str = "mangadex";
 const COVER_BASE: &str = "https://uploads.mangadex.org/covers";
@@ -36,9 +36,9 @@ pub struct FeedPage {
     pub next_offset: Option<u32>,
 }
 
-/// `GET /manga/{id}/feed` body -> chapters of `language` that MangaDex actually hosts.
-/// Externally hosted (`externalUrl`, e.g. MANGA Plus), unavailable and page-less chapters
-/// are dropped: they cannot be downloaded.
+/// `GET /manga/{id}/feed` body -> chapters of `language`. Externally hosted ones (`externalUrl`,
+/// e.g. MANGA Plus) are kept as [`Availability::External`]; unavailable (removed) and page-less
+/// uploads are dropped.
 pub fn parse_feed_response(
     body: &str,
     manga_id: &MangaId,
@@ -49,7 +49,7 @@ pub fn parse_feed_response(
         .data
         .iter()
         .filter(|c| c.attributes.translated_language == language)
-        .filter(|c| is_hosted(c))
+        .filter(|c| is_listed(c))
         .map(|c| FeedChapter {
             chapter: chapter_from_data(c, manga_id),
             published_at: c.attributes.publish_at.clone(),
@@ -81,9 +81,34 @@ fn next_offset(limit: u32, offset: u32, total: u32) -> Option<u32> {
     (limit > 0 && next < total).then_some(next)
 }
 
-fn is_hosted(c: &ChapterData) -> bool {
+fn is_listed(c: &ChapterData) -> bool {
     let a = &c.attributes;
-    !a.is_unavailable && a.external_url.is_none() && a.pages != Some(0)
+    !a.is_unavailable && (external_url(c).is_some() || a.pages != Some(0))
+}
+
+fn external_url(c: &ChapterData) -> Option<&str> {
+    let url = c.attributes.external_url.as_deref()?.trim();
+    (!url.is_empty()).then_some(url)
+}
+
+fn availability(c: &ChapterData) -> Availability {
+    match external_url(c) {
+        Some(url) => Availability::External {
+            url: secure_link(url),
+        },
+        None => Availability::Available,
+    }
+}
+
+/// The link to open for an externally hosted chapter: a well-formed `https` URL with a host,
+/// `http` upgraded to `https` (every site MangaDex links to serves it), anything else no link.
+pub fn secure_link(url: &str) -> Option<String> {
+    let mut parsed = url::Url::parse(url).ok()?;
+    if parsed.scheme() == "http" {
+        parsed.set_scheme("https").ok()?;
+    }
+    let has_host = parsed.host_str().is_some_and(|h| !h.is_empty());
+    (parsed.scheme() == "https" && has_host).then(|| parsed.into())
 }
 
 fn manga_from_data(m: &MangaData) -> Manga {
@@ -123,6 +148,7 @@ fn chapter_from_data(c: &ChapterData, manga_id: &MangaId) -> Chapter {
         number: attrs.chapter.clone().unwrap_or_default(),
         local_path: None,
         group: group_names(&c.relationships),
+        availability: availability(c),
     }
 }
 

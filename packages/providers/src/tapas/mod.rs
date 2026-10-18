@@ -1,6 +1,6 @@
 //! Tapas source (<https://tapas.io>): search, series and episode pages are server-rendered
-//! HTML, the episode list is JSON. Free episodes only; locked ones (paid, wait-until-free,
-//! early access) are left out of the chapter list.
+//! HTML, the episode list is JSON. Free episodes download; locked ones (paid, wait-until-free,
+//! early access) are listed as [`mangas_core::domain::Availability::Locked`].
 
 mod api;
 mod html;
@@ -115,9 +115,10 @@ impl Source for Tapas {
             page = next_episode_page(id, n, has_next, batch.len(), MAX_EPISODE_PAGES)?;
             episodes.extend(batch);
         }
-        let (chapters, locked) = to_chapters(&episodes, id);
+        let chapters = to_chapters(&episodes, id);
+        let locked = chapters.iter().filter(|c| !c.is_available()).count();
         if locked > 0 {
-            log::info!("tapas: series {id}: {locked} locked episodes skipped");
+            log::info!("tapas: series {id}: {locked} locked episodes");
         }
         Ok(chapters)
     }

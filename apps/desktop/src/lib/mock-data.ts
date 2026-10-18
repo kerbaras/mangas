@@ -146,6 +146,7 @@ const titles = [
 ];
 
 const groups = ["Asura Scans", "Flame Comics", "Reaper Scans, Hive Toons"];
+const url = "https://mangaplus.shueisha.co.jp/viewer/1000000";
 
 /** Deterministic chapter list per manga: 24 chapters, 3 volumes, first few downloaded, a Spanish dup. */
 export function sampleChapters(manga: Manga, dataDir: string): Chapter[] {
@@ -164,6 +165,7 @@ export function sampleChapters(manga: Manga, dataDir: string): Chapter[] {
         ? `${dataDir}/${manga.source}/${manga.id}/${String(n).padStart(3, "0")}`
         : null,
       group: groups[(n + seed) % (n > 20 ? 1 : groups.length)],
+      availability: n < 23 ? undefined : n === 23 ? { kind: "locked" } : { kind: "external", url },
     });
     if (n === 1)
       chapters.push({

@@ -18,6 +18,7 @@ import {
   exportable,
   filterByLanguage,
   languagesOf,
+  selectableIds,
   selectionSummary,
   sortChapters,
 } from "@/lib/chapters";
@@ -68,7 +69,7 @@ export function MangaDetailsScreen({ manga }: Props) {
   }, [landed, chapters.reload]);
   const languages = useMemo(() => languagesOf(all), [all]);
   const visible = useMemo(() => sortChapters(filterByLanguage(all, language)), [all, language]);
-  const visibleIds = useMemo(() => visible.map((c) => c.id), [visible]);
+  const visibleIds = useMemo(() => selectableIds(visible), [visible]);
   const { selected, onToggle, onToggleAll, clear } = useChapterSelection(visibleIds);
 
   const toDownload = downloadable(all, selected);
@@ -121,7 +122,7 @@ export function MangaDetailsScreen({ manga }: Props) {
             </TabsList>
           </Tabs>
         )}
-        <span className="text-caption text-ink-3">{selectionSummary(all, selected)}</span>
+        <span className="text-caption text-ink-3">{selectionSummary(all, selected, visible)}</span>
         <div className="ml-auto flex gap-2">
           <Button
             size="sm"

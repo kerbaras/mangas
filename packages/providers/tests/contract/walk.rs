@@ -3,7 +3,7 @@
 use std::cmp::Ordering;
 use std::collections::HashSet;
 
-use mangas_core::domain::{compare_numbers, parse_number, Chapter, Manga};
+use mangas_core::domain::{compare_numbers, parse_number, Availability, Chapter, Manga};
 use mangas_providers::{ProviderInfo, Source};
 use url::Url;
 
@@ -44,7 +44,9 @@ pub async fn assert_walk(
     let (owner, chapters) = first_with_chapters(source, id, &found, language).await;
     assert_chapters(id, &owner, language, &chapters);
 
-    let pages = source.pages(&chapters[0].id).await;
+    let first = chapters.iter().find(|c| c.is_available());
+    let first = first.unwrap_or_else(|| panic!("{id}: no downloadable chapter"));
+    let pages = source.pages(&first.id).await;
     let pages = pages.unwrap_or_else(|e| panic!("{id}: pages: {e}")).0;
     assert_pages(id, &pages);
     Walked {
@@ -110,6 +112,13 @@ fn assert_chapters(id: &str, owner: &Manga, language: &str, chapters: &[Chapter]
             "{id}: fresh chapter {} marked downloaded",
             c.id
         );
+        if let Availability::External { url: Some(url) } = &c.availability {
+            assert!(
+                Url::parse(url).is_ok_and(|u| u.scheme() == "https"),
+                "{id}: chapter {} external url {url:?}",
+                c.id
+            );
+        }
     }
     let sorted = chapters
         .windows(2)

@@ -31,7 +31,15 @@ export type Chapter = {
   local_path: string | null;
   /** Scanlation group(s) credited by the source ("A, B" when several). */
   group?: string | null;
+  /** Whether the source lets this chapter be downloaded; absent means available. */
+  availability?: Availability;
 };
+
+/** Mirrors `mangas_core::domain::Availability` (serde tag = "kind"). */
+export type Availability =
+  | { kind: "available" }
+  | { kind: "locked" }
+  | { kind: "external"; url: string | null };
 
 /** Mirrors `mangas_core::export::kindle::Device`. */
 export type Device = {

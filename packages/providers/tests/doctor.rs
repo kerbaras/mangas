@@ -49,6 +49,7 @@ impl Source for Fake {
                 number: n.to_string(),
                 local_path: None,
                 group: None,
+                availability: Default::default(),
             })
             .collect())
     }
