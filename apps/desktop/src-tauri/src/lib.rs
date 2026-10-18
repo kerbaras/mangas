@@ -16,6 +16,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             allow_covers(app.handle());
+            allow_cut_previews(app.handle());
             start_downloads(app.handle());
             Ok(())
         })
@@ -56,6 +57,11 @@ pub fn run() {
             commands::import::import_local,
             commands::export::export_chapters,
             commands::export::detectors_status,
+            commands::cut_preview::get_export_preset,
+            commands::cut_preview::set_export_preset,
+            commands::cut_preview::clear_export_preset,
+            commands::cut_preview::preview_cut,
+            commands::cut_preview::cancel_cut_preview,
             commands::volumes::plan_volumes,
             commands::volumes::export_volumes,
             commands::volumes::free_export_names,
@@ -135,6 +141,23 @@ fn allow_covers(app: &tauri::AppHandle) {
     });
     if let Err(e) = allowed {
         tracing::warn!("covers will show placeholders: {e}");
+    }
+}
+
+/// Starts the preview cache empty and lets the webview load its pages.
+fn allow_cut_previews(app: &tauri::AppHandle) {
+    use tauri::Manager;
+    let allowed = paths::cut_previews().and_then(|dir| {
+        if let Err(e) = std::fs::remove_dir_all(&dir) {
+            tracing::debug!("cut preview cache: {e}");
+        }
+        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+        app.asset_protocol_scope()
+            .allow_directory(&dir, true)
+            .map_err(|e| e.to_string())
+    });
+    if let Err(e) = allowed {
+        tracing::warn!("smart-cut previews will not show: {e}");
     }
 }
 

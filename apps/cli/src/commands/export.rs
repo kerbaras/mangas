@@ -2,20 +2,20 @@ use std::path::PathBuf;
 
 use anyhow::bail;
 use clap::Args as ClapArgs;
-use mangas_core::covers::{self, CoverCache, Limits};
 use mangas_core::domain::{Chapter, Manga};
 use mangas_core::download;
 use mangas_core::export::kindle::export;
 use mangas_core::export::volume::{self, find_volume, plan, Grouping, VolumePlan};
-use mangas_core::export::Format;
+use mangas_core::export::{ExportPreset, Format};
 use mangas_core::library;
-use mangas_providers::covers::CoverFetcher;
 
 use super::cut_args::{print_progress, CutArgs, DEFAULT_PROFILE};
 use super::deliver::{try_deliver, unsent, SendArg};
 use super::export_args::FormatArg;
+use super::export_cover::cover_file;
+use super::export_preset::{self, PresetAction};
 use super::kindle_record;
-use super::{source_by_name, stored_settings};
+use super::stored_settings;
 use crate::output::outln;
 use crate::paths;
 
@@ -61,6 +61,11 @@ pub struct Args {
     pub kindle: Option<PathBuf>,
     #[command(flatten)]
     pub cut: CutArgs,
+    /// Manage the series export preset instead of exporting. Exports of the series use it for
+    /// every option not given on the command line; `save` stores the cut, format and profile
+    /// flags given with it
+    #[arg(long, value_enum, value_name = "ACTION")]
+    pub preset: Option<PresetAction>,
 }
 
 /// "1..12" is the same range as "1-12".
@@ -116,24 +121,12 @@ fn missing_volume(n: &str, all: &[VolumePlan]) -> String {
     }
 }
 
-/// The cached series cover, fetched once if needed; `None` (first page as cover) when offline.
-async fn cover_file(manga: &Manga) -> Option<PathBuf> {
-    let url = manga.cover_url.as_deref()?;
-    let cache = CoverCache::new(paths::folders().ok()?.covers, Limits::default());
-    let fetcher = source_by_name(&manga.source).and_then(|s| Ok(CoverFetcher::for_source(s)?));
-    let fetched = match fetcher {
-        Ok(f) => covers::cover(&cache, &f, &manga.source, &manga.id.0, url)
-            .await
-            .map_err(anyhow::Error::from),
-        Err(e) => Err(e),
-    };
-    fetched
-        .inspect_err(|e| eprintln!("warning: no series cover ({e}); the first page is the cover"))
-        .ok()
-}
-
 pub async fn run(args: Args) -> anyhow::Result<()> {
     let lib = library::open(&paths::library_db()?)?;
+    let explicit = args.cut.explicit(args.format.map(Format::from))?;
+    if let Some(action) = args.preset {
+        return export_preset::manage(&lib, &args.source, &args.manga_id, action, &explicit);
+    }
     let src = volume::load(&lib, &args.source, &args.manga_id, None)?;
     let plans = plans(&args, &src.manga, &src.chapters)?;
     if plans.is_empty() {
@@ -142,11 +135,11 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             args.manga_id
         );
     }
-    let stored = stored_settings();
-    let saved = stored.default_device.as_deref().unwrap_or(DEFAULT_PROFILE);
-    let device = args.cut.device_or(saved)?;
-    let explicit = args.format.map(Format::from);
-    let format = Format::resolve(explicit, None, stored.default_format, &device)?;
+    let series = library::get_export_preset(&lib, &args.source, &args.manga_id)?;
+    let fallback = ExportPreset::from_settings(&stored_settings());
+    let preset = ExportPreset::resolve(&explicit, series.as_ref(), &fallback);
+    let device = CutArgs::device_of(&preset, DEFAULT_PROFILE)?;
+    let format = Format::resolve(preset.format, None, None, &device)?;
     for p in &plans {
         let (first, last) = (
             &p.chapters[0].number,
@@ -164,6 +157,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     if args.dry_run {
         return Ok(());
     }
+    export_preset::note_series_preset(series.as_ref());
     let penalizer = args.cut.penalizer().await?;
     let cover = cover_file(&src.manga).await;
     let mut failed = 0;
@@ -172,11 +166,12 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             &src.manga,
             p,
             device,
-            args.cut.options(),
+            preset.cut(),
             &args.output_dir,
             cover.clone(),
         )
-        .with_format(format);
+        .with_format(format)
+        .with_page(preset.page());
         let stats = export(&req, penalizer.clone(), &mut print_progress)?;
         outln!("{}: {} pages", stats.output.display(), stats.pages)?;
         if stats.skipped > 0 {

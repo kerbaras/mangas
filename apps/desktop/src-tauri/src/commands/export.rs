@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use mangas_core::export::kindle::{self, BookMeta, ExportRequest, ExportStats, Progress};
-use mangas_core::export::{Format, Labels};
+use mangas_core::export::{ExportPreset, Format, Labels};
 use mangas_core::library;
 use mangas_core::ml;
 use mangas_core::smartcut::{Preset, RowPenalizer};
@@ -42,16 +42,25 @@ pub(super) fn emit(app: &AppHandle, event: ExportEvent) {
 pub async fn export_chapters(
     app: AppHandle,
     chapter_dirs: Vec<PathBuf>,
-    device: String,
+    device: Option<String>,
     format: Option<Format>,
-    preset: Preset,
+    preset: Option<Preset>,
     detectors: bool,
     output: PathBuf,
     title: Option<String>,
 ) -> Result<ExportStats, String> {
-    let dev =
-        kindle::device(&device).ok_or_else(|| to_ipc(format!("unknown device '{device}'")))?;
-    let format = Format::resolve(format, Some(&output), None, &dev).map_err(to_ipc)?;
+    let explicit = ExportPreset {
+        cut_preset: preset,
+        format,
+        profile: device,
+        ..Default::default()
+    };
+    let resolved = resolve(&explicit, series_preset(&chapter_dirs).as_ref())?;
+    let dev = resolved
+        .profile_or(paths::DEFAULT_PROFILE)
+        .map_err(to_ipc)?;
+    let format = Format::resolve(format, Some(&output), resolved.format, &dev).map_err(to_ipc)?;
+    let device = dev.id.to_string();
     let penalizer = penalizer(&app, detectors).await?;
     let req_dirs = chapter_dirs.clone();
     let req = ExportRequest {
@@ -62,7 +71,8 @@ pub async fn export_chapters(
         chapter_dirs,
         device: dev,
         format,
-        cut: preset.options(),
+        cut: resolved.cut(),
+        page: resolved.page(),
         output,
         meta: BookMeta {
             chapter_titles: titles_of(&req_dirs),
@@ -81,6 +91,27 @@ pub async fn export_chapters(
     .map_err(to_ipc)?;
     record_export(&stats, &dirs, &title, &device);
     Ok(stats)
+}
+
+/// `explicit` choices over the series preset over the stored defaults.
+pub(super) fn resolve(
+    explicit: &ExportPreset,
+    series: Option<&ExportPreset>,
+) -> Result<ExportPreset, String> {
+    let settings = settings_of(&open_library()?)?;
+    let fallback = ExportPreset::from_settings(&settings);
+    Ok(ExportPreset::resolve(explicit, series, &fallback))
+}
+
+/// The preset of the series every folder belongs to; none when unreadable or mixed.
+fn series_preset(dirs: &[PathBuf]) -> Option<ExportPreset> {
+    let refs: Vec<&std::path::Path> = dirs.iter().map(PathBuf::as_path).collect();
+    open_library()
+        .and_then(|lib| library::preset_for_dirs(&lib, &refs).map_err(to_ipc))
+        .unwrap_or_else(|e| {
+            tracing::warn!("could not read the series export preset: {e}");
+            None
+        })
 }
 
 /// The detector row penalizer when `detectors` is on, reporting model downloads as events.

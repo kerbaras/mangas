@@ -81,6 +81,14 @@ fn link_title(conn: &Connection, t: &TitleState) -> Result<()> {
     for lang in &t.synced_languages {
         language.execute(params![t.source, t.id, lang])?;
     }
+    if let Some(preset) = &t.export_preset {
+        conn.execute(
+            "INSERT INTO export_preset (source, manga_id, preset)
+             SELECT source, id, ?3 FROM manga WHERE source = ?1 AND id = ?2
+             ON CONFLICT (source, manga_id) DO UPDATE SET preset = excluded.preset",
+            params![t.source, t.id, preset],
+        )?;
+    }
     Ok(())
 }
 

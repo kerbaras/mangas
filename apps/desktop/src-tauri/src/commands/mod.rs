@@ -2,6 +2,7 @@
 
 pub mod catalog;
 pub mod covers;
+pub mod cut_preview;
 pub mod diagnostics;
 pub mod downloads;
 mod errors;
@@ -9,6 +10,7 @@ pub mod export;
 pub mod folders;
 pub mod import;
 pub mod organisation;
+mod preview_panels;
 pub mod providers;
 pub mod send;
 pub mod storage;

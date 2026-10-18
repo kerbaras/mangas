@@ -87,6 +87,11 @@ impl StripPaginator {
         self.carry.as_ref().is_some_and(|c| c.width() == width)
     }
 
+    /// Whether any rows are held back for a next chunk.
+    pub fn has_pending_any(&self) -> bool {
+        self.carry.is_some()
+    }
+
     pub fn flush(&mut self) -> Result<Vec<Page>> {
         match self.carry.take() {
             Some(unit) => self.paginate_unit(&unit, true),

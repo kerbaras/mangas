@@ -118,6 +118,7 @@ fn imports_a_series_folder_and_exports_it() {
             .collect(),
         device: device("kindle-paperwhite12").unwrap(),
         cut: Preset::Balanced.options(),
+        page: Default::default(),
         title: report.manga.title.clone(),
         output: out.clone(),
         meta: Default::default(),

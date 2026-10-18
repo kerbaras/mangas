@@ -44,6 +44,14 @@ pub fn covers() -> Result<PathBuf, String> {
     Ok(default_data_dir()?.join("covers"))
 }
 
+/// The profile when neither the request nor the stored settings name one (same as the CLI).
+pub const DEFAULT_PROFILE: &str = "kindle-paperwhite12";
+
+/// Smart-cut preview pages, emptied at start-up; served to the webview through the asset protocol.
+pub fn cut_previews() -> Result<PathBuf, String> {
+    Ok(default_data_dir()?.join("cut-preview"))
+}
+
 /// Log files live next to the library database, whatever `data_dir` says.
 pub fn log_dir() -> Result<PathBuf, String> {
     Ok(mangas_core::logging::log_dir(&default_data_dir()?))

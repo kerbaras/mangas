@@ -46,6 +46,7 @@ pub fn snapshot(db: &Path) -> Vec<Vec<Vec<Value>>> {
         "download_queue",
         // Paths to EPUBs on this machine: machine-local like the queue, not in backups.
         "export_history",
+        "export_preset",
         "manga",
         "manga_category",
         "manga_language_sync",
@@ -65,6 +66,10 @@ pub fn snapshot(db: &Path) -> Vec<Vec<Vec<Value>>> {
              JOIN category c ON c.id = mc.category_id ORDER BY 1, 2, 3",
         ),
         rows(&conn, "SELECT * FROM manga_language_sync ORDER BY 1, 2, 3"),
+        rows(
+            &conn,
+            "SELECT source, manga_id, preset FROM export_preset ORDER BY 1, 2",
+        ),
         rows(
             &conn,
             &format!("SELECT {chapter} FROM chapter ORDER BY rowid"),

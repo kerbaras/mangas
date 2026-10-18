@@ -4,13 +4,17 @@ mod cover;
 mod export;
 pub mod filters;
 mod input;
+mod preview;
 pub mod process;
 mod request;
+mod run;
+pub mod trim;
 
 use super::{profile, Profile, PROFILES};
 
 pub use export::export;
 pub use input::{chapter_files, chapter_images, decode, ChapterFiles};
+pub use preview::{preview, Preview, PreviewPage, PreviewRequest};
 pub use process::{process_page, EncodedPage, ImageSettings};
 pub use request::{BookMeta, ExportRequest, ExportStats, Progress};
 

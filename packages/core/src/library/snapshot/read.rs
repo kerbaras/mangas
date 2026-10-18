@@ -50,6 +50,7 @@ fn titles(conn: &Connection) -> Result<Vec<TitleState>> {
         conn,
         "SELECT source, manga_id, language FROM manga_language_sync ORDER BY language",
     )?;
+    let mut presets = grouped(conn, "SELECT source, manga_id, preset FROM export_preset")?;
     let mut stmt = conn.prepare(
         "SELECT source, id, added_at, updated_at, reading_status, auto_download, last_viewed_at
          FROM manga ORDER BY rowid",
@@ -72,6 +73,7 @@ fn titles(conn: &Connection) -> Result<Vec<TitleState>> {
         let key = (title.source.clone(), title.id.clone());
         title.categories = names.remove(&key).unwrap_or_default();
         title.synced_languages = languages.remove(&key).unwrap_or_default();
+        title.export_preset = presets.remove(&key).and_then(|mut p| p.pop());
         titles.push(title);
     }
     Ok(titles)
