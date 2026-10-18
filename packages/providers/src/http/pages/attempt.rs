@@ -3,14 +3,14 @@
 use std::time::Duration;
 
 use mangas_core::domain::{Error, Result};
-use mangas_core::download::is_public_http_url;
-use reqwest::{RequestBuilder, Url};
+use reqwest::{Method, RequestBuilder, Response, Url};
 
+use super::super::redirect::hop_for;
 use super::super::response::{mitigated, retry_after, retryable_transport, should_retry};
-use super::{Fetched, PageClient};
+use super::{Fetched, PageClient, Step};
 
 /// The outcome of one attempt and, when it is to be retried, how long to wait first.
-type Attempt = (Result<Fetched>, Option<Duration>);
+type Attempt = (Result<Step>, Option<Duration>);
 
 impl PageClient<'_> {
     /// Rate limiting (429) and server errors retry after `Retry-After` or the backoff; a
@@ -32,9 +32,8 @@ impl PageClient<'_> {
                 return (Err(e.into()), wait);
             }
         };
-        if self.public_only && !is_public_http_url(response.url().as_str()) {
-            let message = format!("refusing response from non-public url {}", response.url());
-            return (Err(self.error(message)), None);
+        if let Some(hop) = hop_for(&Method::GET, &response) {
+            return (Ok(Step::Redirect(hop.url)), None);
         }
         let status = response.status().as_u16();
         let tries = attempt + 1;
@@ -44,11 +43,11 @@ impl PageClient<'_> {
             if wait.is_some() {
                 let body = Vec::new();
                 return (
-                    Ok(Fetched {
+                    Ok(Step::Done(Fetched {
                         status,
                         body,
                         attempts: tries,
-                    }),
+                    })),
                     wait,
                 );
             }
@@ -56,22 +55,59 @@ impl PageClient<'_> {
         if mitigated(&response).eq_ignore_ascii_case("challenge") {
             return (Err(challenge(id, response.url())), None);
         }
-        match response.bytes().await {
-            Err(e) => {
+        if !response.status().is_success() {
+            let body = Vec::new();
+            return (
+                Ok(Step::Done(Fetched {
+                    status,
+                    body,
+                    attempts: tries,
+                })),
+                None,
+            );
+        }
+        match self.read(url, response).await {
+            Err(Read::TooBig(e)) => (Err(e), None),
+            Err(Read::Network(e)) => {
                 let wait = self.retry.delay(attempt, None);
                 log_failure(id, url, attempt, wait, &e.to_string());
                 (Err(e.into()), wait)
             }
             Ok(body) => (
-                Ok(Fetched {
+                Ok(Step::Done(Fetched {
                     status,
-                    body: body.to_vec(),
+                    body,
                     attempts: tries,
-                }),
+                })),
                 None,
             ),
         }
     }
+
+    /// The body, refused as soon as it is known to exceed `max_bytes` (final, not retried).
+    async fn read(&self, url: &str, mut response: Response) -> std::result::Result<Vec<u8>, Read> {
+        let Some(max) = self.max_bytes else {
+            return Ok(response.bytes().await.map_err(Read::Network)?.to_vec());
+        };
+        let too_big = || Read::TooBig(self.error(format!("{url} is over {max} bytes")));
+        if response.content_length().is_some_and(|n| n > max as u64) {
+            return Err(too_big());
+        }
+        let mut body = Vec::new();
+        while let Some(chunk) = response.chunk().await.map_err(Read::Network)? {
+            if body.len() + chunk.len() > max {
+                return Err(too_big());
+            }
+            body.extend_from_slice(&chunk);
+        }
+        Ok(body)
+    }
+}
+
+/// Why a body could not be read.
+enum Read {
+    TooBig(Error),
+    Network(reqwest::Error),
 }
 
 /// A verification page: the same [`Error::Challenge`] as `SiteClient`, so the app offers

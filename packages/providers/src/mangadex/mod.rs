@@ -160,6 +160,10 @@ impl Source for MangaDex {
         self.client.page_headers(url)
     }
 
+    fn page_url(&self, url: &str) -> String {
+        self.client.page_url(url)
+    }
+
     fn mirror_url(&self, url: &str) -> Option<String> {
         uploads_mirror(url)
     }

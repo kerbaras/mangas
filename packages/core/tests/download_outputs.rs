@@ -170,3 +170,12 @@ fn page_urls_must_be_public_http() {
         assert!(!is_public_http_url(bad), "{bad}");
     }
 }
+
+#[test]
+fn ipv4_compatible_ipv6_is_judged_by_its_ipv4() {
+    use mangas_core::download::is_public_ip;
+    for bad in ["::127.0.0.1", "::10.0.0.1", "::ffff:169.254.169.254"] {
+        assert!(!is_public_ip(bad.parse().unwrap()), "{bad}");
+    }
+    assert!(is_public_ip("2606:4700::1111".parse().unwrap()));
+}

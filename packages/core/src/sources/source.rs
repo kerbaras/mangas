@@ -26,6 +26,11 @@ pub trait Source: Send + Sync {
         let _ = url;
         Vec::new()
     }
+    /// The URL to fetch for the page image (or cover) at `url`: `http:` upgraded to `https:` for
+    /// hosts the source knows serve it. Other URLs are fetched as given.
+    fn page_url(&self, url: &str) -> String {
+        url.to_string()
+    }
     /// Another URL serving the same page image, tried once when fetching `url` fails (e.g. a
     /// CDN node that is down). `None` when the source has no mirror.
     fn mirror_url(&self, url: &str) -> Option<String> {

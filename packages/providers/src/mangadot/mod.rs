@@ -124,6 +124,10 @@ impl Source for MangaDot {
         self.api.page_headers(url)
     }
 
+    fn page_url(&self, url: &str) -> String {
+        self.api.page_url(url)
+    }
+
     async fn status(&self) -> ProviderStatus {
         self.api.status(PROBE).await
     }

@@ -136,6 +136,10 @@ impl Source for Comick {
         self.client.page_headers(url)
     }
 
+    fn page_url(&self, url: &str) -> String {
+        self.client.page_url(url)
+    }
+
     async fn status(&self) -> ProviderStatus {
         self.client.status(PROBE).await
     }
