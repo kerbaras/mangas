@@ -26,6 +26,7 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 fast_image_resize = { version = "5", features = ["image"] }
 rayon = "1"
 sha2 = "0.10"
+uuid = { version = "1", default-features = false, features = ["v5"] }
 futures-util = "0.3"
 ort = { version = "=2.0.0-rc.13", optional = true, default-features = false, features = ["std", "ndarray", "download-binaries", "tls-rustls", "copy-dylibs"] }
 ndarray = { version = "0.17", optional = true }

@@ -20,6 +20,9 @@ pub struct BookMeta {
     pub cover: Option<PathBuf>,
     /// TOC label per `chapter_dirs` entry; missing ones use the folder name.
     pub chapter_titles: Vec<String>,
+    /// What the book is (source, manga, chapters), hashed into its identifier; the title and
+    /// chapter folders when absent.
+    pub identity: Option<String>,
 }
 
 #[derive(Debug, Clone)]

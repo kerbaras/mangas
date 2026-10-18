@@ -53,19 +53,12 @@ pub(super) fn chapter_title(dir: &Path, index: usize) -> String {
         .unwrap_or_else(|| format!("Chapter {}", index + 1))
 }
 
-/// Unique identifier: hash of the title, the output path and the export time (no extra dependency).
-pub(super) fn uuid_like(title: &str, output: &Path) -> String {
-    use sha2::{Digest, Sha256};
-    let now = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default();
-    let hash = Sha256::digest(format!("{title}:{}:{now}", output.display()));
-    let h: Vec<String> = hash.iter().take(16).map(|b| format!("{b:02x}")).collect();
-    let s = h.concat();
-    format!(
-        "{}-{}-{}-{}-{}",
-        &s[0..8],
-        &s[8..12],
-        &s[12..16],
-        &s[16..20],
-        &s[20..32]
+/// The book's `dc:identifier`: a UUIDv5 of `key`, so exporting the same chapters again gives
+/// the same id and Kindle and calibre treat the new file as the same book.
+pub(super) fn book_id(key: &str) -> String {
+    uuid::Uuid::new_v5(
+        &uuid::Uuid::NAMESPACE_URL,
+        format!("mangas:{key}").as_bytes(),
     )
+    .to_string()
 }

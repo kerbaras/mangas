@@ -179,3 +179,22 @@ fn without_a_series_cover_the_first_page_is_the_cover_and_not_repeated() {
     assert_eq!(opf.matches("<itemref ").count(), 3);
     assert!(zip.by_name("OEBPS/text/cover.xhtml").is_err());
 }
+
+#[test]
+fn exporting_the_same_chapters_again_keeps_the_book_identifier() {
+    let identifier = |root: &Path| {
+        let mut zip = export_volume(root, None);
+        let opf = entry(&mut zip, "OEBPS/content.opf");
+        let doc = roxmltree::Document::parse(&opf).unwrap();
+        doc.descendants()
+            .find(|n| n.tag_name().name() == "identifier")
+            .and_then(|n| n.text())
+            .unwrap()
+            .to_string()
+    };
+    let (a, b) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let first = identifier(a.path());
+    assert_eq!(first, identifier(b.path()));
+    let uuid = first.strip_prefix("urn:uuid:").unwrap();
+    assert_eq!(uuid.chars().nth(14), Some('5'), "a UUIDv5: {uuid}");
+}

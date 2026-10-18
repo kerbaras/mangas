@@ -8,7 +8,7 @@ use image::RgbaImage;
 use rayon::prelude::*;
 
 use super::cover::cover_page;
-use super::input::{chapter_files, chapter_title, decode, uuid_like, ChapterFiles};
+use super::input::{book_id, chapter_files, chapter_title, decode, ChapterFiles};
 use super::process::{process_page, ImageSettings};
 use super::request::{ExportRequest, ExportStats, Progress};
 use super::Device;
@@ -143,7 +143,12 @@ pub fn export(
     });
     let meta = &req.meta;
     let book = Book {
-        id: uuid_like(&req.title, &req.output),
+        id: book_id(
+            &meta
+                .identity
+                .clone()
+                .unwrap_or_else(|| fallback_identity(req)),
+        ),
         title: req.title.clone(),
         authors: if meta.authors.is_empty() {
             vec!["mangas".into()]
@@ -164,4 +169,13 @@ pub fn export(
     };
     run.stats.output = epub::write(&book, &req.output)?;
     Ok(run.stats)
+}
+
+fn fallback_identity(req: &ExportRequest) -> String {
+    let dirs: Vec<String> = req
+        .chapter_dirs
+        .iter()
+        .map(|d| d.display().to_string())
+        .collect();
+    format!("{}|{}", req.title, dirs.join("|"))
 }

@@ -3,10 +3,15 @@ import type { Async } from "@/hooks/use-async";
 import type { VolumePlan } from "@/lib/ipc.volumes";
 import { planSummary } from "@/lib/volume-plan";
 
-type Props = { plans: Async<VolumePlan[]>; folder: string };
+type Props = {
+  plans: Async<VolumePlan[]>;
+  folder: string;
+  /** The plans are for an older selection and a new plan is on its way. */
+  stale?: boolean;
+};
 
 /** The EPUB files an export will write, one row each. */
-export function VolumePreview({ plans, folder }: Props) {
+export function VolumePreview({ plans, folder, stale = false }: Props) {
   if (plans.kind === "loading") return <p className="text-caption text-ink-3">Planning books…</p>;
   if (plans.kind === "error")
     return (
@@ -17,7 +22,10 @@ export function VolumePreview({ plans, folder }: Props) {
   if (plans.data.length === 0)
     return <p className="text-caption text-ink-3">None of these chapters is downloaded.</p>;
   return (
-    <div className="flex flex-col gap-1.5">
+    <div
+      className={`flex flex-col gap-1.5 transition-opacity ${stale ? "opacity-60" : ""}`}
+      aria-busy={stale}
+    >
       <ul
         aria-label="Files to write"
         className="max-h-56 overflow-y-auto rounded-md border border-stroke"

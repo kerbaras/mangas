@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VolumePreview } from "@/components/volume-preview";
 import { type Async, useAsync } from "@/hooks/use-async";
+import { useDebounced } from "@/hooks/use-debounced";
 import { useVolumeExport } from "@/hooks/use-volume-export";
 import { revealFolder } from "@/lib/dialogs";
 import { type Chapter, detectorsStatus, listDevices, type Manga } from "@/lib/ipc";
@@ -40,15 +41,14 @@ const volumes = (chapters: Chapter[]) => new Set(chapters.map((c) => c.volume?.t
 export const initialMode = (chapters: Chapter[]): Mode =>
   volumes(chapters).size > 1 ? "by_volume" : "single";
 
+/** Typing in the title or size fields replans once the user pauses. */
+const PLAN_DELAY_MS = 300;
+
 type Keyed = { key: string; data: VolumePlan[] };
 
-/** The plans for `key`, or loading while an older request's plans are still on screen. */
-const current = (state: Async<Keyed>, key: string): Async<VolumePlan[]> =>
-  state.kind !== "ready"
-    ? state
-    : state.data.key === key
-      ? { kind: "ready", data: state.data.data }
-      : { kind: "loading" };
+/** The last plans that arrived; they stay on screen while a newer request is in flight. */
+const settled = (state: Async<Keyed>): Async<VolumePlan[]> =>
+  state.kind === "ready" ? { kind: "ready", data: state.data.data } : state;
 
 export function VolumeExportDialog({ open, onOpenChange, manga, chapters, onExported }: Props) {
   const [settings] = useSettings();
@@ -60,12 +60,24 @@ export function VolumeExportDialog({ open, onOpenChange, manga, chapters, onExpo
   const detectors = useAsync(detectorsStatus, []);
   const job = useVolumeExport();
   const outputDir = `${settings.dataDir}/kindle`;
-  const grouping: Grouping = mode === "every" ? { kind: "every", size } : { kind: mode };
+  const planSize = useDebounced(size, PLAN_DELAY_MS);
+  const planTitle = useDebounced(title, PLAN_DELAY_MS);
   const ids = chapters.map((c) => c.id);
-  const request = { source: manga.source, mangaId: manga.id, chapterIds: ids, grouping, title };
-  const key = [open, ids.join(), mode, size, title].join("|");
-  const planned = useAsync(() => planVolumes(request).then((data) => ({ key, data })), [key]);
-  const plans = current(planned.state, key);
+  const base = { source: manga.source, mangaId: manga.id, chapterIds: ids };
+  const grouping = (n: number): Grouping =>
+    mode === "every" ? { kind: "every", size: n } : { kind: mode };
+  const keyOf = (n: number, t: string) => [open, ids.join(), mode, n, t].join("|");
+  const key = keyOf(planSize, planTitle);
+  const planned = useAsync(
+    () =>
+      planVolumes({ ...base, grouping: grouping(planSize), title: planTitle }).then((data) => ({
+        key,
+        data,
+      })),
+    [key],
+  );
+  const fresh = planned.state.kind === "ready" && planned.state.data.key === keyOf(size, title);
+  const plans = settled(planned.state);
   const books = plans.kind === "ready" ? plans.data.length : 0;
   const busy = job.state.kind === "running";
   const useDetectors =
@@ -75,7 +87,9 @@ export function VolumeExportDialog({ open, onOpenChange, manga, chapters, onExpo
 
   const run = async () => {
     const written = await job.run({
-      ...request,
+      ...base,
+      grouping: grouping(size),
+      title,
       device,
       preset: settings.defaultPreset,
       detectors: useDetectors,
@@ -115,13 +129,13 @@ export function VolumeExportDialog({ open, onOpenChange, manga, chapters, onExpo
               )}
             </div>
           </Field>
-          {books === 1 && (
+          {mode === "single" && (
             <Field label="Title" htmlFor="volume-title" hint="Also the file name.">
               <Input
                 id="volume-title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder={plans.kind === "ready" ? plans.data[0].title : ""}
+                placeholder={plans.kind === "ready" ? (plans.data[0]?.title ?? "") : ""}
               />
             </Field>
           )}
@@ -138,7 +152,7 @@ export function VolumeExportDialog({ open, onOpenChange, manga, chapters, onExpo
             )}
           </Field>
           <Field label={books > 1 ? `${books} files` : "File"}>
-            <VolumePreview plans={plans} folder={outputDir} />
+            <VolumePreview plans={plans} folder={outputDir} stale={!fresh} />
           </Field>
           {job.state.kind === "done" ? (
             <div
@@ -162,7 +176,11 @@ export function VolumeExportDialog({ open, onOpenChange, manga, chapters, onExpo
           <Button disabled={busy} onClick={() => onOpenChange(false)}>
             {job.state.kind === "done" ? "Close" : "Cancel"}
           </Button>
-          <Button variant="primary" disabled={busy || books === 0} onClick={() => void run()}>
+          <Button
+            variant="primary"
+            disabled={busy || !fresh || books === 0}
+            onClick={() => void run()}
+          >
             <Send /> Export {books > 1 ? `${books} books` : "book"}
           </Button>
         </DialogFooter>

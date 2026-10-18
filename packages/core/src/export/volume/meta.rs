@@ -39,6 +39,12 @@ fn creators(manga: &Manga) -> Vec<String> {
     out
 }
 
+/// Provider, series and chapter set: the same chapters always make the same book.
+fn identity(manga: &Manga, chapters: &[Chapter]) -> String {
+    let ids: Vec<&str> = chapters.iter().map(|c| c.id.0.as_str()).collect();
+    format!("{}/{}/{}", manga.source, manga.id.0, ids.join(","))
+}
+
 pub fn book_meta(manga: &Manga, volume: &Volume, cover: Option<PathBuf>) -> BookMeta {
     BookMeta {
         authors: creators(manga),
@@ -49,5 +55,6 @@ pub fn book_meta(manga: &Manga, volume: &Volume, cover: Option<PathBuf>) -> Book
         }),
         cover,
         chapter_titles: volume.chapters.iter().map(chapter_label).collect(),
+        identity: Some(identity(manga, &volume.chapters)),
     }
 }

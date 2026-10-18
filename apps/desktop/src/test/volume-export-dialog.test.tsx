@@ -87,4 +87,19 @@ describe("export as volume", () => {
     fireEvent.change(title, { target: { value: "Solo: omnibus" } });
     expect(await screen.findByText("Solo omnibus.epub")).toBeTruthy();
   });
+
+  it("keeps the title field focused and replans once typing pauses", async () => {
+    const { planVolumes } = backend();
+    render(<VolumeExportDialog open onOpenChange={() => {}} manga={manga} chapters={chapters} />);
+    fireEvent.mouseDown(await screen.findByRole("tab", { name: "One book" }));
+    const title = await screen.findByLabelText("Title");
+    title.focus();
+    for (const value of ["C", "CO", "CON"]) fireEvent.change(title, { target: { value } });
+    expect(await screen.findByText("CON.epub")).toBeTruthy();
+    expect(screen.getByLabelText("Title")).toBe(title);
+    expect(document.activeElement).toBe(title);
+    const titles = planVolumes.mock.calls.map(([r]) => r.title);
+    expect(titles).not.toContain("C");
+    expect(titles).not.toContain("CO");
+  });
 });
