@@ -1,6 +1,7 @@
 use mangas_core::domain::{ChapterId, MangaId, MangaStatus};
 use mangas_providers::tapas::{
-    parse_episodes, parse_pages, parse_search, parse_series, to_chapters,
+    next_episode_page, parse_episodes, parse_pages, parse_search, parse_series, to_chapters,
+    MAX_EPISODE_PAGES,
 };
 
 const FIXTURES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tapas");
@@ -111,4 +112,35 @@ fn locked_episode_viewer_is_an_error() {
         &fixture("episode_locked.html"),
     );
     assert!(err.unwrap_err().to_string().contains("locked"));
+}
+
+#[test]
+fn episode_pages_continue_while_has_next() {
+    assert_eq!(
+        next_episode_page(&series(), 1, true, 20, 500).unwrap(),
+        Some(2)
+    );
+    assert_eq!(
+        next_episode_page(&series(), 7, false, 3, 500).unwrap(),
+        None
+    );
+    assert_eq!(next_episode_page(&series(), 7, true, 0, 500).unwrap(), None);
+}
+
+#[test]
+fn episode_list_past_the_cap_is_an_error_not_a_truncated_list() {
+    let cap = MAX_EPISODE_PAGES;
+    assert_eq!(
+        next_episode_page(&series(), cap - 1, true, 20, cap).unwrap(),
+        Some(cap)
+    );
+    let err = next_episode_page(&series(), cap, true, 20, cap).unwrap_err();
+    assert!(
+        err.to_string().contains("more than 500 episode pages"),
+        "{err}"
+    );
+    assert_eq!(
+        next_episode_page(&series(), cap, false, 20, cap).unwrap(),
+        None
+    );
 }

@@ -9,13 +9,14 @@ mod mapping;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use mangas_core::domain::{Chapter, ChapterId, Error, Manga, MangaId, Result};
+use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId, Result};
 use mangas_core::library::Settings;
 use mangas_core::sources::{Header, PageUrls, ProviderStatus, Source};
 
 pub use api::Episode;
 pub use mapping::{
-    parse_episodes, parse_pages, parse_search, parse_series, to_chapters, SITE, SOURCE_NAME,
+    next_episode_page, parse_episodes, parse_pages, parse_search, parse_series, to_chapters, SITE,
+    SOURCE_NAME,
 };
 
 use crate::http::{ClientConfig, SiteClient};
@@ -29,7 +30,7 @@ const AGE_COOKIES: &str = "birthDate=2000-01-01; adjustedBirthDate=2000-01-01";
 const PROBE: &str = "/series/2101/episodes?page=1";
 /// Upper bound of episode-list pages (20 episodes each) walked for one series; a longer list
 /// is an error rather than a silently truncated chapter list.
-const MAX_EPISODE_PAGES: u32 = 500;
+pub const MAX_EPISODE_PAGES: u32 = 500;
 
 pub const INFO: ProviderInfo = ProviderInfo {
     id: SOURCE_NAME,
@@ -107,22 +108,11 @@ impl Source for Tapas {
         }
         let path = format!("/series/{id}/episodes");
         let mut episodes = Vec::new();
-        let mut page = 0;
-        let mut more = true;
-        while more {
-            if page == MAX_EPISODE_PAGES {
-                return Err(Error::Source {
-                    name: SOURCE_NAME.to_string(),
-                    message: format!("series {id} has more than {MAX_EPISODE_PAGES} episode pages"),
-                });
-            }
-            page += 1;
-            let body = self
-                .client
-                .get(&path, &[("page", page.to_string())])
-                .await?;
+        let mut page = Some(1);
+        while let Some(n) = page {
+            let body = self.client.get(&path, &[("page", n.to_string())]).await?;
             let (batch, has_next) = parse_episodes(&body)?;
-            more = has_next && !batch.is_empty();
+            page = next_episode_page(id, n, has_next, batch.len(), MAX_EPISODE_PAGES)?;
             episodes.extend(batch);
         }
         let (chapters, locked) = to_chapters(&episodes, id);

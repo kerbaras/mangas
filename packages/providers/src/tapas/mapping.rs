@@ -72,6 +72,27 @@ pub fn parse_episodes(body: &str) -> Result<(Vec<Episode>, bool)> {
     Ok((response.data.episodes, response.data.pagination.has_next))
 }
 
+/// The episode-list page to fetch after `page`, or `None` once the list is complete. A list
+/// still going after `cap` pages is an error: a truncated list would read as complete and the
+/// library would drop the chapters missing from it.
+pub fn next_episode_page(
+    manga: &MangaId,
+    page: u32,
+    has_next: bool,
+    batch_len: usize,
+    cap: u32,
+) -> Result<Option<u32>> {
+    if !has_next || batch_len == 0 {
+        Ok(None)
+    } else if page >= cap {
+        Err(source_error(format!(
+            "series {manga} has more than {cap} episode pages"
+        )))
+    } else {
+        Ok(Some(page + 1))
+    }
+}
+
 /// Free episodes as chapters (numbered by `scene`), plus how many locked ones were left out:
 /// paid, wait-until-free and early access episodes cannot be read without an account.
 pub fn to_chapters(episodes: &[Episode], manga: &MangaId) -> (Vec<Chapter>, usize) {
