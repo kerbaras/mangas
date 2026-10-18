@@ -28,12 +28,17 @@ impl HostLimiters {
     /// Keeps every bucket (existing and future) in a file under `dir`, one per host, so every
     /// process pointing at the same folder shares one budget per host. The apps pass a folder
     /// in the platform data dir, which the CLI and the desktop app have in common.
+    /// Only the first call takes effect: a bucket's file cannot change once in use.
     pub fn share_across_processes(&self, dir: PathBuf) {
         let buckets = self.buckets.lock().unwrap_or_else(PoisonError::into_inner);
+        let mut current = self.dir.lock().unwrap_or_else(PoisonError::into_inner);
+        if current.is_some() {
+            return;
+        }
         for (key, bucket) in buckets.iter() {
             bucket.share_in(dir.join(file_name(key)));
         }
-        *self.dir.lock().unwrap_or_else(PoisonError::into_inner) = Some(dir);
+        *current = Some(dir);
     }
 
     /// The bucket for the host of `url`, created on first use with a burst of
