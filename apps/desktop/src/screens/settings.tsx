@@ -13,6 +13,7 @@ import { ProvidersList } from "@/components/providers-list";
 import { ScreenHeader } from "@/components/screen-header";
 import { StoragePanel } from "@/components/storage-panel";
 import { Button } from "@/components/ui/button";
+import { UpdatesSettings } from "@/components/updates-settings";
 import { useAsync } from "@/hooks/use-async";
 import { errorMessage } from "@/lib/format";
 import { installCli, listDevices } from "@/lib/ipc";
@@ -79,6 +80,9 @@ function SettingsForm() {
             <Field label="MangaDex">
               <MangaDexOptionsForm />
             </Field>
+          </Group>
+          <Group title="Updates">
+            <UpdatesSettings />
           </Group>
           <Group title="Kindle">
             <Field

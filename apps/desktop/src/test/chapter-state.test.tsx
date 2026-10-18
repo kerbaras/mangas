@@ -44,7 +44,13 @@ describe("chapter state", () => {
 
   it("summarises and counts chapters once across languages, exported as read", () => {
     expect(chapterSummary(list)).toBe("5 chapters · 2 on disk · 1 exported");
-    expect(countChapters(list)).toEqual({ total: 4, downloaded: 2, exported: 1, unread: 2 });
+    expect(countChapters(list)).toEqual({
+      total: 4,
+      downloaded: 2,
+      exported: 1,
+      unread: 2,
+      new: 0,
+    });
   });
 
   it("marks the exported folders in the mock like the core does", () => {

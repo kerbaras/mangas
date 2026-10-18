@@ -7,6 +7,7 @@ import type {
   LibraryEntry,
   ReadingStatus,
 } from "./ipc.library";
+import { mockAutoDownload, mockNewCount } from "./mock-updates";
 
 const DAY = 86_400_000;
 const key = (source: string, id: string) => `${source}:${id}`;
@@ -23,6 +24,7 @@ export function countChapters(chapters: Chapter[]): ChapterCounts {
     downloaded: numbers((c) => !!c.local_path).size,
     exported: exported.size,
     unread: [...available].filter((n) => !exported.has(n)).length,
+    new: 0,
   };
 }
 
@@ -61,7 +63,11 @@ export function mockLibrary(
       categories: links.get(k) ?? [],
       added_at: addedAt,
       updated_at: new Date(Math.max(Date.parse(addedAt), now - ((i * 5) % 17) * DAY)).toISOString(),
-      chapters: countChapters(chaptersOf(m.source, m.id)),
+      chapters: {
+        ...countChapters(chaptersOf(m.source, m.id)),
+        new: mockNewCount(m.source, m.id, chaptersOf(m.source, m.id)),
+      },
+      auto_download: mockAutoDownload(m.source, m.id),
     };
   };
   const taken = (name: string, except?: number) =>

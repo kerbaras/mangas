@@ -30,6 +30,8 @@ tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
 # Minor pinned to match @tauri-apps/plugin-clipboard-manager (Tauri CLI checks they agree).
 tauri-plugin-clipboard-manager = "~2.3"
+# Rust side only (one notification per update check); no JS package or capability needed.
+tauri-plugin-notification = "2"
 serde = { workspace = true }
 serde_json = { workspace = true }
 log = { workspace = true }

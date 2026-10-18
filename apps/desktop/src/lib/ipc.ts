@@ -8,6 +8,7 @@ import type { DownloadsBackend, JobState } from "./ipc.downloads";
 import type { LibraryBackend } from "./ipc.library";
 import type { Settings } from "./ipc.settings";
 import type { StorageBackend } from "./ipc.storage";
+import type { UpdatesBackend } from "./ipc.updates";
 
 export type { ProviderSession, Settings } from "./ipc.settings";
 
@@ -137,7 +138,8 @@ export type Unlisten = () => void;
 export type Backend = DiagnosticsBackend &
   DownloadsBackend &
   LibraryBackend &
-  StorageBackend & {
+  StorageBackend &
+  UpdatesBackend & {
     listLibrary(): Promise<Manga[]>;
     listDevices(): Promise<Device[]>;
     getSettings(): Promise<Settings>;

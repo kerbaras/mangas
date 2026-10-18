@@ -1,8 +1,6 @@
-use std::path::Path;
-
 use rusqlite::{params, Row};
 
-use super::Library;
+use super::{language_sync, Library};
 use crate::domain::{sort_by_number, Availability, Chapter, ChapterId, MangaId, Result};
 use crate::download::queue::{now_ms, UNLISTED};
 
@@ -37,11 +35,13 @@ pub fn upsert_chapters(
                     SELECT 1 FROM chapter c WHERE c.source = ?1 AND c.id = s.id))",
             params![source, manga_id.0],
         )?;
+        let seen_before = language_sync::synced_before(&tx, source, manga_id, language)?;
         let mut stmt = tx.prepare(
             "INSERT INTO chapter
                 (id, manga_id, source, title, language, volume, number, scanlation_group,
-                 availability, external_url)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                 availability, external_url, first_seen_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
+                     CASE WHEN ?11 THEN strftime('%Y-%m-%d %H:%M:%f', 'now') END)
              ON CONFLICT (source, id) DO UPDATE SET
                 title = excluded.title, language = excluded.language,
                 volume = excluded.volume, number = excluded.number,
@@ -61,6 +61,7 @@ pub fn upsert_chapters(
                 c.group,
                 availability,
                 external_url,
+                seen_before,
             ])?;
         }
         // A dropped chapter that still has a download on its way keeps its row: the job fails
@@ -74,6 +75,7 @@ pub fn upsert_chapters(
                      AND id NOT IN (SELECT id FROM synced))",
             params![source, manga_id.0, language, UNLISTED, now_ms()],
         )?;
+        language_sync::record(&tx, source, manga_id, language)?;
         tx.execute(
             "DELETE FROM chapter
              WHERE source = ?1 AND manga_id = ?2 AND language = ?3 AND local_path IS NULL
@@ -108,41 +110,6 @@ pub fn list_chapters(
     let rows = stmt.query_map(params![source, manga_id.0, language], row_to_chapter)?;
     let chapters: Vec<Chapter> = rows.collect::<std::result::Result<_, _>>()?;
     Ok(sort_by_number(chapters))
-}
-
-/// Records where a chapter's pages live on disk.
-pub fn mark_downloaded(
-    lib: &Library,
-    source: &str,
-    chapter: &ChapterId,
-    path: &Path,
-) -> Result<()> {
-    lib.conn()?.execute(
-        "UPDATE chapter SET local_path = ?3 WHERE source = ?1 AND id = ?2",
-        params![source, chapter.0, path.to_string_lossy()],
-    )?;
-    Ok(())
-}
-
-/// Records that the chapters downloaded to `dirs` were just exported. Paths match the stored
-/// `local_path` ignoring a trailing separator; folders that aren't library chapters are skipped.
-/// Returns how many chapter rows were marked.
-pub fn mark_exported(lib: &Library, dirs: &[&Path]) -> Result<usize> {
-    let mut conn = lib.conn()?;
-    let tx = conn.transaction()?;
-    let mut marked = 0;
-    {
-        let mut stmt = tx.prepare(
-            "UPDATE chapter SET exported_at = datetime('now')
-             WHERE local_path IS NOT NULL AND rtrim(local_path, '/\\') = ?1",
-        )?;
-        for dir in dirs {
-            let path = dir.to_string_lossy();
-            marked += stmt.execute(params![path.trim_end_matches(['/', '\\'])])?;
-        }
-    }
-    tx.commit()?;
-    Ok(marked)
 }
 
 fn row_to_chapter(row: &Row<'_>) -> rusqlite::Result<Chapter> {

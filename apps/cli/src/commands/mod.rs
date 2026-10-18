@@ -13,6 +13,8 @@ pub mod search;
 pub mod settings;
 mod settled;
 pub mod storage;
+pub mod update;
+pub mod update_print;
 mod watch;
 
 use std::sync::Arc;

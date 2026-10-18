@@ -19,7 +19,14 @@ export const readingLabel = (s: ReadingStatus) =>
 export type Category = { id: number; name: string };
 
 /** Chapter numbers (each counted once across languages); exported counts as read. */
-export type ChapterCounts = { total: number; downloaded: number; exported: number; unread: number };
+export type ChapterCounts = {
+  total: number;
+  downloaded: number;
+  exported: number;
+  unread: number;
+  /** First stored after the title was last opened: the "new" badge. */
+  new: number;
+};
 
 /** Mirrors `mangas_core::library::LibraryEntry`: the manga flattened plus the user's state. */
 export type LibraryEntry = Manga & {
@@ -30,6 +37,8 @@ export type LibraryEntry = Manga & {
   added_at: string;
   updated_at: string;
   chapters: ChapterCounts;
+  /** Update checks queue this title's new chapters for download. */
+  auto_download: boolean;
 };
 
 export type LibraryBackend = {

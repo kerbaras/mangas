@@ -30,7 +30,14 @@ pub struct Settings {
     /// Chapter languages per provider id, overriding `preferred_languages` for that provider
     /// when not empty. See [`Settings::languages_for`].
     pub provider_languages: BTreeMap<String, Vec<String>>,
+    /// Hours between background update checks; `None` is [`DEFAULT_UPDATE_HOURS`], 0 is off.
+    pub update_check_hours: Option<u32>,
+    /// Desktop notification when a background check finds new chapters; on when `None`.
+    pub update_notifications: Option<bool>,
 }
+
+/// Hours between background update checks when none is stored.
+pub const DEFAULT_UPDATE_HOURS: u32 = 6;
 
 /// Chapter language used when no preference is stored.
 pub const DEFAULT_LANGUAGE: &str = "en";
@@ -58,6 +65,16 @@ impl Settings {
         } else {
             own
         }
+    }
+
+    /// Hours between background update checks; 0 means they are off.
+    pub fn update_hours(&self) -> u32 {
+        self.update_check_hours.unwrap_or(DEFAULT_UPDATE_HOURS)
+    }
+
+    /// Whether background checks that find new chapters notify the desktop.
+    pub fn notify_updates(&self) -> bool {
+        self.update_notifications.unwrap_or(true)
     }
 
     /// Whether `provider` takes part in searches; on unless switched off.

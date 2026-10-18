@@ -15,14 +15,28 @@ use crate::paths;
 /// Downloads the jobs in `scope` (other processes may take some of them; they are waited for
 /// too, and so is a data-folder move holding the queue) and returns them as they ended.
 pub async fn run_until_settled(lib: Arc<Library>, scope: Scope) -> anyhow::Result<Settled> {
+    let on_hold = || {
+        let _ = outln!("  the data folder is being moved; downloads continue once it's done");
+    };
+    run_with(lib, scope, &print_event, &on_hold).await
+}
+
+/// [`run_until_settled`] printing nothing, for machine-readable output.
+pub async fn run_quietly(lib: Arc<Library>, scope: Scope) -> anyhow::Result<Settled> {
+    run_with(lib, scope, &|_| {}, &|| {}).await
+}
+
+async fn run_with(
+    lib: Arc<Library>,
+    scope: Scope,
+    on_event: &(dyn Fn(QueueEvent) + Send + Sync),
+    on_hold: &(dyn Fn() + Send + Sync),
+) -> anyhow::Result<Settled> {
     let runner = QueueRunner::new(Box::new(|_| {
         paths::downloads().map_err(|e| Error::Other(e.to_string()))
     }));
     let worker = Queue::new(lib, Arc::new(runner), QueueConfig::default());
-    let on_hold = || {
-        let _ = outln!("  the data folder is being moved; downloads continue once it's done");
-    };
-    Ok(queue::run_until_settled(&worker, scope, &print_event, &on_hold).await?)
+    Ok(queue::run_until_settled(&worker, scope, on_event, on_hold).await?)
 }
 
 /// One line per finished job, an updating `page n/total` line while one runs.

@@ -21,4 +21,8 @@ export type Settings = {
   providers_enabled?: Record<string, boolean>;
   /** Chapter languages per provider id; empty or missing = `preferred_languages`. */
   provider_languages?: Record<string, string[]>;
+  /** Hours between background update checks; null = 6, 0 = off. */
+  update_check_hours?: number | null;
+  /** Desktop notification when a background check finds new chapters; null = on. */
+  update_notifications?: boolean | null;
 };

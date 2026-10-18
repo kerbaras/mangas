@@ -10,6 +10,7 @@ type Props = EntryHandlers & { entry: LibraryEntry; categories: Category[] };
 
 export function MangaCard({ entry, categories, ...on }: Props) {
   const unread = entry.chapters.unread;
+  const fresh = entry.chapters.new;
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
@@ -20,6 +21,14 @@ export function MangaCard({ entry, categories, ...on }: Props) {
         >
           <div className="relative transition-transform group-hover:-translate-y-0.5">
             <Cover manga={entry} />
+            {fresh > 0 && (
+              <span
+                title={`${fresh} new since you last opened it`}
+                className="absolute top-1.5 left-1.5 rounded-sm bg-ok px-1 text-caption font-semibold text-canvas tabular-nums shadow-sm"
+              >
+                {fresh} new
+              </span>
+            )}
             {unread > 0 && (
               <span
                 title={`${unread} unread`}

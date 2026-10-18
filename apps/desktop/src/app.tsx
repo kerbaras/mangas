@@ -3,6 +3,7 @@ import { NavRail } from "@/components/nav-rail";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { activeCount, DownloadsProvider, useDownloads } from "@/hooks/use-downloads";
+import { useUpdateSchedule } from "@/hooks/use-update-schedule";
 import { mangaKey } from "@/lib/format";
 import { type Navigation, NavigationContext, type Route } from "@/lib/navigation";
 import { loadSettings } from "@/lib/settings";
@@ -29,6 +30,7 @@ function Screen({ route }: { route: Route }) {
 
 function Shell({ nav }: { nav: Navigation }) {
   const downloads = useDownloads();
+  useUpdateSchedule();
   return (
     <NavigationContext.Provider value={nav}>
       <div className="flex h-full">

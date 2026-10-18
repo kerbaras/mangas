@@ -37,6 +37,11 @@ export function LibraryList({ entries, categories, ...on }: Props) {
                   <Cover manga={e} className="w-7" />
                 </td>
                 <td className="truncate pr-4 font-medium" title={e.title}>
+                  {e.chapters.new > 0 && (
+                    <span className="mr-2 rounded-sm bg-ok px-1 text-caption font-semibold text-canvas tabular-nums">
+                      {e.chapters.new} new
+                    </span>
+                  )}
                   {e.title}
                 </td>
                 <td className="truncate text-ink-2">{e.source}</td>

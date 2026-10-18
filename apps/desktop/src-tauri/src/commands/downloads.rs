@@ -17,7 +17,7 @@ pub const QUEUE_EVENT: &str = "download://queue";
 pub struct Downloads(pub Result<Arc<Queue>, String>);
 
 impl Downloads {
-    fn queue(&self) -> Result<&Arc<Queue>, String> {
+    pub(super) fn queue(&self) -> Result<&Arc<Queue>, String> {
         self.0
             .as_ref()
             .map_err(|e| to_ipc(format!("download queue unavailable: {e}")))

@@ -9,7 +9,8 @@ const entry = {
   title: "Berserk",
   categories: [],
   reading_status: "reading",
-  chapters: { total: 1, downloaded: 0, exported: 0, unread: 1 },
+  chapters: { total: 1, downloaded: 0, exported: 0, unread: 1, new: 0 },
+  auto_download: false,
 } as unknown as LibraryEntry;
 
 vi.mock("@/lib/ipc", () => ({ unfollowManga: vi.fn() }));
