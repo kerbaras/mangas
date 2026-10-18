@@ -178,4 +178,9 @@ fn helpers_normalise_urls_text_and_languages() {
     );
     let preferred = ["ja", "zh-hant", "en"].map(String::from);
     assert_eq!(supported(&preferred), ["zh-hant", "en"]);
+    assert_eq!(
+        supported(&["ja".to_string()]),
+        ["en"],
+        "falls back to English"
+    );
 }

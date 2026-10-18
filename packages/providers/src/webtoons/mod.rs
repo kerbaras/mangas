@@ -19,7 +19,7 @@ pub use html::{canvas_cards, full_size, unescape, viewer_images, Card};
 pub use ids::{Episode, Title};
 pub use mapping::{
     cover_url, parse_canvas_search, parse_episode_page, parse_search, parse_title_page,
-    parse_viewer, title_status, to_chapters,
+    parse_viewer, supported, title_status, to_chapters,
 };
 
 use crate::http::{ClientConfig, SiteClient};
@@ -33,6 +33,8 @@ const MOBILE: &str = "https://m.webtoons.com";
 const PAGE_SIZE: usize = 1000;
 /// Upper bound of episode pages walked for one title.
 const MAX_PAGES: usize = 20;
+/// Most originals the search autocomplete returns per request (its default is ten).
+const MAX_DISPLAY: usize = 100;
 const PROBE: &str = "/en/search/immediate?keyword=webtoon";
 
 pub const INFO: ProviderInfo = ProviderInfo {
@@ -81,20 +83,28 @@ impl Webtoons {
         };
         let session = Session::from_settings(settings, INFO.id);
         Ok(Self {
-            site: SiteClient::new(config(site), session.clone())?,
-            mobile: SiteClient::new(config(mobile), session)?,
+            site: SiteClient::new(config(site), session)?,
+            // The API needs no session; host-only `www` cookies must not reach `m.`.
+            mobile: SiteClient::new(config(mobile), None)?,
             languages: supported(&settings.languages()),
         })
     }
 
     /// Originals (JSON) and canvas titles (HTML) of one language edition.
-    async fn search_language(&self, query: &str, language: &str) -> Result<Vec<Manga>> {
+    async fn search_language(
+        &self,
+        query: &str,
+        language: &str,
+        limit: usize,
+    ) -> Result<Vec<Manga>> {
         let params = [("keyword", query.to_string())];
+        let display = ("display", limit.clamp(1, MAX_DISPLAY).to_string());
+        let originals_params = [params[0].clone(), display];
         let (originals_path, canvas_path) = (
             format!("/{language}/search/immediate"),
             format!("/{language}/search/canvas"),
         );
-        let originals = self.site.get(&originals_path, &params);
+        let originals = self.site.get(&originals_path, &originals_params);
         let canvas = self.site.get_raw(&canvas_path, &params);
         let (originals, canvas) = futures::try_join!(originals, canvas)?;
         let mut found = parse_search(&originals, language)?;
@@ -107,15 +117,6 @@ impl Webtoons {
     }
 }
 
-/// `preferred` filtered to the editions Webtoons has, keeping the preference order.
-pub fn supported(preferred: &[String]) -> Vec<String> {
-    preferred
-        .iter()
-        .filter(|l| INFO.languages.contains(&l.as_str()))
-        .cloned()
-        .collect()
-}
-
 #[async_trait]
 impl Source for Webtoons {
     fn name(&self) -> &'static str {
@@ -126,7 +127,7 @@ impl Source for Webtoons {
         let editions = self
             .languages
             .iter()
-            .map(|l| self.search_language(query, l));
+            .map(|l| self.search_language(query, l, limit));
         let mut found: Vec<Manga> = Vec::new();
         for manga in try_join_all(editions).await?.into_iter().flatten() {
             if !found.iter().any(|m| m.id == manga.id) {

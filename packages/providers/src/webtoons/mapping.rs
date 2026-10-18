@@ -6,7 +6,7 @@ use mangas_core::sources::PageUrls;
 use super::api::{EpisodePage, EpisodesReply, SearchReply};
 use super::html::{canvas_cards, is_motion_toon, og, unescape, viewer_images};
 use super::ids::{Episode, Title};
-use super::SOURCE_NAME;
+use super::{INFO, SOURCE_NAME};
 
 /// Thumbnail host that serves covers without a referer (`webtoon-phinf` answers 403).
 const COVER_HOST: &str = "swebtoon-phinf.pstatic.net";
@@ -153,4 +153,19 @@ pub fn parse_viewer(html: &str) -> Result<PageUrls> {
         return Err(source_error(why));
     }
     Ok(PageUrls(pages))
+}
+
+/// `preferred` filtered to the editions Webtoons has, keeping the preference order; English
+/// when none of them is published.
+pub fn supported(preferred: &[String]) -> Vec<String> {
+    let editions: Vec<String> = preferred
+        .iter()
+        .filter(|l| INFO.languages.contains(&l.as_str()))
+        .cloned()
+        .collect();
+    if editions.is_empty() {
+        vec![INFO.languages[0].to_string()]
+    } else {
+        editions
+    }
 }

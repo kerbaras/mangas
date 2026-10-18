@@ -41,7 +41,12 @@ async fn search_covers_every_supported_language_and_tolerates_missing_canvas() {
 #[tokio::test]
 async fn failing_canvas_search_keeps_the_originals() {
     let server = MockServer::start().await;
-    reply(&server, "/en/search/immediate", 200, SEARCH).await;
+    Mock::given(method("GET"))
+        .and(path("/en/search/immediate"))
+        .and(query_param("display", "10"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(SEARCH))
+        .mount(&server)
+        .await;
     reply(&server, "/en/search/canvas", 400, "").await;
     let source = source_at("webtoons", &settings(&["en"]), &server.uri()).unwrap();
     assert_eq!(source.search("tower", 10).await.unwrap().len(), 1);
