@@ -34,6 +34,11 @@ pub fn models(settings: &Settings) -> Result<PathBuf, String> {
     Ok(data_dir(settings)?.join("models"))
 }
 
+/// Cover cache: next to the library database, whatever `data_dir` says.
+pub fn covers() -> Result<PathBuf, String> {
+    Ok(default_data_dir()?.join("covers"))
+}
+
 /// Log files live next to the library database, whatever `data_dir` says.
 pub fn log_dir() -> Result<PathBuf, String> {
     Ok(mangas_core::logging::log_dir(&default_data_dir()?))

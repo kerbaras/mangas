@@ -96,9 +96,7 @@ export const mockBackend: Backend = {
     await wait(250);
     return [...library.values()];
   },
-  async listDevices() {
-    return sampleDevices;
-  },
+  listDevices: async () => sampleDevices,
   async defaultDataDir() {
     return DATA_DIR;
   },
@@ -113,9 +111,7 @@ export const mockBackend: Backend = {
     await wait(200);
     return "/usr/local/bin/mangas";
   },
-  async listProviders() {
-    return providers;
-  },
+  listProviders: async () => providers,
   async connectProvider(id) {
     await wait(800);
     settings = {
@@ -146,6 +142,7 @@ export const mockBackend: Backend = {
     await wait(300 + Math.random() * 600);
     return mockSearch(query, only, settings);
   },
+  coverSrc: async (manga) => manga.cover_url,
   async followManga(source, id) {
     await wait(200);
     const manga: Manga | undefined = sampleCatalog.find((m) => m.source === source && m.id === id);
