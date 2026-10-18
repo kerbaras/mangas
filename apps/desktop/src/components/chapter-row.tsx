@@ -3,7 +3,7 @@ import type { MouseEvent, ReactNode } from "react";
 import { AvailabilityCell } from "@/components/availability-cell";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { shortGroup, sourceRef } from "@/lib/chapter-groups";
+import { sourceRef, splitGroup } from "@/lib/chapter-groups";
 import { isUnavailable } from "@/lib/chapters";
 import { cn } from "@/lib/cn";
 import { languageLabel } from "@/lib/format";
@@ -88,6 +88,17 @@ function StateCell({ chapter, progress }: Pick<Props, "chapter" | "progress">) {
   return <span className="text-caption text-ink-3">—</span>;
 }
 
+/** Clips the middle of a long name: the start ellipsizes, the end always shows. */
+function GroupName({ name }: { name: string }) {
+  const [head, tail] = splitGroup(name);
+  return (
+    <>
+      <span className="min-w-0 truncate">{head}</span>
+      {tail && <span className="shrink-0 whitespace-pre">{tail}</span>}
+    </>
+  );
+}
+
 export function ChapterRow({ chapter, selected, showSourceId, progress, onToggle }: Props) {
   const off = isUnavailable(chapter);
   const handle = (e: MouseEvent) => {
@@ -118,11 +129,17 @@ export function ChapterRow({ chapter, selected, showSourceId, progress, onToggle
       <td className={cn("truncate pr-4", off ? "text-ink-3" : "text-ink")}>
         {chapter.title ?? <span className="text-ink-3">Untitled</span>}
       </td>
-      <td className="w-40 truncate pr-4 text-ink-2" title={chapter.group ?? undefined}>
-        {chapter.group ? shortGroup(chapter.group) : <span className="text-ink-3">—</span>}
-        {showSourceId && (
-          <span className="ml-1 text-caption text-ink-3">{sourceRef(chapter.id)}</span>
-        )}
+      <td className="w-40 max-w-40 pr-4 text-ink-2" title={chapter.group ?? undefined}>
+        <div className="flex min-w-0 items-baseline">
+          {chapter.group ? (
+            <GroupName name={chapter.group} />
+          ) : (
+            <span className="text-ink-3">—</span>
+          )}
+          {showSourceId && (
+            <span className="ml-1 shrink-0 text-caption text-ink-3">{sourceRef(chapter.id)}</span>
+          )}
+        </div>
       </td>
       <td className="w-28 text-ink-2">{languageLabel(chapter.language)}</td>
       <td className="w-44 pr-4">
