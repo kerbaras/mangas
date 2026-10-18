@@ -4,6 +4,69 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.4.0-rc.1] - 2026-10-18
+
+### Added
+
+- **providers:** Share per-host rate limits across processes (#120)
+- **export:** Volume bundling with EPUB TOC, series metadata and cover page (#122)
+- **export:** Exporter trait with EPUB, CBZ and PDF, e-reader profiles
+- **export:** Send to Kindle by email or USB
+- **providers:** Season-aware display labels for Webtoons episodes
+- **desktop:** One export dialog for chapters, volumes, formats and delivery
+- **core:** Name per-chapter export books after their chapter
+- **export:** Smart-cut preview and per-series export presets
+- **desktop:** Series preset in the unified export dialog, wait for detectors before exporting
+- **web:** Landing page on GitHub Pages (#169)
+- **providers:** Map MangaDot groups and add a per-series group filter (#162)
+- **desktop:** New app icon (open book + ribbon) (#168)
+- **ml:** Ship detector support in every release via on-demand ONNX Runtime (#163)
+
+### Changed
+
+- **core:** Create the log folder in core
+
+### Fixed
+
+- **providers:** Follow redirects hop by hop with each host's limiter (#118)
+- **download:** Name page files by their real image format (#117)
+- **providers:** Resolve-time public IP check, https upgrade, covers on PageClient (#119)
+- **providers:** Refuse private IP literals and localhost as BlockedAddress (#140)
+- **cli:** Kindle keeps writing a Paperwhite EPUB by default; volume export uses the saved profile
+- **providers:** Warn once per host when the shared rate limit file is unusable
+- **download:** Save a job's page count on every page landed
+- **download:** Wake the worker on every landed page
+- **cli:** Title a chapter-folder export from the library's series
+- **cli:** A mixed chapter export keeps its first chapter's title
+- **core:** Validate imported page images, name a lone CBZ after its file, report skip reasons
+- **core:** Decode the whole page in the import check
+- **desktop:** Keep the skipped list inside the import toast
+- **download:** Clean stale .part files when a chapter completes
+- **download:** Stray .part cleanup is best-effort; keep a symlinked old data folder
+- **download:** Remove .part files by their real name, even when it is not UTF-8
+- **download:** Try every stale .part file, warning per one that stays
+- **send:** End the USB progress line before errors, skip it for books already on the Kindle, and disable Email for CBZ
+- **desktop:** No empty copying state before the first progress event; focusable reason for disabled Email
+- **desktop:** Show the copying state as soon as the Kindle is found
+- **download:** A chapter folder missing pages is downloaded again, not skipped
+- **download:** Record the page count before fetching and check every page index
+- **download:** Replace the page-count marker by rename
+- **download:** Give each marker write its own aside file
+- **download:** Repair folders without a page-count marker and sweep stray marker files
+- **desktop:** Tag only season episodes in export names; split season provider test
+- **core:** Name season chapters by their label in volume exports and TOCs
+- **core:** Keep part numbers and leading spaces in season tags
+- **core:** Name plain chapters ch 12 in volume exports too
+- **desktop:** Grant opener open_path so Open folder works
+- **desktop:** Open folders through a checked open_folder command
+- **desktop:** Create the log folder before offering to open it
+- **desktop:** Grant the notification permission check and guard every UI plugin
+- **core:** Open recorded export folders only, not their subfolders
+- **desktop:** Export the hidden selection and count skipped files across books
+- **desktop:** Preview the names an export really writes, keep partial sends, explain disabled email, clear stale results
+- **desktop:** Clear results on cut changes and after a busy change, match names case-insensitively
+- **core:** Export into folders that can be written but not listed
+- **desktop:** Wait for the series preset before exporting
 ## [0.3.0] - 2026-10-18
 
 ### Added
@@ -104,6 +167,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **desktop:** A reconnect waits for a session newer than the one it started with
 - **mangadot:** Search text parameter named like the site's own search route (search=)
 - **desktop:** Connect window navigation must stay on https
+[0.4.0-rc.1]: https://github.com/kerbaras/mangas/compare/v0.3.0...v0.4.0-rc.1
 [0.3.0]: https://github.com/kerbaras/mangas/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/kerbaras/mangas/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/kerbaras/mangas/compare/v0.1.0-rc.6...v0.1.0
