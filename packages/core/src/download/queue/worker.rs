@@ -164,9 +164,7 @@ impl Queue {
                 .any(|j| j.id == *id && is_run_by(j, &self.owner));
             if !ours {
                 handle.abort();
-                if let Ok(mut p) = progress.lock() {
-                    p.remove(id);
-                }
+                let _ = progress.lock().map(|mut p| p.remove(id));
             }
             ours
         });
@@ -192,11 +190,8 @@ impl Queue {
             };
             let outcome = runner.run(&lib, &job, &on_event).await.err();
             if let Some(e) = &outcome {
-                log::warn!(
-                    "download {} (chapter {}) failed: {e}",
-                    job.id,
-                    job.chapter_id
-                );
+                let (id, chapter) = (job.id, &job.chapter_id);
+                log::warn!("download {id} (chapter {chapter}) failed: {e}");
             }
             let _ = tx.send((job.id, run, outcome.as_ref().map(classify)));
         })
