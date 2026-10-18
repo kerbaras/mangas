@@ -5,8 +5,8 @@
 
 use super::Chapter;
 
-/// The leading `S2 Ep. 5` or `S2 Prologue` of a season-labelled title; `None` for any other
-/// title, including a bare `S2` that names no episode.
+/// The leading `S2 Ep. 5`, `S2 Prologue` or `S2 Part 1` of a season-labelled title; `None` for
+/// any other title, including a bare `S2` that names no episode.
 pub fn season_tag(title: &str) -> Option<&str> {
     let title = title.trim_start();
     let rest = title.strip_prefix('S')?;
@@ -14,7 +14,7 @@ pub fn season_tag(title: &str) -> Option<&str> {
     let rest = rest[season..].strip_prefix(' ').filter(|_| season > 0)?;
     let tail = match rest.strip_prefix("Ep. ") {
         Some(ep) => number_len(ep).map(|n| &ep[n..]),
-        None => word_len(rest).map(|n| &rest[n..]),
+        None => word_len(rest).map(|n| numbered(&rest[n..])),
     }?;
     (tail.is_empty() || tail.starts_with(' ')).then(|| &title[..title.len() - tail.len()])
 }
@@ -50,6 +50,15 @@ fn number_len(s: &str) -> Option<usize> {
     }
     let fraction = s[whole..].strip_prefix('.').map(digits).filter(|&n| n > 0);
     Some(whole + fraction.map_or(0, |n| n + 1))
+}
+
+/// `rest` after an optional ` 2` that numbers the word before it (`Part 2`).
+fn numbered(rest: &str) -> &str {
+    let after = rest.strip_prefix(' ').unwrap_or(" ");
+    match number_len(after) {
+        Some(n) if after[n..].is_empty() || after[n..].starts_with(' ') => &after[n..],
+        _ => rest,
+    }
 }
 
 /// Length of a leading word of letters (`Prologue`).
