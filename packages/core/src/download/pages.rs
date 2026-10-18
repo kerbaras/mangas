@@ -50,6 +50,7 @@ pub async fn download_pages_with(
     on_event: OnEvent<'_>,
 ) -> Result<usize> {
     tokio::fs::create_dir_all(dest).await?;
+    remove_partials(dest)?;
     let existing = match on_disk {
         OnDisk::Keep => existing_files(dest)?,
         OnDisk::Replace => HashSet::new(),
@@ -106,6 +107,17 @@ pub async fn download_pages_with(
 fn remove_stale_pages(dest: &Path, written: &HashSet<String>) -> Result<()> {
     for name in existing_files(dest)? {
         if is_image(&name) && !written.contains(&name) {
+            std::fs::remove_file(dest.join(name))?;
+        }
+    }
+    Ok(())
+}
+
+/// Drops `.part` files left by an interrupted run. Their name came from that run's bytes (or
+/// the URL, before pages were named by format), so this run may never overwrite them.
+fn remove_partials(dest: &Path) -> Result<()> {
+    for name in existing_files(dest)? {
+        if name.ends_with(".part") {
             std::fs::remove_file(dest.join(name))?;
         }
     }
