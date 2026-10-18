@@ -1,5 +1,3 @@
-use std::io::Write;
-
 use anyhow::bail;
 use clap::Args as ClapArgs;
 use mangas_core::domain::MangaId;
@@ -7,6 +5,7 @@ use mangas_core::download::{self, Event};
 use mangas_core::library;
 
 use super::source_by_name;
+use crate::output::{out, outln};
 use crate::paths;
 
 #[derive(ClapArgs)]
@@ -48,7 +47,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     if selected.is_empty() {
         bail!("no chapters match the selection");
     }
-    println!("Downloading {} chapter(s) of {}", selected.len(), id);
+    outln!("Downloading {} chapter(s) of {}", selected.len(), id)?;
     let root = paths::downloads()?;
     let report =
         download::download_chapters(source.as_ref(), &lib, &selected, &root, &print_event).await?;
@@ -56,7 +55,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         for dir in &report.downloaded {
             let out = download::cbz_path(dir);
             let pages = download::write_cbz(dir, &out)?;
-            println!("packed {pages} pages -> {}", out.display());
+            outln!("packed {pages} pages -> {}", out.display())?;
         }
     }
     if !report.failed.is_empty() {
@@ -68,10 +67,12 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
 fn print_event(event: Event) {
     match event {
         Event::PageDone { page, total, .. } => {
-            print!("\r  page {page}/{total}");
-            let _ = std::io::stdout().flush();
+            // Progress only: a closed stdout must not stop the download.
+            let _ = out!("\r  page {page}/{total}");
         }
-        Event::ChapterDone { path, pages, .. } => println!("\r  {pages} pages -> {path}"),
+        Event::ChapterDone { path, pages, .. } => {
+            let _ = outln!("\r  {pages} pages -> {path}");
+        }
         Event::Error { chapter, message } => eprintln!("\r  {chapter}: {message}"),
     }
 }

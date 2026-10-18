@@ -3,6 +3,7 @@ use mangas_core::sources::search::group;
 use mangas_core::sources::{ProviderStatus, SearchGroup};
 
 use super::{source_by_name, stored_settings};
+use crate::output::out;
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -26,7 +27,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             mangas_providers::search_enabled(&stored_settings(), &args.query, args.limit, &[]).await
         }
     };
-    print!("{}", render(&groups, &args.query, name_of));
+    out!("{}", render(&groups, &args.query, name_of))?;
     if !groups.is_empty() && groups.iter().all(|g| !g.is_ok()) {
         anyhow::bail!("no provider could search for \"{}\"", args.query);
     }

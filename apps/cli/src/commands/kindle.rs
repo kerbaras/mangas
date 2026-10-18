@@ -7,6 +7,7 @@ use mangas_core::export::kindle::{device, export, ExportRequest, Progress, DEVIC
 use mangas_core::ml;
 use mangas_core::smartcut::{Options, Preset};
 
+use crate::output::outln;
 use crate::paths;
 
 #[derive(ClapArgs)]
@@ -56,13 +57,18 @@ impl From<PresetArg> for Preset {
     }
 }
 
-fn list_devices() {
+fn list_devices() -> anyhow::Result<()> {
     for d in DEVICES {
-        println!(
+        outln!(
             "{:<22} {} ({}x{}, {} dpi)",
-            d.id, d.name, d.width, d.height, d.dpi
-        );
+            d.id,
+            d.name,
+            d.width,
+            d.height,
+            d.dpi
+        )?;
     }
+    Ok(())
 }
 
 fn cut_options(args: &Args) -> Options {
@@ -100,8 +106,7 @@ fn print_progress(p: Progress) {
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
     if args.list_devices {
-        list_devices();
-        return Ok(());
+        return list_devices();
     }
     if args.chapters.is_empty() {
         bail!("no chapter directories given");
@@ -141,7 +146,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     };
     let started = Instant::now();
     let stats = export(&req, penalizer, &mut print_progress)?;
-    println!(
+    outln!(
         "{}: {} pages from {} chapters ({} strips, {} source rows); pagination {} ms, filters {} ms, total {} ms",
         stats.output.display(),
         stats.pages,
@@ -151,12 +156,12 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         stats.pagination_ms,
         stats.filters_ms,
         started.elapsed().as_millis()
-    );
+    )?;
     if stats.skipped > 0 {
-        println!(
+        outln!(
             "skipped {} unsupported file(s), listed in the warnings above",
             stats.skipped
-        );
+        )?;
     }
     Ok(())
 }

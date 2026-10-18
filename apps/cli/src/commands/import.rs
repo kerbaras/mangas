@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use clap::Args as ClapArgs;
 use mangas_core::library::{self, ImportRequest};
 
+use crate::output::outln;
 use crate::paths;
 
 #[derive(ClapArgs)]
@@ -28,15 +29,16 @@ pub fn run(args: Args) -> anyhow::Result<()> {
     let report = library::import_paths(&lib, &paths::downloads()?, &req)?;
     for c in &report.imported {
         let number = if c.number.is_empty() { "-" } else { &c.number };
-        println!("  {number:<8} {:>4} pages -> {}", c.pages, c.path.display());
+        outln!("  {number:<8} {:>4} pages -> {}", c.pages, c.path.display())?;
     }
     for s in &report.skipped {
         eprintln!("  skipped {}: {}", s.name, s.reason);
     }
-    println!("{}", report.summary());
-    println!(
+    outln!("{}", report.summary())?;
+    outln!(
         "Library id: {} (source {})",
-        report.manga.id, report.manga.source
-    );
+        report.manga.id,
+        report.manga.source
+    )?;
     Ok(())
 }

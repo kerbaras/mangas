@@ -3,6 +3,7 @@
 //! serves both: with arguments it runs a command, without it opens the app.
 
 mod commands;
+mod output;
 mod paths;
 
 use std::ffi::OsString;
@@ -51,7 +52,11 @@ where
     let cli = Cli::parse_from(args);
     // Already initialised when embedded in a host that set up its own logging; keep that one.
     let _ = mangas_core::logging::init_stderr(cli.verbose);
-    match cli.command {
+    output::ignore_broken_pipe(dispatch(cli.command).await)
+}
+
+async fn dispatch(command: Command) -> anyhow::Result<()> {
+    match command {
         Command::List(args) => commands::list::run(args),
         Command::Search(args) => commands::search::run(args).await,
         Command::Add(args) => commands::add::run(args).await,

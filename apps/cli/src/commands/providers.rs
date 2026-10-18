@@ -2,6 +2,7 @@ use clap::{Args as ClapArgs, Subcommand};
 use mangas_providers::{doctor, ProviderInfo, ProviderStatus};
 
 use super::{source_by_name, stored_settings};
+use crate::output::outln;
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -38,7 +39,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
 /// the desktop app stored (connect from Settings in the app).
 async fn list() -> anyhow::Result<()> {
     for (info, status) in mangas_providers::statuses(&stored_settings()).await {
-        println!("{}", line(&info, &status));
+        outln!("{}", line(&info, &status))?;
     }
     Ok(())
 }
@@ -48,7 +49,7 @@ async fn check(args: CheckArgs) -> anyhow::Result<()> {
     let source = source_by_name(&args.id)?;
     let report = doctor::check(&*source, &args.query, &args.lang).await;
     for line in doctor::lines(&report) {
-        println!("{line}");
+        outln!("{line}")?;
     }
     anyhow::ensure!(report.passed(), "{} check failed", args.id);
     Ok(())

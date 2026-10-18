@@ -23,6 +23,9 @@ tokio = { workspace = true }
 clap = { version = "4", features = ["derive"] }
 directories = "6"
 
+[dev-dependencies]
+tempfile = "3"
+
 [features]
 default = []
 # ONNX detectors for smart cutting (downloads ONNX Runtime at build time).
