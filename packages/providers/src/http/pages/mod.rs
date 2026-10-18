@@ -133,7 +133,10 @@ impl<'a> PageClient<'a> {
     fn target(&self, url: &str) -> Result<String> {
         let url = self.source.page_url(url);
         if self.public_only && !is_public_http_url(&url) {
-            return Err(self.error(format!("refusing to fetch non-public url {url}")));
+            return Err(match resolver::literal_refusal(&url) {
+                Some(refusal) => refusal.into_error(self.source.name()),
+                None => self.error(format!("refusing to fetch non-public url {url}")),
+            });
         }
         if url.starts_with("http:") {
             log::debug!("{}: fetching plain http {url}", self.source.name());
