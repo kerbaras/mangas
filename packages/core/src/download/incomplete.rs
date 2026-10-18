@@ -5,8 +5,15 @@ use crate::domain::Error;
 /// Failures listed by number in the message; the rest are only counted.
 const LISTED: usize = 3;
 
-/// `failed` holds the 1-based index and error of every page that could not be fetched.
+/// `failed` holds the 1-based index and error of every page that could not be fetched. A
+/// browser verification wins over the count: the app turns it into a "Connect" prompt.
 pub fn incomplete(mut failed: Vec<(usize, Error)>, total: usize) -> Error {
+    if let Some(at) = failed
+        .iter()
+        .position(|(_, e)| matches!(e, Error::Challenge { .. }))
+    {
+        return failed.swap_remove(at).1;
+    }
     failed.sort_by_key(|(index, _)| *index);
     let listed: Vec<String> = failed
         .iter()
