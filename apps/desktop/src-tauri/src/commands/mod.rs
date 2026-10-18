@@ -7,6 +7,7 @@ mod errors;
 pub mod import;
 pub mod kindle;
 pub mod providers;
+pub mod storage;
 
 use mangas_core::domain::Manga;
 use mangas_core::export::kindle::{Device, DEVICES};

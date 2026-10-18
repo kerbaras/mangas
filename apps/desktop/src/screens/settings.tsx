@@ -1,5 +1,6 @@
-import { FolderOpen, Terminal } from "lucide-react";
+import { Terminal } from "lucide-react";
 import { useState } from "react";
+import { BackupPanel } from "@/components/backup-panel";
 import { DeviceSelect } from "@/components/device-select";
 import { DevicesPending } from "@/components/devices-pending";
 import { DiagnosticsPanel } from "@/components/diagnostics-panel";
@@ -10,10 +11,9 @@ import { MangaDexOptionsForm } from "@/components/mangadex-options";
 import { PresetPicker } from "@/components/preset-picker";
 import { ProvidersList } from "@/components/providers-list";
 import { ScreenHeader } from "@/components/screen-header";
+import { StoragePanel } from "@/components/storage-panel";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useAsync } from "@/hooks/use-async";
-import { pickFolder } from "@/lib/dialogs";
 import { errorMessage } from "@/lib/format";
 import { installCli, listDevices } from "@/lib/ipc";
 import { loadSettings, useSettings, useSettingsLoad } from "@/lib/settings";
@@ -52,34 +52,16 @@ function SettingsForm() {
     }
   };
 
-  const chooseDataDir = async () => {
-    const dir = await pickFolder("Choose the data folder", settings.dataDir);
-    if (dir) update({ dataDir: dir });
-  };
-
   return (
     <section className="flex h-full flex-col">
       <ScreenHeader title="Settings" />
       <div className="flex-1 overflow-auto p-4">
         <div className="mx-auto flex max-w-2xl flex-col gap-8">
           <Group title="Storage">
-            <Field
-              label="Data folder"
-              htmlFor="data-dir"
-              hint="Downloaded chapters and detector models live here; the library database stays in the app data folder."
-            >
-              <div className="flex gap-2">
-                <Input
-                  id="data-dir"
-                  value={settings.dataDir}
-                  onChange={(e) => update({ dataDir: e.target.value })}
-                  className="font-mono text-caption"
-                />
-                <Button onClick={chooseDataDir} aria-label="Choose data folder">
-                  <FolderOpen /> Choose…
-                </Button>
-              </div>
-            </Field>
+            <StoragePanel />
+          </Group>
+          <Group title="Backup">
+            <BackupPanel />
           </Group>
           <Group title="Providers">
             <Field

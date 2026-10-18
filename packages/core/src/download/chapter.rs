@@ -43,7 +43,7 @@ pub fn unique_chapter_dir(dir: PathBuf, chapter: &Chapter, known: &[Chapter]) ->
 
 /// One path component that cannot escape its parent: only `[A-Za-z0-9.-]`, never empty or
 /// made of dots only.
-fn safe_component(raw: &str) -> String {
+pub(crate) fn safe_component(raw: &str) -> String {
     let safe: String = raw
         .chars()
         .map(|c| {

@@ -5,6 +5,7 @@
  */
 import type { DiagnosticsBackend } from "./ipc.diagnostics";
 import type { Settings } from "./ipc.settings";
+import type { StorageBackend } from "./ipc.storage";
 
 export type { ProviderSession, Settings } from "./ipc.settings";
 
@@ -125,40 +126,41 @@ export type DetectorsStatus = {
 
 export type Unlisten = () => void;
 
-export type Backend = DiagnosticsBackend & {
-  listLibrary(): Promise<Manga[]>;
-  listDevices(): Promise<Device[]>;
-  getSettings(): Promise<Settings>;
-  /** Platform data folder used when no `data_dir` setting is stored. */
-  defaultDataDir(): Promise<string>;
-  setSettings(settings: Settings): Promise<void>;
-  /** Links the executable as `mangas` on PATH; resolves to the link path. */
-  installCli(): Promise<string>;
-  listProviders(): Promise<ProviderInfo[]>;
-  /** Opens the provider's site in a window; the session is stored once the check is passed. */
-  connectProvider(id: string): Promise<void>;
-  disconnectProvider(id: string): Promise<void>;
-  /** One cheap request with the stored session: ready, needs a session, or unreachable. */
-  providerStatus(id: string): Promise<ProviderStatus>;
-  /** Searches the enabled providers (only `providers` when not empty), one group each. */
-  searchAll(query: string, providers: string[]): Promise<SearchGroup[]>;
-  /** Displayable URL of the manga's cover (cached through its provider), or null. */
-  coverSrc(manga: Pick<Manga, "source" | "id" | "cover_url">): Promise<string | null>;
-  followManga(source: string, id: string): Promise<Manga>;
-  /** The stored record when followed, otherwise the source's full details. */
-  getManga(source: string, id: string): Promise<Manga>;
-  unfollowManga(source: string, id: string): Promise<void>;
-  listChapters(source: string, mangaId: string, refresh?: boolean): Promise<Chapter[]>;
-  /** Follows the manga if needed, then resolves to the ids of chapters that failed; progress arrives via `onDownloadProgress`. */
-  downloadChapters(source: string, mangaId: string, chapterIds: string[]): Promise<string[]>;
-  /** Imports chapter folders / .cbz files (or one series folder) as a `local` manga. */
-  importLocal(paths: string[], title?: string): Promise<ImportReport>;
-  /** Resolves to the EPUB written, its page count and the files skipped as unsupported. */
-  exportKindle(request: ExportRequest): Promise<ExportResult>;
-  detectorsStatus(): Promise<DetectorsStatus>;
-  onDownloadProgress(cb: (p: DownloadProgress) => void): Promise<Unlisten>;
-  onExportProgress(cb: (p: ExportProgress) => void): Promise<Unlisten>;
-};
+export type Backend = DiagnosticsBackend &
+  StorageBackend & {
+    listLibrary(): Promise<Manga[]>;
+    listDevices(): Promise<Device[]>;
+    getSettings(): Promise<Settings>;
+    /** Platform data folder used when no `data_dir` setting is stored. */
+    defaultDataDir(): Promise<string>;
+    setSettings(settings: Settings): Promise<void>;
+    /** Links the executable as `mangas` on PATH; resolves to the link path. */
+    installCli(): Promise<string>;
+    listProviders(): Promise<ProviderInfo[]>;
+    /** Opens the provider's site in a window; the session is stored once the check is passed. */
+    connectProvider(id: string): Promise<void>;
+    disconnectProvider(id: string): Promise<void>;
+    /** One cheap request with the stored session: ready, needs a session, or unreachable. */
+    providerStatus(id: string): Promise<ProviderStatus>;
+    /** Searches the enabled providers (only `providers` when not empty), one group each. */
+    searchAll(query: string, providers: string[]): Promise<SearchGroup[]>;
+    /** Displayable URL of the manga's cover (cached through its provider), or null. */
+    coverSrc(manga: Pick<Manga, "source" | "id" | "cover_url">): Promise<string | null>;
+    followManga(source: string, id: string): Promise<Manga>;
+    /** The stored record when followed, otherwise the source's full details. */
+    getManga(source: string, id: string): Promise<Manga>;
+    unfollowManga(source: string, id: string): Promise<void>;
+    listChapters(source: string, mangaId: string, refresh?: boolean): Promise<Chapter[]>;
+    /** Follows the manga if needed, then resolves to the ids of chapters that failed; progress arrives via `onDownloadProgress`. */
+    downloadChapters(source: string, mangaId: string, chapterIds: string[]): Promise<string[]>;
+    /** Imports chapter folders / .cbz files (or one series folder) as a `local` manga. */
+    importLocal(paths: string[], title?: string): Promise<ImportReport>;
+    /** Resolves to the EPUB written, its page count and the files skipped as unsupported. */
+    exportKindle(request: ExportRequest): Promise<ExportResult>;
+    detectorsStatus(): Promise<DetectorsStatus>;
+    onDownloadProgress(cb: (p: DownloadProgress) => void): Promise<Unlisten>;
+    onExportProgress(cb: (p: ExportProgress) => void): Promise<Unlisten>;
+  };
 
 /** Fallback chapter language: imports and an empty `preferred_languages`. */
 export const DEFAULT_LANGUAGE = "en";
