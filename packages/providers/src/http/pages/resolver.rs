@@ -7,7 +7,7 @@ use std::fmt;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use mangas_core::domain::Error;
-use mangas_core::download::is_public_ip;
+use mangas_core::download::{is_public_ip, unmapped};
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use url::{Host, Url};
 
@@ -116,13 +116,16 @@ pub(super) fn literal_refusal(raw: &str) -> Option<Refusal> {
     let url = Url::parse(raw).ok()?;
     let ip = match url.host()? {
         Host::Ipv4(v4) => IpAddr::V4(v4),
-        Host::Ipv6(v6) => IpAddr::V6(v6),
+        Host::Ipv6(v6) => unmapped(IpAddr::V6(v6)),
         Host::Domain(d) if d == "localhost" || d.ends_with(".localhost") => {
             IpAddr::V4(Ipv4Addr::LOCALHOST)
         }
         Host::Domain(_) => return None,
     };
-    let host = url.host_str()?.to_string();
+    let host = match url.host()? {
+        Host::Ipv6(v6) if v6.to_ipv4_mapped().is_some() => ip.to_string(),
+        _ => url.host_str()?.to_string(),
+    };
     (!is_public_ip(ip)).then_some(Refusal::NonPublic { host, ip })
 }
 
@@ -132,7 +135,7 @@ pub fn public_only(host: &str, addrs: Vec<SocketAddr>) -> Result<Vec<SocketAddr>
     match addrs.iter().find(|a| !is_public_ip(a.ip())) {
         Some(private) => Err(Refusal::NonPublic {
             host: host.to_string(),
-            ip: private.ip(),
+            ip: unmapped(private.ip()),
         }),
         None if addrs.is_empty() => Err(Refusal::NoAddress(host.to_string())),
         None => Ok(addrs),

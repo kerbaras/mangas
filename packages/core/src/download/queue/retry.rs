@@ -65,6 +65,14 @@ pub fn classify(error: &Error) -> Failure {
     Failure { message, retryable }
 }
 
+/// Whether a failed job's stored error is one a retry cannot fix: the chapter is gone from the
+/// source or its host is refused ([`Error::BlockedAddress`]). Mirrors the desktop's `isFinalError`.
+pub fn is_final_error(error: &str) -> bool {
+    error.contains(super::UNLISTED)
+        || error.starts_with("not found")
+        || (error.starts_with("refused:") && error.contains("resolves to a non-public address"))
+}
+
 /// The provider's "HTTP 404 for /path" style message for a resource that no longer exists.
 fn is_gone(message: &str) -> bool {
     ["HTTP 404", "HTTP 410"]

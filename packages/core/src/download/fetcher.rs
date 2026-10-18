@@ -40,6 +40,15 @@ pub fn is_public_http_url(raw: &str) -> bool {
 
 /// True for an address on the public internet: not loopback, private, link-local, CGNAT,
 /// documentation, benchmarking, multicast/reserved or a v4-mapped form of those.
+/// An IPv4-mapped IPv6 address (`::ffff:10.0.0.1`) as the IPv4 address it carries, so messages
+/// read `10.0.0.1` instead of `::ffff:a00:1`. Every other address is unchanged.
+pub fn unmapped(ip: IpAddr) -> IpAddr {
+    match ip {
+        IpAddr::V6(v6) => v6.to_ipv4_mapped().map_or(ip, IpAddr::V4),
+        v4 => v4,
+    }
+}
+
 pub fn is_public_ip(ip: IpAddr) -> bool {
     match ip {
         IpAddr::V4(v4) => {

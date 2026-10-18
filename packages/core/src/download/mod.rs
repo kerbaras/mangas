@@ -23,7 +23,7 @@ pub use chapter::{
     unique_chapter_dir, Report,
 };
 pub use event::{Event, OnEvent};
-pub use fetcher::{is_public_http_url, is_public_ip, PageFetcher};
+pub use fetcher::{is_public_http_url, is_public_ip, unmapped, PageFetcher};
 pub use mirror::{MirrorFor, WithMirror};
 pub use pages::{download_pages, download_pages_with, OnDisk, CONCURRENCY};
 pub use plan::{page_file_name, page_file_name_for, plan, PageJob};

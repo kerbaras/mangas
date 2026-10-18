@@ -9,8 +9,8 @@ use mangas_core::download::queue::{self, JobState, Scope};
 use mangas_core::library;
 
 use super::download_releases::{pick, pick_group, report_left_out};
-use super::settled::paused_report;
-use super::watch::{count, run_until_settled};
+use super::settled::{failed_note, paused_report};
+use super::watch::run_until_settled;
 use super::{hint, source_by_name, stored_settings, unknown_group};
 use crate::output::outln;
 use crate::paths;
@@ -109,20 +109,18 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             }
         }
     }
-    let failed = count(jobs, JobState::Failed);
-    let failed_note =
-        format!("{failed} chapter(s) failed; `mangas queue retry --all` tries them again");
+    let failed_note = failed_note(jobs, "chapter");
     if let Some((lines, exit)) = paused_report(&settled) {
         for line in lines {
             outln!("{line}")?;
         }
-        if failed > 0 {
-            eprintln!("{failed_note}");
+        if let Some(note) = &failed_note {
+            eprintln!("{note}");
         }
         return Err(exit.into());
     }
-    if failed > 0 {
-        bail!("{failed_note}");
+    if let Some(note) = failed_note {
+        bail!("{note}");
     }
     Ok(())
 }
