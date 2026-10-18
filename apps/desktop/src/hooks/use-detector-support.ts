@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { type Async, useAsync } from "@/hooks/use-async";
+import { useAppFocus } from "@/lib/app-focus";
 import { errorMessage } from "@/lib/format";
 import {
   cancelDetectorsDownload,
@@ -10,6 +11,7 @@ import {
   onDetectorsProgress,
   removeDetectors,
 } from "@/lib/ipc.detectors";
+import { storageChanged, useStorageChanged } from "@/lib/storage-changed";
 
 export type DetectorSupport = {
   status: Async<DetectorsStatus>;
@@ -32,6 +34,8 @@ export function useDetectorSupport(): DetectorSupport {
   const [failure, setFailure] = useState<string | null>(null);
   const cancelled = useRef(false);
   const { patch, reload } = status;
+  useAppFocus(reload);
+  useStorageChanged(reload);
 
   const download = useCallback(async () => {
     cancelled.current = false;
@@ -43,6 +47,7 @@ export function useDetectorSupport(): DetectorSupport {
       setDownloading(true);
       const next = await downloadDetectors();
       patch(() => next);
+      storageChanged();
     } catch (e: unknown) {
       if (!cancelled.current) setFailure(errorMessage(e));
       reload();
@@ -63,7 +68,7 @@ export function useDetectorSupport(): DetectorSupport {
       return await removeDetectors();
     } finally {
       setFailure(null);
-      reload();
+      storageChanged();
     }
   }, [reload]);
 

@@ -65,16 +65,21 @@ describe("export dialog: format, smart cut and delivery", () => {
       diskBytes: 0,
     });
     const events: { progress?: (p: DetectorsProgress) => void } = {};
+    let current = missing;
     let finish: () => void = () => {};
     const downloadDetectors = vi.fn(
       () =>
         new Promise<DetectorsStatus>((resolve) => {
-          finish = () => resolve(detectorState());
+          finish = () => {
+            current = detectorState();
+            resolve(current);
+          };
         }),
     );
     exportBackend(
       {
         downloadDetectors,
+        detectorsStatus: async () => current,
         onDetectorsProgress: async (cb) => {
           events.progress = cb;
           return () => {};

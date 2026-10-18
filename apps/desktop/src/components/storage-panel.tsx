@@ -11,6 +11,7 @@ import { useAppFocus } from "@/lib/app-focus";
 import { type CacheKind, clearCache, storageUsage } from "@/lib/ipc.storage";
 import { notifyError } from "@/lib/notify";
 import { formatBytes } from "@/lib/storage";
+import { storageChanged, useStorageChanged } from "@/lib/storage-changed";
 
 const CACHES: Record<CacheKind, { label: string; done: string; hint: string }> = {
   covers: {
@@ -29,6 +30,7 @@ const CACHES: Record<CacheKind, { label: string; done: string; hint: string }> =
 export function StoragePanel() {
   const usage = useAsync(storageUsage, []);
   useAppFocus(usage.reload);
+  useStorageChanged(usage.reload);
   const ready = usage.state.kind === "ready" ? usage.state.data : null;
 
   const clear = async (cache: CacheKind) => {
@@ -40,7 +42,7 @@ export function StoragePanel() {
     } catch (e: unknown) {
       notifyError(`Couldn't ${CACHES[cache].label.toLowerCase()}`, e);
     }
-    usage.reload();
+    storageChanged();
   };
 
   return (
