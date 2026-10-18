@@ -4,11 +4,12 @@
 //! are the ones the connection uses, a second lookup cannot swap them.
 
 use std::fmt;
-use std::net::{IpAddr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use mangas_core::domain::Error;
 use mangas_core::download::is_public_ip;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
+use url::{Host, Url};
 
 /// Resolves with the system, or answers every name with `fixed` (tests only).
 #[derive(Default)]
@@ -107,6 +108,22 @@ fn proxied() -> bool {
     ]
     .iter()
     .any(|var| std::env::var_os(var).is_some_and(|v| !v.is_empty()))
+}
+
+/// The refusal for a URL whose host text is already non-public: a private IP literal or a
+/// `localhost` name, which RFC 6761 pins to loopback. Other hosts wait for DNS.
+pub(super) fn literal_refusal(raw: &str) -> Option<Refusal> {
+    let url = Url::parse(raw).ok()?;
+    let ip = match url.host()? {
+        Host::Ipv4(v4) => IpAddr::V4(v4),
+        Host::Ipv6(v6) => IpAddr::V6(v6),
+        Host::Domain(d) if d == "localhost" || d.ends_with(".localhost") => {
+            IpAddr::V4(Ipv4Addr::LOCALHOST)
+        }
+        Host::Domain(_) => return None,
+    };
+    let host = url.host_str()?.to_string();
+    (!is_public_ip(ip)).then_some(Refusal::NonPublic { host, ip })
 }
 
 /// `addrs` when all of them are public; a refusal naming the first private one otherwise. One

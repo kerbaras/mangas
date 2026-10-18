@@ -70,9 +70,13 @@ export type QueueStatus = {
 export const UNLISTED = "chapter no longer listed by the source";
 export const isUnlisted = (job: Pick<DownloadJob, "error">) =>
   job.error?.includes(UNLISTED) ?? false;
-/** A failure a retry cannot fix: the source no longer has the chapter. */
+/** `mangas_core::Error::BlockedAddress`: a page host on a private address, refused for good. */
+export const REFUSED = "resolves to a non-public address";
+export const isRefused = (error: string | null | undefined) =>
+  (error?.startsWith("refused:") && error.includes(REFUSED)) ?? false;
+/** A failure a retry cannot fix: the source no longer has the chapter, or its host is refused. */
 export const isFinalError = (error: string) =>
-  error.includes(UNLISTED) || error.startsWith("not found");
+  error.includes(UNLISTED) || error.startsWith("not found") || isRefused(error);
 
 export type DownloadsBackend = {
   /** Every job in queue order. */

@@ -201,7 +201,7 @@ async fn the_real_image_fetch_refuses_non_public_hosts() {
     assert_eq!(report.failed_step(), Some(Step::Image));
     let reason = report.steps[5].outcome.clone().unwrap_err();
     assert!(
-        reason.contains("refusing to fetch non-public url"),
+        reason.contains("refused: 127.0.0.1 resolves to a non-public address 127.0.0.1"),
         "{reason}"
     );
 }
