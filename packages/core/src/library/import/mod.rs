@@ -13,6 +13,8 @@ use std::path::{Path, PathBuf};
 pub use names::{natural_cmp, parse_chapter_name, slug, ParsedName};
 pub use report::{ImportReport, ImportedChapter, Skipped};
 
+use report::{no_pages_reason, nothing_imported};
+
 use super::{
     get_manga, list_chapters, list_manga, mark_downloaded, upsert_chapters, upsert_manga, Library,
 };
@@ -69,23 +71,30 @@ pub fn import_paths(lib: &Library, root: &Path, req: &ImportRequest) -> Result<I
             continue;
         }
         let reason = match pages::write_pages(&entry, &dest) {
-            Ok(0) => "no images".to_string(),
-            Ok(pages) => {
-                let chapter = Chapter {
-                    local_path: Some(dest.to_string_lossy().into_owned()),
-                    group: None,
-                    availability: Default::default(),
-                    ..chapter
-                };
-                imported.push(ImportedChapter {
-                    number: chapter.number.clone(),
-                    title: chapter.title.clone(),
-                    pages,
-                    path: dest,
-                });
-                known.push(chapter.clone());
-                added.push(chapter);
-                continue;
+            Ok(written) => {
+                let in_entry =
+                    |s: Skipped| Skipped::new(&format!("{}/{}", entry.name, s.name), &s.reason);
+                let bad_pages = !written.skipped.is_empty();
+                skipped.extend(written.skipped.into_iter().map(in_entry));
+                if written.pages == 0 {
+                    no_pages_reason(bad_pages)
+                } else {
+                    let chapter = Chapter {
+                        local_path: Some(dest.to_string_lossy().into_owned()),
+                        group: None,
+                        availability: Default::default(),
+                        ..chapter
+                    };
+                    imported.push(ImportedChapter {
+                        number: chapter.number.clone(),
+                        title: chapter.title.clone(),
+                        pages: written.pages,
+                        path: dest,
+                    });
+                    known.push(chapter.clone());
+                    added.push(chapter);
+                    continue;
+                }
             }
             Err(e) => {
                 failures.push(e.to_string());
@@ -95,6 +104,7 @@ pub fn import_paths(lib: &Library, root: &Path, req: &ImportRequest) -> Result<I
         let _ = std::fs::remove_dir_all(&dest);
         skipped.push(Skipped::new(&entry.name, &reason));
     }
+    log_skipped(&skipped);
     if known.is_empty() {
         // `remove_dir` only removes an empty folder, so nothing imported earlier is touched.
         if let Some(dir) = series_dir {
@@ -167,19 +177,9 @@ fn save(
     Ok(())
 }
 
-/// Why nothing was imported: the first chapter error when there were some, else no images.
-fn nothing_imported(paths: &[PathBuf], failures: &[String]) -> Error {
-    Error::Import(match failures {
-        [] => format!("No chapters with images in {}", describe(paths)),
-        [only] => only.clone(),
-        [first, rest @ ..] => format!("{first} (and {} more failed)", rest.len()),
-    })
-}
-
-fn describe(paths: &[PathBuf]) -> String {
-    paths
-        .iter()
-        .map(|p| p.display().to_string())
-        .collect::<Vec<_>>()
-        .join(", ")
+/// The desktop toast and the CLI show these too; the log keeps them for later.
+fn log_skipped(skipped: &[Skipped]) {
+    for s in skipped {
+        tracing::warn!(entry = %s.name, "import: skipped: {}", s.reason);
+    }
 }

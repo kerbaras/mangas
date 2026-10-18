@@ -35,3 +35,28 @@ pub fn sniff_extension(bytes: &[u8]) -> Option<&'static str> {
         _ => None,
     }
 }
+
+/// The shared page check: a body in a decodable page format whose header gives a non-empty
+/// size, and, for JPEG, not cut off. `Ok` is the extension to store it under; `Err` says why
+/// the page can't be used. Reads only the header, so it stays cheap on big imports.
+pub fn check_page(bytes: &[u8]) -> Result<&'static str, String> {
+    let ext = sniff_extension(bytes).ok_or("not an image")?;
+    if !is_page_extension(ext) {
+        return Err(format!("{} images aren't supported", ext.to_uppercase()));
+    }
+    let size = image::ImageReader::new(std::io::Cursor::new(bytes))
+        .with_guessed_format()
+        .ok()
+        .and_then(|r| r.into_dimensions().ok());
+    match size {
+        Some((w, h)) if w > 0 && h > 0 && !truncated_jpeg(ext, bytes) => Ok(ext),
+        _ => Err(format!("damaged {} image", ext.to_uppercase())),
+    }
+}
+
+/// JPEG decoders fill a cut-off scan with grey instead of failing. In a whole file the last scan
+/// (start-of-scan marker) is followed by the end-of-image marker; trailing padding is fine.
+pub fn truncated_jpeg(ext: &str, bytes: &[u8]) -> bool {
+    let last = |marker: [u8; 2]| bytes.windows(2).rposition(|w| w == marker);
+    ext == "jpg" && last([0xFF, 0xD9]) <= last([0xFF, 0xDA])
+}

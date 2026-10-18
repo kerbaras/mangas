@@ -1,16 +1,40 @@
 //! Writes the pages of one entry into a chapter directory as `0001.<ext>`, `0002.<ext>`, ...
-//! in natural order, so the exporter's name sort reads them in reading order.
+//! in natural order, so the exporter's name sort reads them in reading order. Every page goes
+//! through the shared image check first; one that fails is left out with the reason.
 
 use std::fs::File;
 use std::io::{self, Read};
 use std::path::Path;
 
-use super::names::{extension, is_page_image, natural_cmp};
+use super::names::{is_page_image, natural_cmp};
+use super::report::Skipped;
 use super::scan::{name_of, Entry, EntryKind};
 use crate::domain::{Error, Result};
+use crate::images::check_page;
 
-/// Replaces `dest` with the pages of `entry`; returns how many were written.
-pub fn write_pages(entry: &Entry, dest: &Path) -> Result<usize> {
+/// What [`write_pages`] wrote, and the pages it left out (named inside the entry).
+#[derive(Debug, Default)]
+pub struct Written {
+    pub pages: usize,
+    pub skipped: Vec<Skipped>,
+}
+
+impl Written {
+    /// Checks `bytes` and stores them as the next page, named for their real format.
+    fn add(&mut self, dest: &Path, name: &str, bytes: &[u8]) -> Result<()> {
+        match check_page(bytes) {
+            Ok(ext) => {
+                self.pages += 1;
+                std::fs::write(dest.join(format!("{:04}.{ext}", self.pages)), bytes)?;
+            }
+            Err(reason) => self.skipped.push(Skipped::new(name, &reason)),
+        }
+        Ok(())
+    }
+}
+
+/// Replaces `dest` with the valid pages of `entry`.
+pub fn write_pages(entry: &Entry, dest: &Path) -> Result<Written> {
     if dest.exists() {
         std::fs::remove_dir_all(dest)?;
     }
@@ -21,13 +45,8 @@ pub fn write_pages(entry: &Entry, dest: &Path) -> Result<usize> {
     }
 }
 
-fn page_name(index: usize, original: &str) -> String {
-    let ext = extension(original).unwrap_or_else(|| "jpg".into());
-    format!("{:04}.{ext}", index + 1)
-}
-
 /// Copies each image, so later edits to the source folder never reach the library.
-fn copy_folder(src: &Path, dest: &Path) -> Result<usize> {
+fn copy_folder(src: &Path, dest: &Path) -> Result<Written> {
     let mut files: Vec<String> = std::fs::read_dir(src)?
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_ok_and(|t| t.is_file()))
@@ -35,15 +54,16 @@ fn copy_folder(src: &Path, dest: &Path) -> Result<usize> {
         .filter(|n| is_page_image(n))
         .collect();
     files.sort_by(|a, b| natural_cmp(a, b));
-    for (i, name) in files.iter().enumerate() {
-        std::fs::copy(src.join(name), dest.join(page_name(i, name)))?;
+    let mut written = Written::default();
+    for name in &files {
+        written.add(dest, name, &std::fs::read(src.join(name))?)?;
     }
-    Ok(files.len())
+    Ok(written)
 }
 
 /// Extracts the images of a CBZ (nested folders included, macOS metadata skipped). Entry
 /// names never become paths, so a crafted archive cannot write outside `dest`.
-fn extract_cbz(src: &Path, dest: &Path) -> Result<usize> {
+fn extract_cbz(src: &Path, dest: &Path) -> Result<Written> {
     let mut archive = zip::ZipArchive::new(File::open(src)?).map_err(|e| match e {
         // A truncated archive also surfaces as an IO error; only real read failures stay IO.
         zip::result::ZipError::Io(e)
@@ -66,19 +86,21 @@ fn extract_cbz(src: &Path, dest: &Path) -> Result<usize> {
         .collect();
     pages.sort_by(|a, b| natural_cmp(&a.1, &b.1));
     let mut total = 0;
-    for (n, (index, name)) in pages.iter().enumerate() {
-        let mut file = archive.by_index(*index).map_err(zip_error)?;
-        let mut out = File::create(dest.join(page_name(n, name)))?;
+    let mut written = Written::default();
+    for (index, name) in &pages {
+        let file = archive.by_index(*index).map_err(zip_error)?;
         let budget = MAX_PAGE_BYTES.min(MAX_CHAPTER_BYTES - total);
-        let written = io::copy(&mut (&mut file).take(budget + 1), &mut out)?;
-        if written > budget {
+        let mut bytes = Vec::new();
+        file.take(budget + 1).read_to_end(&mut bytes)?;
+        if bytes.len() as u64 > budget {
             return Err(Error::Other(format!(
                 "cbz: {name} goes over the size limit"
             )));
         }
-        total += written;
+        total += bytes.len() as u64;
+        written.add(dest, name, &bytes)?;
     }
-    Ok(pages.len())
+    Ok(written)
 }
 
 /// No real page or chapter comes close; stops a crafted archive from filling the disk.
