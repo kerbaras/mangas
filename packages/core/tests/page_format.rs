@@ -128,14 +128,69 @@ async fn partial_files_from_an_interrupted_run_are_removed() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(dir.path().join("0001.png.part"), b"half").unwrap();
     std::fs::write(dir.path().join("0001.bin.part"), b"half").unwrap();
-    std::fs::write(dir.path().join("notes.part"), b"mine").unwrap();
+    std::fs::write(dir.path().join("notes.part"), b"stray").unwrap();
     let fetcher = JpegEverywhere::default();
     let chapter = ChapterId("c".into());
     download_pages(&fetcher, &chapter, &png_urls(1), dir.path(), &ignore)
         .await
         .unwrap();
+    assert_eq!(names(dir.path()), ["0001.jpg"].map(String::from).into());
+}
+
+#[tokio::test]
+async fn an_unknown_part_file_stays_until_the_chapter_completes() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("notes.part"), b"stray").unwrap();
+    std::fs::write(dir.path().join("0001.jpg"), encoded(ImageFormat::Jpeg)).unwrap();
+    let chapter = ChapterId("c".into());
+    let failing = PageUrls(vec!["https://cdn.example/1.png".into(), String::new()]);
+    let incomplete = download_pages(&Missing, &chapter, &failing, dir.path(), &ignore).await;
+    assert!(incomplete.is_err());
+    assert!(dir.path().join("notes.part").exists(), "kept for a resume");
+
+    let fetcher = JpegEverywhere::default();
+    let urls = png_urls(2);
+    download_pages_with(
+        &fetcher,
+        &chapter,
+        &urls,
+        dir.path(),
+        OnDisk::Replace,
+        &ignore,
+    )
+    .await
+    .unwrap();
+    let pages = ["0001.jpg", "0002.jpg"].map(String::from).into();
     assert_eq!(
         names(dir.path()),
-        ["0001.jpg", "notes.part"].map(String::from).into()
+        pages,
+        "a forced re-download cleans up too"
     );
+}
+
+/// Every fetch fails: the chapter never completes.
+struct Missing;
+
+#[async_trait]
+impl PageFetcher for Missing {
+    async fn fetch(&self, url: &str) -> Result<Vec<u8>, Error> {
+        Err(Error::NotFound(url.into()))
+    }
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_part_file_with_a_non_utf8_name_is_removed_too() {
+    use std::os::unix::ffi::OsStrExt;
+    let dir = tempfile::tempdir().unwrap();
+    let odd = dir
+        .path()
+        .join(std::ffi::OsStr::from_bytes(b"page\xff.part"));
+    std::fs::write(&odd, b"stray").unwrap();
+    let fetcher = JpegEverywhere::default();
+    let chapter = ChapterId("c".into());
+    download_pages(&fetcher, &chapter, &png_urls(1), dir.path(), &ignore)
+        .await
+        .unwrap();
+    assert!(!odd.exists());
 }

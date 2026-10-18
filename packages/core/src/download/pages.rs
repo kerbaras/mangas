@@ -8,6 +8,7 @@ use super::event::{Event, OnEvent};
 use super::fetcher::PageFetcher;
 use super::incomplete::{incomplete, missing_on_disk};
 use super::plan::{page_file_name_for, plan, PageJob};
+use super::remove::{drop_stale_parts, remove_files};
 use crate::domain::{ChapterId, Result};
 use crate::sources::PageUrls;
 
@@ -37,7 +38,7 @@ pub async fn download_pages(
 }
 
 /// Downloads every page of `urls` into `dest`, skipping files that already exist (unless
-/// `on_disk` is [`OnDisk::Replace`]). Emits
+/// `on_disk` is [`OnDisk::Replace`]); a complete chapter leaves no `.part` file behind. Emits
 /// [`Event::PageDone`] per page (including skipped ones) and returns the page count. A page
 /// that fails does not stop the others (they stay on disk for a resume), but the chapter is
 /// an error unless all `urls.len()` pages end up on disk.
@@ -50,7 +51,7 @@ pub async fn download_pages_with(
     on_event: OnEvent<'_>,
 ) -> Result<usize> {
     tokio::fs::create_dir_all(dest).await?;
-    remove_partials(dest)?;
+    remove_files(dest, is_page_partial)?;
     let existing = match on_disk {
         OnDisk::Keep => existing_files(dest)?,
         OnDisk::Replace => HashSet::new(),
@@ -97,32 +98,20 @@ pub async fn download_pages_with(
         return Err(missing_on_disk(missing, total));
     }
     if on_disk == OnDisk::Replace {
-        remove_stale_pages(dest, &written)?;
+        // Page images this full re-download did not write (another extension, a page the
+        // source no longer has) would end up in an export as old or duplicate pages.
+        remove_files(dest, |name| is_image(name) && !written.contains(name))?;
     }
+    // The chapter is complete and this run holds its folder: any `.part` left is stale.
+    drop_stale_parts(dest);
     Ok(total)
 }
 
-/// After a full re-download, drops the page images it did not write (another extension, a
-/// page the source no longer has) so an export never picks up an old or duplicate page.
-fn remove_stale_pages(dest: &Path, written: &HashSet<String>) -> Result<()> {
-    for name in existing_files(dest)? {
-        if is_image(&name) && !written.contains(&name) {
-            std::fs::remove_file(dest.join(name))?;
-        }
-    }
-    Ok(())
-}
-
-/// Drops page `.part` files (`0007.png.part`) left by an interrupted run. Their name came from
-/// that run's bytes (or the URL, before pages were named by format), so this run may never
-/// overwrite them.
-fn remove_partials(dest: &Path) -> Result<()> {
-    for name in existing_files(dest)? {
-        if name.strip_suffix(".part").is_some_and(is_page_name) {
-            std::fs::remove_file(dest.join(name))?;
-        }
-    }
-    Ok(())
+/// A page `.part` file (`0007.png.part`) left by an interrupted run. Its name came from that
+/// run's bytes (or the URL, before pages were named by format), so this run may never
+/// overwrite it; a run drops these before it starts, other `.part` files once it completes.
+fn is_page_partial(name: &str) -> bool {
+    name.strip_suffix(".part").is_some_and(is_page_name)
 }
 
 /// A page file name: digits, a dot, any extension (an unknown body keeps the URL's).
