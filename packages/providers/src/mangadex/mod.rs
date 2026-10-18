@@ -84,6 +84,7 @@ impl MangaDex {
     pub fn with_base(base: &str) -> Result<Self> {
         let config = ClientConfig {
             requests_per_second: REQUESTS_PER_SECOND,
+            json_api: true,
             ..ClientConfig::new(INFO, base)
         };
         Ok(Self {

@@ -61,6 +61,18 @@ pub fn retryable_status(status: u16, idempotent: bool) -> bool {
     }
 }
 
+/// MangaDex's edge sometimes answers a valid request with a generic `400` HTML page, and the
+/// same request succeeds moments later. A JSON API never means a request error in HTML, so that
+/// reply is treated as transient; a `400` with a JSON body is a real request error.
+pub fn edge_error(status: u16, content_type: &str, json_api: bool) -> bool {
+    json_api
+        && status == 400
+        && content_type
+            .trim_start()
+            .to_ascii_lowercase()
+            .starts_with("text/html")
+}
+
 /// `Retry-After` as delay-seconds or an HTTP date (a date in the past means "now").
 pub fn parse_retry_after(value: &str, now: DateTime<Utc>) -> Option<Duration> {
     let value = value.trim();
