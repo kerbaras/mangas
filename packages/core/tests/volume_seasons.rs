@@ -41,11 +41,11 @@ fn books_without_a_volume_are_named_by_season_tags() {
     );
     assert_eq!(
         title_of(&[ch("3", "The Return"), ch("4", "S1 Ep. 3")]),
-        "Tower of God c3 - S1 Ep. 3"
+        "Tower of God ch 3 - S1 Ep. 3"
     );
     assert_eq!(
         title_of(&[ch("3", "The Return"), ch("4", "Home")]),
-        "Tower of God c3-4"
+        "Tower of God ch 3-4"
     );
 }
 

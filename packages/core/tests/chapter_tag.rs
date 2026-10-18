@@ -35,8 +35,8 @@ fn season_tags_match_the_shared_fixture() {
 fn chapter_tag_falls_back_to_the_number() {
     assert_eq!(chapter_tag(&ch("80", Some("S2 Ep. 0"))), "S2 Ep. 0");
     assert_eq!(chapter_tag(&ch("79", Some("S2 Prologue"))), "S2 Prologue");
-    assert_eq!(chapter_tag(&ch(" 12 ", Some("The Return"))), "c12");
-    assert_eq!(chapter_tag(&ch("3", None)), "c3");
+    assert_eq!(chapter_tag(&ch(" 12 ", Some("The Return"))), "ch 12");
+    assert_eq!(chapter_tag(&ch("3", None)), "ch 3");
 }
 
 #[test]

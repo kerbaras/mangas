@@ -21,7 +21,7 @@ describe("volume plan (browser mock)", () => {
     expect(plans.map((p) => p.file_name)).toEqual([
       "Solo Rise v2.epub",
       "Solo Rise v10.epub",
-      "Solo Rise c4.epub",
+      "Solo Rise ch 4.epub",
     ]);
     expect(plans[0].chapters.map((c) => c.number)).toEqual(["1", "2"]);
   });
@@ -33,7 +33,7 @@ describe("volume plan (browser mock)", () => {
     ]);
     const [one] = mockPlan("S", chapters, { kind: "single" }, " Best of ");
     expect(one).toMatchObject({ title: "Best of", file_name: "Best of.epub" });
-    expect(mockPlan("S", chapters, { kind: "single" })[0].title).toBe("S c1-4");
+    expect(mockPlan("S", chapters, { kind: "single" })[0].title).toBe("S ch 1-4");
   });
 
   it("summarises a book's chapter range", () => {

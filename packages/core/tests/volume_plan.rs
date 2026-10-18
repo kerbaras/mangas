@@ -88,7 +88,7 @@ fn plan_names_books_and_skips_chapters_not_on_disk() {
     ];
     let plans = plan(&manga(), &chapters, Grouping::ByVolume, None, None);
     let names: Vec<_> = plans.iter().map(|p| p.file_name.as_str()).collect();
-    assert_eq!(names, ["Blue Period v1.epub", "Blue Period c4.epub"]);
+    assert_eq!(names, ["Blue Period v1.epub", "Blue Period ch 4.epub"]);
     assert_eq!(plans[0].title, "Blue Period v1");
     assert_eq!(find_volume(&plans, "01").map(|p| p.chapters.len()), Some(2));
     assert!(

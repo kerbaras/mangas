@@ -7,7 +7,7 @@ use crate::domain::{chapter_tag, season_tag, Chapter};
 pub const DEFAULT_TEMPLATE: &str = "{series} v{volume}";
 
 /// The book title for `volume` of `series`. A book without a volume number is named after its
-/// chapters instead: `c12`, `c12-15`, or season tags such as `S1 Ep. 78 - S2 Ep. 1`.
+/// chapters instead: `ch 12`, `ch 12-15`, or season tags such as `S1 Ep. 78 - S2 Ep. 1`.
 pub fn render(template: &str, series: &str, volume: &Volume) -> String {
     let (first, last) = (volume.chapters.first(), volume.chapters.last());
     fn number(c: Option<&Chapter>) -> &str {
@@ -26,7 +26,7 @@ pub fn render(template: &str, series: &str, volume: &Volume) -> String {
     collapse_spaces(&rendered)
 }
 
-/// `c12`, `c12-15`, `S2 Ep. 0` or `S1 Ep. 78 - S2 Ep. 1`.
+/// `ch 12`, `ch 12-15`, `S2 Ep. 0` or `S1 Ep. 78 - S2 Ep. 1`.
 fn chapters(first: Option<&Chapter>, last: Option<&Chapter>) -> String {
     let (Some(first), Some(last)) = (first, last) else {
         return String::new();
@@ -38,7 +38,7 @@ fn chapters(first: Option<&Chapter>, last: Option<&Chapter>) -> String {
     match () {
         _ if from == to => from,
         _ if seasons => format!("{from} - {to}"),
-        _ => format!("c{}-{}", first.number.trim(), last.number.trim()),
+        _ => format!("ch {}-{}", first.number.trim(), last.number.trim()),
     }
 }
 

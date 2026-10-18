@@ -19,12 +19,12 @@ pub fn season_tag(title: &str) -> Option<&str> {
     (tail.is_empty() || tail.starts_with(' ')).then(|| &title[..title.len() - tail.len()])
 }
 
-/// The short name of `c` in a file name: its season tag, else `c12`.
+/// The short name of `c` in a file name: its season tag, else `ch 12`.
 pub fn chapter_tag(c: &Chapter) -> String {
     c.title
         .as_deref()
         .and_then(season_tag)
-        .map_or_else(|| format!("c{}", c.number.trim()), str::to_string)
+        .map_or_else(|| format!("ch {}", c.number.trim()), str::to_string)
 }
 
 /// The table-of-contents entry: a season-labelled title as is, else "Chapter 12: The title",

@@ -48,14 +48,14 @@ const portable = (title: string) =>
       .trim() || "Manga"
   }.epub`;
 
-const tag = (c: Chapter) => seasonTag(c) ?? `c${c.number}`;
+const tag = (c: Chapter) => seasonTag(c) ?? `ch ${c.number}`;
 
 function bookTitle(series: string, number: string | null, chapters: Chapter[]) {
   if (number !== null) return `${series} v${number}`;
   const [first, last] = [chapters[0], chapters[chapters.length - 1]];
   if (tag(first) === tag(last)) return `${series} ${tag(first)}`;
   if (seasonTag(first) || seasonTag(last)) return `${series} ${tag(first)} - ${tag(last)}`;
-  return `${series} c${first.number}-${last.number}`;
+  return `${series} ch ${first.number}-${last.number}`;
 }
 
 export function mockPlan(series: string, chapters: Chapter[], grouping: Grouping, title?: string) {
