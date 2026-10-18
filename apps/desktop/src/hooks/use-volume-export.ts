@@ -37,16 +37,19 @@ export function useVolumeExport() {
     };
   }, []);
 
-  const run = useCallback(async (request: VolumeExport) => {
+  /** Resolves to whether every book was written. */
+  const run = useCallback(async (request: VolumeExport): Promise<boolean> => {
     running.current = true;
     setState({ kind: "running", progress: null });
     try {
       const results = await exportVolumes(request);
       setState({ kind: "done", results });
       notifyExported(combined(results));
+      return true;
     } catch (e) {
       setState({ kind: "error", message: errorMessage(e) });
       notifyError("Export failed", e, { id: "export" });
+      return false;
     } finally {
       running.current = false;
     }

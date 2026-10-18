@@ -28,6 +28,8 @@ type Props = {
   manga: Pick<Manga, "source" | "id" | "title">;
   /** Downloaded chapters to bundle, any order. */
   chapters: Chapter[];
+  /** Called once the books are written, so the chapter list can show them as exported. */
+  onExported?: () => void;
 };
 
 type Mode = Grouping["kind"];
@@ -48,7 +50,7 @@ const current = (state: Async<Keyed>, key: string): Async<VolumePlan[]> =>
       ? { kind: "ready", data: state.data.data }
       : { kind: "loading" };
 
-export function VolumeExportDialog({ open, onOpenChange, manga, chapters }: Props) {
+export function VolumeExportDialog({ open, onOpenChange, manga, chapters, onExported }: Props) {
   const [settings] = useSettings();
   const [mode, setMode] = useState<Mode>(() => initialMode(chapters));
   const [size, setSize] = useState(10);
@@ -71,14 +73,16 @@ export function VolumeExportDialog({ open, onOpenChange, manga, chapters }: Prop
     detectors.state.data.available &&
     detectors.state.data.downloaded;
 
-  const run = () =>
-    job.run({
+  const run = async () => {
+    const written = await job.run({
       ...request,
       device,
       preset: settings.defaultPreset,
       detectors: useDetectors,
       outputDir,
     });
+    if (written) onExported?.();
+  };
 
   return (
     <Dialog open={open} onOpenChange={(o) => !busy && onOpenChange(o)}>
@@ -158,7 +162,7 @@ export function VolumeExportDialog({ open, onOpenChange, manga, chapters }: Prop
           <Button disabled={busy} onClick={() => onOpenChange(false)}>
             {job.state.kind === "done" ? "Close" : "Cancel"}
           </Button>
-          <Button variant="primary" disabled={busy || books === 0} onClick={run}>
+          <Button variant="primary" disabled={busy || books === 0} onClick={() => void run()}>
             <Send /> Export {books > 1 ? `${books} books` : "book"}
           </Button>
         </DialogFooter>

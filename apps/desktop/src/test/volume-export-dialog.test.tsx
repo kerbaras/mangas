@@ -52,7 +52,16 @@ describe("export as volume", () => {
 
   it("previews the files and exports every planned book", async () => {
     const { planVolumes, exportVolumes } = backend();
-    render(<VolumeExportDialog open onOpenChange={() => {}} manga={manga} chapters={chapters} />);
+    const onExported = vi.fn();
+    render(
+      <VolumeExportDialog
+        open
+        onOpenChange={() => {}}
+        manga={manga}
+        chapters={chapters}
+        onExported={onExported}
+      />,
+    );
     expect(await screen.findByText("Solo v1.epub")).toBeTruthy();
     expect(screen.getByText("Solo v2.epub")).toBeTruthy();
     expect(screen.getByText("Chapters 1–2 · 2 chapters")).toBeTruthy();
@@ -66,6 +75,7 @@ describe("export as volume", () => {
       },
     ]);
     expect(await screen.findByText("Wrote 2 books")).toBeTruthy();
+    expect(onExported).toHaveBeenCalledOnce();
     expect(planVolumes).toHaveBeenCalled();
   });
 

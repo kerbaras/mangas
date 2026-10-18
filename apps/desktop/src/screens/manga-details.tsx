@@ -147,7 +147,11 @@ export function MangaDetailsScreen({ manga: card }: Props) {
           >
             <Send /> Send to Kindle
           </Button>
-          <VolumeExportButton manga={{ source, id, title: manga.title }} chapters={toExport} />
+          <VolumeExportButton
+            manga={{ source, id, title: manga.title }}
+            chapters={toExport}
+            onExported={chapters.reload}
+          />
           {toExport.length > 0 && (
             <Button size="sm" onClick={() => void download(toExport, true)}>
               <RotateCcw /> Download again
