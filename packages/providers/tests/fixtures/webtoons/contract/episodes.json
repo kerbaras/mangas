@@ -1,0 +1,35 @@
+{
+  "result": {
+    "episodeList": [
+      {
+        "episodeNo": 1,
+        "thumbnail": "/20250708_37/1751934638001WnhlW_PNG/thumb_17519341989935613_Tower_of_God__Urek_Mazino_Ep__1_-_The_Floor_of_Tests_025.png",
+        "episodeTitle": "Ep. 1 - The Floor of Tests",
+        "viewerLink": "/en/fantasy/tower-of-god-urek-mazino/ep-1-the-floor-of-tests/viewer?title_no=8136&episode_no=1",
+        "exposureDateMillis": 1753747201000,
+        "displayUp": false,
+        "hasBgm": false
+      },
+      {
+        "episodeNo": 2,
+        "thumbnail": "/20250708_94/1751934937996qkmTU_PNG/thumb_17519347247463889_Tower_of_God__Urek_Mazino_Ep__2_-_The_Biggest_Fish_0092.png",
+        "episodeTitle": "Ep. 2 - The Biggest Fish",
+        "viewerLink": "/en/fantasy/tower-of-god-urek-mazino/ep-2-the-biggest-fish/viewer?title_no=8136&episode_no=2",
+        "exposureDateMillis": 1753747201000,
+        "displayUp": false,
+        "hasBgm": false
+      },
+      {
+        "episodeNo": 3,
+        "thumbnail": "/20250708_131/17519351706339d3yL_PNG/thumb_17519350190271075_Tower_of_God__Urek_Mazino_Ep__3_-_Flip_or_Flop_0047.png",
+        "episodeTitle": "Ep. 3 - Flip or Flop",
+        "viewerLink": "/en/fantasy/tower-of-god-urek-mazino/ep-3-flip-or-flop/viewer?title_no=8136&episode_no=3",
+        "exposureDateMillis": 1753747201000,
+        "displayUp": false,
+        "hasBgm": false
+      }
+    ],
+    "nextCursor": 0
+  },
+  "success": true
+}

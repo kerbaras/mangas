@@ -1,0 +1,13 @@
+{
+  "_comment": "Recorded with scripts/record-fixture.sh, trimmed. www.webtoons.com and m.webtoons.com both map to the mock base (their paths never collide).",
+  "query": "tower of god",
+  "language": "en",
+  "pages_need_referer": true,
+  "routes": [
+    { "path": "/en/search/immediate", "query": { "keyword": "tower of god" }, "file": "search.json" },
+    { "path": "/en/search/canvas", "query": { "keyword": "tower of god" }, "file": "canvas.html" },
+    { "path": "/episodeList", "query": { "titleNo": "8136" }, "file": "title.html" },
+    { "path": "/api/v1/webtoon/8136/episodes", "query": { "pageSize": "1000" }, "file": "episodes.json" },
+    { "path": "/en/a/a/a/viewer", "query": { "title_no": "8136", "episode_no": "1" }, "file": "viewer.html" }
+  ]
+}

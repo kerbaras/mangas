@@ -1,6 +1,7 @@
 //! Live smoke tests against the real sites. Ignored by default and skipped unless
 //! `MANGAS_LIVE=1`: `MANGAS_LIVE=1 cargo test -p mangas-providers --test live -- --ignored`.
-//! MangaDot is behind a Cloudflare verification, so only MangaDex, WeebCentral and Tapas run here.
+//! MangaDot is behind a Cloudflare verification, so only MangaDex, WeebCentral, Tapas and
+//! Webtoons run here.
 //! Comick's search is gated the same way, so its tests walk the open endpoints and check the
 //! missing-session report.
 
@@ -139,4 +140,20 @@ async fn comick_live_stale_session_search_is_a_challenge() {
     let err = source.search("solo leveling", 5).await.unwrap_err();
     assert!(matches!(err, Error::Challenge { .. }), "{err:?}");
     assert_eq!(source.status().await, ProviderStatus::NeedsSession);
+}
+
+#[tokio::test]
+#[ignore = "hits webtoons.com; run with MANGAS_LIVE=1"]
+async fn webtoons_live_contract() {
+    if live() {
+        live_contract("webtoons").await;
+    }
+}
+
+#[tokio::test]
+#[ignore = "hits webtoons.com; run with MANGAS_LIVE=1"]
+async fn webtoons_live_check() {
+    if live() {
+        live_doctor("webtoons").await;
+    }
 }

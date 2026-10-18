@@ -135,7 +135,9 @@ Every registered provider goes through the same contract suite
    `pages_need_referer`, and `routes` (the `path` relative to the `build_at` base, the required
    `query` parameters, and the `file` that answers it). The first search result must be the
    manga whose chapters are recorded, and its first chapter after sorting the one whose pages
-   are recorded.
+   are recorded. A provider that talks to several hosts (Webtoons: `www.` pages and the `m.`
+   API) points all of them at the one `build_at` base, so their paths must not collide; page
+   URLs stay absolute on the real image CDN so the header checks see the `image_hosts` rule.
 3. `cargo test -p mangas-providers --test contract_suite` checks:
    - unique ids with titles, and `manga(id)` round-trips
    - chapters of that manga, in the requested language, sorted by `Chapter::number`, numbers
