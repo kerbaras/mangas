@@ -3,6 +3,7 @@ import type { MouseEvent, ReactNode } from "react";
 import { AvailabilityCell } from "@/components/availability-cell";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { sourceRef, splitGroup } from "@/lib/chapter-groups";
 import { isUnavailable } from "@/lib/chapters";
 import { cn } from "@/lib/cn";
@@ -19,11 +20,32 @@ type Props = {
   onToggle: (id: string, shift: boolean) => void;
 };
 
+/** The state label; `hint` (an error or retry reason) shows in an edge-aware tooltip. */
+function StateLabel(props: { hint?: string; className: string; children: ReactNode }) {
+  const label = (
+    <span
+      className={cn("flex w-fit items-center gap-1 text-caption", props.className)}
+      tabIndex={props.hint ? 0 : undefined}
+    >
+      {props.children}
+    </span>
+  );
+  if (!props.hint) return label;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{label}</TooltipTrigger>
+      <TooltipContent side="top" align="end">
+        {props.hint}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 function Waiting({ icon, label, title }: { icon: ReactNode; label: string; title?: string }) {
   return (
-    <span className="flex items-center gap-1 text-caption text-ink-3" title={title}>
+    <StateLabel hint={title} className="text-ink-3">
       {icon} {label}
-    </span>
+    </StateLabel>
   );
 }
 
@@ -57,9 +79,9 @@ function StateCell({ chapter, progress }: Pick<Props, "chapter" | "progress">) {
   }
   if (progress?.error) {
     return (
-      <span className="flex items-center gap-1 text-caption text-accent" title={progress.error}>
+      <StateLabel hint={progress.error} className="text-accent">
         <AlertCircle className="size-3.5" /> Failed
-      </span>
+      </StateLabel>
     );
   }
   if (progress?.state === "cancelled" && !chapter.local_path) {
