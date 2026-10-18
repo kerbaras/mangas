@@ -36,6 +36,13 @@ pub fn log_dir(data_dir: &Path) -> PathBuf {
     data_dir.join(LOG_DIR)
 }
 
+/// The log folder under `data_dir`, created if logging never managed to.
+pub fn ensure_log_dir(data_dir: &Path) -> std::io::Result<PathBuf> {
+    let dir = log_dir(data_dir);
+    std::fs::create_dir_all(&dir)?;
+    Ok(dir)
+}
+
 /// Default directives: our crates at `level`, dependencies at `warn`.
 pub fn default_directives(level: &str) -> String {
     std::iter::once("warn".to_string())

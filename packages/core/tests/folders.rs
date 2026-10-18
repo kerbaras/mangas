@@ -60,3 +60,11 @@ fn export_folders_are_the_folders_of_recorded_exports() {
         [file("/media/usb"), file("/home/me/Kindle")]
     );
 }
+
+#[test]
+fn the_log_folder_is_created_so_it_can_be_opened() {
+    let (_tmp, data, _) = tree();
+    let dir = mangas_core::logging::ensure_log_dir(&data).unwrap();
+    assert!(dir.is_dir());
+    assert!(openable_folder(&dir, &[data]).is_ok());
+}
