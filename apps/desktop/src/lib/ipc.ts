@@ -140,6 +140,8 @@ export type Backend = DiagnosticsBackend & {
   /** Displayable URL of the manga's cover (cached through its provider), or null. */
   coverSrc(manga: Pick<Manga, "source" | "id" | "cover_url">): Promise<string | null>;
   followManga(source: string, id: string): Promise<Manga>;
+  /** The stored record when followed, otherwise the source's full details. */
+  getManga(source: string, id: string): Promise<Manga>;
   unfollowManga(source: string, id: string): Promise<void>;
   listChapters(source: string, mangaId: string, refresh?: boolean): Promise<Chapter[]>;
   /** Follows the manga if needed, then resolves to the ids of chapters that failed; progress arrives via `onDownloadProgress`. */
@@ -189,6 +191,7 @@ export const searchAll = async (q: string, providers: string[]) =>
 export const coverSrc = async (m: Pick<Manga, "source" | "id" | "cover_url">) =>
   (await backend()).coverSrc(m);
 export const followManga = async (s: string, id: string) => (await backend()).followManga(s, id);
+export const getManga = async (s: string, id: string) => (await backend()).getManga(s, id);
 export const unfollowManga = async (s: string, id: string) =>
   (await backend()).unfollowManga(s, id);
 export const listChapters = async (s: string, id: string, refresh = false) =>

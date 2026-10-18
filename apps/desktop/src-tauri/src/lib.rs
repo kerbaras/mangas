@@ -26,6 +26,7 @@ pub fn run() {
             commands::providers::disconnect_provider,
             commands::catalog::search_all,
             commands::catalog::follow_manga,
+            commands::catalog::get_manga,
             commands::catalog::unfollow_manga,
             commands::catalog::list_chapters,
             commands::catalog::download_chapters,
