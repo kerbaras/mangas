@@ -5,6 +5,7 @@ use std::sync::Arc;
 use chrono::Utc;
 use mangas_core::domain::{Error, Result};
 use mangas_core::sources::{Header, ProviderStatus};
+use reqwest::header::HeaderMap;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -57,9 +58,9 @@ impl SiteClient {
         let id = self.config.info.id;
         log::debug!("{id}: GET {url} {}", redact_query(query));
         log::trace!("{id}: GET {url} {query:?}");
-        let retry = self.config.retry;
-        self.send(path, || self.http.get(&url).query(query), true, retry)
-            .await
+        let headers = self.request_headers(&url)?;
+        let request = || self.http.get(&url).headers(headers.clone()).query(query);
+        self.send(path, request, true, self.config.retry).await
     }
 
     /// GET returning the body of a 2xx response; other statuses become [`Error::Source`].
@@ -85,10 +86,9 @@ impl SiteClient {
     {
         let url = self.url(path);
         log::debug!("{}: POST {url}", self.config.info.id);
-        let retry = self.config.retry;
-        let reply = self
-            .send(path, || self.http.post(&url).json(body), false, retry)
-            .await?;
+        let headers = self.request_headers(&url)?;
+        let request = || self.http.post(&url).headers(headers.clone()).json(body);
+        let reply = self.send(path, request, false, self.config.retry).await?;
         let text = self.ok_body(path, reply)?;
         self.decode(path, &text)
     }
@@ -102,9 +102,13 @@ impl SiteClient {
             return status;
         }
         let url = self.url(probe);
-        let reply = self
-            .send(probe, || self.http.get(&url), true, RetryPolicy::NONE)
-            .await;
+        let reply = match self.request_headers(&url) {
+            Ok(headers) => {
+                let request = || self.http.get(&url).headers(headers.clone());
+                self.send(probe, request, true, RetryPolicy::NONE).await
+            }
+            Err(e) => Err(e),
+        };
         probe_status(&reply.and_then(|r| self.ok_body(probe, r)))
     }
 
@@ -113,6 +117,10 @@ impl SiteClient {
             name: self.config.info.id.to_string(),
             site: self.config.info.site.to_string(),
         }
+    }
+
+    fn request_headers(&self, url: &str) -> Result<HeaderMap> {
+        header_map(&self.policy.request_headers(url))
     }
 
     fn url(&self, path: &str) -> String {

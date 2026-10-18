@@ -91,7 +91,8 @@ impl MangaDot {
         })
     }
 
-    /// Walks the catalogue page by page, keeping titles that match `query`.
+    /// Walks the catalogue page by page, keeping titles that match `query`, until an empty page,
+    /// `limit` matches or [`CATALOGUE_MAX_PAGES`].
     async fn search_catalogue(&self, query: &str, limit: usize) -> Result<Vec<Manga>> {
         let mut found = Vec::new();
         for page in 1..=CATALOGUE_MAX_PAGES {
@@ -100,9 +101,12 @@ impl MangaDot {
                 ("page", page.to_string()),
             ];
             let items = parse_manga_list(&self.api.get("/manga", &params).await?)?;
-            let last = items.len() < CATALOGUE_PAGE;
+            // Like the site's own lister: only an empty page ends the catalogue.
+            if items.is_empty() {
+                break;
+            }
             found.extend(search::filter(items, query, limit - found.len()));
-            if last || found.len() >= limit {
+            if found.len() >= limit {
                 break;
             }
         }

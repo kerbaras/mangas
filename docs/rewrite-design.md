@@ -68,6 +68,10 @@ Rules: the Tauri layer and the CLI contain no business logic. Everything testabl
 - **`HostPolicy`** (`http/host_policy.rs`): page headers come from the client. The site and its
   subdomains (https only) get referer + session cookies + user agent; declared `image_hosts` get
   the referer only, over https (`"*"` = every host); anything else gets nothing, so cookies never leak to CDNs.
+  Requests the client sends to its own base (`request_headers`) all carry `Referer: <site>/`;
+  `/api` paths, the site's own `fetch()` calls, also get `Origin: <site>` and, with a session,
+  `sec-fetch-site: same-origin`, `sec-fetch-mode: cors`, `sec-fetch-dest: empty`. Cloudflare site
+  rules (MangaDot) challenge API calls that do not look same-origin, even with valid cookies.
 - **`Session`**: cookies + user agent + `saved_at` from the settings; `ClientConfig.session_ttl`
   makes older sessions report `NeedsSession` without a request.
 - **Preferences**: `Settings.preferred_languages` (generic, never empty via
@@ -138,7 +142,8 @@ Every registered provider goes through the same contract suite
    order, so the language filter and the sort get exercised. Paginated bodies must report a
    total that ends the paging.
 2. Write `tests/fixtures/<id>/contract/manifest.json`: `query`, `language`,
-   `pages_need_referer`, and `routes` (the `path` relative to the `build_at` base, the required
+   `pages_need_referer`, optionally `challenge_without_referer` (a path prefix answering the
+   Cloudflare page to requests without a `Referer`, as MangaDot's `/api/` does), and `routes` (the `path` relative to the `build_at` base, the required
    `query` parameters, and the `file` that answers it). The first search result must be the
    manga whose chapters are recorded, and its first chapter after sorting the one whose pages
    are recorded. A provider that talks to several hosts (Webtoons: `www.` pages and the `m.`
