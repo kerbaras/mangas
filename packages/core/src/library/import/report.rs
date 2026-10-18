@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 
-use crate::domain::Manga;
+use crate::domain::{Error, Manga};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ImportedChapter {
@@ -78,4 +78,29 @@ fn plural(n: usize, word: &str) -> String {
     } else {
         format!("{word}s")
     }
+}
+
+pub(super) fn no_pages_reason(bad_pages: bool) -> String {
+    if bad_pages {
+        "no valid images".to_string()
+    } else {
+        "no images".to_string()
+    }
+}
+
+/// Why nothing was imported: the first chapter error when there were some, else no images.
+pub(super) fn nothing_imported(paths: &[PathBuf], failures: &[String]) -> Error {
+    Error::Import(match failures {
+        [] => format!("No chapters with images in {}", describe(paths)),
+        [only] => only.clone(),
+        [first, rest @ ..] => format!("{first} (and {} more failed)", rest.len()),
+    })
+}
+
+fn describe(paths: &[PathBuf]) -> String {
+    paths
+        .iter()
+        .map(|p| p.display().to_string())
+        .collect::<Vec<_>>()
+        .join(", ")
 }

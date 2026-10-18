@@ -36,7 +36,10 @@ export function mockImport(paths: string[], title: string | undefined, dataDir: 
       pages: 24,
       path: c.local_path ?? "",
     })),
-    skipped: [{ name: "notes.txt", reason: "not a chapter folder or .cbz file" }],
+    skipped: [
+      { name: "notes.txt", reason: "not a chapter folder or .cbz file" },
+      { name: "Chapter 2/cover.jpg", reason: "not an image" },
+    ],
   };
   return { report, chapters };
 }

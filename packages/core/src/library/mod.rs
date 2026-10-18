@@ -40,7 +40,7 @@ pub use export_labels::export_labels;
 pub use gate_repo::{
     queue_gate, queue_paused, set_queue_held_until, set_queue_paused, take_queue_hold,
 };
-pub use import::{import_paths, is_local, ImportReport, ImportRequest, LOCAL_SOURCE};
+pub use import::{import_paths, is_local, ImportReport, ImportRequest, Skipped, LOCAL_SOURCE};
 pub use job_repo::{
     delete_job, delete_jobs, enqueue_jobs, list_jobs, update_jobs, update_jobs_gated,
 };
