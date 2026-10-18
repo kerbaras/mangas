@@ -52,6 +52,7 @@ pub fn import_paths(lib: &Library, root: &Path, req: &ImportRequest) -> Result<I
     let mut imported = Vec::new();
     let mut added = Vec::new();
     let mut series_dir = None;
+    let mut failures = Vec::new();
     for planned in plan::plan(&manga.id, &req.language, scan.entries) {
         let (entry, chapter) = (planned.entry, planned.chapter);
         if on_disk(&known, &chapter) {
@@ -86,7 +87,10 @@ pub fn import_paths(lib: &Library, root: &Path, req: &ImportRequest) -> Result<I
                 added.push(chapter);
                 continue;
             }
-            Err(e) => e.to_string(),
+            Err(e) => {
+                failures.push(e.to_string());
+                e.to_string()
+            }
         };
         let _ = std::fs::remove_dir_all(&dest);
         skipped.push(Skipped::new(&entry.name, &reason));
@@ -96,10 +100,7 @@ pub fn import_paths(lib: &Library, root: &Path, req: &ImportRequest) -> Result<I
         if let Some(dir) = series_dir {
             let _ = std::fs::remove_dir(dir);
         }
-        return Err(Error::Import(format!(
-            "No chapters with images in {}",
-            describe(&req.paths)
-        )));
+        return Err(nothing_imported(&req.paths, &failures));
     }
     save(lib, &manga, &req.language, &known, &added)?;
     let manga = get_manga(lib, LOCAL_SOURCE, &manga.id)?.unwrap_or(manga);
@@ -164,6 +165,15 @@ fn save(
         }
     }
     Ok(())
+}
+
+/// Why nothing was imported: the first chapter error when there were some, else no images.
+fn nothing_imported(paths: &[PathBuf], failures: &[String]) -> Error {
+    Error::Import(match failures {
+        [] => format!("No chapters with images in {}", describe(paths)),
+        [only] => only.clone(),
+        [first, rest @ ..] => format!("{first} (and {} more failed)", rest.len()),
+    })
 }
 
 fn describe(paths: &[PathBuf]) -> String {

@@ -119,3 +119,41 @@ fn a_failed_import_leaves_no_series_folder_and_reads_plainly() {
         .unwrap_or_default();
     assert!(left.is_empty(), "left behind: {left:?}");
 }
+
+#[cfg(unix)]
+#[test]
+fn a_read_only_data_folder_is_named_in_the_error() {
+    use std::os::unix::fs::PermissionsExt;
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("data");
+    let series = tmp.path().join("Berserk");
+    png(&series.join("Chapter 1"), "001.png");
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o555)).unwrap();
+    if std::fs::create_dir(root.join("probe")).is_ok() {
+        return; // root ignores permissions
+    }
+    let lib = open_in_memory().unwrap();
+
+    let err = import_paths(&lib, &root, &request(vec![series], None)).unwrap_err();
+
+    std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let message = err.to_string();
+    assert!(
+        message.starts_with(&format!("Couldn't write to {}", root.display())),
+        "{message}"
+    );
+    assert!(message.ends_with(": permission denied"), "{message}");
+}
+
+#[test]
+fn a_corrupt_cbz_says_so() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cbz = tmp.path().join("Corrupt.cbz");
+    std::fs::write(&cbz, b"not a zip").unwrap();
+    let lib = open_in_memory().unwrap();
+
+    let err = import_paths(&lib, &tmp.path().join("data"), &request(vec![cbz], None)).unwrap_err();
+
+    assert_eq!(err.to_string(), "Corrupt.cbz isn't a valid CBZ file");
+}
