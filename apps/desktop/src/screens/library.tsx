@@ -3,7 +3,6 @@ import { useMemo, useState } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorAlert } from "@/components/error-alert";
 import { ImportMenu } from "@/components/import-menu";
-import { ImportStatusBar } from "@/components/import-status";
 import { MangaCard } from "@/components/manga-card";
 import { ScreenHeader } from "@/components/screen-header";
 import { type LibrarySort, SortMenu, sortLibrary } from "@/components/sort-menu";
@@ -54,12 +53,11 @@ export function LibraryScreen() {
           </div>
         ) : null}
         {count ? <SortMenu value={sort} onChange={setSort} /> : null}
-        <ImportMenu busy={imports.status.kind === "busy"} onPick={imports.start} />
+        <ImportMenu busy={imports.busy} onPick={imports.start} />
         <Button variant="primary" size="sm" onClick={() => nav.go({ screen: "search" })}>
           <Plus /> Follow a manga
         </Button>
       </ScreenHeader>
-      <ImportStatusBar status={imports.status} onDismiss={imports.dismiss} />
       <div className="flex-1 overflow-auto p-4">
         {state.kind === "loading" && <p className="text-ink-3">Loading…</p>}
         {state.kind === "error" && (

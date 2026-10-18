@@ -34,10 +34,10 @@ pub struct Scan {
 pub fn scan(paths: &[PathBuf]) -> Result<Scan> {
     let first = paths
         .first()
-        .ok_or_else(|| Error::Other("nothing to import".into()))?;
+        .ok_or_else(|| Error::Import("Nothing to import".into()))?;
     for p in paths {
         if !p.exists() {
-            return Err(Error::NotFound(p.display().to_string()));
+            return Err(Error::Import(format!("{} doesn't exist", p.display())));
         }
     }
     if let [dir] = paths {

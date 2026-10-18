@@ -1,35 +1,34 @@
 import { useCallback, useState } from "react";
+import { toast } from "sonner";
 import { type ImportKind, pickImportPaths } from "@/lib/dialogs";
-import { errorMessage } from "@/lib/format";
 import { importSummary } from "@/lib/import-summary";
 import { type ImportReport, importLocal } from "@/lib/ipc";
+import { notifyError } from "@/lib/notify";
 
-export type ImportStatus =
-  | { kind: "idle" }
-  | { kind: "busy" }
-  | { kind: "done"; message: string }
-  | { kind: "error"; message: string };
+const IMPORT_TOAST = "import";
 
-/** Picks paths with the native dialog, imports them and keeps a one-line status. */
+/** Picks paths with the native dialog and imports them, reporting progress and the result in one toast. */
 export function useImport(onImported: (report: ImportReport) => void) {
-  const [status, setStatus] = useState<ImportStatus>({ kind: "idle" });
+  const [busy, setBusy] = useState(false);
 
   const start = useCallback(
     async (kind: ImportKind) => {
       const paths = await pickImportPaths(kind);
       if (paths.length === 0) return;
-      setStatus({ kind: "busy" });
+      setBusy(true);
+      toast.loading("Importing…", { id: IMPORT_TOAST, description: null });
       try {
         const report = await importLocal(paths);
-        setStatus({ kind: "done", message: importSummary(report) });
+        toast.success(importSummary(report), { id: IMPORT_TOAST, description: null });
         onImported(report);
       } catch (e) {
-        setStatus({ kind: "error", message: errorMessage(e) });
+        notifyError("Couldn't import", e, { id: IMPORT_TOAST });
+      } finally {
+        setBusy(false);
       }
     },
     [onImported],
   );
 
-  const dismiss = useCallback(() => setStatus({ kind: "idle" }), []);
-  return { status, start, dismiss };
+  return { busy, start };
 }

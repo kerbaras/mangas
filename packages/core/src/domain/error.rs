@@ -23,6 +23,9 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error("image: {0}")]
     Image(#[from] image::ImageError),
+    /// A local import found nothing it could use; the message is meant for the user as is.
+    #[error("{0}")]
+    Import(String),
     #[error("{0}")]
     Other(String),
 }

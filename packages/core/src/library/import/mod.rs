@@ -51,6 +51,7 @@ pub fn import_paths(lib: &Library, root: &Path, req: &ImportRequest) -> Result<I
     let mut skipped = scan.skipped;
     let mut imported = Vec::new();
     let mut added = Vec::new();
+    let mut series_dir = None;
     for planned in plan::plan(&manga.id, &req.language, scan.entries) {
         let (entry, chapter) = (planned.entry, planned.chapter);
         if on_disk(&known, &chapter) {
@@ -58,6 +59,7 @@ pub fn import_paths(lib: &Library, root: &Path, req: &ImportRequest) -> Result<I
             continue;
         }
         let dest = unique_chapter_dir(chapter_dir(root, LOCAL_SOURCE, &chapter), &chapter, &known);
+        series_dir = dest.parent().map(Path::to_path_buf);
         if overlaps(&entry.path, &dest) {
             skipped.push(Skipped::new(
                 &entry.name,
@@ -90,8 +92,12 @@ pub fn import_paths(lib: &Library, root: &Path, req: &ImportRequest) -> Result<I
         skipped.push(Skipped::new(&entry.name, &reason));
     }
     if known.is_empty() {
-        return Err(Error::NotFound(format!(
-            "no chapters with images in {}",
+        // `remove_dir` only removes an empty folder, so nothing imported earlier is touched.
+        if let Some(dir) = series_dir {
+            let _ = std::fs::remove_dir(dir);
+        }
+        return Err(Error::Import(format!(
+            "No chapters with images in {}",
             describe(&req.paths)
         )));
     }

@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use image::{Rgba, RgbaImage};
-use mangas_core::domain::MangaId;
+use mangas_core::domain::{Error, MangaId};
 use mangas_core::library::{
     import_paths, list_manga, open_in_memory, remove_manga, ImportRequest, LOCAL_SOURCE,
 };
@@ -34,7 +34,10 @@ fn a_folder_already_in_the_library_layout_is_left_alone() {
 
     let err = import_paths(&lib, &root, &request(vec![inside.clone()], Some("foo"))).unwrap_err();
 
-    assert!(err.to_string().contains("no chapters"), "{err}");
+    assert!(
+        err.to_string().starts_with("No chapters with images"),
+        "{err}"
+    );
     assert!(inside.join("a.png").is_file() && inside.join("b.png").is_file());
     assert!(list_manga(&lib).unwrap().is_empty());
 }
@@ -95,4 +98,24 @@ fn imported_pages_are_copies_not_links_to_the_source() {
     std::fs::remove_dir_all(&source).unwrap();
 
     assert_eq!(std::fs::read(&page).unwrap(), before);
+}
+
+#[test]
+fn a_failed_import_leaves_no_series_folder_and_reads_plainly() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("data");
+    let series = tmp.path().join("Berserk");
+    std::fs::create_dir_all(series.join("Chapter 1")).unwrap();
+    std::fs::write(series.join("Chapter 1").join("notes.txt"), b"no pages").unwrap();
+    let lib = open_in_memory().unwrap();
+
+    let err = import_paths(&lib, &root, &request(vec![series.clone()], None)).unwrap_err();
+
+    assert!(matches!(err, Error::Import(_)), "{err:?}");
+    let expected = format!("No chapters with images in {}", series.display());
+    assert_eq!(err.to_string(), expected);
+    let left: Vec<_> = std::fs::read_dir(root.join(LOCAL_SOURCE))
+        .map(|dir| dir.flatten().map(|e| e.path()).collect())
+        .unwrap_or_default();
+    assert!(left.is_empty(), "left behind: {left:?}");
 }
