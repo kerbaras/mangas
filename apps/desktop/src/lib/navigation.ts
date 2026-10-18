@@ -4,6 +4,7 @@ import type { Manga } from "@/lib/ipc";
 export type Route =
   | { screen: "library" }
   | { screen: "search" }
+  | { screen: "downloads" }
   | { screen: "manga"; manga: Manga }
   | { screen: "kindle"; chapterIds?: string[] }
   | { screen: "settings" };
@@ -25,5 +26,5 @@ export const NavigationContext = createContext<Navigation>({
 export const useNavigation = () => useContext(NavigationContext);
 
 /** Rail items highlight their whole section, so the details screen lights up "Library". */
-export const railSection = (route: Route): "library" | "search" | "kindle" | "settings" =>
+export const railSection = (route: Route): Exclude<Route["screen"], "manga"> =>
   route.screen === "manga" ? "library" : route.screen;

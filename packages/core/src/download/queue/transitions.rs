@@ -54,11 +54,31 @@ pub fn apply(job: &Job, action: Action, now: i64) -> Option<Job> {
 
 /// A chapter asked for again: `None` while its job is queued or running, a paused job resumes,
 /// any other is reset to the back of the queue. `existing` is `None` for a chapter never queued.
+/// A `fresh.force` turns on the existing job's force; it never turns it off mid-flight. A running
+/// job keeps its owner, which drops the run that keeps old pages and queues it again itself.
 pub fn enqueue(existing: Option<&Job>, fresh: Job, now: i64) -> Option<Job> {
+    let force = |job: Job| Job {
+        force: job.force || fresh.force,
+        ..job
+    };
     match existing {
-        Some(job) if job.state == JobState::Paused => apply(job, Action::Resume, now),
+        Some(job) if job.state == JobState::Paused => apply(job, Action::Resume, now).map(force),
+        Some(job) if job.state == JobState::Queued && fresh.force && !job.force => {
+            Some(force(Job {
+                updated_at: now,
+                ..job.clone()
+            }))
+        }
+        Some(job) if job.state == JobState::Running && fresh.force && !job.force => Some(Job {
+            force: true,
+            updated_at: now,
+            ..job.clone()
+        }),
         Some(job) if job.state.is_active() => None,
-        Some(job) => Some(requeue(job, now)),
+        Some(job) => Some(Job {
+            force: fresh.force,
+            ..requeue(job, now)
+        }),
         None => Some(Job {
             state: JobState::Queued,
             created_at: now,

@@ -2,12 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { NavRail } from "@/components/nav-rail";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { activeCount, DownloadsProvider, useDownloads } from "@/hooks/use-downloads";
+import { DownloadsProvider, useQueue } from "@/hooks/use-downloads";
 import { useUpdateSchedule } from "@/hooks/use-update-schedule";
 import { onAppFocus, watchAppFocus } from "@/lib/app-focus";
+import { pendingCount } from "@/lib/download-sections";
 import { mangaKey } from "@/lib/format";
 import { type Navigation, NavigationContext, type Route } from "@/lib/navigation";
 import { loadSettings } from "@/lib/settings";
+import { DownloadsScreen } from "@/screens/downloads";
 import { KindleScreen } from "@/screens/kindle";
 import { LibraryScreen } from "@/screens/library";
 import { MangaDetailsScreen } from "@/screens/manga-details";
@@ -20,6 +22,8 @@ function Screen({ route }: { route: Route }) {
       return <LibraryScreen />;
     case "search":
       return <SearchScreen />;
+    case "downloads":
+      return <DownloadsScreen />;
     case "manga":
       return <MangaDetailsScreen key={mangaKey(route.manga)} manga={route.manga} />;
     case "kindle":
@@ -30,12 +34,13 @@ function Screen({ route }: { route: Route }) {
 }
 
 function Shell({ nav }: { nav: Navigation }) {
-  const downloads = useDownloads();
+  const { jobs, gate } = useQueue();
+  const pending = useMemo(() => pendingCount(jobs.values()), [jobs]);
   useUpdateSchedule();
   return (
     <NavigationContext.Provider value={nav}>
       <div className="flex h-full">
-        <NavRail activeDownloads={activeCount(downloads)} />
+        <NavRail downloads={{ pending, held: gate.paused || gate.held }} />
         <main className="flex-1 overflow-hidden">
           <Screen route={nav.route} />
         </main>

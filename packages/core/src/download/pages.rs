@@ -57,10 +57,18 @@ fn present_indexes(names: &HashSet<String>) -> HashSet<usize> {
         .collect()
 }
 
-/// Downloads every page of `urls` into `dest`, skipping files that already exist. Emits
-/// [`Event::PageDone`] per page (including skipped ones) and returns the page count. A page
-/// that fails does not stop the others (they stay on disk for a resume), but the chapter is
-/// an error unless all `urls.len()` pages end up on disk.
+/// What to do with the page files already in the chapter directory.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum OnDisk {
+    /// Resume: a page already on disk is not fetched again.
+    #[default]
+    Keep,
+    /// Download again: every page is fetched and overwrites its file; page images it did not
+    /// write are removed once the chapter is complete.
+    Replace,
+}
+
+/// [`download_pages_with`] resuming the pages already on disk.
 pub async fn download_pages(
     fetcher: &dyn PageFetcher,
     chapter: &ChapterId,
@@ -68,8 +76,27 @@ pub async fn download_pages(
     dest: &Path,
     on_event: OnEvent<'_>,
 ) -> Result<usize> {
+    download_pages_with(fetcher, chapter, urls, dest, OnDisk::Keep, on_event).await
+}
+
+/// Downloads every page of `urls` into `dest`, skipping files that already exist (unless
+/// `on_disk` is [`OnDisk::Replace`]). Emits
+/// [`Event::PageDone`] per page (including skipped ones) and returns the page count. A page
+/// that fails does not stop the others (they stay on disk for a resume), but the chapter is
+/// an error unless all `urls.len()` pages end up on disk.
+pub async fn download_pages_with(
+    fetcher: &dyn PageFetcher,
+    chapter: &ChapterId,
+    urls: &PageUrls,
+    dest: &Path,
+    on_disk: OnDisk,
+    on_event: OnEvent<'_>,
+) -> Result<usize> {
     tokio::fs::create_dir_all(dest).await?;
-    let existing = existing_files(dest)?;
+    let existing = match on_disk {
+        OnDisk::Keep => existing_files(dest)?,
+        OnDisk::Replace => HashSet::new(),
+    };
     let total = urls.0.len();
     let jobs = plan(urls, &existing);
     for index in (1..=total).filter(|i| !jobs.iter().any(|j| j.index == *i)) {
@@ -102,7 +129,25 @@ pub async fn download_pages(
     if missing > 0 {
         return Err(missing_on_disk(missing, total));
     }
+    if on_disk == OnDisk::Replace {
+        remove_stale_pages(dest, urls)?;
+    }
     Ok(total)
+}
+
+/// After a full re-download, drops the page images it did not write (another extension, a
+/// page the source no longer has) so an export never picks up an old or duplicate page.
+fn remove_stale_pages(dest: &Path, urls: &PageUrls) -> Result<()> {
+    let wanted: HashSet<String> = plan(urls, &HashSet::new())
+        .into_iter()
+        .map(|job| job.file_name)
+        .collect();
+    for name in existing_files(dest)? {
+        if is_image(&name) && !wanted.contains(&name) {
+            std::fs::remove_file(dest.join(name))?;
+        }
+    }
+    Ok(())
 }
 
 /// Writes to `<name>.part` first so an interrupted download never leaves a truncated page

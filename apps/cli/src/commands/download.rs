@@ -30,7 +30,7 @@ pub struct Args {
     /// Also pack each chapter into a .cbz next to its directory
     #[arg(long)]
     pub cbz: bool,
-    /// Also queue chapters already on disk; their missing pages get downloaded
+    /// Also queue chapters already on disk and download every page again, overwriting the files
     #[arg(long)]
     pub force: bool,
 }

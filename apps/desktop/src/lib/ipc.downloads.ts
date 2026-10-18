@@ -27,6 +27,10 @@ export type DownloadJob = {
   heartbeat_at: number;
   /** Running, but its process died (lease expired): a worker queues it again soon. */
   stale_lease: boolean;
+  /** Running, but no heartbeat for 3 s: stuck or gone; the lease decides which. */
+  stalled: boolean;
+  /** Queued with "Download again": every page is fetched and overwritten. */
+  force: boolean;
   created_at: number;
   updated_at: number;
   manga_title: string;
@@ -36,13 +40,39 @@ export type DownloadJob = {
   local_path: string | null;
 };
 
+/** Mirrors the desktop's `DownloadReport`: what one download request queued and skipped. */
+export type Enqueued = {
+  queued: number;
+  /** Ids the source no longer lists: nothing was queued for them. */
+  missing: string[];
+  /** Ids already on disk, left alone unless asked to download again. */
+  on_disk: string[];
+};
+
 /** Mirrors `mangas_core::download::queue::QueueEvent` (serde tag = "kind"). */
 export type QueueEvent =
   | {
       kind: "queued" | "started" | "progress" | "paused" | "done" | "failed" | "cancelled";
       job: DownloadJob;
     }
-  | { kind: "removed"; id: number };
+  | { kind: "removed"; id: number }
+  | ({ kind: "gate" } & QueueStatus);
+
+/** Mirrors `mangas_core::download::queue::GateStatus`: nothing new starts while either is set. */
+export type QueueStatus = {
+  /** Pause all (desktop or `mangas queue pause --all`); lifted by resume all. */
+  paused: boolean;
+  /** A data-folder move holds the queue until it finishes; read-only for the user. */
+  held: boolean;
+};
+
+/** `mangas_core::download::queue::UNLISTED`: the source stopped listing the chapter. */
+export const UNLISTED = "chapter no longer listed by the source";
+export const isUnlisted = (job: Pick<DownloadJob, "error">) =>
+  job.error?.includes(UNLISTED) ?? false;
+/** A failure a retry cannot fix: the source no longer has the chapter. */
+export const isFinalError = (error: string) =>
+  error.includes(UNLISTED) || error.startsWith("not found");
 
 export type DownloadsBackend = {
   /** Every job in queue order. */
@@ -54,6 +84,11 @@ export type DownloadsBackend = {
   retryDownload(id: number | null): Promise<DownloadJob[]>;
   /** Removes done and cancelled jobs; resolves to how many. */
   clearDownloads(): Promise<number>;
+  /** Removes one done, failed or cancelled job (and a chapter row kept only for it). */
+  dismissDownload(id: number): Promise<void>;
+  queueStatus(): Promise<QueueStatus>;
+  /** Opens the downloaded chapter folder of job `id` in the file manager. */
+  openDownloadFolder(id: number): Promise<void>;
   onQueueEvent(cb: (e: QueueEvent) => void): Promise<Unlisten>;
 };
 
@@ -63,6 +98,9 @@ export const resumeDownload = async (id: number | null) => (await backend()).res
 export const cancelDownload = async (id: number | null) => (await backend()).cancelDownload(id);
 export const retryDownload = async (id: number | null) => (await backend()).retryDownload(id);
 export const clearDownloads = async () => (await backend()).clearDownloads();
+export const dismissDownload = async (id: number) => (await backend()).dismissDownload(id);
+export const queueStatus = async () => (await backend()).queueStatus();
+export const openDownloadFolder = async (id: number) => (await backend()).openDownloadFolder(id);
 export const onQueueEvent = async (cb: (e: QueueEvent) => void) =>
   (await backend()).onQueueEvent(cb);
 

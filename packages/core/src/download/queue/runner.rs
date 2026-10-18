@@ -4,7 +4,7 @@ use async_trait::async_trait;
 
 use super::job::Job;
 use crate::domain::{Error, Result};
-use crate::download::{download_into_library, OnEvent, PageFetcher};
+use crate::download::{download_into_library, OnDisk, OnEvent, PageFetcher};
 use crate::library::{self, Library};
 use crate::sources::Source;
 
@@ -16,8 +16,8 @@ pub trait JobRunner: Send + Sync {
     async fn run(&self, lib: &Library, job: &Job, on_event: OnEvent<'_>) -> Result<()>;
 }
 
-/// The library's chapter for `job` downloaded under `root` (resuming pages already there) and
-/// marked downloaded. Returns the chapter directory.
+/// The library's chapter for `job` downloaded under `root` (resuming pages already there, or
+/// fetching all of them again for a [`Job::force`] job) and marked downloaded. Returns the chapter directory.
 pub async fn run_job(
     lib: &Library,
     source: &dyn Source,
@@ -30,5 +30,10 @@ pub async fn run_job(
         .into_iter()
         .find(|c| c.id == job.chapter_id)
         .ok_or_else(|| Error::NotFound(format!("chapter {} in the library", job.chapter_id)))?;
-    download_into_library(source, fetcher, lib, &chapter, root, on_event).await
+    let on_disk = if job.force {
+        OnDisk::Replace
+    } else {
+        OnDisk::Keep
+    };
+    download_into_library(source, fetcher, lib, &chapter, root, on_disk, on_event).await
 }

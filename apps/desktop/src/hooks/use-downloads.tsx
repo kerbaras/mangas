@@ -1,16 +1,34 @@
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   downloadContext,
   downloadLabel,
   failureLog,
   rememberDownloads,
 } from "@/lib/download-labels";
+import {
+  applyEvents,
+  applySnapshot,
+  emptyQueue,
+  jobsByChapter,
+  type QueueState,
+} from "@/lib/download-queue";
 import { type DownloadProgress, downloadChapters } from "@/lib/ipc";
 import {
   type DownloadJob,
   isActive,
+  isFinalError,
   listDownloads,
   onQueueEvent,
+  type QueueEvent,
+  queueStatus,
   toDownloadProgress,
 } from "@/lib/ipc.downloads";
 import { notifyError } from "@/lib/notify";
@@ -23,12 +41,13 @@ import { logUiWarning } from "@/lib/report";
 export function chapterFailed(id: string, error: string) {
   const context = downloadContext(id);
   logUiWarning(failureLog(id, error, context));
-  const retry = context
-    ? () =>
-        void downloadChapters(context.source, context.mangaId, [id]).catch((e: unknown) =>
-          notifyError(`${context.label} didn't download`, e, { id: `download-${id}` }),
-        )
-    : undefined;
+  const retry =
+    context && !isFinalError(error)
+      ? () =>
+          void downloadChapters(context.source, context.mangaId, [id]).catch((e: unknown) =>
+            notifyError(`${context.label} didn't download`, e, { id: `download-${id}` }),
+          )
+      : undefined;
   notifyError(`${downloadLabel(id)} didn't download`, error, {
     id: `download-${id}`,
     source: context?.source,
@@ -38,9 +57,13 @@ export function chapterFailed(id: string, error: string) {
 
 export type DownloadMap = ReadonlyMap<string, DownloadProgress>;
 
+const QueueContext = createContext<QueueState>(emptyQueue);
 const DownloadsContext = createContext<DownloadMap>(new Map());
 type Forget = (match: (chapterId: string) => boolean) => void;
 const ForgetContext = createContext<Forget>(() => {});
+
+/** Progress events come several times a second per job; the UI folds them at most this often. */
+export const BATCH_MS = 100;
 
 /** Jobs from earlier runs carry their own label, so their toasts and logs name the chapter. */
 function remember(job: DownloadJob) {
@@ -52,61 +75,86 @@ function remember(job: DownloadJob) {
 }
 
 /** App-wide so progress survives leaving and re-entering a manga's chapters. Seeded from the
- * persistent queue, so jobs left from the last run show up after a restart. */
+ * persistent queue, so jobs left from the last run (or queued by the CLI) show up too. */
 export function DownloadsProvider({ children }: { children: ReactNode }) {
-  const [progress, setProgress] = useState<Map<string, DownloadProgress>>(new Map());
+  const [queue, setQueue] = useState<QueueState>(emptyQueue);
+  const [forgotten, setForgotten] = useState<ReadonlySet<string>>(new Set());
 
   useEffect(() => {
     let unlisten: (() => void) | null = null;
     let alive = true;
-    const ids = new Map<number, string>();
-    // Events arrive in order; the startup snapshot can resolve after one, so it never
-    // replaces a job an event already reported.
-    const fromEvents = new Set<number>();
-    const put = (job: DownloadJob, snapshot = false) => {
-      if (snapshot && fromEvents.has(job.id)) return;
-      if (!snapshot) fromEvents.add(job.id);
-      ids.set(job.id, job.chapter_id);
-      remember(job);
-      setProgress((m) => new Map(m).set(job.chapter_id, toDownloadProgress(job)));
+    // Events arrive in order and win over the startup snapshot, which can resolve after them.
+    const fromEvents = { jobs: new Set<number>(), gate: false };
+    let pending: [QueueEvent, number][] = [];
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const flush = () => {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      const batch = pending;
+      pending = [];
+      if (batch.length && alive) setQueue((q) => applyEvents(q, batch));
     };
     onQueueEvent((e) => {
-      if (e.kind === "removed") {
-        const chapter = ids.get(e.id);
-        fromEvents.add(e.id);
-        if (chapter) setProgress((m) => (m.delete(chapter) ? new Map(m) : m));
-        return;
+      if (e.kind === "gate") fromEvents.gate = true;
+      else fromEvents.jobs.add(e.kind === "removed" ? e.id : e.job.id);
+      if (e.kind !== "removed" && e.kind !== "gate") {
+        remember(e.job);
+        const chapter = e.job.chapter_id;
+        setForgotten((f) => (f.has(chapter) ? new Set([...f].filter((c) => c !== chapter)) : f));
       }
-      put(e.job);
+      pending.push([e, Date.now()]);
+      timer ??= setTimeout(flush, BATCH_MS);
       if (e.kind === "failed") chapterFailed(e.job.chapter_id, e.job.error ?? "failed");
     }).then((u) => {
       if (alive) unlisten = u;
       else u();
     });
+    const warn = (e: unknown) => logUiWarning(`download queue: ${String(e)}`);
     listDownloads()
       .then((jobs) => {
-        if (alive) for (const job of jobs) put(job, true);
+        if (!alive) return;
+        jobs.forEach(remember);
+        flush();
+        setQueue((q) => applySnapshot(q, { jobs }, fromEvents));
       })
-      .catch((e: unknown) => logUiWarning(`download queue: ${String(e)}`));
+      .catch(warn);
+    queueStatus()
+      .then((gate) => {
+        if (alive) setQueue((q) => applySnapshot(q, { gate }, fromEvents));
+      })
+      .catch(warn);
     return () => {
       alive = false;
+      if (timer) clearTimeout(timer);
       unlisten?.();
     };
   }, []);
 
+  const progress = useMemo(() => {
+    const out = new Map<string, DownloadProgress>();
+    for (const [chapter, job] of jobsByChapter(queue.jobs))
+      if (!forgotten.has(chapter)) out.set(chapter, toDownloadProgress(job));
+    return out;
+  }, [queue.jobs, forgotten]);
+
   const forget = useCallback<Forget>(
-    (match) => setProgress((m) => new Map([...m].filter(([id]) => !match(id)))),
-    [],
+    (match) => setForgotten((f) => new Set([...f, ...[...progress.keys()].filter(match)])),
+    [progress],
   );
 
   return (
-    <ForgetContext.Provider value={forget}>
-      <DownloadsContext.Provider value={progress}>{children}</DownloadsContext.Provider>
-    </ForgetContext.Provider>
+    <QueueContext.Provider value={queue}>
+      <ForgetContext.Provider value={forget}>
+        <DownloadsContext.Provider value={progress}>{children}</DownloadsContext.Provider>
+      </ForgetContext.Provider>
+    </QueueContext.Provider>
   );
 }
 
+/** Each chapter's latest download, for chapter rows. */
 export const useDownloads = () => useContext(DownloadsContext);
+/** Every job, the queue-wide gate and recent progress, for the Downloads screen. */
+export const useQueue = () => useContext(QueueContext);
 /** Drops finished progress for chapters whose files were deleted, so they stop showing "On disk". */
 export const useForgetDownloads = () => useContext(ForgetContext);
 

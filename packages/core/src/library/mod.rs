@@ -37,7 +37,9 @@ pub use gate_repo::{
     queue_gate, queue_paused, set_queue_held_until, set_queue_paused, take_queue_hold,
 };
 pub use import::{import_paths, is_local, ImportReport, ImportRequest, LOCAL_SOURCE};
-pub use job_repo::{delete_jobs, enqueue_jobs, list_jobs, update_jobs, update_jobs_gated};
+pub use job_repo::{
+    delete_job, delete_jobs, enqueue_jobs, list_jobs, update_jobs, update_jobs_gated,
+};
 pub use languages::{
     in_languages, parse_languages, prefer_languages, requested_languages, validate_languages,
 };

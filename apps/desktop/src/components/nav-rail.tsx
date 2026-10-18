@@ -1,11 +1,11 @@
-import { BookOpen, Search, Send, Settings } from "lucide-react";
+import { BookOpen, Download, Search, Send, Settings } from "lucide-react";
 import type { ReactNode } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/cn";
 import { type Route, railSection, useNavigation } from "@/lib/navigation";
 import { hasTrafficLights } from "@/lib/platform";
 
-type Item = { icon: ReactNode; label: string; route: Route; badge?: number };
+type Item = { icon: ReactNode; label: string; route: Route; badge?: number; muted?: boolean };
 
 function RailButton({ item, active }: { item: Item; active: boolean }) {
   const nav = useNavigation();
@@ -21,7 +21,12 @@ function RailButton({ item, active }: { item: Item; active: boolean }) {
         >
           {item.icon}
           {item.badge ? (
-            <span className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">
+            <span
+              className={cn(
+                "absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold text-white",
+                item.muted ? "bg-ink-3" : "bg-accent",
+              )}
+            >
               {item.badge}
             </span>
           ) : null}
@@ -32,12 +37,22 @@ function RailButton({ item, active }: { item: Item; active: boolean }) {
   );
 }
 
-export function NavRail({ activeDownloads }: { activeDownloads: number }) {
+/** `pending`: running and queued jobs; `held`: the queue is paused or held, so they wait. */
+type Props = { downloads: { pending: number; held: boolean } };
+
+export function NavRail({ downloads }: Props) {
   const { route } = useNavigation();
   const section = railSection(route);
   const top: Item[] = [
-    { icon: <BookOpen />, label: "Library", route: { screen: "library" }, badge: activeDownloads },
+    { icon: <BookOpen />, label: "Library", route: { screen: "library" } },
     { icon: <Search />, label: "Search", route: { screen: "search" } },
+    {
+      icon: <Download />,
+      label: downloads.held ? "Downloads (paused)" : "Downloads",
+      route: { screen: "downloads" },
+      badge: downloads.pending,
+      muted: downloads.held,
+    },
     { icon: <Send />, label: "Send to Kindle", route: { screen: "kindle" } },
   ];
   const settings: Item = { icon: <Settings />, label: "Settings", route: { screen: "settings" } };

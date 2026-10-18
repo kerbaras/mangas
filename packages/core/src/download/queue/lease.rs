@@ -11,6 +11,10 @@ use super::ops::now_ms;
 /// How long a running job's lease lasts without renewal: 30 worker ticks (500 ms each).
 pub const LEASE_MS: i64 = 15_000;
 
+/// A running job without a heartbeat for this long shows as stalled: its owner renews every
+/// 500 ms, so six missed ticks mean it is stuck or gone, well before the lease runs out.
+pub const STALL_MS: i64 = 3_000;
+
 /// Unix ms "now" for lease decisions; tests pass their own to move time without sleeping.
 pub type Clock = Arc<dyn Fn() -> i64 + Send + Sync>;
 
@@ -24,11 +28,13 @@ pub fn holds_lease(job: &Job, now: i64, stale_after: i64) -> bool {
     job.state == JobState::Running && !lease_expired(job, now, stale_after)
 }
 
-/// `jobs` with [`Job::stale_lease`] set on the running ones whose lease ran out.
+/// `jobs` with [`Job::stale_lease`] set on the running ones whose lease ran out and
+/// [`Job::stalled`] on those without a heartbeat for [`STALL_MS`].
 pub fn mark_stale(jobs: Vec<Job>, now: i64, stale_after: i64) -> Vec<Job> {
     jobs.into_iter()
         .map(|job| Job {
             stale_lease: lease_expired(&job, now, stale_after),
+            stalled: lease_expired(&job, now, STALL_MS.min(stale_after)),
             ..job
         })
         .collect()

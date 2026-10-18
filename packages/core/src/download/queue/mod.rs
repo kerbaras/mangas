@@ -19,13 +19,13 @@ mod worker;
 /// Why a queued download failed when a refresh found its chapter gone from the source.
 pub const UNLISTED: &str = "chapter no longer listed by the source";
 
-pub use events::{diff, QueueEvent};
+pub use events::{diff, gate_event, QueueEvent};
 pub use hold::{hold_queue, hold_queue_at, MOVE_SETTLE};
-pub use job::{Job, JobId, JobState, QueueGate};
-pub use lease::{holds_lease, lease_expired, mark_stale, Clock, LEASE_MS};
+pub use job::{GateStatus, Job, JobId, JobState, QueueGate};
+pub use lease::{holds_lease, lease_expired, mark_stale, Clock, LEASE_MS, STALL_MS};
 pub use ops::{
-    clear_finished, control, enqueue, list, now_ms, reclaim_orphans, split_for_queue, Enqueued,
-    Target,
+    clear_finished, control, dismiss, enqueue, find, gate_status, list, now_ms, reclaim_orphans,
+    split_for_queue, Enqueued, Target,
 };
 pub use retry::{backoff, classify, Failure, RetryPolicy};
 pub use runner::{run_job, JobRunner};

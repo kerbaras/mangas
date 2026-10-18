@@ -4,9 +4,11 @@
 use std::sync::Arc;
 
 use mangas_core::domain::{Chapter, ChapterId, MangaId};
-use mangas_core::download::queue::{self, Action, Job, JobId, Queue, Target};
+use mangas_core::download::queue::{self, Action, GateStatus, Job, JobId, Queue, Target};
 use mangas_core::library::{self, Library};
-use tauri::State;
+use serde::Serialize;
+use tauri::{AppHandle, State};
+use tauri_plugin_opener::OpenerExt;
 
 use super::{source_by_name, to_ipc};
 
@@ -24,10 +26,18 @@ impl Downloads {
     }
 }
 
+/// What a download request did: `queued` chapters, ids the source no longer lists (nothing
+/// was queued for them) and chapters skipped because they are on disk (`force` re-downloads).
+#[derive(Debug, Serialize)]
+pub struct DownloadReport {
+    pub queued: usize,
+    pub missing: Vec<String>,
+    pub on_disk: Vec<String>,
+}
+
 /// Queues the given chapters. Downloading a manga that is not followed yet follows it first
 /// (chapters are stored per manga); a followed manga whose chapter list never got saved is
-/// re-synced the same way. Returns the ids the source no longer lists (nothing was queued
-/// for them); everything else reports through the queue events.
+/// re-synced the same way. Progress reports through the queue events.
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub async fn download_chapters(
@@ -36,7 +46,8 @@ pub async fn download_chapters(
     manga_id: String,
     language: String,
     chapter_ids: Vec<String>,
-) -> Result<Vec<String>, String> {
+    force: Option<bool>,
+) -> Result<DownloadReport, String> {
     let queue = downloads.queue()?;
     let lib = queue.library();
     let src = source_by_name(&source)?;
@@ -54,9 +65,14 @@ pub async fn download_chapters(
         .filter(|id| !selected.iter().any(|c| &c.id == *id))
         .map(|id| id.0.clone())
         .collect();
-    queue::enqueue(lib, &source, selected, false).map_err(to_ipc)?;
+    let enqueued =
+        queue::enqueue(lib, &source, selected, force.unwrap_or(false)).map_err(to_ipc)?;
     queue.nudge();
-    Ok(missing)
+    Ok(DownloadReport {
+        queued: enqueued.jobs.len(),
+        missing,
+        on_disk: enqueued.on_disk.into_iter().map(|c| c.id.0).collect(),
+    })
 }
 
 #[tauri::command]
@@ -109,6 +125,38 @@ pub fn clear_downloads(downloads: State<'_, Downloads>) -> Result<usize, String>
     let removed = queue::clear_finished(queue.library()).map_err(to_ipc)?;
     queue.nudge();
     Ok(removed)
+}
+
+/// Removes one done, failed or cancelled job (and a chapter row kept only for it).
+#[tauri::command]
+#[tracing::instrument(level = "error", skip_all)]
+pub fn dismiss_download(downloads: State<'_, Downloads>, id: JobId) -> Result<(), String> {
+    let queue = downloads.queue()?;
+    queue::dismiss(queue.library(), id).map_err(to_ipc)?;
+    queue.nudge();
+    Ok(())
+}
+
+/// The queue-wide pause and data-folder-move hold; later changes arrive as `gate` events.
+#[tauri::command]
+#[tracing::instrument(level = "error", skip_all)]
+pub fn queue_status(downloads: State<'_, Downloads>) -> Result<GateStatus, String> {
+    queue::gate_status(downloads.queue()?.library()).map_err(to_ipc)
+}
+
+/// Opens the chapter folder of job `id` in the file manager.
+#[tauri::command]
+#[tracing::instrument(level = "error", skip_all)]
+pub fn open_download_folder(
+    app: AppHandle,
+    downloads: State<'_, Downloads>,
+    id: JobId,
+) -> Result<(), String> {
+    let job = queue::find(downloads.queue()?.library(), id).map_err(to_ipc)?;
+    let dir = job
+        .local_path
+        .ok_or_else(|| to_ipc(format!("chapter {} is not on disk", job.number)))?;
+    app.opener().open_path(dir, None::<&str>).map_err(to_ipc)
 }
 
 fn control(downloads: &Downloads, id: Option<JobId>, action: Action) -> Result<Vec<Job>, String> {

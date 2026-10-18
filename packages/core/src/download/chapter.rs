@@ -4,7 +4,7 @@ use super::availability::ensure_available;
 use super::event::{Event, OnEvent};
 use super::fetcher::PageFetcher;
 use super::mirror::WithMirror;
-use super::pages::download_pages;
+use super::pages::{download_pages_with, OnDisk};
 use crate::domain::{Chapter, ChapterId, Error, Result};
 use crate::library::{self, Library};
 use crate::sources::Source;
@@ -70,6 +70,18 @@ pub async fn download_chapter_with(
     dest: &Path,
     on_event: OnEvent<'_>,
 ) -> Result<usize> {
+    download_chapter_into(source, fetcher, chapter, dest, OnDisk::Keep, on_event).await
+}
+
+/// [`download_chapter_with`], keeping or replacing the pages already in `dest`.
+async fn download_chapter_into(
+    source: &dyn Source,
+    fetcher: &dyn PageFetcher,
+    chapter: &Chapter,
+    dest: &Path,
+    on_disk: OnDisk,
+    on_event: OnEvent<'_>,
+) -> Result<usize> {
     ensure_available(chapter)?;
     let urls = source.pages(&chapter.id).await?;
     if urls.0.is_empty() {
@@ -78,7 +90,7 @@ pub async fn download_chapter_with(
             message: format!("chapter {} has no pages", chapter.number),
         });
     }
-    let pages = download_pages(fetcher, &chapter.id, &urls, dest, on_event).await?;
+    let pages = download_pages_with(fetcher, &chapter.id, &urls, dest, on_disk, on_event).await?;
     on_event(Event::ChapterDone {
         chapter: chapter.id.clone(),
         path: dest.to_string_lossy().into_owned(),
@@ -108,7 +120,9 @@ pub async fn download_chapters(
 ) -> Result<Report> {
     let mut report = Report::default();
     for chapter in chapters {
-        match download_into_library(source, fetcher, lib, chapter, root, on_event).await {
+        match download_into_library(source, fetcher, lib, chapter, root, OnDisk::Keep, on_event)
+            .await
+        {
             Ok(dest) => report.downloaded.push(dest),
             Err(e) => {
                 on_event(Event::Error {
@@ -130,12 +144,13 @@ pub async fn download_into_library(
     lib: &Library,
     chapter: &Chapter,
     root: &Path,
+    on_disk: OnDisk,
     on_event: OnEvent<'_>,
 ) -> Result<PathBuf> {
     let fetcher = WithMirror::for_source(fetcher, source);
     let known = library::list_chapters(lib, source.name(), &chapter.manga_id, None)?;
     let dest = unique_chapter_dir(chapter_dir(root, source.name(), chapter), chapter, &known);
-    download_chapter_with(source, &fetcher, chapter, &dest, on_event).await?;
+    download_chapter_into(source, &fetcher, chapter, &dest, on_disk, on_event).await?;
     library::mark_downloaded(lib, source.name(), &chapter.id, &dest)?;
     Ok(dest)
 }

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { chapterFailed } from "@/hooks/use-downloads";
 import { failureLog, rememberDownloads } from "@/lib/download-labels";
 import { type Backend, setBackend } from "@/lib/ipc";
+import { UNLISTED } from "@/lib/ipc.downloads";
 
 const notifyError = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/notify", () => ({ notifyError }));
@@ -50,5 +51,16 @@ describe("chapterFailed", () => {
     expect(failureLog("ch-9", "HTTP 429")).toBe(
       "chapter download failed: provider=unknown manga=unknown chapter=ch-9: HTTP 429",
     );
+  });
+
+  it("offers no retry for a chapter the source no longer lists", () => {
+    setBackend({ reportError: async () => {} } as unknown as Backend);
+    rememberDownloads([
+      ["ch-10", { label: "Chapter 10 of Kaiju", source: "mangadex", mangaId: "m-1" }],
+    ]);
+    chapterFailed("ch-10", UNLISTED);
+    chapterFailed("ch-10", "not found: the source no longer lists this chapter");
+    for (const [, , options] of notifyError.mock.calls)
+      expect(options).toMatchObject({ retry: undefined });
   });
 });

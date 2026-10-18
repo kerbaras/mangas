@@ -4,7 +4,7 @@
  * Types here are what the screens consume; the Rust wire shapes live in `ipc.wire.ts`.
  */
 import type { DiagnosticsBackend } from "./ipc.diagnostics";
-import type { DownloadsBackend, JobState } from "./ipc.downloads";
+import type { DownloadsBackend, Enqueued, JobState } from "./ipc.downloads";
 import type { LibraryBackend } from "./ipc.library";
 import type { Settings } from "./ipc.settings";
 import type { StorageBackend } from "./ipc.storage";
@@ -167,8 +167,8 @@ export type Backend = DiagnosticsBackend &
     getManga(source: string, id: string): Promise<Manga>;
     unfollowManga(source: string, id: string): Promise<void>;
     listChapters(source: string, mangaId: string, refresh?: boolean): Promise<Chapter[]>;
-    /** Follows the manga if needed and queues the chapters; resolves to the ids the source no longer lists. */
-    downloadChapters(source: string, mangaId: string, chapterIds: string[]): Promise<string[]>;
+    /** Follows the manga if needed and queues the chapters; `force` re-downloads ones on disk. */
+    downloadChapters(s: string, mangaId: string, ids: string[], force?: boolean): Promise<Enqueued>;
     /** Imports chapter folders / .cbz files (or one series folder) as a `local` manga. */
     importLocal(paths: string[], title?: string): Promise<ImportReport>;
     /** Resolves to the EPUB written, its page count and the files skipped as unsupported. */
@@ -219,8 +219,8 @@ export const unfollowManga = async (s: string, id: string) =>
   (await backend()).unfollowManga(s, id);
 export const listChapters = async (s: string, id: string, refresh = false) =>
   (await backend()).listChapters(s, id, refresh);
-export const downloadChapters = async (s: string, mangaId: string, ids: string[]) =>
-  (await backend()).downloadChapters(s, mangaId, ids);
+export const downloadChapters = async (s: string, mangaId: string, ids: string[], force = false) =>
+  (await backend()).downloadChapters(s, mangaId, ids, force);
 export const importLocal = async (paths: string[], title?: string) =>
   (await backend()).importLocal(paths, title);
 export const exportKindle = async (r: ExportRequest) => (await backend()).exportKindle(r);
