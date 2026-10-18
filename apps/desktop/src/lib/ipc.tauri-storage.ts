@@ -14,5 +14,6 @@ export const tauriStorage: StorageBackend = {
   onMoveProgress: (cb) =>
     listen(MOVE_EVENT, (e) => cb(e.payload as { copied: number; total: number })),
   exportBackup: (path) => invoke("export_backup", { path }),
-  importBackup: (path) => invoke("import_backup", { path }),
+  importBackup: (path, preferences) =>
+    invoke("import_backup", { path, preferences: preferences ?? null }),
 };

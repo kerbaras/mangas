@@ -38,6 +38,7 @@ export function restoreSummary(r: Restored): string {
     parts.push(`Skipped ${r.skipped.map((s) => s.title).join(", ")}: provider not supported.`);
   }
   if (r.settings) parts.push("Preferences restored.");
+  if (r.kept_settings) parts.push("Your preferences were kept.");
   return parts.join(" ");
 }
 

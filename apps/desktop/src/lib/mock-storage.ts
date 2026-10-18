@@ -66,15 +66,17 @@ export function mockStorage({ library, dataDir, setDataDir }: Host): StorageBack
       await wait(200);
       return { titles: library().filter((m) => m.source !== "local").length, skipped_local: 0 };
     },
-    async importBackup() {
+    async importBackup(_path, preferences = "auto") {
       await wait(400);
+      const keep = preferences === "keep" || (preferences === "auto" && library().length > 0);
       return {
         added: 2,
         already: library().length,
         skipped: [
           { title: "Omniscient Reader", reason: "asurascans isn't a provider mangas supports" },
         ],
-        settings: true,
+        settings: !keep,
+        kept_settings: keep,
       };
     },
   };

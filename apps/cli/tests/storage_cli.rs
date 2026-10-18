@@ -76,3 +76,54 @@ fn moving_the_data_folder_switches_where_downloads_go() {
     let usage = stdout(&mangas(home.path(), &["storage", "usage"]));
     assert!(usage.contains("big-disk"), "{usage}");
 }
+
+#[test]
+fn backup_import_keeps_preferences_when_the_library_has_titles_unless_asked() {
+    let (from, to) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let titles = |home: &Path, id: &str| {
+        let list = home.join("list.bookmarks");
+        std::fs::write(
+            &list,
+            format!(r#"[{{"Created":1,"Updated":1,"Title":"{id}","Media":{{"ProviderID":"mangadex","EntryID":"{id}"}},"Info":{{"ProviderID":null,"EntryID":null}}}}]"#),
+        )
+        .unwrap();
+        stdout(&mangas(home, &["backup", "import", list.to_str().unwrap()]));
+    };
+    titles(from.path(), "theirs");
+    stdout(&mangas(from.path(), &["settings", "languages", "es"]));
+    let file = from.path().join("backup.json");
+    stdout(&mangas(
+        from.path(),
+        &["backup", "export", file.to_str().unwrap()],
+    ));
+    titles(to.path(), "mine");
+    stdout(&mangas(to.path(), &["settings", "languages", "fr"]));
+    let file = file.to_str().unwrap();
+    let languages = || stdout(&mangas(to.path(), &["settings", "languages"]));
+
+    let kept = stdout(&mangas(to.path(), &["backup", "import", file]));
+    assert!(kept.contains("Kept your preferences"), "{kept}");
+    assert!(languages().contains("fr"), "{}", languages());
+    let flagged = stdout(&mangas(
+        to.path(),
+        &["backup", "import", file, "--keep-preferences"],
+    ));
+    assert!(flagged.contains("Kept your preferences"), "{flagged}");
+    let taken = stdout(&mangas(
+        to.path(),
+        &["backup", "import", file, "--backup-preferences"],
+    ));
+    assert!(taken.contains("Restored preferences"), "{taken}");
+    assert!(languages().contains("es"), "{}", languages());
+    let both = mangas(
+        to.path(),
+        &[
+            "backup",
+            "import",
+            file,
+            "--keep-preferences",
+            "--backup-preferences",
+        ],
+    );
+    assert!(!both.status.success());
+}

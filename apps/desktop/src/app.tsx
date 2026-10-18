@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { activeCount, DownloadsProvider, useDownloads } from "@/hooks/use-downloads";
 import { useUpdateSchedule } from "@/hooks/use-update-schedule";
+import { onAppFocus, watchAppFocus } from "@/lib/app-focus";
 import { mangaKey } from "@/lib/format";
 import { type Navigation, NavigationContext, type Route } from "@/lib/navigation";
 import { loadSettings } from "@/lib/settings";
@@ -48,6 +49,12 @@ export function App() {
   const [stack, setStack] = useState<Route[]>([{ screen: "library" }]);
   useEffect(() => {
     void loadSettings();
+    const stop = watchAppFocus();
+    const off = onAppFocus(() => void loadSettings());
+    return () => {
+      off();
+      stop();
+    };
   }, []);
 
   const go = useCallback((route: Route) => {

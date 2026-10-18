@@ -45,7 +45,8 @@ export const tauriBackend: Backend = {
   listDevices: () => invoke<Device[]>("list_devices"),
   getSettings: () => invoke<Settings>("get_settings"),
   defaultDataDir: () => invoke<string>("default_data_dir"),
-  setSettings: (settings) => invoke<void>("set_settings", { settings }),
+  setSettings: (settings, base) =>
+    invoke<Settings>("set_settings", { settings, base: base ?? null }),
   installCli: () => invoke<string>("install_cli"),
   listProviders: () => invoke<ProviderInfo[]>("list_providers"),
   connectProvider: (provider) => invoke<void>("connect_provider", { provider }),

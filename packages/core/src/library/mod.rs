@@ -15,6 +15,7 @@ mod languages;
 mod manga_repo;
 mod reading_status;
 mod refresh;
+mod settings_merge;
 mod settings_repo;
 mod snapshot;
 mod sync;
@@ -44,8 +45,10 @@ pub(crate) use manga_repo::list_manga_with_added;
 pub use manga_repo::{get_manga, list_manga, remove_manga, upsert_manga};
 pub use reading_status::{set_reading_status, ReadingStatus};
 pub use refresh::{refresh_from_source, Refreshed};
+pub use settings_merge::merge_edit;
 pub use settings_repo::{
-    get_settings, set_settings, ProviderSession, Settings, DEFAULT_LANGUAGE, DEFAULT_UPDATE_HOURS,
+    edit_settings, get_settings, set_settings, ProviderSession, Settings, DEFAULT_LANGUAGE,
+    DEFAULT_UPDATE_HOURS,
 };
 pub use snapshot::{
     read_snapshot, restore_snapshot, CategoryState, ChapterState, LibrarySnapshot, TitleState,

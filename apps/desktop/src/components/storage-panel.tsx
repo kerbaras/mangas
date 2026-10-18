@@ -7,6 +7,7 @@ import { TitleUsageList } from "@/components/title-usage-list";
 import { Button } from "@/components/ui/button";
 import { UsageBar } from "@/components/usage-bar";
 import { useAsync } from "@/hooks/use-async";
+import { useAppFocus } from "@/lib/app-focus";
 import { type CacheKind, clearCache, storageUsage } from "@/lib/ipc.storage";
 import { notifyError } from "@/lib/notify";
 import { formatBytes } from "@/lib/storage";
@@ -27,6 +28,7 @@ const CACHES: Record<CacheKind, { label: string; done: string; hint: string }> =
 /** Settings → Storage: data folder, what each folder takes, caches and per-title downloads. */
 export function StoragePanel() {
   const usage = useAsync(storageUsage, []);
+  useAppFocus(usage.reload);
   const ready = usage.state.kind === "ready" ? usage.state.data : null;
 
   const clear = async (cache: CacheKind) => {

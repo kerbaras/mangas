@@ -34,8 +34,13 @@ export type Restored = {
   added: number;
   already: number;
   skipped: { title: string; reason: string }[];
+  /** The backup's preferences were applied. */
   settings: boolean;
+  /** The backup had preferences and yours were kept. */
+  kept_settings: boolean;
 };
+/** Whose preferences a restore ends with; `auto` keeps yours unless the library is empty. */
+export type RestorePreferences = "auto" | "keep" | "backup";
 
 export type StorageBackend = {
   storageUsage(): Promise<StorageUsage>;
@@ -47,7 +52,7 @@ export type StorageBackend = {
   onMoveProgress(cb: (p: MoveProgress) => void): Promise<Unlisten>;
   exportBackup(path: string): Promise<BackupSummary>;
   /** Reads a mangas backup or a HaruNeko bookmarks export. */
-  importBackup(path: string): Promise<Restored>;
+  importBackup(path: string, preferences?: RestorePreferences): Promise<Restored>;
 };
 
 export const storageUsage = async () => (await backend()).storageUsage();
@@ -58,4 +63,5 @@ export const moveDataDir = async (to: string) => (await backend()).moveDataDir(t
 export const onMoveProgress = async (cb: (p: MoveProgress) => void) =>
   (await backend()).onMoveProgress(cb);
 export const exportBackup = async (path: string) => (await backend()).exportBackup(path);
-export const importBackup = async (path: string) => (await backend()).importBackup(path);
+export const importBackup = async (path: string, preferences?: RestorePreferences) =>
+  (await backend()).importBackup(path, preferences);

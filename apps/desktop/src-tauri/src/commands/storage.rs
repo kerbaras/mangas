@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use mangas_core::backup::{self, ExportSummary, Restored};
+use mangas_core::backup::{self, ExportSummary, Preferences, Restored};
 use mangas_core::storage::{self, Cache, Cleared, Deleted, Folders, MoveProgress, Moved, Usage};
 use tauri::{AppHandle, Emitter};
 
@@ -91,10 +91,14 @@ pub async fn export_backup(path: String) -> Result<ExportSummary, String> {
 
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
-pub async fn import_backup(path: String) -> Result<Restored, String> {
+pub async fn import_backup(
+    path: String,
+    preferences: Option<Preferences>,
+) -> Result<Restored, String> {
     blocking(move || {
         let known: Vec<_> = mangas_providers::providers().iter().map(|p| p.id).collect();
-        backup::import_from(&open_library()?, &PathBuf::from(path), &known).map_err(to_ipc)
+        let (lib, path) = (open_library()?, PathBuf::from(path));
+        backup::import_with(&lib, &path, &known, preferences.unwrap_or_default()).map_err(to_ipc)
     })
     .await
 }

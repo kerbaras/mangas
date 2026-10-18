@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
 
-use mangas_core::backup::{export_to, import_from, parse, VERSION};
+use mangas_core::backup::{export_to, import_from, import_with, parse, Preferences, VERSION};
 use mangas_core::domain::{Manga, MangaId};
 use mangas_core::library::{
-    get_settings, list_manga, open_in_memory, set_settings, upsert_manga, ProviderSession, Settings,
+    edit_settings, get_settings, list_manga, open_in_memory, set_settings, upsert_manga,
+    ProviderSession, Settings,
 };
 
 const KNOWN: &[&str] = &["mangadex", "tapas"];
@@ -122,4 +123,91 @@ fn rejects_files_that_arent_backups_or_are_too_new() {
     );
     let err = parse(&newer).unwrap_err();
     assert!(err.to_string().contains("newer version"), "{err}");
+}
+
+fn backup_with_device(dir: &std::path::Path, device: &str) -> std::path::PathBuf {
+    let file = dir.join(format!("{device}.json"));
+    let lib = open_in_memory().unwrap();
+    upsert_manga(&lib, &manga("mangadex", "b", "Beta")).unwrap();
+    let settings = Settings {
+        default_device: Some(device.into()),
+        ..Default::default()
+    };
+    set_settings(&lib, &settings).unwrap();
+    export_to(&lib, &file, "test").unwrap();
+    file
+}
+
+fn device(lib: &mangas_core::library::Library) -> Option<String> {
+    get_settings(lib).unwrap().default_device
+}
+
+#[test]
+fn restore_keeps_your_preferences_when_merging_into_a_library_unless_told_otherwise() {
+    let tmp = tempfile::tempdir().unwrap();
+    let file = backup_with_device(tmp.path(), "kindle-scribe");
+    let mine = Settings {
+        default_device: Some("kindle-oasis".into()),
+        ..Default::default()
+    };
+    let library = || {
+        let lib = open_in_memory().unwrap();
+        upsert_manga(&lib, &manga("mangadex", "a", "Alpha")).unwrap();
+        set_settings(&lib, &mine).unwrap();
+        lib
+    };
+
+    let lib = library();
+    let report = import_with(&lib, &file, KNOWN, Preferences::Auto).unwrap();
+    assert_eq!((report.settings, report.kept_settings), (false, true));
+    assert_eq!(device(&lib).as_deref(), Some("kindle-oasis"));
+    assert_eq!(report.added, 1, "titles still merge in");
+
+    let lib = library();
+    let report = import_with(&lib, &file, KNOWN, Preferences::Backup).unwrap();
+    assert_eq!((report.settings, report.kept_settings), (true, false));
+    assert_eq!(device(&lib).as_deref(), Some("kindle-scribe"));
+}
+
+#[test]
+fn restore_into_an_empty_library_takes_the_backup_preferences_unless_kept() {
+    let tmp = tempfile::tempdir().unwrap();
+    let file = backup_with_device(tmp.path(), "kindle-scribe");
+    let lib = open_in_memory().unwrap();
+    let report = import_with(&lib, &file, KNOWN, Preferences::Keep).unwrap();
+    assert_eq!((report.settings, report.kept_settings), (false, true));
+    assert_eq!(device(&lib), None);
+
+    let lib = open_in_memory().unwrap();
+    import_from(&lib, &file, KNOWN).unwrap();
+    assert_eq!(device(&lib).as_deref(), Some("kindle-scribe"));
+}
+
+#[test]
+fn a_settings_edit_saves_over_what_another_process_stored() {
+    let lib = open_in_memory().unwrap();
+    let base = Settings {
+        default_device: Some("kindle-oasis".into()),
+        ..Default::default()
+    };
+    set_settings(&lib, &base).unwrap();
+    let restored = Settings {
+        preferred_languages: vec!["es".into()],
+        provider_sessions: session(),
+        ..base.clone()
+    };
+    set_settings(&lib, &restored).unwrap();
+    let edited = Settings {
+        default_device: Some("kindle-scribe".into()),
+        ..base.clone()
+    };
+    let saved = edit_settings(&lib, Some(&base), &edited).unwrap();
+    assert_eq!(get_settings(&lib).unwrap(), saved);
+    assert_eq!(
+        saved,
+        Settings {
+            default_device: Some("kindle-scribe".into()),
+            ..restored
+        }
+    );
 }

@@ -1,6 +1,8 @@
 import { Download, Upload } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Field } from "@/components/field";
+import { RestoreDialog } from "@/components/restore-dialog";
 import { Button } from "@/components/ui/button";
 import { pickBackupFile, pickBackupTarget } from "@/lib/dialogs";
 import { exportBackup, importBackup } from "@/lib/ipc.storage";
@@ -26,12 +28,14 @@ export function BackupPanel() {
     }
   };
 
-  const restore = async () => {
-    const path = await pickBackupFile();
-    if (!path) return;
+  const [pending, setPending] = useState<string | null>(null);
+  const pick = async () => setPending(await pickBackupFile());
+
+  const restore = async (path: string, keep: boolean) => {
+    setPending(null);
     try {
-      const restored = await importBackup(path);
-      if (restored.settings) await loadSettings();
+      const restored = await importBackup(path, keep ? "keep" : "backup");
+      await loadSettings();
       toast.success("Backup imported", { description: restoreSummary(restored) });
     } catch (e: unknown) {
       notifyError("Couldn't import the backup", e);
@@ -47,10 +51,15 @@ export function BackupPanel() {
         <Button onClick={() => void save()}>
           <Download /> Export backup…
         </Button>
-        <Button onClick={() => void restore()}>
+        <Button onClick={() => void pick()}>
           <Upload /> Import backup…
         </Button>
       </div>
+      <RestoreDialog
+        path={pending}
+        onImport={(keep) => pending && void restore(pending, keep)}
+        onCancel={() => setPending(null)}
+      />
     </Field>
   );
 }
