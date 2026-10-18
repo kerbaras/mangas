@@ -9,13 +9,14 @@ use mangas_core::library::Settings;
 use mangas_core::sources::{ProviderStatus, Source};
 
 use crate::provider::{Provider, ProviderInfo};
-use crate::{mangadex, mangadot, tapas, weebcentral};
+use crate::{comick, mangadex, mangadot, tapas, weebcentral};
 
 const PROVIDERS: &[&dyn Provider] = &[
     &mangadex::MangaDexProvider,
     &mangadot::MangaDotProvider,
     &weebcentral::WeebCentralProvider,
     &tapas::TapasProvider,
+    &comick::ComickProvider,
 ];
 
 /// Every registered provider, in display order.

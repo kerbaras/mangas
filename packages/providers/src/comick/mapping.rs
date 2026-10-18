@@ -1,0 +1,139 @@
+//! Pure mapping from comick.live responses to domain types.
+
+use mangas_core::domain::{
+    sort_by_number, Chapter, ChapterId, Error, Manga, MangaId, MangaStatus, Result,
+};
+use mangas_core::sources::PageUrls;
+use serde_json::Value;
+
+use super::api::{ChapterEntry, ChapterList, ComicData, ReaderData, SearchResponse};
+use super::page_data::{plain_text, script_json};
+
+pub const SOURCE_NAME: &str = "comick";
+pub const SITE: &str = "https://comick.live";
+
+fn source_error(message: impl Into<String>) -> Error {
+    Error::Source {
+        name: SOURCE_NAME.to_string(),
+        message: message.into(),
+    }
+}
+
+fn json<T: serde::de::DeserializeOwned>(body: &str) -> Result<T> {
+    serde_json::from_str(body).map_err(|e| source_error(format!("unexpected response: {e}")))
+}
+
+/// Comick's numeric status: 1 ongoing, 2 completed, 3 cancelled, 4 hiatus.
+pub fn parse_status(raw: Option<i64>) -> MangaStatus {
+    match raw {
+        Some(1) => MangaStatus::Ongoing,
+        Some(2) => MangaStatus::Completed,
+        Some(3) => MangaStatus::Cancelled,
+        Some(4) => MangaStatus::Hiatus,
+        _ => MangaStatus::Unknown,
+    }
+}
+
+/// Search results; a manga's id is its slug.
+pub fn parse_search(body: &str) -> Result<Vec<Manga>> {
+    let response: SearchResponse = json(body)?;
+    Ok(response
+        .data
+        .into_iter()
+        .map(|item| Manga {
+            id: MangaId(item.slug),
+            source: SOURCE_NAME.to_string(),
+            title: item.title.trim().to_string(),
+            description: String::new(),
+            cover_url: item.default_thumbnail.filter(|u| !u.is_empty()),
+            status: MangaStatus::Unknown,
+        })
+        .collect())
+}
+
+/// The `/comic/{slug}` page: its `#comic-data` JSON.
+pub fn parse_comic_page(id: &MangaId, html: &str) -> Result<Manga> {
+    let data =
+        script_json(html, "comic-data").ok_or_else(|| Error::NotFound(format!("manga {id}")))?;
+    let comic: ComicData = json(data)?;
+    Ok(Manga {
+        id: MangaId(comic.slug),
+        source: SOURCE_NAME.to_string(),
+        title: comic.title.trim().to_string(),
+        description: comic.desc.as_deref().map(plain_text).unwrap_or_default(),
+        cover_url: comic.default_thumbnail.filter(|u| !u.is_empty()),
+        status: parse_status(comic.status),
+    })
+}
+
+/// One page of the chapter list: the chapters in `language` (unsorted) and the last page
+/// number.
+pub fn parse_chapter_page(
+    body: &str,
+    manga: &MangaId,
+    language: &str,
+) -> Result<(Vec<Chapter>, u32)> {
+    let list: ChapterList = json(body)?;
+    let chapters = list
+        .data
+        .iter()
+        .filter(|e| e.lang == language)
+        .map(|e| to_chapter(e, manga))
+        .collect();
+    Ok((chapters, list.pagination.last_page))
+}
+
+/// All pages of a chapter list, sorted by number.
+pub fn sorted(pages: Vec<Vec<Chapter>>) -> Vec<Chapter> {
+    sort_by_number(pages.into_iter().flatten().collect())
+}
+
+fn to_chapter(entry: &ChapterEntry, manga: &MangaId) -> Chapter {
+    let number = text(entry.chap.as_ref());
+    let groups = entry.group_name.as_deref().unwrap_or_default();
+    Chapter {
+        id: chapter_id(manga, &entry.hid, &number, &entry.lang),
+        manga_id: manga.clone(),
+        title: entry.title.clone().filter(|t| !t.trim().is_empty()),
+        language: entry.lang.clone(),
+        volume: Some(text(entry.vol.as_ref())).filter(|v| !v.is_empty()),
+        number,
+        local_path: None,
+        group: Some(groups.join(", ")).filter(|g| !g.trim().is_empty()),
+    }
+}
+
+/// Chapter ids are the reader page path under `/comic/`: `{slug}/{hid}-chapter-{chap}-{lang}`
+/// (the site answers 404 without the full suffix).
+pub fn chapter_id(manga: &MangaId, hid: &str, number: &str, lang: &str) -> ChapterId {
+    ChapterId(format!("{manga}/{hid}-chapter-{number}-{lang}"))
+}
+
+/// Path of the reader page of `chapter`, from the id produced by [`chapter_id`].
+pub fn chapter_path(chapter: &ChapterId) -> Result<String> {
+    match chapter.0.split_once('/') {
+        Some((slug, page)) if !slug.is_empty() && page.contains("-chapter-") => {
+            Ok(format!("/comic/{}", chapter.0))
+        }
+        _ => Err(source_error(format!("malformed chapter id {}", chapter.0))),
+    }
+}
+
+/// The page images of a reader page (its `#sv-data` JSON).
+pub fn parse_reader_page(chapter: &ChapterId, html: &str) -> Result<PageUrls> {
+    let data = script_json(html, "sv-data")
+        .ok_or_else(|| Error::NotFound(format!("chapter {chapter}")))?;
+    let reader: ReaderData = json(data)?;
+    Ok(PageUrls(
+        reader.chapter.images.into_iter().map(|i| i.url).collect(),
+    ))
+}
+
+/// Numbers arrive as strings ("12.5") or, defensively, JSON numbers.
+fn text(raw: Option<&Value>) -> String {
+    match raw {
+        Some(Value::String(s)) => s.trim().to_string(),
+        Some(Value::Number(n)) => n.to_string(),
+        _ => String::new(),
+    }
+}

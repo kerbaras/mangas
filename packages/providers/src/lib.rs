@@ -2,6 +2,7 @@
 //! the core [`Source`] trait on top of the common [`http::SiteClient`] / [`http::HostPolicy`];
 //! [`registry`] is the only place that knows them by name. See "Provider harness" in `docs/rewrite-design.md`.
 
+pub mod comick;
 pub mod doctor;
 pub mod html;
 pub mod http;
