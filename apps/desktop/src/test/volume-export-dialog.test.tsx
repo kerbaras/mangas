@@ -102,4 +102,13 @@ describe("export as volume", () => {
     expect(titles).not.toContain("C");
     expect(titles).not.toContain("CO");
   });
+
+  it("offers the title whenever the grouping makes one book", async () => {
+    backend();
+    const oneVolume = [ch("1", "1"), ch("2", "1")];
+    render(<VolumeExportDialog open onOpenChange={() => {}} manga={manga} chapters={oneVolume} />);
+    fireEvent.mouseDown(await screen.findByRole("tab", { name: "By volume" }));
+    expect(await screen.findByText("Solo v1.epub")).toBeTruthy();
+    expect(screen.getByLabelText("Title")).toBeTruthy();
+  });
 });

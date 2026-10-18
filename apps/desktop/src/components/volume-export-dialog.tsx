@@ -129,7 +129,7 @@ export function VolumeExportDialog({ open, onOpenChange, manga, chapters, onExpo
               )}
             </div>
           </Field>
-          {mode === "single" && (
+          {(mode === "single" || books === 1) && (
             <Field label="Title" htmlFor="volume-title" hint="Also the file name.">
               <Input
                 id="volume-title"
