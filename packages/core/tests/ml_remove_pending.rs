@@ -5,7 +5,9 @@ use std::fs::Permissions;
 use std::os::unix::fs::PermissionsExt;
 
 use mangas_core::ml::remove;
-use mangas_core::ml::runtime::{for_target, lib_path, pending_marker, status_of, RuntimeStatus};
+use mangas_core::ml::runtime::{
+    for_target, lib_path, pending_marker, root, status_of, RuntimeStatus,
+};
 
 #[test]
 fn a_locked_runtime_is_reported_until_a_later_remove_deletes_it() {
@@ -34,4 +36,25 @@ fn a_locked_runtime_is_reported_until_a_later_remove_deletes_it() {
         status_of(dir.path(), &spec, None),
         RuntimeStatus::NotDownloaded { .. }
     ));
+}
+
+#[test]
+fn an_older_locked_runtime_is_reported_too() {
+    let spec = for_target("linux", "x86_64").unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let old = root(dir.path()).join("1.0.0");
+    std::fs::create_dir_all(&old).unwrap();
+    std::fs::write(old.join(spec.lib_name), b"old runtime").unwrap();
+    std::fs::set_permissions(&old, Permissions::from_mode(0o555)).unwrap();
+    remove(dir.path()).unwrap();
+    let locked = old.join(spec.lib_name).exists();
+    let status = status_of(dir.path(), &spec, None);
+    std::fs::set_permissions(&old, Permissions::from_mode(0o755)).unwrap();
+    if !locked {
+        return;
+    }
+    assert!(
+        matches!(status, RuntimeStatus::RemovePending { bytes, .. } if bytes > 0),
+        "{status:?}"
+    );
 }

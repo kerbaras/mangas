@@ -45,6 +45,8 @@ pub(super) async fn ensure_all(
     }
     #[cfg(feature = "ml")]
     runtime::ensure_loaded(models_dir)?;
+    // Only a complete download replaces a pending removal; a cancelled one keeps Remove again.
+    runtime::clear_pending(models_dir)?;
     Ok(paths)
 }
 

@@ -122,12 +122,14 @@ pub fn status(models_dir: &Path) -> RuntimeStatus {
 /// Status of `spec` given the last recorded failure (reads only file metadata).
 pub fn status_of(models_dir: &Path, spec: &RuntimeSpec, failure: Option<String>) -> RuntimeStatus {
     let version = spec.version.to_string();
+    let root = root(models_dir);
+    // Any version may be the one left locked, so this checks the folder, not the current library.
+    if failure.is_none() && pending_marker(models_dir).is_file() && root.exists() {
+        let bytes = crate::storage::dir_size(&root);
+        return RuntimeStatus::RemovePending { version, bytes };
+    }
     match (failure, lib_path(models_dir, spec).is_file()) {
         (Some(reason), _) => RuntimeStatus::Failed { version, reason },
-        (None, true) if pending_marker(models_dir).is_file() => RuntimeStatus::RemovePending {
-            version,
-            bytes: crate::storage::dir_size(&root(models_dir)),
-        },
         (None, true) => RuntimeStatus::Downloaded { version },
         (None, false) => RuntimeStatus::NotDownloaded { version },
     }
