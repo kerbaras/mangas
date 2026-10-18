@@ -55,6 +55,8 @@ export function emitJob(chapter: Chapter, source: string, patch: Partial<Downloa
     owner: null,
     heartbeat_at: now,
     stale_lease: false,
+    stalled: false,
+    force: false,
     created_at: before?.created_at ?? now,
     manga_title: "",
     number: chapter.number,

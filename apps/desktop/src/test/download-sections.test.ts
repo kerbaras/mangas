@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   groupJobs,
+  isMoving,
   jobActions,
   pendingCount,
   speedLabel,
@@ -45,6 +46,9 @@ describe("downloads sections", () => {
     expect(label({ state: "running", pages_total: 20, stale_lease: true })).toBe(
       "Stale, will resume",
     );
+    expect(label({ state: "running", pages_total: 20, stalled: true })).toBe(
+      "Stalled, waiting to resume",
+    );
     expect(label({ state: "paused" })).toBe("Paused");
     expect(label({ state: "failed" })).toBe("Failed");
     expect(label({ state: "cancelled" })).toBe("Cancelled");
@@ -76,5 +80,13 @@ describe("downloads sections", () => {
     const g = groupJobs([makeJob({ state: "running" }), makeJob({ id: 2 }), makeJob({ id: 3 })]);
     expect(summary(g)).toBe("1 active · 2 queued");
     expect(summary(groupJobs([makeJob({ state: "done" })]))).toBeNull();
+  });
+
+  it("moves only running rows still heard from", () => {
+    expect(isMoving(makeJob({ state: "running", pages_total: 4 }))).toBe(true);
+    expect(isMoving(makeJob({ state: "running", stalled: true }))).toBe(false);
+    expect(isMoving(makeJob({ state: "running", stale_lease: true }))).toBe(false);
+    expect(isMoving(makeJob({ state: "paused" }))).toBe(false);
+    expect(isMoving(makeJob({ state: "queued" }))).toBe(false);
   });
 });

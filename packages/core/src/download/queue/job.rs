@@ -78,6 +78,13 @@ pub struct Job {
     /// step. Set by [`super::list`] when the jobs are read, never stored.
     #[serde(default)]
     pub stale_lease: bool,
+    /// Running, but no heartbeat for [`super::STALL_MS`]: its process may have died (the lease
+    /// tells for sure). Set when the jobs are read, never stored.
+    #[serde(default)]
+    pub stalled: bool,
+    /// Download every page again, overwriting the files on disk ("Download again", `--force`).
+    #[serde(default)]
+    pub force: bool,
     pub created_at: i64,
     pub updated_at: i64,
     pub manga_title: String,
@@ -104,6 +111,8 @@ impl Default for Job {
             owner: None,
             heartbeat_at: 0,
             stale_lease: false,
+            stalled: false,
+            force: false,
             created_at: 0,
             updated_at: 0,
             manga_title: String::new(),

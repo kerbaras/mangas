@@ -21,7 +21,7 @@ pub struct Enqueued {
 }
 
 /// Splits `chapters` into `(to queue, already on disk, unavailable)`, each in order. With
-/// `force` a downloaded chapter is queued again, which fills in any page missing on disk.
+/// `force` a downloaded chapter is queued again and every one of its pages is fetched anew.
 pub fn split_for_queue(
     chapters: Vec<Chapter>,
     force: bool,
@@ -44,7 +44,7 @@ pub fn enqueue(
     let chapters = still_on_disk(with_stored_paths(lib, source, chapters)?);
     let (to_queue, on_disk, unavailable) = split_for_queue(chapters, force);
     let ids: Vec<_> = to_queue.iter().map(|c| c.id.clone()).collect();
-    let jobs = library::enqueue_jobs(lib, source, &ids, now_ms())?;
+    let jobs = library::enqueue_jobs(lib, source, &ids, force, now_ms())?;
     Ok(Enqueued {
         jobs,
         on_disk,

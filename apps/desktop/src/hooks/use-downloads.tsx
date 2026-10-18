@@ -24,6 +24,7 @@ import { type DownloadProgress, downloadChapters } from "@/lib/ipc";
 import {
   type DownloadJob,
   isActive,
+  isFinalError,
   listDownloads,
   onQueueEvent,
   type QueueEvent,
@@ -40,12 +41,13 @@ import { logUiWarning } from "@/lib/report";
 export function chapterFailed(id: string, error: string) {
   const context = downloadContext(id);
   logUiWarning(failureLog(id, error, context));
-  const retry = context
-    ? () =>
-        void downloadChapters(context.source, context.mangaId, [id]).catch((e: unknown) =>
-          notifyError(`${context.label} didn't download`, e, { id: `download-${id}` }),
-        )
-    : undefined;
+  const retry =
+    context && !isFinalError(error)
+      ? () =>
+          void downloadChapters(context.source, context.mangaId, [id]).catch((e: unknown) =>
+            notifyError(`${context.label} didn't download`, e, { id: `download-${id}` }),
+          )
+      : undefined;
   notifyError(`${downloadLabel(id)} didn't download`, error, {
     id: `download-${id}`,
     source: context?.source,

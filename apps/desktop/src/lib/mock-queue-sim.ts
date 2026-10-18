@@ -49,6 +49,8 @@ function seedJob(i: number, now: number): DownloadJob {
     owner: null,
     heartbeat_at: now,
     stale_lease: false,
+    stalled: false,
+    force: false,
     created_at: now - (60 - i) * 60_000,
     updated_at: now - (60 - i) * 1000,
     manga_title: manga.title,

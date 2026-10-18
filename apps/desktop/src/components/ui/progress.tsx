@@ -2,12 +2,18 @@ import * as ProgressPrimitive from "@radix-ui/react-progress";
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/cn";
 
-type Props = ComponentProps<typeof ProgressPrimitive.Root> & { value: number; max?: number };
+type Props = ComponentProps<typeof ProgressPrimitive.Root> & {
+  value: number;
+  max?: number;
+  /** Off for bars that are not moving (paused, queued, stalled): no transition, no pulse. */
+  animated?: boolean;
+};
 
-/** Indeterminate (no value, pulsing third) while `max` is not known yet (0). */
-export function Progress({ className, value, max = 100, ...props }: Props) {
+/** Indeterminate (no value, pulsing third while `animated`) until `max` is known (not 0). */
+export function Progress({ className, value, max = 100, animated = true, ...props }: Props) {
   const known = max > 0;
-  const pct = known ? Math.min(100, Math.max(0, (value / max) * 100)) : 33;
+  const idle = known ? 0 : 33;
+  const pct = known ? Math.min(100, Math.max(0, (value / max) * 100)) : animated ? idle : 0;
   return (
     <ProgressPrimitive.Root
       value={known ? value : null}
@@ -17,8 +23,9 @@ export function Progress({ className, value, max = 100, ...props }: Props) {
     >
       <ProgressPrimitive.Indicator
         className={cn(
-          "h-full bg-accent transition-[width] duration-200",
-          !known && "animate-pulse",
+          "h-full bg-accent",
+          animated && "transition-[width] duration-200",
+          animated && !known && "animate-pulse",
         )}
         style={{ width: `${pct}%` }}
       />

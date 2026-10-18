@@ -51,6 +51,7 @@ export function stateLabel(job: DownloadJob): string {
   switch (job.state) {
     case "running":
       if (job.stale_lease) return "Stale, will resume";
+      if (job.stalled) return "Stalled, waiting to resume";
       return job.pages_total === 0 ? "Starting" : "Downloading";
     case "queued":
       return job.error ? "Retrying" : "Queued";
@@ -90,6 +91,10 @@ export const jobTitle = (job: DownloadJob) =>
   job.manga_title ? `${job.manga_title} · Chapter ${job.number}` : `Chapter ${job.number}`;
 
 /** "1.4 pages/s", or null while it is not known. */
+/** Running and still heard from: the only rows whose bar and speed move. */
+export const isMoving = (job: DownloadJob) =>
+  job.state === "running" && !job.stalled && !job.stale_lease;
+
 export function speedLabel(pagesPerSecond: number | null): string | null {
   if (pagesPerSecond === null || pagesPerSecond <= 0) return null;
   const digits = pagesPerSecond < 10 ? 1 : 0;

@@ -27,6 +27,10 @@ export type DownloadJob = {
   heartbeat_at: number;
   /** Running, but its process died (lease expired): a worker queues it again soon. */
   stale_lease: boolean;
+  /** Running, but no heartbeat for 3 s: stuck or gone; the lease decides which. */
+  stalled: boolean;
+  /** Queued with "Download again": every page is fetched and overwritten. */
+  force: boolean;
   created_at: number;
   updated_at: number;
   manga_title: string;
@@ -66,6 +70,9 @@ export type QueueStatus = {
 export const UNLISTED = "chapter no longer listed by the source";
 export const isUnlisted = (job: Pick<DownloadJob, "error">) =>
   job.error?.includes(UNLISTED) ?? false;
+/** A failure a retry cannot fix: the source no longer has the chapter. */
+export const isFinalError = (error: string) =>
+  error.includes(UNLISTED) || error.startsWith("not found");
 
 export type DownloadsBackend = {
   /** Every job in queue order. */

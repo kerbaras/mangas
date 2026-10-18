@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use super::job::{Job, JobId};
-use super::lease::LEASE_MS;
+use super::lease::{mark_stale, LEASE_MS};
 use super::retry::{Failure, RetryPolicy};
 use super::schedule::{pick, Limits, Scope};
 use super::transitions::{claim, fail, finish, heartbeat, is_run_by, recover};
@@ -82,7 +82,7 @@ pub fn plan_tick(jobs: Vec<Job>, input: &TickInput<'_>) -> TickPlan {
         claimed.push(job.clone());
     }
     TickPlan {
-        jobs: all,
+        jobs: mark_stale(all, input.now, input.config.stale_after_ms),
         changed,
         claimed,
     }

@@ -21,7 +21,10 @@ export function QueueBanner({ gate, onResume }: Props) {
       <Pause />
       <AlertTitle>Queue paused</AlertTitle>
       <AlertDescription>
-        Nothing new starts until you resume, here or with <code>mangas queue resume --all</code>.
+        Nothing new starts until you resume, here or with{" "}
+        <span className="whitespace-nowrap">
+          <code>mangas queue resume --all</code>.
+        </span>
       </AlertDescription>
       <Button size="sm" variant="primary" onClick={onResume} className="absolute top-3 right-4">
         Resume

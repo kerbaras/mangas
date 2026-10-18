@@ -11,7 +11,7 @@ use crate::download::queue::{enqueue_job, Job, JobId, JobState, QueueGate, UNLIS
 const SELECT: &str = "SELECT j.id, j.source, c.manga_id, j.chapter_id, j.state, j.attempts,
         j.error, j.pages_done, j.pages_total, j.not_before, j.owner, j.heartbeat_at,
         j.created_at, j.updated_at, COALESCE(m.title, ''), c.number, c.title, c.language,
-        c.local_path
+        c.local_path, j.force
     FROM download_jobs j
     JOIN chapter c ON c.source = j.source AND c.id = j.chapter_id
     LEFT JOIN manga m ON m.source = c.source AND m.id = c.manga_id
@@ -51,6 +51,7 @@ pub fn enqueue_jobs(
     lib: &Library,
     source: &str,
     chapters: &[ChapterId],
+    force: bool,
     now: i64,
 ) -> Result<Vec<JobId>> {
     let mut conn = lib.conn()?;
@@ -64,6 +65,7 @@ pub fn enqueue_jobs(
         let fresh = Job {
             source: source.to_string(),
             chapter_id: chapter.clone(),
+            force,
             ..Job::default()
         };
         match (existing, enqueue_job(existing, fresh, now)) {
@@ -74,9 +76,10 @@ pub fn enqueue_jobs(
             (Some(job), None) => ids.push(job.id),
             (None, Some(next)) => {
                 tx.execute(
-                    "INSERT INTO download_jobs (source, chapter_id, state, created_at, updated_at)
-                     VALUES (?1, ?2, ?3, ?4, ?4)",
-                    params![source, chapter.0, next.state.as_str(), now],
+                    "INSERT INTO download_jobs (source, chapter_id, state, force, created_at,
+                        updated_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
+                    params![source, chapter.0, next.state.as_str(), next.force, now],
                 )?;
                 ids.push(tx.last_insert_rowid());
             }
@@ -132,7 +135,7 @@ fn save(conn: &Connection, job: &Job) -> Result<()> {
     conn.execute(
         "UPDATE download_jobs SET state = ?2, attempts = ?3, error = ?4, pages_done = ?5,
             pages_total = ?6, not_before = ?7, owner = ?8, heartbeat_at = ?9, created_at = ?10,
-            updated_at = ?11
+            updated_at = ?11, force = ?12
          WHERE id = ?1",
         params![
             job.id,
@@ -146,6 +149,7 @@ fn save(conn: &Connection, job: &Job) -> Result<()> {
             job.heartbeat_at,
             job.created_at,
             job.updated_at,
+            job.force,
         ],
     )?;
     Ok(())
@@ -168,6 +172,8 @@ fn row_to_job(row: &Row<'_>) -> rusqlite::Result<Job> {
         owner: row.get(10)?,
         heartbeat_at: row.get(11)?,
         stale_lease: false,
+        stalled: false,
+        force: row.get(19)?,
         created_at: row.get(12)?,
         updated_at: row.get(13)?,
         manga_title: row.get(14)?,

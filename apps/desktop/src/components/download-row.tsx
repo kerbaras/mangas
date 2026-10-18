@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/cn";
 import {
+  isMoving,
   type JobAction,
   jobActions,
   jobTitle,
@@ -68,14 +69,20 @@ const TONE: Record<DownloadJob["state"], string> = {
 function Detail({ job, speed }: { job: DownloadJob; speed: number | null }) {
   if (job.state === "running" || job.state === "paused") {
     const pages = job.pages_total > 0 ? `${job.pages_done}/${job.pages_total} pages` : null;
+    const moving = isMoving(job);
     return (
       <div className="flex w-full items-center gap-3">
-        <Progress value={job.pages_done} max={job.pages_total} className="flex-1" />
+        <Progress
+          value={job.pages_done}
+          max={job.pages_total}
+          animated={moving && job.pages_total > 0}
+          className="flex-1"
+        />
         <span className="w-24 shrink-0 text-right text-caption text-ink-3 tabular-nums">
           {pages}
         </span>
         <span className="w-20 shrink-0 text-right text-caption text-ink-3 tabular-nums">
-          {job.state === "running" ? speedLabel(speed) : null}
+          {moving ? speedLabel(speed) : null}
         </span>
       </div>
     );
