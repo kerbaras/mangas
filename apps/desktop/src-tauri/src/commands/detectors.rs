@@ -70,7 +70,10 @@ async fn download(app: &AppHandle) -> Result<ml::Status, String> {
 
 #[tauri::command]
 pub fn cancel_detectors_download() {
-    CANCEL.store(true, Ordering::SeqCst);
+    // Ignored when idle, so a late Cancel cannot abort the next download.
+    if DOWNLOADING.load(Ordering::SeqCst) {
+        CANCEL.store(true, Ordering::SeqCst);
+    }
 }
 
 /// Deletes the runtime and models; returns the bytes freed.

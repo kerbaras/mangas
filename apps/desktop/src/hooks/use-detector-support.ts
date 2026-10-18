@@ -33,18 +33,21 @@ export function useDetectorSupport(): DetectorSupport {
   const [downloading, setDownloading] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const cancelled = useRef(false);
+  const running = useRef(false);
   const { patch, reload } = status;
   useAppFocus(reload);
   useStorageChanged(reload);
 
   const download = useCallback(async () => {
+    if (running.current) return;
+    running.current = true;
     cancelled.current = false;
     setFailure(null);
     setProgress(null);
+    setDownloading(true);
     let unlisten: (() => void) | undefined;
     try {
       unlisten = await onDetectorsProgress(setProgress);
-      setDownloading(true);
       const next = await downloadDetectors();
       patch(() => next);
       storageChanged();
@@ -53,6 +56,7 @@ export function useDetectorSupport(): DetectorSupport {
       reload();
     } finally {
       unlisten?.();
+      running.current = false;
       setDownloading(false);
       setProgress(null);
     }

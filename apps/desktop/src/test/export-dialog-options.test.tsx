@@ -101,6 +101,33 @@ describe("export dialog: format, smart cut and delivery", () => {
     expect(toggle.hasAttribute("disabled")).toBe(false);
   });
 
+  it("shows the running download at once, so Download cannot be clicked twice", async () => {
+    const missing = detectorState({
+      downloaded: false,
+      runtime: { state: "not_downloaded", version: "1.28.3" },
+      downloadBytes: 1000,
+    });
+    let listen: () => void = () => {};
+    const downloadDetectors = vi.fn(async () => detectorState());
+    exportBackend(
+      {
+        downloadDetectors,
+        onDetectorsProgress: () =>
+          new Promise<() => void>((resolve) => {
+            listen = () => resolve(() => {});
+          }),
+      },
+      missing,
+    );
+    render(dialog());
+    fireEvent.click(await screen.findByRole("button", { name: /Download detector support/ }));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: /Download detector support/ })).toBeNull(),
+    );
+    listen();
+    await waitFor(() => expect(downloadDetectors).toHaveBeenCalledOnce());
+  });
+
   it("keeps exporting without detectors when the download fails, with Retry", async () => {
     const missing = detectorState({
       downloaded: false,
