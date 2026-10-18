@@ -11,7 +11,10 @@ use crate::download::queue::{enqueue_job, Job, JobId, JobState, QueueGate, UNLIS
 const SELECT: &str = "SELECT j.id, j.source, c.manga_id, j.chapter_id, j.state, j.attempts,
         j.error, j.pages_done, j.pages_total, j.not_before, j.owner, j.heartbeat_at,
         j.created_at, j.updated_at, COALESCE(m.title, ''), c.number, c.title, c.language,
-        c.local_path, j.force
+        c.local_path, j.force,
+        CASE WHEN (SELECT COUNT(DISTINCT g.scanlation_group) FROM chapter g
+                   WHERE g.source = c.source AND g.manga_id = c.manga_id) > 1
+             THEN c.scanlation_group END
     FROM download_jobs j
     JOIN chapter c ON c.source = j.source AND c.id = j.chapter_id
     LEFT JOIN manga m ON m.source = c.source AND m.id = c.manga_id
@@ -181,5 +184,6 @@ fn row_to_job(row: &Row<'_>) -> rusqlite::Result<Job> {
         title: row.get(16)?,
         language: row.get(17)?,
         local_path: row.get(18)?,
+        group: row.get(20)?,
     })
 }

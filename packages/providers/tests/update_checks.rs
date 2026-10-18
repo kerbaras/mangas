@@ -3,8 +3,8 @@
 use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId};
 use mangas_core::library::updates::{summary, UpdatePolicy};
 use mangas_core::library::{
-    list_entries, open_in_memory, set_reading_status, upsert_chapters, upsert_manga, Library,
-    ReadingStatus,
+    list_entries, open_in_memory, set_chapter_group, set_reading_status, upsert_chapters,
+    upsert_manga, Library, ReadingStatus,
 };
 use mangas_providers::updates::check_updates_at;
 use wiremock::matchers::{path, query_param};
@@ -97,4 +97,26 @@ async fn a_failing_title_is_reported_and_the_others_still_count() {
         .await
         .unwrap();
     assert!(again.updates.is_empty(), "{again:?}");
+}
+
+#[tokio::test]
+async fn a_title_narrowed_to_one_group_only_counts_that_groups_chapters() {
+    let lib = open_in_memory().unwrap();
+    let eminence = follow(&lib, EMINENCE, "Eminence in Shadow");
+    set_chapter_group(&lib, "mangadex", &eminence, Some("Mitsugoshi")).unwrap();
+    let server = server().await;
+
+    let report = check_updates_at(&lib, &UpdatePolicy::default(), &server.uri())
+        .await
+        .unwrap();
+    let chapters = &report.updates[0].chapters;
+    assert!(!chapters.is_empty(), "{report:?}");
+    assert!(
+        chapters
+            .iter()
+            .all(|c| c.group.as_deref() == Some("Mitsugoshi")),
+        "{chapters:?}"
+    );
+    let entries = list_entries(&lib).unwrap();
+    assert_eq!(entries[0].chapters.new, summary(&report).chapters);
 }

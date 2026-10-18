@@ -7,7 +7,7 @@ use rusqlite::params;
 
 use super::UpdateReport;
 use super::{new_chapters, select, CheckFailure, Known, Target, TitleUpdate, UpdatePolicy};
-use crate::domain::{Chapter, Error, MangaId, Result};
+use crate::domain::{in_group, Chapter, Error, MangaId, Result};
 use crate::library::stored_releases::stored_releases;
 use crate::library::{fetch_chapters, get_manga, list_entries, store_chapters, Library};
 use crate::sources::Source;
@@ -109,7 +109,10 @@ async fn refresh(lib: &Library, source: &SourceFor, target: &Target) -> Result<V
     if get_manga(lib, name, id)?.is_none() {
         return Ok(Vec::new());
     }
-    let new = new_chapters(&known, &lists);
+    let new = in_group(
+        new_chapters(&known, &lists),
+        target.chapter_group.as_deref(),
+    );
     store_chapters(lib, name, id, lists)?;
     Ok(new)
 }

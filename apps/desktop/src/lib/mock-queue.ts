@@ -63,6 +63,7 @@ export function emitJob(chapter: Chapter, source: string, patch: Partial<Downloa
     title: chapter.title,
     language: chapter.language,
     local_path: chapter.local_path,
+    group: null,
     ...before,
     ...patch,
     updated_at: now,

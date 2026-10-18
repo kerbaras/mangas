@@ -40,6 +40,8 @@ export type DownloadJob = {
   title: string | null;
   language: string;
   local_path: string | null;
+  /** The release's scanlation group, only when its title lists more than one. */
+  group: string | null;
 };
 
 /** Mirrors the desktop's `DownloadReport`: what one download request queued and skipped. */

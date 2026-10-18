@@ -41,3 +41,10 @@ describe("DownloadRow progress", () => {
     expect(screen.getByText(/pages\/s/)).toBeTruthy();
   });
 });
+
+describe("DownloadRow group", () => {
+  it("names the release's group when the title has several", () => {
+    bar(makeJob({ state: "running", title: "Chapter 4", group: "K Manga" }));
+    expect(screen.getByText("Chapter 4 · K Manga · English · mangadex")).toBeTruthy();
+  });
+});

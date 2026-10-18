@@ -93,6 +93,10 @@ pub struct Job {
     pub language: String,
     /// Chapter directory once downloaded.
     pub local_path: Option<String>,
+    /// The release's scanlation group, only when its title lists more than one (two releases
+    /// of a chapter look the same otherwise).
+    #[serde(default)]
+    pub group: Option<String>,
 }
 
 impl Default for Job {
@@ -120,6 +124,7 @@ impl Default for Job {
             title: None,
             language: String::new(),
             local_path: None,
+            group: None,
         }
     }
 }
