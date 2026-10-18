@@ -22,8 +22,8 @@ describe("MangaDex options", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "Erotica" }));
     await waitFor(() => expect(setSettings).toHaveBeenCalledTimes(1));
     const [edited, base] = setSettings.mock.calls[0] as unknown as [Settings, Settings];
-    expect(base.provider_options.mangadex).toEqual({ data_saver: true });
-    expect(edited.provider_options.mangadex).toEqual({
+    expect(base.provider_options?.mangadex).toEqual({ data_saver: true });
+    expect(edited.provider_options?.mangadex).toEqual({
       data_saver: true,
       content_ratings: ["safe", "suggestive", "erotica"],
     });
