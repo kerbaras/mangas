@@ -88,6 +88,10 @@ describe("export dialog: format, smart cut and delivery", () => {
     render(dialog());
     const email = await screen.findByRole("tab", { name: "Email to Kindle" });
     expect(email.hasAttribute("disabled")).toBe(true);
-    expect(screen.getByText(/takes EPUB or PDF, not a CBZ/)).toBeTruthy();
+    const parent = email.parentElement;
+    if (!parent) throw new Error("the disabled tab has no tooltip trigger");
+    fireEvent.focus(parent);
+    const tip = await screen.findByRole("tooltip");
+    expect(tip.textContent).toMatch(/takes EPUB or PDF, not a CBZ/);
   });
 });

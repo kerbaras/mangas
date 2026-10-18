@@ -38,6 +38,14 @@ pub fn plan_volumes(
     Ok(plans(&source, &manga_id, &chapter_ids, grouping, title.as_deref())?.1)
 }
 
+/// The names `names` would be written under in `dir` now (` (2)`, ` (3)`… for taken ones), so
+/// the export dialog previews the files the export really writes.
+#[tauri::command]
+#[tracing::instrument(level = "error", skip_all)]
+pub fn free_export_names(dir: PathBuf, names: Vec<String>) -> Result<Vec<String>, String> {
+    mangas_core::export::free_names_in(&dir, &names).map_err(to_ipc)
+}
+
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 #[allow(clippy::too_many_arguments)]

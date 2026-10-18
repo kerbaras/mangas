@@ -1,5 +1,5 @@
 import { Send } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { BundleField } from "@/components/bundle-field";
 import type { Delivery } from "@/components/delivery-picker";
 import { useEmailBlock } from "@/components/delivery-picker";
@@ -19,9 +19,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { VolumePreview } from "@/components/volume-preview";
 import { type Async, useAsync } from "@/hooks/use-async";
+import { useClearOnChange } from "@/hooks/use-clear-on-change";
 import { useExport } from "@/hooks/use-export";
 import { useExportPlan } from "@/hooks/use-export-plan";
 import { useExportTarget } from "@/hooks/use-export-target";
+import { useFreeNames } from "@/hooks/use-free-names";
 import { type Book, useSend } from "@/hooks/use-send";
 import { exportJob } from "@/lib/export-job";
 import type { ExportPick } from "@/lib/export-name";
@@ -46,10 +48,12 @@ type Props = {
   picks: ExportPick[];
   /** Called once the books are written, so lists can show them as exported. */
   onExported?: (results: ExportResult[]) => void;
+  /** Called once a delivery sent at least one book, so the history can show it. */
+  onSent?: () => void;
 };
 
 /** The one export flow: what to write (bundle, title), how (profile, format, smart cut), where. */
-export function ExportDialog({ open, onOpenChange, picks, onExported }: Props) {
+export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: Props) {
   const [settings] = useSettings();
   const chapters = picks.flatMap((p) => p.chapters);
   const [mode, setMode] = useState<BundleMode>(() =>
@@ -61,17 +65,18 @@ export function ExportDialog({ open, onOpenChange, picks, onExported }: Props) {
   const [detectorsOn, setDetectorsOn] = useState<boolean | null>(null);
   const [delivery, setDelivery] = useState<Delivery>("save");
   const [written, setWritten] = useState<Book[]>([]);
+  const [runs, setRuns] = useState(0);
   const folder = useOutputFolder();
   const target = useExportTarget();
   const detectors = useAsync(detectorsStatus, []);
   const job = useExport();
-  const send = useSend();
+  const send = useSend(onSent);
   const { plans, fresh, joined } = useExportPlan({ open, picks, mode, size, title });
   const emailBlocked = useEmailBlock(target.format) !== null;
   const via = delivery === "email" && emailBlocked ? "save" : delivery;
   const useDetectors =
     detectorsUsable(detectors.state) && (detectorsOn ?? detectorsDefault(detectors.state));
-  const files: Async<VolumePlan[]> =
+  const planned: Async<VolumePlan[]> =
     plans.kind === "ready"
       ? {
           kind: "ready",
@@ -81,11 +86,21 @@ export function ExportDialog({ open, onOpenChange, picks, onExported }: Props) {
           })),
         }
       : plans;
+  const { files, named } = useFreeNames(planned, folder.output, runs);
   const books = files.kind === "ready" ? files.data.length : 0;
   const sending = ["looking", "copying", "emailing"].includes(send.state.kind);
   const busy = job.state.kind === "running" || sending;
   const ready =
-    fresh && books > 0 && folder.output.trim() !== "" && target.devices.kind === "ready";
+    fresh && named && books > 0 && folder.output.trim() !== "" && target.devices.kind === "ready";
+
+  const { reset: resetJob } = job;
+  const { reset: resetSend } = send;
+  const clearResult = useCallback(() => {
+    resetJob();
+    resetSend();
+  }, [resetJob, resetSend]);
+  const choice = [mode, size, title, target.device, target.format, via, folder.output].join("|");
+  useClearOnChange(choice, busy, clearResult);
 
   const run = async () => {
     send.reset();
@@ -102,6 +117,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported }: Props) {
         outputDir: folder.output,
       }),
     );
+    setRuns((n) => n + 1);
     if (!results) return;
     onExported?.(results);
     const sent = results.map((r) => ({ file: r.output, title: titleOf(r.output) }));
@@ -133,7 +149,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported }: Props) {
               </Field>
             )}
             <Field label={books > 1 ? `${books} files` : "File"}>
-              <VolumePreview plans={files} folder={folder.output} stale={!fresh} />
+              <VolumePreview plans={files} folder={folder.output} stale={!fresh || !named} />
             </Field>
           </div>
           <ExportOptions

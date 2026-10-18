@@ -49,10 +49,17 @@ export function SendStatus({ state, onRetry }: { state: SendState; onRetry: () =
       );
     case "error":
       return (
-        <Alert variant="destructive">
-          <AlertTitle>{state.via === "email" ? "Email not sent" : "Copy failed"}</AlertTitle>
-          <AlertDescription>{state.message}</AlertDescription>
-        </Alert>
+        <>
+          {state.sent && (
+            <p role="status" className="whitespace-pre-line text-caption text-ink-2">
+              {state.sent}
+            </p>
+          )}
+          <Alert variant="destructive">
+            <AlertTitle>{state.via === "email" ? "Email not sent" : "Copy failed"}</AlertTitle>
+            <AlertDescription>{state.message}</AlertDescription>
+          </Alert>
+        </>
       );
   }
 }

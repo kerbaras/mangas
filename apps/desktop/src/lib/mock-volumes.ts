@@ -43,5 +43,6 @@ export function mockVolumes(deps: Deps): VolumesBackend {
       }
       return results;
     },
+    freeExportNames: async (_dir, names) => names,
   };
 }

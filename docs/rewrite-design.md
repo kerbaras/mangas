@@ -208,11 +208,18 @@ The desktop app has one export flow: the export dialog (`components/export-dialo
   resolves the format like the CLI: explicit, else the stored default, else the profile's.
   Smart cut (`SmartCutSection`): the cut preset and the detectors switch. Per-series smart-cut
   options go in the same section. The switch is enabled only when the build has detector
-  support (`detectors_status().enabled`); when it is on, the models are downloaded on first use.
+  support (`detectors_status().available`); when it is on, the models are downloaded on first use.
 - **Where.** Output folder (default `<data dir>/kindle`), then delivery: save to folder, copy to
   the Kindle over USB, or email to Kindle (EPUB/PDF only, needs the mail settings). Delivery runs
   after the files are written, one book at a time. A copy that finds the file already on the
   device reports "Already on Kindle", and every delivery is recorded in the export history.
+  When a later book fails, the lines of the books that did go stay next to the error and the
+  history is refreshed. Changing the bundle, title, profile, format, folder or delivery clears
+  the last result.
+- **File names.** The writer never replaces a file: a taken name gets ` (2)`, ` (3)`…
+  (`claim_free_file`). The preview shows the same names before writing: `free_export_names`
+  lists the output folder and runs the planned names through `resolve_free_names`, which tries
+  the same candidates in the same order as the writer.
 - **Names.** Internally this is "export": Tauri `export_chapters`, `export_volumes`, the
   `export-progress` event, and the `export` route. "Kindle" is used only for the Kindle-specific
   parts: the `export::kindle` page pipeline, Send to Kindle, and the `mangas kindle` CLI command.

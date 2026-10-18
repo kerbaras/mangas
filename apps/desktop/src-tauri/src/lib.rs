@@ -58,6 +58,7 @@ pub fn run() {
             commands::export::detectors_status,
             commands::volumes::plan_volumes,
             commands::volumes::export_volumes,
+            commands::volumes::free_export_names,
             commands::send::find_kindles,
             commands::send::send_usb,
             commands::send::send_email,

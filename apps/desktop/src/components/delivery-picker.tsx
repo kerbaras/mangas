@@ -1,5 +1,6 @@
 import { Field } from "@/components/field";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Via } from "@/hooks/use-send";
 import type { ExportFormat } from "@/lib/ipc";
 import { useNavigation } from "@/lib/navigation";
@@ -23,19 +24,22 @@ type Props = { value: Delivery; onChange: (d: Delivery) => void; format: ExportF
 export function DeliveryPicker({ value, onChange, format }: Props) {
   const nav = useNavigation();
   const block = useEmailBlock(format);
-  const hint = block && (
+  const hint = block?.setup && (
     <>
       {block.reason}{" "}
-      {block.setup && (
-        <button
-          type="button"
-          className="text-accent underline-offset-2 hover:underline"
-          onClick={() => nav.go({ screen: "settings" })}
-        >
-          Set up email
-        </button>
-      )}
+      <button
+        type="button"
+        className="text-accent underline-offset-2 hover:underline"
+        onClick={() => nav.go({ screen: "settings" })}
+      >
+        Set up email
+      </button>
     </>
+  );
+  const email = (
+    <TabsTrigger value="email" disabled={block !== null}>
+      Email to Kindle
+    </TabsTrigger>
   );
   return (
     <Field label="Delivery" hint={hint}>
@@ -43,9 +47,19 @@ export function DeliveryPicker({ value, onChange, format }: Props) {
         <TabsList aria-label="Delivery">
           <TabsTrigger value="save">Save to folder</TabsTrigger>
           <TabsTrigger value="usb">Kindle over USB</TabsTrigger>
-          <TabsTrigger value="email" disabled={block !== null}>
-            Email to Kindle
-          </TabsTrigger>
+          {block ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {/* biome-ignore lint/a11y/noNoninteractiveTabindex: focus shows why Email is disabled */}
+                <span tabIndex={0} className="rounded-sm">
+                  {email}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-64">{block.reason}</TooltipContent>
+            </Tooltip>
+          ) : (
+            email
+          )}
         </TabsList>
       </Tabs>
     </Field>

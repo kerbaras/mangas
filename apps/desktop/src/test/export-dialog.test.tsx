@@ -1,11 +1,15 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render as mount, screen, waitFor } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ExportDialog } from "@/components/export-dialog";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { initialMode } from "@/lib/export-plan";
 import { setBackend } from "@/lib/ipc";
 import { ch, chapters, exportBackend, solo } from "./export-backend";
 
 afterEach(() => setBackend(null));
+
+const render = (ui: ReactElement) => mount(ui, { wrapper: TooltipProvider });
 
 const dialog = (list = chapters, onExported?: () => void) => (
   <ExportDialog

@@ -6,7 +6,12 @@ import { type ExportRecord, listExports } from "@/lib/ipc.send";
 const RECENT = 5;
 
 /** Below the export: send the book just written, or one picked from the recent exports. */
-export function DeliverySection({ exported }: { exported: string | null }) {
+type Props = {
+  exported: string | null /** Bumped when a send elsewhere changed the history. */;
+  refresh?: number;
+};
+
+export function DeliverySection({ exported, refresh = 0 }: Props) {
   const [picked, setPicked] = useState<string | null>(null);
   const [records, setRecords] = useState<ExportRecord[]>([]);
   const reload = useCallback(() => {
@@ -19,6 +24,10 @@ export function DeliverySection({ exported }: { exported: string | null }) {
     if (exported) setPicked(exported);
     reload();
   }, [exported, reload]);
+
+  useEffect(() => {
+    if (refresh > 0) reload();
+  }, [refresh, reload]);
 
   return (
     <div className="flex flex-col gap-4">

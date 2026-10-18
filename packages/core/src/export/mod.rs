@@ -11,4 +11,5 @@ mod profiles;
 pub mod volume;
 
 pub use exporter::{Exporter, Format, Labels, Meta};
+pub use output::{free_names_in, resolve_free_names};
 pub use profiles::{profile, Profile, PROFILES};

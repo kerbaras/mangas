@@ -15,7 +15,7 @@ export type SendState =
   | { kind: "copying"; device: string; done: number; total: number }
   | { kind: "emailing" }
   | { kind: "done"; via: Via; message: string }
-  | { kind: "error"; via: Via; message: string };
+  | { kind: "error"; via: Via; message: string; sent: string };
 
 /** One delivery at a time, of one or more books: email, or a USB copy. */
 export function useSend(onSent?: () => void) {
@@ -64,7 +64,8 @@ export function useSend(onSent?: () => void) {
         setState({ kind: "done", via, message: lines.join("\n") });
         onSent?.();
       } catch (e) {
-        setState({ kind: "error", via, message: errorMessage(e) });
+        setState({ kind: "error", via, message: errorMessage(e), sent: lines.join("\n") });
+        if (lines.length > 0) onSent?.();
       } finally {
         device.current = null;
       }

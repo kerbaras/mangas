@@ -48,9 +48,11 @@ export function exportBackend(overrides: Partial<Backend> = {}, detectors = dete
       skipped: 0,
     })),
   );
+  const freeExportNames = vi.fn(async (_dir: string, names: string[]) => names);
   setBackend({
     planVolumes,
     exportVolumes,
+    freeExportNames,
     listDevices: async () => [
       { id: "kindle-paperwhite12", name: "Paperwhite", width: 1236, height: 1648, format: "epub" },
       { id: "kobo-clara", name: "Kobo Clara", width: 1072, height: 1448, format: "cbz" },

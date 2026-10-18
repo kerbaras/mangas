@@ -34,7 +34,11 @@ export type VolumesBackend = {
   planVolumes(request: VolumeRequest): Promise<VolumePlan[]>;
   /** Writes every planned book; resolves to one result per book. */
   exportVolumes(request: VolumeExport): Promise<ExportResult[]>;
+  /** The names `names` would be written under in `dir` now: taken ones get ` (2)`, ` (3)`… */
+  freeExportNames(dir: string, names: string[]): Promise<string[]>;
 };
 
 export const planVolumes = async (r: VolumeRequest) => (await backend()).planVolumes(r);
 export const exportVolumes = async (r: VolumeExport) => (await backend()).exportVolumes(r);
+export const freeExportNames = async (dir: string, names: string[]) =>
+  (await backend()).freeExportNames(dir, names);

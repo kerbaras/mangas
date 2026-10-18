@@ -20,6 +20,7 @@ export function ExportScreen({ chapterIds }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set(chapterIds ?? []));
   const [open, setOpen] = useState(false);
   const [exported, setExported] = useState<string | null>(null);
+  const [sends, setSends] = useState(0);
 
   const picks: ExportPick[] =
     groups.state.kind === "ready"
@@ -72,7 +73,7 @@ export function ExportScreen({ chapterIds }: Props) {
             Pick chapters, then Export opens the export dialog: bundle, format, smart cut and
             delivery. Books written before can be sent again from the list below.
           </p>
-          <DeliverySection exported={exported} />
+          <DeliverySection exported={exported} refresh={sends} />
         </div>
       </div>
       {open && (
@@ -81,6 +82,7 @@ export function ExportScreen({ chapterIds }: Props) {
           onOpenChange={setOpen}
           picks={picks}
           onExported={(results) => setExported(results.at(-1)?.output ?? null)}
+          onSent={() => setSends((n) => n + 1)}
         />
       )}
     </section>
