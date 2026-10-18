@@ -79,7 +79,7 @@ export function LibraryScreen() {
           <Plus /> Follow a manga
         </Button>
       </ScreenHeader>
-      {count ? (
+      {count !== null ? (
         <LibraryToolbar
           view={view}
           entries={entries}
