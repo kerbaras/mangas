@@ -292,6 +292,7 @@ fn usage_counts_archives_saved_beside_chapters() {
     let manga = f.chapters().join("mangadex/a");
     write(&manga.join("2.cbz"), 60);
     write(&manga.join("2.5.cbz"), 5);
+    write(&manga.join("2.jpg"), 7);
     let u = usage(&lib, &f).unwrap();
     assert_eq!(u.titles[0].bytes, 175);
     assert_eq!(
@@ -300,4 +301,5 @@ fn usage_counts_archives_saved_beside_chapters() {
             .bytes,
         175
     );
+    assert!(manga.join("2.jpg").exists());
 }
