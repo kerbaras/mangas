@@ -1,27 +1,62 @@
-//! The retry loop of [`SiteClient`]: pace, send, read, decide, sleep.
+//! The request loop of [`SiteClient`]: follow redirects hop by hop and, per hop, pace, send,
+//! read, decide, sleep.
 
 use mangas_core::domain::Result;
-use reqwest::RequestBuilder;
+use reqwest::{RequestBuilder, Url};
 
+use super::super::redirect::{hop_for, MAX_REDIRECTS};
 use super::super::response::{
     edge_rejected, mitigated, retry_after, retryable_transport, should_retry, Attempt,
 };
 use super::super::{is_challenge, Reply, RetryPolicy};
+use super::hop::Outgoing;
 use super::SiteClient;
+
+/// How one hop ended: a final reply, or a redirect to follow.
+enum Step {
+    Reply(Reply),
+    Redirect(Outgoing),
+}
 
 impl SiteClient {
     pub(super) async fn send(
         &self,
         path: &str,
-        request: impl Fn() -> RequestBuilder,
-        idempotent: bool,
+        first: Outgoing,
         retry: RetryPolicy,
     ) -> Result<Reply> {
+        let origin = first.url.clone();
+        let mut request = first;
+        for _ in 0..=MAX_REDIRECTS {
+            match self.send_hop(path, &request, &origin, retry).await? {
+                Step::Reply(reply) => return Ok(reply),
+                Step::Redirect(next) => {
+                    let to = next.url.origin().ascii_serialization();
+                    log::debug!("{}: {path} redirected to {to}", self.config.info.id);
+                    request = next;
+                }
+            }
+        }
+        Err(self.error(format!("{path}: more than {MAX_REDIRECTS} redirects")))
+    }
+
+    /// One hop with its retries, paced by the bucket of the hop's own host.
+    async fn send_hop(
+        &self,
+        path: &str,
+        request: &Outgoing,
+        origin: &Url,
+        retry: RetryPolicy,
+    ) -> Result<Step> {
+        let headers = self.hop_headers(&request.url, origin)?;
+        let bucket = self.hop_bucket(&request.url);
+        let idempotent = request.idempotent();
         let mut attempt = 0;
         loop {
-            self.bucket.acquire().await;
+            bucket.acquire().await;
+            let builder = self.build(request, headers.clone());
             match self
-                .attempt(path, request(), idempotent, retry, attempt)
+                .attempt(path, builder, request, idempotent, retry, attempt)
                 .await
             {
                 (_, Some(wait)) => {
@@ -39,13 +74,14 @@ impl SiteClient {
     async fn attempt(
         &self,
         path: &str,
-        request: RequestBuilder,
+        builder: RequestBuilder,
+        request: &Outgoing,
         idempotent: bool,
         retry: RetryPolicy,
         attempt: u32,
-    ) -> Attempt {
+    ) -> Attempt<Step> {
         let id = self.config.info.id;
-        let response = match request.send().await {
+        let response = match builder.send().await {
             Ok(response) => response,
             Err(e) => {
                 let wait = retryable_transport(&e, idempotent)
@@ -57,6 +93,9 @@ impl SiteClient {
                 return (Err(e.into()), wait);
             }
         };
+        if let Some(hop) = hop_for(&request.method, &response) {
+            return (Ok(Step::Redirect(request.clone().follow(hop))), None);
+        }
         let status = response.status().as_u16();
         let after = retry_after(&response);
         let json_api = self.config.json_api;
@@ -67,7 +106,7 @@ impl SiteClient {
                 if edge {
                     log::warn!("{id}: HTTP {status} edge error page for {path}");
                 }
-                return (Ok(Reply::empty(status)), Some(wait));
+                return (Ok(Step::Reply(Reply::empty(status))), Some(wait));
             }
             if attempt > 0 {
                 log::warn!(
@@ -89,7 +128,7 @@ impl SiteClient {
         match read {
             Err(e) => (Err(e.into()), wait()),
             Ok(body) if is_challenge(status, &mitigated, &body) => (Err(self.challenge()), None),
-            Ok(body) => (Ok(Reply { status, body }), None),
+            Ok(body) => (Ok(Step::Reply(Reply { status, body })), None),
         }
     }
 }
