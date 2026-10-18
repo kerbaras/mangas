@@ -11,7 +11,13 @@ export function toastRun(run: UpdateRun) {
   if (run.failures.length === 0) {
     const show = run.summary.chapters > 0 ? toast.success : toast.info;
     const titles = run.updates.map((u) => u.title).join(", ");
-    show(title, { id: ID, description: titles ? `${titles}${queued}` : undefined });
+    // Same id as a previous warning: reset the fields Sonner would otherwise keep.
+    show(title, {
+      id: ID,
+      duration: 5_000,
+      description: titles ? `${titles}${queued}` : null,
+      action: null,
+    });
     return;
   }
   const providers = [...new Set(run.failures.map((f) => f.source))];
@@ -22,6 +28,6 @@ export function toastRun(run: UpdateRun) {
     description: `Not checked: ${run.failures.map((f) => f.title).join(", ")} (${providers.join(", ")})`,
     action: challenged
       ? { label: "Connect", onClick: () => void connectThen(challenged.source) }
-      : undefined,
+      : null,
   });
 }

@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use rusqlite::{params, Row};
 
 use super::{language_sync, Library};
@@ -112,41 +110,6 @@ pub fn list_chapters(
     let rows = stmt.query_map(params![source, manga_id.0, language], row_to_chapter)?;
     let chapters: Vec<Chapter> = rows.collect::<std::result::Result<_, _>>()?;
     Ok(sort_by_number(chapters))
-}
-
-/// Records where a chapter's pages live on disk.
-pub fn mark_downloaded(
-    lib: &Library,
-    source: &str,
-    chapter: &ChapterId,
-    path: &Path,
-) -> Result<()> {
-    lib.conn()?.execute(
-        "UPDATE chapter SET local_path = ?3 WHERE source = ?1 AND id = ?2",
-        params![source, chapter.0, path.to_string_lossy()],
-    )?;
-    Ok(())
-}
-
-/// Records that the chapters downloaded to `dirs` were just exported. Paths match the stored
-/// `local_path` ignoring a trailing separator; folders that aren't library chapters are skipped.
-/// Returns how many chapter rows were marked.
-pub fn mark_exported(lib: &Library, dirs: &[&Path]) -> Result<usize> {
-    let mut conn = lib.conn()?;
-    let tx = conn.transaction()?;
-    let mut marked = 0;
-    {
-        let mut stmt = tx.prepare(
-            "UPDATE chapter SET exported_at = datetime('now')
-             WHERE local_path IS NOT NULL AND rtrim(local_path, '/\\') = ?1",
-        )?;
-        for dir in dirs {
-            let path = dir.to_string_lossy();
-            marked += stmt.execute(params![path.trim_end_matches(['/', '\\'])])?;
-        }
-    }
-    tx.commit()?;
-    Ok(marked)
 }
 
 fn row_to_chapter(row: &Row<'_>) -> rusqlite::Result<Chapter> {
