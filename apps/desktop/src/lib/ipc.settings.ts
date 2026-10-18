@@ -17,4 +17,8 @@ export type Settings = {
   /** Chapter languages, most preferred first (empty = English); options by provider id. */
   preferred_languages?: string[];
   provider_options?: Record<string, unknown>;
+  /** Providers switched off are `false`; a provider missing here is enabled. */
+  providers_enabled?: Record<string, boolean>;
+  /** Chapter languages per provider id; empty or missing = `preferred_languages`. */
+  provider_languages?: Record<string, string[]>;
 };

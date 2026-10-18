@@ -24,6 +24,12 @@ pub struct Settings {
     /// Provider-specific options by provider id. The core does not know their shape; each
     /// provider deserialises its own entry (with defaults for anything missing).
     pub provider_options: BTreeMap<String, serde_json::Value>,
+    /// Providers switched on or off, by id. A provider missing here is on, so providers added
+    /// in a later release start enabled. See [`Settings::provider_enabled`].
+    pub providers_enabled: BTreeMap<String, bool>,
+    /// Chapter languages per provider id, overriding `preferred_languages` for that provider
+    /// when not empty. See [`Settings::languages_for`].
+    pub provider_languages: BTreeMap<String, Vec<String>>,
 }
 
 /// Chapter language used when no preference is stored.
@@ -32,18 +38,43 @@ pub const DEFAULT_LANGUAGE: &str = "en";
 impl Settings {
     /// Preferred chapter languages, never empty.
     pub fn languages(&self) -> Vec<String> {
-        let set: Vec<String> = self
-            .preferred_languages
-            .iter()
-            .map(|l| l.trim().to_ascii_lowercase())
-            .filter(|l| !l.is_empty())
-            .collect();
+        let set = normalise(&self.preferred_languages);
         if set.is_empty() {
             vec![DEFAULT_LANGUAGE.to_string()]
         } else {
             set
         }
     }
+
+    /// Chapter languages for `provider`: its own list when one is stored, else [`Self::languages`].
+    pub fn languages_for(&self, provider: &str) -> Vec<String> {
+        let own = self
+            .provider_languages
+            .get(provider)
+            .map(|l| normalise(l))
+            .unwrap_or_default();
+        if own.is_empty() {
+            self.languages()
+        } else {
+            own
+        }
+    }
+
+    /// Whether `provider` takes part in searches; on unless switched off.
+    pub fn provider_enabled(&self, provider: &str) -> bool {
+        self.providers_enabled
+            .get(provider)
+            .copied()
+            .unwrap_or(true)
+    }
+}
+
+fn normalise(languages: &[String]) -> Vec<String> {
+    languages
+        .iter()
+        .map(|l| l.trim().to_ascii_lowercase())
+        .filter(|l| !l.is_empty())
+        .collect()
 }
 
 /// Cookies and the user agent that obtained them; the HTTP client must send both unchanged.

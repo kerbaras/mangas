@@ -1,4 +1,4 @@
-import type { Chapter, Manga, ProviderInfo } from "./ipc";
+import type { Chapter, Manga } from "./ipc";
 
 export { sampleDevices } from "./mock-devices";
 
@@ -124,7 +124,11 @@ const toManga = ([id, title, status, hue, description]: Seed): Manga => ({
 });
 
 export const sampleLibrary: Manga[] = seeds.map(toManga);
-export const sampleCatalog: Manga[] = [...seeds, ...extras].map(toManga);
+/** WeebCentral lists a few of the same series under its own ids. */
+const mirrors = seeds
+  .slice(0, 4)
+  .map((s) => ({ ...toManga(s), source: "weebcentral", id: `wc-${s[0]}` }));
+export const sampleCatalog: Manga[] = [...[...seeds, ...extras].map(toManga), ...mirrors];
 
 const titles = [
   "The Black Swordsman",
@@ -173,24 +177,4 @@ export function sampleChapters(manga: Manga, dataDir: string): Chapter[] {
   return chapters;
 }
 
-const capabilities: ProviderInfo["capabilities"] = ["search", "chapters", "download"];
-export const sampleProviders: ProviderInfo[] = [
-  {
-    id: "mangadex",
-    name: "MangaDex",
-    site: "https://mangadex.org",
-    languages: ["en", "es", "fr"],
-    capabilities,
-    needs_browser_session: false,
-    icon_url: null,
-  },
-  {
-    id: "mangadot",
-    name: "MangaDot",
-    site: "https://mangadot.net",
-    languages: ["en"],
-    capabilities,
-    needs_browser_session: true,
-    icon_url: null,
-  },
-];
+export { sampleProviders } from "./mock-providers";

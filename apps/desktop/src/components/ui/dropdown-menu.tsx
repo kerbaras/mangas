@@ -43,6 +43,21 @@ export function DropdownMenuRadioItem({
   );
 }
 
+export function DropdownMenuCheckboxItem({
+  className,
+  children,
+  ...props
+}: ComponentProps<typeof Menu.CheckboxItem>) {
+  return (
+    <Menu.CheckboxItem className={cn(menuItemClass, "pl-7", className)} {...props}>
+      <Menu.ItemIndicator className="absolute left-2 [&_svg]:size-3.5">
+        <Check />
+      </Menu.ItemIndicator>
+      {children}
+    </Menu.CheckboxItem>
+  );
+}
+
 export function DropdownMenuLabel({ className, ...props }: ComponentProps<typeof Menu.Label>) {
   return <Menu.Label className={cn(menuLabelClass, className)} {...props} />;
 }

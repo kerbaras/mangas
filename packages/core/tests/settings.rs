@@ -21,6 +21,8 @@ fn settings_round_trip_and_overwrite() {
             serde_json::json!({ "data_saver": true }),
         )]
         .into(),
+        providers_enabled: [("mangadot".to_string(), false)].into(),
+        provider_languages: [("mangadex".to_string(), vec!["es".to_string()])].into(),
     };
     library::set_settings(&lib, &first).unwrap();
     assert_eq!(library::get_settings(&lib).unwrap(), first);
@@ -60,4 +62,43 @@ fn languages_default_to_english_and_are_normalised() {
         ..Settings::default()
     };
     assert_eq!(s.languages(), ["pt-br", "en"]);
+}
+
+#[test]
+fn providers_default_to_enabled_with_the_global_languages() {
+    let s = Settings {
+        preferred_languages: vec!["fr".into()],
+        providers_enabled: [("mangadot".to_string(), false)].into(),
+        provider_languages: [
+            ("mangadex".to_string(), vec![" ES-LA ".into()]),
+            ("comick".to_string(), vec![" ".into()]),
+        ]
+        .into(),
+        ..Settings::default()
+    };
+    assert!(!s.provider_enabled("mangadot"));
+    assert!(s.provider_enabled("mangadex"));
+    assert!(s.provider_enabled("added-later"));
+    assert_eq!(s.languages_for("mangadex"), ["es-la"]);
+    assert_eq!(s.languages_for("comick"), ["fr"]);
+    assert_eq!(s.languages_for("weebcentral"), ["fr"]);
+    assert_eq!(Settings::default().languages_for("mangadex"), ["en"]);
+}
+
+#[test]
+fn settings_stored_before_provider_management_enable_every_provider() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("mangas.db");
+    library::open(&path).unwrap();
+    rusqlite::Connection::open(&path)
+        .unwrap()
+        .execute(
+            "INSERT INTO setting (key, value) VALUES ('app', ?1)",
+            [r#"{"preferred_languages":["en"],"provider_sessions":{}}"#],
+        )
+        .unwrap();
+    let got = library::get_settings(&library::open(&path).unwrap()).unwrap();
+    assert!(got.providers_enabled.is_empty());
+    assert!(got.provider_enabled("mangadex"));
+    assert_eq!(got.languages_for("mangadex"), ["en"]);
 }

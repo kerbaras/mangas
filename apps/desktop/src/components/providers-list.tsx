@@ -1,37 +1,58 @@
-import { Link2, Link2Off } from "lucide-react";
-import { useState } from "react";
+import { RotateCw } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ProviderRow } from "@/components/provider-row";
 import { Button } from "@/components/ui/button";
 import { useAsync } from "@/hooks/use-async";
+import { useNow } from "@/hooks/use-now";
 import { errorMessage } from "@/lib/format";
-import {
-  disconnectProvider,
-  getSettings,
-  listProviders,
-  type ProviderInfo,
-  type ProviderSession,
-  providerStatus,
-} from "@/lib/ipc";
-import { connectAndWait, providerStatusText } from "@/lib/providers";
+import { disconnectProvider, getSettings, listProviders, type ProviderInfo } from "@/lib/ipc";
+import { isEnabled, withEnabled } from "@/lib/provider-prefs";
+import { checkStatus, useProviderChecks } from "@/lib/provider-status";
+import { connectAndWait } from "@/lib/providers";
+import { useSettings } from "@/lib/settings";
 
-/** Providers with their status; sites behind a verification get Connect/Disconnect. */
+/** A status older than this is checked again when Settings opens. */
+const STALE_MS = 60_000;
+
+/** Every provider with its status, session buttons, languages and an on/off switch for search. */
 export function ProvidersList() {
   const providers = useAsync(listProviders, []);
   const sessions = useAsync(async () => (await getSettings()).provider_sessions, []);
+  const checks = useProviderChecks();
+  const [settings, update] = useSettings();
+  const [connecting, setConnecting] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const now = useNow(30_000);
+  const list = providers.state.kind === "ready" ? providers.state.data : [];
+  const ids = list.map((p) => p.id).join(",");
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: probe once per provider list, not on every check
+  useEffect(() => {
+    for (const id of ids.split(",").filter(Boolean)) {
+      const last = checks[id];
+      if (!last || Date.now() - last.checkedAt > STALE_MS) void checkStatus(id);
+    }
+  }, [ids]);
 
   const connect = async (p: ProviderInfo) => {
+    setConnecting(p.id);
     setNote(`Pass the verification in the ${p.name} window; it closes by itself when done.`);
     try {
       const ok = await connectAndWait(p.id);
       setNote(ok ? null : `No session captured for ${p.name}; close its window and try again.`);
+      // Probe before the new session shows, so the row reads "Checking", never "expired".
+      void checkStatus(p.id);
       sessions.reload();
     } catch (e: unknown) {
       setNote(errorMessage(e));
+    } finally {
+      setConnecting(null);
     }
   };
   const disconnect = async (p: ProviderInfo) => {
     await disconnectProvider(p.id);
     setNote(null);
+    void checkStatus(p.id);
     sessions.reload();
   };
 
@@ -40,61 +61,31 @@ export function ProvidersList() {
   return (
     <div className="flex flex-col gap-2">
       <ul className="divide-y divide-stroke rounded-md border border-stroke">
-        {providers.state.data.map((p) => (
+        {list.map((p) => (
           <ProviderRow
             key={p.id}
             provider={p}
             session={connected[p.id]}
-            onConnect={() => connect(p)}
-            onDisconnect={() => disconnect(p)}
+            check={checks[p.id]}
+            enabled={isEnabled(settings, p.id)}
+            connecting={connecting === p.id}
+            now={now}
+            onEnable={(on) => update({ providersEnabled: withEnabled(settings, p.id, on) })}
+            onConnect={() => void connect(p)}
+            onDisconnect={() => void disconnect(p)}
           />
         ))}
       </ul>
-      {note && <p className="text-caption text-ink-3">{note}</p>}
-    </div>
-  );
-}
-
-type RowProps = {
-  provider: ProviderInfo;
-  session: ProviderSession | undefined;
-  onConnect: () => void;
-  onDisconnect: () => void;
-};
-
-function ProviderRow({ provider: p, session, onConnect, onDisconnect }: RowProps) {
-  const status = useAsync(() => providerStatus(p.id), [p.id, session?.saved_at]);
-  const probed =
-    status.state.kind === "ready"
-      ? status.state.data
-      : status.state.kind === "error"
-        ? { state: "unreachable" as const, reason: status.state.message }
-        : undefined;
-  const expired = probed?.state === "needs_session";
-  return (
-    <li className="flex items-center gap-3 px-3 py-2">
-      <div className="min-w-0 flex-1">
-        <p className="text-body font-medium">{p.name}</p>
-        <p className="truncate text-caption text-ink-3">
-          {p.site.replace(/^https?:\/\//, "")}
-          {" · "}
-          {providerStatusText(
-            p.needs_browser_session,
-            probed,
-            session ? session.saved_at : undefined,
-          )}
-        </p>
+      <div className="flex items-center gap-3">
+        <p className="flex-1 text-caption text-ink-3">{note}</p>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => list.forEach((p) => void checkStatus(p.id))}
+        >
+          <RotateCw /> Check again
+        </Button>
       </div>
-      {p.needs_browser_session &&
-        (session && !expired ? (
-          <Button variant="ghost" size="sm" onClick={onDisconnect}>
-            <Link2Off /> Disconnect
-          </Button>
-        ) : (
-          <Button size="sm" onClick={onConnect}>
-            <Link2 /> Connect
-          </Button>
-        ))}
-    </li>
+    </div>
   );
 }

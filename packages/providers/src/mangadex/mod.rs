@@ -59,7 +59,7 @@ impl Provider for MangaDexProvider {
     fn build(&self, settings: &Settings) -> Result<Arc<dyn Source>> {
         let source = MangaDex::new()?.with_preferences(
             MangaDexOptions::from_settings(settings),
-            settings.languages(),
+            settings.languages_for(INFO.id),
         );
         Ok(Arc::new(source))
     }
