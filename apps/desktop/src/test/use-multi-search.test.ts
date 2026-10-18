@@ -1,9 +1,9 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { useMultiSearch } from "@/hooks/use-multi-search";
 import { type Backend, type SearchGroup, setBackend } from "@/lib/ipc";
 import { cachedResults, forgetSearch, rememberResults } from "@/lib/search-session";
-import { writeSettings } from "@/lib/settings";
+import { loadSettings, writeSettings } from "@/lib/settings";
 
 const answer = (provider: string): SearchGroup => ({
   provider,
@@ -16,6 +16,16 @@ function backend() {
   setBackend({ searchAll } as unknown as Backend);
   return searchAll;
 }
+
+/** The hook waits for the first settings load (#99); this file isn't about that. */
+beforeAll(async () => {
+  setBackend({
+    getSettings: async () => ({ provider_sessions: {} }),
+    defaultDataDir: async () => "/data",
+  } as unknown as Backend);
+  await loadSettings();
+  setBackend(null);
+});
 
 afterEach(() => {
   setBackend(null);

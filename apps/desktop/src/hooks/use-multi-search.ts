@@ -4,7 +4,7 @@ import { type SearchGroup, searchAll } from "@/lib/ipc";
 import { recordStatus } from "@/lib/provider-status";
 import type { GroupState } from "@/lib/search-groups";
 import { cachedResults, rememberResults } from "@/lib/search-session";
-import { useSettings } from "@/lib/settings";
+import { settingsSettled, useSettings } from "@/lib/settings";
 
 const failed = (provider: string, reason: string): SearchGroup => ({
   provider,
@@ -33,11 +33,19 @@ export function useMultiSearch(query: string, ids: string[]) {
     const token = (latest.current[id] ?? 0) + 1;
     latest.current[id] = token;
     setGroups((g) => ({ ...g, [id]: { kind: "searching" } }));
-    searchAll(q, [id])
-      .then((list) => list.find((g) => g.provider === id) ?? failed(id, "provider is disabled"))
+    const stale = () => generation.current !== gen || latest.current[id] !== token;
+    // Not before the stored settings are in and saved edits landed: the backend searches with
+    // them, and a search the settings change made stale meanwhile isn't sent at all.
+    settingsSettled()
+      .then(() => (stale() ? null : searchAll(q, [id])))
+      .then((list) =>
+        list === null
+          ? null
+          : (list.find((g) => g.provider === id) ?? failed(id, "provider is disabled")),
+      )
       .catch((e: unknown) => failed(id, errorMessage(e)))
       .then((group) => {
-        if (generation.current !== gen || latest.current[id] !== token) return;
+        if (group === null || stale()) return;
         recordStatus(id, group.status);
         setGroups((g) => ({ ...g, [id]: { kind: "done", group } }));
       });

@@ -39,9 +39,26 @@
 }
 
 /* Plain :root overrides, not a nested @theme: Tailwind hoists @theme blocks out of media
-   queries, which made the dark palette apply in light mode too. */
+   queries, which made the dark palette apply in light mode too. `lib/theme.ts` sets `.dark` or
+   `.light` on <html> from the theme setting; the media query covers the moment before it runs. */
+:root.dark {
+  --color-canvas: #1f1f1e;
+  --color-surface: #292928;
+  --color-surface-2: #323231;
+  --color-stroke: #3c3c3a;
+  --color-ink: #f2f2f0;
+  --color-ink-2: #b4b4af;
+  --color-ink-3: #7f7f7a;
+  --color-accent: #e0584f;
+  --color-accent-hover: #ec7169;
+  --color-accent-soft: #3a2422;
+  --color-ok: #6ccb5f;
+  --color-warn: #f2c94c;
+  --color-bad: #f1707b;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.light) {
     --color-canvas: #1f1f1e;
     --color-surface: #292928;
     --color-surface-2: #323231;

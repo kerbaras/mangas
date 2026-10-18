@@ -41,6 +41,11 @@ fn merge_map(
                 let inner = merge_map(b, c.clone(), e);
                 current.insert(key, Value::Object(inner))
             }
+            // Empty maps aren't serialized: an object the edit emptied is an empty object.
+            (Some(Value::Object(b)), None, Some(Value::Object(c))) => {
+                let inner = merge_map(b, c.clone(), &empty);
+                current.insert(key, Value::Object(inner))
+            }
             (_, Some(value), _) => current.insert(key, value.clone()),
             (_, None, _) => current.remove(&key),
         };

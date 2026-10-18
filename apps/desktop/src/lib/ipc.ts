@@ -12,7 +12,7 @@ import type { Device, ExportProgress, ExportRequest, ExportResult } from "./ipc.
 import type { FoldersBackend } from "./ipc.folders";
 import type { LibraryBackend } from "./ipc.library";
 import type { SendBackend } from "./ipc.send";
-import type { Settings } from "./ipc.settings";
+import type { ProxyMode, Settings } from "./ipc.settings";
 import type { StorageBackend } from "./ipc.storage";
 import type { UpdatesBackend } from "./ipc.updates";
 import type { VolumesBackend } from "./ipc.volumes";
@@ -24,7 +24,7 @@ export type {
   ExportRequest,
   ExportResult,
 } from "./ipc.export";
-export type { ProviderSession, Settings } from "./ipc.settings";
+export type { ProviderSession, ProxyMode, Settings, Theme } from "./ipc.settings";
 
 /** Mirrors `mangas_core::domain::Manga`. */
 export type Manga = {
@@ -148,6 +148,8 @@ export type Backend = CutPreviewBackend &
     disconnectProvider(id: string): Promise<void>;
     /** One cheap request with the stored session: ready, needs a session, or unreachable. */
     providerStatus(id: string): Promise<ProviderStatus>;
+    /** MangaDex's status probe through a proxy setting that isn't saved yet. */
+    testProxy(mode: ProxyMode, url: string): Promise<ProviderStatus>;
     /** Searches the enabled providers (only `providers` when not empty), one group each. */
     searchAll(query: string, providers: string[]): Promise<SearchGroup[]>;
     /** Displayable URL of the manga's cover (cached through its provider), or null. */
@@ -200,6 +202,8 @@ export const listProviders = async () => (await backend()).listProviders();
 export const connectProvider = async (id: string) => (await backend()).connectProvider(id);
 export const disconnectProvider = async (id: string) => (await backend()).disconnectProvider(id);
 export const providerStatus = async (id: string) => (await backend()).providerStatus(id);
+export const testProxy = async (mode: ProxyMode, url: string) =>
+  (await backend()).testProxy(mode, url);
 export const searchAll = async (q: string, providers: string[]) =>
   (await backend()).searchAll(q, providers);
 export const coverSrc = async (m: Pick<Manga, "source" | "id" | "cover_url">) =>

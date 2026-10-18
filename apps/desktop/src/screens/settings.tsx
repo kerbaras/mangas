@@ -1,27 +1,9 @@
-import { Terminal } from "lucide-react";
 import { useState } from "react";
-import { BackupPanel } from "@/components/backup-panel";
-import { DetectorSupportSettings } from "@/components/detector-support-settings";
-import { DeviceSelect } from "@/components/device-select";
-import { DevicesPending } from "@/components/devices-pending";
-import { DiagnosticsPanel } from "@/components/diagnostics-panel";
-import { EmailSettingsForm } from "@/components/email-settings";
 import { ErrorAlert } from "@/components/error-alert";
-import { Field } from "@/components/field";
-import { FormatPicker } from "@/components/format-picker";
-import { LanguagesPicker } from "@/components/languages-picker";
-import { MangaDexOptionsForm } from "@/components/mangadex-options";
-import { PresetPicker } from "@/components/preset-picker";
-import { ProvidersList } from "@/components/providers-list";
 import { ScreenHeader } from "@/components/screen-header";
-import { StoragePanel } from "@/components/storage-panel";
-import { Button } from "@/components/ui/button";
-import { UpdatesSettings } from "@/components/updates-settings";
-import { useAsync } from "@/hooks/use-async";
-import { effectiveFormat } from "@/lib/export-formats";
-import { errorMessage } from "@/lib/format";
-import { installCli, listDevices } from "@/lib/ipc";
-import { loadSettings, useSettings, useSettingsLoad } from "@/lib/settings";
+import { cn } from "@/lib/cn";
+import { loadSettings, useSettingsLoad } from "@/lib/settings";
+import { GROUPS, type GroupId } from "./settings-groups";
 
 /** The form only once the stored settings are in; a failed load shows why, with a retry. */
 export function SettingsScreen() {
@@ -44,140 +26,46 @@ export function SettingsScreen() {
   );
 }
 
+/** The group picked last, so coming back to Settings opens it again. */
+let lastGroup: GroupId = "general";
+
 function SettingsForm() {
-  const [settings, update] = useSettings();
-  const devices = useAsync(listDevices, []);
-
-  const [cliNote, setCliNote] = useState<string | null>(null);
-  const linkCli = async () => {
-    try {
-      setCliNote(`Installed: ${await installCli()}. Run \`mangas --help\` in a terminal.`);
-    } catch (e: unknown) {
-      setCliNote(errorMessage(e));
-    }
+  const [current, setCurrent] = useState<GroupId>(lastGroup);
+  const pick = (id: GroupId) => {
+    lastGroup = id;
+    setCurrent(id);
   };
-
+  const group = GROUPS.find((g) => g.id === current) ?? GROUPS[0];
   return (
     <section className="flex h-full flex-col">
       <ScreenHeader title="Settings" />
-      <div className="relative min-h-0 flex-1 overflow-auto overscroll-contain p-4">
-        <div className="mx-auto flex max-w-2xl flex-col gap-8">
-          <Group title="Storage">
-            <StoragePanel />
-          </Group>
-          <Group title="Backup">
-            <BackupPanel />
-          </Group>
-          <Group title="Providers">
-            <Field
-              label="Sources"
-              hint="Search runs on the providers switched on. Sites behind a verification wall open in their own window once; the session is reused by the app and the `mangas` command until it expires."
-            >
-              <ProvidersList />
-            </Field>
-            <Field
-              label="Chapter languages"
-              hint="Chapters are listed in these languages, numbered by preference; search only shows titles translated into one of them. A provider can use its own from its row above."
-            >
-              <LanguagesPicker />
-            </Field>
-            <Field label="MangaDex">
-              <MangaDexOptionsForm />
-            </Field>
-          </Group>
-          <Group title="Updates">
-            <UpdatesSettings />
-          </Group>
-          <Group title="Export">
-            <Field
-              label="Default device"
-              htmlFor="default-device"
-              hint="Preselected when exporting."
-            >
-              {devices.state.kind === "ready" ? (
-                <DeviceSelect
-                  id="default-device"
-                  devices={devices.state.data}
-                  value={settings.defaultDevice}
-                  onChange={(id) => update({ defaultDevice: id })}
-                />
-              ) : (
-                <DevicesPending state={devices.state} />
+      <div className="flex min-h-0 flex-1">
+        <nav
+          aria-label="Settings groups"
+          className="flex w-48 shrink-0 flex-col gap-0.5 overflow-y-auto overscroll-contain border-r border-stroke p-2"
+        >
+          {GROUPS.map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              aria-current={g.id === group.id ? "page" : undefined}
+              onClick={() => pick(g.id)}
+              className={cn(
+                "flex h-8 items-center gap-2.5 rounded-md px-2.5 text-left text-ink-2 transition-colors [&_svg]:size-4",
+                "hover:bg-surface-2 hover:text-ink aria-[current=page]:bg-accent-soft aria-[current=page]:text-ink",
               )}
-            </Field>
-            <Field
-              label="Default format"
-              hint={
-                settings.defaultFormat ? (
-                  <>
-                    Used for every device.{" "}
-                    <button
-                      type="button"
-                      className="text-accent hover:underline"
-                      onClick={() => update({ defaultFormat: null })}
-                    >
-                      Follow the device instead
-                    </button>
-                  </>
-                ) : (
-                  "Follows the device until you pick one."
-                )
-              }
             >
-              <FormatPicker
-                compact
-                value={effectiveFormat(
-                  settings.defaultFormat,
-                  devices.state.kind === "ready" ? devices.state.data : [],
-                  settings.defaultDevice,
-                )}
-                onChange={(f) => update({ defaultFormat: f })}
-              />
-            </Field>
-            <Field label="Default cut preset">
-              <PresetPicker
-                compact
-                value={settings.defaultPreset}
-                onChange={(p) => update({ defaultPreset: p })}
-              />
-            </Field>
-            <Field
-              label="Send by email"
-              hint="Books go to your Kindle address as an attachment; Amazon takes up to 50 MB per email."
-            >
-              <EmailSettingsForm />
-            </Field>
-            <DetectorSupportSettings />
-          </Group>
-          <Group title="Command line">
-            <Field
-              label="Shell command"
-              hint="Links this app as `mangas` on your PATH so the same commands work from a terminal."
-            >
-              <div className="flex flex-col gap-2">
-                <Button onClick={linkCli} className="self-start">
-                  <Terminal /> Install `mangas` command
-                </Button>
-                {cliNote && <p className="text-caption text-ink-3">{cliNote}</p>}
-              </div>
-            </Field>
-          </Group>
-          <Group title="Diagnostics">
-            <DiagnosticsPanel />
-          </Group>
+              {g.icon}
+              {g.label}
+            </button>
+          ))}
+        </nav>
+        <div className="relative min-w-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5">
+          <div className="mx-auto max-w-2xl">
+            <group.Body />
+          </div>
         </div>
       </div>
-    </section>
-  );
-}
-
-function Group({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="flex flex-col gap-4">
-      <h2 className="border-b border-stroke pb-2 text-caption font-semibold text-ink-3 uppercase tracking-wide">
-        {title}
-      </h2>
-      {children}
     </section>
   );
 }

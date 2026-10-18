@@ -116,6 +116,17 @@ export const mockBackend: Backend = {
       return { state: "needs_session" };
     return { state: "ready" };
   },
+  async testProxy(mode, url) {
+    await wait(400);
+    if (mode === "custom" && !/^https?:\/\/[^/]+/.test(url))
+      return { state: "unreachable", reason: `invalid proxy URL "${url}"` };
+    if (url.includes(":9"))
+      return {
+        state: "unreachable",
+        reason: `network: couldn't connect through the proxy ${url}: connection refused`,
+      };
+    return { state: "ready" };
+  },
   async searchAll(query, only) {
     await wait(300 + Math.random() * 600);
     return mockSearch(query, only, settings);

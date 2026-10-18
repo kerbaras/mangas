@@ -1,14 +1,18 @@
 import { getManga, type Manga } from "@/lib/ipc";
+import { settingsSettled } from "@/lib/settings";
 import { useAsync } from "./use-async";
 
 /**
  * The full record for a manga opened from a card. Search results can be sparse (no synopsis,
  * status unknown), so the card is only a placeholder until the library or source answers; when
- * that fails the card stays. `reload` refetches it without going back to the card.
+ * that fails the card stays. The request waits for the settings to settle (#99). `reload` refetches it without going back to the card.
  */
 export function useMangaDetails(card: Manga) {
   const { source, id } = card;
-  const { state, reload } = useAsync(() => getManga(source, id), [source, id]);
+  const { state, reload } = useAsync(async () => {
+    await settingsSettled();
+    return getManga(source, id);
+  }, [source, id]);
   return {
     manga: state.kind === "ready" ? state.data : card,
     loading: state.kind === "loading",

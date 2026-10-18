@@ -61,7 +61,7 @@ export function NavRail({ downloads }: Props) {
       aria-label="Main"
       data-tauri-drag-region
       className={cn(
-        "flex shrink-0 flex-col items-center gap-1 border-r border-stroke bg-surface py-3",
+        "flex shrink-0 flex-col items-center gap-1 overflow-y-auto overscroll-contain border-r border-stroke bg-surface py-3",
         hasTrafficLights() ? "w-[72px] pt-[60px]" : "w-14",
       )}
     >

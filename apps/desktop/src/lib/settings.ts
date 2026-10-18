@@ -5,109 +5,22 @@
  * it was edited from, so the backend only saves the fields this window changed.
  */
 import { useCallback, useSyncExternalStore } from "react";
-import { isFormat } from "./export-formats";
 import { errorMessage } from "./format";
-import {
-  DEFAULT_LANGUAGE,
-  defaultDataDir,
-  type ExportFormat,
-  getSettings,
-  type Preset,
-  type Settings as Stored,
-  setSettings,
-} from "./ipc";
-import { EMPTY_EMAIL, type EmailSettings } from "./ipc.send";
-import { DEFAULT_PRESET, isPreset } from "./presets";
+import { defaultDataDir, getSettings, type Settings as Stored, setSettings } from "./ipc";
+import { DEFAULTS, fromStored, type Settings, STORED_KEY, toStored } from "./settings-stored";
 
-export type Settings = {
-  dataDir: string;
-  defaultDevice: string;
-  defaultPreset: Preset;
-  /** Export format picked last; null follows what the device reads best. */
-  defaultFormat: ExportFormat | null;
-  /** Chapter languages in order of preference, never empty. */
-  preferredLanguages: string[];
-  providerOptions: Record<string, unknown>;
-  /** Only providers switched off are listed (`false`); see `lib/provider-prefs.ts`. */
-  providersEnabled: Record<string, boolean>;
-  /** Chapter languages per provider, overriding `preferredLanguages` when not empty. */
-  providerLanguages: Record<string, string[]>;
-  /** Hours between background update checks; 0 turns them off. */
-  updateCheckHours: number;
-  updateNotifications: boolean;
-  kindleEmail: EmailSettings;
-};
-
-const DEFAULTS: Settings = {
-  dataDir: "~/.local/share/mangas",
-  defaultDevice: "kindle-paperwhite12",
-  defaultPreset: DEFAULT_PRESET,
-  defaultFormat: null,
-  preferredLanguages: [DEFAULT_LANGUAGE],
-  providerOptions: {},
-  providersEnabled: {},
-  providerLanguages: {},
-  updateCheckHours: 6,
-  updateNotifications: true,
-  kindleEmail: EMPTY_EMAIL,
-};
+export type { Settings } from "./settings-stored";
+export { DEFAULTS as SETTINGS_DEFAULTS, defaultsOf } from "./settings-stored";
 
 const listeners = new Set<() => void>();
 let cached: Settings = DEFAULTS;
 
-const fromStored = (s: Stored, platformDataDir: string): Settings => ({
-  dataDir: s.data_dir || platformDataDir,
-  defaultDevice: s.default_device || DEFAULTS.defaultDevice,
-  defaultPreset: isPreset(s.default_preset) ? s.default_preset : DEFAULTS.defaultPreset,
-  defaultFormat: isFormat(s.default_format) ? s.default_format : null,
-  preferredLanguages: s.preferred_languages?.length
-    ? s.preferred_languages
-    : DEFAULTS.preferredLanguages,
-  providerOptions: s.provider_options ?? {},
-  providersEnabled: s.providers_enabled ?? {},
-  providerLanguages: s.provider_languages ?? {},
-  updateCheckHours: s.update_check_hours ?? DEFAULTS.updateCheckHours,
-  updateNotifications: s.update_notifications ?? DEFAULTS.updateNotifications,
-  kindleEmail: { ...EMPTY_EMAIL, ...s.kindle_email },
-});
-
 /** Platform default; a `dataDir` equal to it is stored as `null` so the default can move. */
 let platformDataDir = DEFAULTS.dataDir;
 
-/** Provider sessions are owned by the backend (`set_settings` keeps the stored ones). */
-const toStored = (s: Settings): Stored => ({
-  provider_sessions: {},
-  data_dir: s.dataDir === platformDataDir ? null : s.dataDir,
-  default_device: s.defaultDevice,
-  default_preset: s.defaultPreset,
-  default_format: s.defaultFormat,
-  preferred_languages: s.preferredLanguages,
-  provider_options: s.providerOptions,
-  providers_enabled: s.providersEnabled,
-  provider_languages: s.providerLanguages,
-  update_check_hours: s.updateCheckHours,
-  update_notifications: s.updateNotifications,
-  kindle_email: s.kindleEmail,
-});
-
-/** The stored field behind each app setting, so a write sends only the fields it changed. */
-const STORED_KEY: { [K in keyof Settings]: keyof Stored } = {
-  dataDir: "data_dir",
-  defaultDevice: "default_device",
-  defaultPreset: "default_preset",
-  defaultFormat: "default_format",
-  preferredLanguages: "preferred_languages",
-  providerOptions: "provider_options",
-  providersEnabled: "providers_enabled",
-  providerLanguages: "provider_languages",
-  updateCheckHours: "update_check_hours",
-  updateNotifications: "update_notifications",
-  kindleEmail: "kindle_email",
-};
-
 /** `base` with only the patched fields taken from `cached`: unset defaults stay unset. */
 const edit = (base: Stored, patch: Partial<Settings>): Stored => {
-  const next = toStored(cached);
+  const next = toStored(cached, platformDataDir);
   const keys = Object.keys(patch) as (keyof Settings)[];
   return { ...base, ...Object.fromEntries(keys.map((k) => [STORED_KEY[k], next[STORED_KEY[k]]])) };
 };
@@ -131,6 +44,25 @@ let stored: Stored | undefined;
 /** Writes go one at a time, each based on what the previous one stored. */
 let writes: Promise<void> = Promise.resolve();
 export const readSettingsLoad = (): SettingsLoad => load;
+
+let firstSettled: () => void = () => {};
+const firstLoad = new Promise<void>((resolve) => {
+  firstSettled = resolve;
+});
+
+/**
+ * Resolves once the first load answered (loaded or failed) and the writes made so far reached
+ * the backend: a fetch awaiting it runs with the settings on screen, not placeholder defaults or
+ * the ones a save in flight is about to replace.
+ */
+export async function settingsSettled(): Promise<void> {
+  await firstLoad;
+  let last: Promise<void>;
+  do {
+    last = writes;
+    await last;
+  } while (last !== writes);
+}
 
 /**
  * Hydrates from the backend; the platform data dir replaces the `~` placeholder default. Never
@@ -156,6 +88,7 @@ export async function loadSettings(): Promise<void> {
     load = { kind: "failed", error: errorMessage(e) };
   }
   notify();
+  firstSettled();
 }
 
 /**
@@ -169,7 +102,7 @@ export function writeSettings(patch: Partial<Settings>) {
   const gen = ++version;
   writes = writes
     .then(async () => {
-      const base = stored ?? toStored(cached);
+      const base = stored ?? toStored(cached, platformDataDir);
       const saved = await setSettings(edit(base, patch), base);
       stored = saved;
       if (gen !== version) return;
