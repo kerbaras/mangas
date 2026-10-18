@@ -146,12 +146,14 @@ async fn search(source: &dyn Source, query: &str) -> Result<(String, Vec<Manga>)
     }
 }
 
-/// The first chapter of the first result (among [`CANDIDATES`]) that has any in `language`.
+/// The first chapter of the first result (among [`CANDIDATES`]) that has any in `language`;
+/// the results passed over are named so the title differing from the manga step is explained.
 async fn first_chapter(
     source: &dyn Source,
     found: &[Manga],
     language: &str,
 ) -> Result<(String, Chapter), String> {
+    let mut skipped = Vec::new();
     for manga in found.iter().take(CANDIDATES) {
         let chapters = source
             .chapters(&manga.id, language)
@@ -159,16 +161,26 @@ async fn first_chapter(
             .map_err(|e| e.to_string())?;
         let count = chapters.len();
         if let Some(first) = chapters.into_iter().next() {
-            return Ok((
-                format!("{count} ({language}) in \"{}\"", manga.title),
-                first,
-            ));
+            let used = format!("{count} ({language}) in \"{}\"", manga.title);
+            return Ok((with_skipped(used, &skipped, language), first));
         }
+        skipped.push(format!("\"{}\"", manga.title));
     }
-    let tried = found.len().min(CANDIDATES);
     Err(format!(
-        "no {language} chapters in the first {tried} results"
+        "no {language} chapters in the first {} results: {}",
+        skipped.len(),
+        skipped.join(", ")
     ))
+}
+
+fn with_skipped(detail: String, skipped: &[String], language: &str) -> String {
+    match skipped {
+        [] => detail,
+        titles => format!(
+            "{detail}; skipped {}: no {language} chapters",
+            titles.join(", ")
+        ),
+    }
 }
 
 fn label(chapter: &Chapter) -> String {

@@ -112,7 +112,16 @@ async fn results_without_chapters_are_skipped() {
     let (report, _) = run(&fake(vec!["none", "b"], &[("b", 1)]), 200).await;
     assert!(report.passed(), "{report:?}");
     let chapters = &report.steps[3];
-    assert_eq!(chapters.outcome, Ok("1 (en) in \"Title b\"".into()));
+    let expected = "1 (en) in \"Title b\"; skipped \"Title none\": no en chapters";
+    assert_eq!(chapters.outcome, Ok(expected.into()));
+    assert_eq!(report.steps[2].outcome, Ok("Title none (none)".into()));
+}
+
+#[tokio::test]
+async fn every_skipped_result_is_named() {
+    let (report, _) = run(&fake(vec!["x", "y", "c"], &[("c", 2)]), 200).await;
+    let expected = "2 (en) in \"Title c\"; skipped \"Title x\", \"Title y\": no en chapters";
+    assert_eq!(report.steps[3].outcome, Ok(expected.into()));
 }
 
 #[tokio::test]
@@ -121,7 +130,10 @@ async fn no_chapters_anywhere_fails_and_stops() {
     assert_eq!(report.failed_step(), Some(Step::Chapters));
     assert_eq!(report.steps.len(), 4);
     let reason = report.steps[3].outcome.clone().unwrap_err();
-    assert_eq!(reason, "no en chapters in the first 2 results");
+    assert_eq!(
+        reason,
+        "no en chapters in the first 2 results: \"Title x\", \"Title y\""
+    );
     assert!(fetched.is_empty());
     let table = lines(&report);
     assert_eq!(table[4], "pages     -              not run");
