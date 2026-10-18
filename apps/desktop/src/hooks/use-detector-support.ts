@@ -70,7 +70,7 @@ export function useDetectorSupport(): DetectorSupport {
       setFailure(null);
       storageChanged();
     }
-  }, [reload]);
+  }, []);
 
   return { status: status.state, progress, downloading, failure, download, cancel, remove };
 }
