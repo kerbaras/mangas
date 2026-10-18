@@ -29,7 +29,10 @@ pub async fn ensure(
 ) -> Result<PathBuf> {
     let result = install(models_dir, spec, on_progress, cancel).await;
     match &result {
-        Ok(_) => state::clear(),
+        Ok(_) => {
+            state::clear();
+            super::clear_pending(models_dir)?;
+        }
         Err(e) if !is_cancelled(e) => state::record(models_dir, e.to_string()),
         Err(_) => {}
     }

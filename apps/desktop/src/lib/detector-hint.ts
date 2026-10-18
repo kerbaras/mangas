@@ -18,6 +18,12 @@ export function detectorHint(state: Async<DetectorsStatus>): string {
 export const runtimeFailure = (s: DetectorsStatus): string | null =>
   s.runtime.state === "failed" ? s.runtime.reason : null;
 
+/** After a partial remove; the CLI prints the same words (`pending_line`). */
+export const pendingRemoval = (s: DetectorsStatus): string | null =>
+  s.runtime.state === "remove_pending"
+    ? `Detector models removed; the runtime (${formatBytes(s.runtime.bytes)}) is still in use — restart Mangas and remove again.`
+    : null;
+
 export const downloadLabel = (bytes: number) =>
   `Download detector support (~${formatBytes(bytes)})`;
 

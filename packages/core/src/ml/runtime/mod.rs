@@ -64,6 +64,12 @@ pub enum RuntimeStatus {
         version: String,
         reason: String,
     },
+    /// The models were removed but the loaded library could not be (Windows locks it until the
+    /// process exits); a remove after a restart deletes it.
+    RemovePending {
+        version: String,
+        bytes: u64,
+    },
 }
 
 pub fn for_target(os: &str, arch: &str) -> Option<RuntimeSpec> {
@@ -86,6 +92,18 @@ pub fn lib_path(models_dir: &Path, spec: &RuntimeSpec) -> PathBuf {
     root(models_dir).join(spec.version).join(spec.lib_name)
 }
 
+/// Written by `remove` when the runtime folder could not be deleted.
+pub fn pending_marker(models_dir: &Path) -> PathBuf {
+    models_dir.join(".runtime-remove-pending")
+}
+
+pub(crate) fn clear_pending(models_dir: &Path) -> std::io::Result<()> {
+    match std::fs::remove_file(pending_marker(models_dir)) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
+        _ => Ok(()),
+    }
+}
+
 pub(crate) fn unsupported() -> Error {
     Error::Other(format!(
         "no ONNX Runtime build for {}-{}",
@@ -101,11 +119,15 @@ pub fn status(models_dir: &Path) -> RuntimeStatus {
     }
 }
 
-/// Status of `spec` given the last recorded failure (pure apart from one `is_file`).
+/// Status of `spec` given the last recorded failure (reads only file metadata).
 pub fn status_of(models_dir: &Path, spec: &RuntimeSpec, failure: Option<String>) -> RuntimeStatus {
     let version = spec.version.to_string();
     match (failure, lib_path(models_dir, spec).is_file()) {
         (Some(reason), _) => RuntimeStatus::Failed { version, reason },
+        (None, true) if pending_marker(models_dir).is_file() => RuntimeStatus::RemovePending {
+            version,
+            bytes: crate::storage::dir_size(&root(models_dir)),
+        },
         (None, true) => RuntimeStatus::Downloaded { version },
         (None, false) => RuntimeStatus::NotDownloaded { version },
     }

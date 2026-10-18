@@ -7,7 +7,9 @@ export type RuntimeState =
   | { state: "unavailable" }
   | { state: "not_downloaded"; version: string }
   | { state: "downloaded"; version: string }
-  | { state: "failed"; version: string; reason: string };
+  | { state: "failed"; version: string; reason: string }
+  /** Models removed, but the loaded library is locked until a restart (Windows). */
+  | { state: "remove_pending"; version: string; bytes: number };
 
 export type DetectorsStatus = {
   /** Built with detector support for this platform; the runtime and models download on demand. */

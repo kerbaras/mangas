@@ -61,8 +61,8 @@ pub fn missing_bytes(models_dir: &Path, spec: Option<&runtime::RuntimeSpec>) -> 
     runtime + models
 }
 
-/// Deletes the runtime and the models; returns the bytes freed. A runtime already loaded stays
-/// in use until the app quits.
+/// Deletes the models and the runtime; returns the bytes freed. A runtime the OS keeps locked
+/// (a loaded DLL on Windows) stays, and status reports it as `RemovePending` until a later remove.
 pub fn remove(models_dir: &Path) -> Result<u64> {
     let mut freed = 0;
     for model in &MODELS {
@@ -77,14 +77,16 @@ pub fn remove(models_dir: &Path) -> Result<u64> {
     let root = runtime::root(models_dir);
     if root.exists() {
         let size = crate::storage::dir_size(&root);
-        // Windows keeps a loaded onnxruntime.dll locked until the process exits.
-        std::fs::remove_dir_all(&root).map_err(|e| {
-            Error::Other(format!(
-                "removed the models, but ONNX Runtime is in use ({e}); restart Mangas and remove again"
-            ))
-        })?;
-        freed += size;
+        match std::fs::remove_dir_all(&root) {
+            Ok(()) => freed += size,
+            Err(e) => {
+                log::warn!("ONNX Runtime still in use, removal pending: {e}");
+                std::fs::write(runtime::pending_marker(models_dir), e.to_string())?;
+                return Ok(freed + size.saturating_sub(crate::storage::dir_size(&root)));
+            }
+        }
     }
+    runtime::clear_pending(models_dir)?;
     runtime::forget_failure();
     Ok(freed)
 }

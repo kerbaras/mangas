@@ -46,10 +46,13 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         }
         Command::Remove => {
             let freed = ml::remove(&dir)?;
-            Ok(outln!(
-                "Removed detector support: {} freed",
-                human_size(freed)
-            )?)
+            match pending_line(&ml::status(&dir).runtime) {
+                Some(line) => Ok(outln!("{line} ({} freed)", human_size(freed))?),
+                None => Ok(outln!(
+                    "Removed detector support: {} freed",
+                    human_size(freed)
+                )?),
+            }
         }
     }
 }
@@ -69,6 +72,9 @@ fn print_status(status: &Status) -> anyhow::Result<()> {
         };
         outln!("{:<32} {state} ({})", model.id, model.licence)?;
     }
+    if let Some(line) = pending_line(&status.runtime) {
+        outln!("{line}")?;
+    }
     let provider = status.execution_provider.as_deref().unwrap_or("cpu");
     outln!("Execution provider: {provider}")?;
     outln!("On disk: {}", human_size(status.disk_bytes))?;
@@ -87,5 +93,43 @@ pub fn runtime_line(runtime: &RuntimeStatus) -> String {
         RuntimeStatus::NotDownloaded { version } => format!("not downloaded (v{version})"),
         RuntimeStatus::Downloaded { version } => format!("downloaded v{version}"),
         RuntimeStatus::Failed { version, reason } => format!("failed (v{version}): {reason}"),
+        RuntimeStatus::RemovePending { version, .. } => {
+            format!("in use, removal pending (v{version})")
+        }
+    }
+}
+
+/// The partial-remove notice; the desktop shows the same words (`pendingRemoval`).
+pub fn pending_line(runtime: &RuntimeStatus) -> Option<String> {
+    match runtime {
+        RuntimeStatus::RemovePending { bytes, .. } => Some(format!(
+            "Detector models removed; the runtime ({}) is still in use — restart Mangas and remove again",
+            human_size(*bytes)
+        )),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_partial_remove_says_the_runtime_is_still_in_use() {
+        let pending = RuntimeStatus::RemovePending {
+            version: "1.28.3".into(),
+            bytes: 23_000_000,
+        };
+        let line = pending_line(&pending).unwrap_or_default();
+        assert!(
+            line.starts_with("Detector models removed; the runtime ("),
+            "{line}"
+        );
+        assert!(line.ends_with("is still in use — restart Mangas and remove again"));
+        assert_eq!(runtime_line(&pending), "in use, removal pending (v1.28.3)");
+        let downloaded = RuntimeStatus::Downloaded {
+            version: "1.28.3".into(),
+        };
+        assert_eq!(pending_line(&downloaded), None);
     }
 }

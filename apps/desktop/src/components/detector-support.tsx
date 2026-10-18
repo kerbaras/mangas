@@ -4,7 +4,13 @@ import { ErrorAlert } from "@/components/error-alert";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { DetectorSupport } from "@/hooks/use-detector-support";
-import { downloadLabel, installedLabel, progressLabel, runtimeFailure } from "@/lib/detector-hint";
+import {
+  downloadLabel,
+  installedLabel,
+  pendingRemoval,
+  progressLabel,
+  runtimeFailure,
+} from "@/lib/detector-hint";
 import { notifyError } from "@/lib/notify";
 import { formatBytes } from "@/lib/storage";
 
@@ -44,15 +50,6 @@ export function DetectorSupportActions({ support, manage = false }: Props) {
         onRetry={() => void support.download()}
       />
     );
-  if (!status.downloaded)
-    return (
-      <div>
-        <Button size="sm" onClick={() => void support.download()}>
-          <Download /> {downloadLabel(status.downloadBytes)}
-        </Button>
-      </div>
-    );
-  if (!manage) return null;
   const remove = async () => {
     try {
       const freed = await support.remove();
@@ -63,6 +60,25 @@ export function DetectorSupportActions({ support, manage = false }: Props) {
       notifyError("Couldn't remove detector support", e);
     }
   };
+  if (!status.downloaded) {
+    const pending = pendingRemoval(status);
+    return (
+      <div className="flex flex-col gap-1.5">
+        {pending && <span className="text-caption text-ink-3">{pending}</span>}
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={() => void support.download()}>
+            <Download /> {downloadLabel(status.downloadBytes)}
+          </Button>
+          {manage && pending && (
+            <Button size="sm" variant="ghost" onClick={() => void remove()}>
+              <Trash2 /> Remove again
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
+  if (!manage) return null;
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
       <span className="text-caption text-ink-3 tabular-nums">{installedLabel(status)}</span>
