@@ -67,6 +67,7 @@ impl Queue {
         let mut finished: Vec<(JobId, Option<Failure>)> = Vec::new();
         let mut runs: u64 = 0;
         let mut prev = library::list_jobs(&self.lib)?;
+        let mut held = false;
         loop {
             while let Ok(outcome) = rx.try_recv() {
                 arrived.push(outcome);
@@ -78,7 +79,8 @@ impl Queue {
                 }
             }
             match self.step(&scope, &tasks, &progress, &finished) {
-                Ok(plan) => {
+                Ok((plan, paused)) => {
+                    held = paused;
                     finished.clear();
                     for job in plan.claimed {
                         // Paused and resumed since the last step: the old run must be gone
@@ -97,7 +99,8 @@ impl Queue {
                 }
                 Err(e) => log::warn!("download queue: {e}"),
             }
-            if settle && tasks.is_empty() && is_settled(&prev, &scope) {
+            // Under the queue-wide pause nothing more will start: a settling worker stops.
+            if settle && tasks.is_empty() && (held || is_settled(&prev, &scope)) {
                 return Ok(());
             }
             tokio::select! {
@@ -114,7 +117,7 @@ impl Queue {
         tasks: &Tasks,
         progress: &Progress,
         finished: &[(JobId, Option<Failure>)],
-    ) -> Result<TickPlan> {
+    ) -> Result<(TickPlan, bool)> {
         let pages = progress.lock().map(|p| p.clone()).unwrap_or_default();
         let in_flight = tasks
             .keys()
@@ -127,10 +130,11 @@ impl Queue {
             finished,
             scope,
             config: &self.config,
+            paused: false,
         };
-        library::update_jobs(&self.lib, |jobs| {
-            let plan = plan_tick(jobs, &input);
-            (plan.changed.clone(), plan)
+        library::update_jobs_paused(&self.lib, |jobs, paused| {
+            let plan = plan_tick(jobs, &TickInput { paused, ..input });
+            (plan.changed.clone(), (plan, paused))
         })
     }
 

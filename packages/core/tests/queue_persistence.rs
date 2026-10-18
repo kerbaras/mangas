@@ -153,43 +153,23 @@ fn a_refresh_fails_the_job_of_a_dropped_chapter_instead_of_dropping_it() {
 }
 
 #[test]
-fn moving_the_data_folder_waits_for_downloads_in_progress() {
-    let lib = library::open_in_memory().unwrap();
-    queue::enqueue(&lib, "a", follow(&lib, "a", 4), false).unwrap();
-    let err = queue::ensure_idle(&lib).unwrap_err().to_string();
-    assert!(err.starts_with("4 download(s) still in progress"), "{err}");
-
-    // Paused before any page: nothing on disk to move under it.
-    queue::control(&lib, Target::All, Action::Pause).unwrap();
-    queue::ensure_idle(&lib).unwrap();
-    library::update_jobs(&lib, |jobs| {
-        let part_way = queue::Job {
-            pages_done: 3,
-            pages_total: 9,
-            ..jobs[0].clone()
-        };
-        (vec![part_way], ())
-    })
-    .unwrap();
-    let err = queue::ensure_idle(&lib).unwrap_err().to_string();
-    assert!(err.starts_with("1 download(s)"), "{err}");
-
-    queue::control(&lib, Target::All, Action::Cancel).unwrap();
-    queue::ensure_idle(&lib).unwrap();
-}
-
-#[test]
-fn storage_move_refuses_while_a_download_is_queued() {
+fn storage_move_holds_the_queue_and_restores_the_pause_flag() {
     let dir = tempfile::tempdir().unwrap();
     let lib = library::open_in_memory().unwrap();
     queue::enqueue(&lib, "a", follow(&lib, "a", 1), false).unwrap();
     let (from, to) = (dir.path().join("old"), dir.path().join("new"));
-    let err = mangas_core::storage::move_data_dir(&lib, &from, &to, &mut |_| {}).unwrap_err();
+    std::fs::create_dir_all(&from).unwrap();
+    mangas_core::storage::move_data_dir(&lib, &from, &to, &mut |_| {}).unwrap();
     assert!(
-        err.to_string().contains("1 download(s) still in progress"),
-        "{err}"
+        !library::queue_paused(&lib).unwrap(),
+        "restored after a move"
     );
-    assert!(!to.exists(), "nothing was touched");
+    library::set_queue_paused(&lib, true).unwrap();
+    queue::hold_queue(&lib, std::time::Duration::from_secs(5), || Ok(())).unwrap();
+    assert!(
+        library::queue_paused(&lib).unwrap(),
+        "a pause set before stays set"
+    );
 }
 
 #[test]

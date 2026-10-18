@@ -18,3 +18,10 @@ CREATE TABLE IF NOT EXISTS download_jobs (
     UNIQUE (source, chapter_id),
     FOREIGN KEY (source, chapter_id) REFERENCES chapter (source, id) ON DELETE CASCADE
 );
+
+-- Global pause shared by every process: while set, no worker claims a job.
+CREATE TABLE IF NOT EXISTS download_queue (
+    id     INTEGER PRIMARY KEY CHECK (id = 1),
+    paused INTEGER NOT NULL DEFAULT 0
+);
+INSERT OR IGNORE INTO download_queue (id, paused) VALUES (1, 0);

@@ -80,6 +80,12 @@ pub enum Target {
 /// the action does not apply to, is an error that says so; `All` just skips those.
 pub fn control(lib: &Library, target: Target, action: Action) -> Result<Vec<Job>> {
     let now = now_ms();
+    // Pause all also stops new claims, in every process, until resume all.
+    match (target, action) {
+        (Target::All, Action::Pause) => library::set_queue_paused(lib, true)?,
+        (Target::All, Action::Resume) => library::set_queue_paused(lib, false)?,
+        _ => {}
+    }
     library::update_jobs(lib, |jobs| {
         let changed: Vec<Job> = jobs
             .iter()
@@ -102,29 +108,6 @@ fn refusal(jobs: &[Job], id: JobId, action: Action) -> Error {
             action.verb()
         )),
         None => Error::NotFound(format!("download {id}")),
-    }
-}
-
-/// Jobs that would write into the data folder while it moves: queued, running, or paused with
-/// pages already on disk.
-pub fn in_progress(jobs: &[Job]) -> usize {
-    jobs.iter()
-        .filter(|j| match j.state {
-            JobState::Queued | JobState::Running => true,
-            JobState::Paused => j.pages_done > 0,
-            _ => false,
-        })
-        .count()
-}
-
-/// Refuses (with the count) while any download is [`in_progress`], in any process.
-pub fn ensure_idle(lib: &Library) -> Result<()> {
-    match in_progress(&library::list_jobs(lib)?) {
-        0 => Ok(()),
-        n => Err(Error::Other(format!(
-            "{n} download(s) still in progress (queued, running or paused part-way); \
-             let them finish or cancel them before moving the data folder"
-        ))),
     }
 }
 

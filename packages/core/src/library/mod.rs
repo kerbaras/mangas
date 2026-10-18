@@ -24,7 +24,10 @@ pub(crate) use download_repo::switch_data_dir;
 pub use download_repo::{downloaded_chapters, forget_download, DownloadedChapter};
 pub use entries::{count_chapters, list_entries, ChapterCounts, ChapterMark, LibraryEntry};
 pub use import::{import_paths, is_local, ImportReport, ImportRequest, LOCAL_SOURCE};
-pub use job_repo::{delete_jobs, enqueue_jobs, list_jobs, update_jobs};
+pub use job_repo::{
+    delete_jobs, enqueue_jobs, list_jobs, queue_paused, set_queue_paused, update_jobs,
+    update_jobs_paused,
+};
 pub use languages::{
     in_languages, parse_languages, prefer_languages, requested_languages, validate_languages,
 };

@@ -93,6 +93,7 @@ fn a_tick_finishes_results_heartbeats_and_claims() {
         finished: &finished,
         scope: &Scope::All,
         config: &config,
+        paused: false,
     };
     let plan = plan_tick(jobs, &input);
     let state = |id: i64| plan.jobs.iter().find(|j| j.id == id).unwrap().clone();

@@ -25,9 +25,20 @@ pub fn list_jobs(lib: &Library) -> Result<Vec<Job>> {
 /// Loads every job, lets `f` decide which to save (returned with their new values), saves
 /// them, and returns `f`'s result, all in one transaction.
 pub fn update_jobs<T>(lib: &Library, f: impl FnOnce(Vec<Job>) -> (Vec<Job>, T)) -> Result<T> {
+    update_jobs_paused(lib, |jobs, _| f(jobs))
+}
+
+/// [`update_jobs`] that also hands `f` the queue-wide pause flag, read in the same transaction.
+pub fn update_jobs_paused<T>(
+    lib: &Library,
+    f: impl FnOnce(Vec<Job>, bool) -> (Vec<Job>, T),
+) -> Result<T> {
     let mut conn = lib.conn()?;
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-    let (changed, out) = f(load(&tx)?);
+    let paused = tx.query_row("SELECT paused FROM download_queue WHERE id = 1", [], |r| {
+        r.get::<_, bool>(0)
+    })?;
+    let (changed, out) = f(load(&tx)?, paused);
     for job in &changed {
         save(&tx, job)?;
     }
@@ -143,4 +154,22 @@ fn row_to_job(row: &Row<'_>) -> rusqlite::Result<Job> {
         language: row.get(17)?,
         local_path: row.get(18)?,
     })
+}
+
+/// The queue-wide pause flag (see `download_queue` in migration 0007).
+pub fn queue_paused(lib: &Library) -> Result<bool> {
+    let conn = lib.conn()?;
+    Ok(
+        conn.query_row("SELECT paused FROM download_queue WHERE id = 1", [], |r| {
+            r.get::<_, bool>(0)
+        })?,
+    )
+}
+
+pub fn set_queue_paused(lib: &Library, paused: bool) -> Result<()> {
+    lib.conn()?.execute(
+        "UPDATE download_queue SET paused = ?1 WHERE id = 1",
+        params![paused],
+    )?;
+    Ok(())
 }

@@ -40,6 +40,8 @@ pub struct TickInput<'a> {
     pub finished: &'a [(JobId, Option<Failure>)],
     pub scope: &'a Scope,
     pub config: &'a QueueConfig,
+    /// The queue-wide pause: running jobs carry on, nothing new is claimed.
+    pub paused: bool,
 }
 
 #[derive(Debug, Default)]
@@ -65,7 +67,10 @@ pub fn plan_tick(jobs: Vec<Job>, input: &TickInput<'_>) -> TickPlan {
         .into_iter()
         .map(|(job, next)| next.unwrap_or(job))
         .collect();
-    let picks = pick(&all, input.config.limits, input.scope, input.now);
+    let picks = match input.paused {
+        true => Vec::new(),
+        false => pick(&all, input.config.limits, input.scope, input.now),
+    };
     let mut claimed = Vec::new();
     for job in all.iter_mut().filter(|j| picks.contains(&j.id)) {
         *job = claim(job, input.owner, input.now);

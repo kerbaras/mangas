@@ -4,6 +4,7 @@
 //! step, [`events`] for what changed.
 
 mod events;
+mod hold;
 mod job;
 mod ops;
 mod retry;
@@ -17,11 +18,9 @@ mod worker;
 pub const UNLISTED: &str = "chapter no longer listed by the source";
 
 pub use events::{diff, QueueEvent};
+pub use hold::{hold_queue, MOVE_SETTLE};
 pub use job::{Job, JobId, JobState};
-pub use ops::{
-    clear_finished, control, enqueue, ensure_idle, in_progress, list, now_ms, split_for_queue,
-    Enqueued, Target,
-};
+pub use ops::{clear_finished, control, enqueue, list, now_ms, split_for_queue, Enqueued, Target};
 pub use retry::{backoff, classify, Failure, RetryPolicy};
 pub use runner::{run_job, JobRunner};
 pub use schedule::{in_queue_order, pick, Limits, Scope};
