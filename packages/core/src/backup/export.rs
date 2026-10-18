@@ -18,12 +18,15 @@ pub fn created_millis(added_at: &str) -> i64 {
         .unwrap_or(0)
 }
 
-/// Settings safe to put in a file: no provider sessions (cookies) and no data folder, which
-/// belongs to the machine the backup was made on.
+/// Settings safe to put in a file: no provider sessions (cookies), no SMTP password and no
+/// data folder, which belongs to the machine the backup was made on.
 pub fn sanitize(settings: &Settings) -> Settings {
+    let mut kindle_email = settings.kindle_email.clone();
+    kindle_email.password.clear();
     Settings {
         data_dir: None,
         provider_sessions: Default::default(),
+        kindle_email,
         ..settings.clone()
     }
 }

@@ -65,6 +65,7 @@ pub async fn export_kindle(
         output,
         meta: Default::default(),
     };
+    let title = req.title.clone();
     let handle = app.clone();
     // Mapped here, not in the closure, so the error is logged under this command's span.
     let (stats, dirs) = tauri::async_runtime::spawn_blocking(move || {
@@ -74,7 +75,7 @@ pub async fn export_kindle(
     .await
     .map_err(to_ipc)?
     .map_err(to_ipc)?;
-    mark_exported(&stats.exported_chapters(&dirs));
+    record_export(&stats, &dirs, &title, &device);
     Ok(stats)
 }
 
@@ -97,12 +98,15 @@ pub(super) async fn penalizer(
     Ok(Some(p))
 }
 
-/// The EPUB is written either way; a library that can't record it only loses the "exported" mark.
-pub(super) fn mark_exported(dirs: &[&std::path::Path]) {
-    if let Err(e) =
-        open_library().and_then(|lib| library::mark_exported(&lib, dirs).map_err(to_ipc))
-    {
-        tracing::warn!("could not mark chapters exported: {e}");
+/// Marks the chapters exported and adds the book to the export history. The EPUB is written
+/// either way; a library that can't record it only loses the marks.
+pub(super) fn record_export(stats: &ExportStats, dirs: &[PathBuf], title: &str, device: &str) {
+    let recorded = open_library().and_then(|lib| {
+        library::mark_exported(&lib, &stats.exported_chapters(dirs)).map_err(to_ipc)?;
+        library::record_export(&lib, &stats.output, title, device).map_err(to_ipc)
+    });
+    if let Err(e) = recorded {
+        tracing::warn!("could not record the export: {e}");
     }
 }
 

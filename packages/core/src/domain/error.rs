@@ -30,6 +30,9 @@ pub enum Error {
     /// A local import found nothing it could use; the message is meant for the user as is.
     #[error("{0}")]
     Import(String),
+    /// Email or USB delivery failed; the message is meant for the user as is.
+    #[error("{0}")]
+    Send(String),
     #[error("{0}")]
     Other(String),
 }

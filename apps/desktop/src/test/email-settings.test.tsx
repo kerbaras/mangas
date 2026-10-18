@@ -1,0 +1,65 @@
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { EmailSettingsForm } from "@/components/email-settings";
+import { type Backend, setBackend } from "@/lib/ipc";
+import { EMPTY_EMAIL } from "@/lib/ipc.send";
+import { readSettings, writeSettings } from "@/lib/settings";
+
+afterEach(() => {
+  setBackend(null);
+  writeSettings({ kindleEmail: EMPTY_EMAIL });
+});
+
+const type = (label: string, value: string) =>
+  fireEvent.change(screen.getByLabelText(label), { target: { value } });
+
+describe("email settings", () => {
+  it("warns that the password is stored unencrypted", () => {
+    render(<EmailSettingsForm />);
+    expect(screen.getByText("The password is stored unencrypted")).toBeTruthy();
+    expect((screen.getByLabelText("Password") as HTMLInputElement).type).toBe("password");
+  });
+
+  it("tests the unsaved draft and saves it on Save", async () => {
+    const sendTestEmail = vi.fn(async () => "me@example.test");
+    setBackend({ sendTestEmail } as unknown as Backend);
+    render(<EmailSettingsForm />);
+    type("Kindle email address", "reader@kindle.com");
+    type("SMTP server", "smtp.example.test");
+    type("User name", "me@example.test");
+    type("Port", "2525");
+    fireEvent.click(screen.getByRole("button", { name: /Send test email/ }));
+    expect(await screen.findByText("Test email sent to me@example.test.")).toBeTruthy();
+    const draft = {
+      ...EMPTY_EMAIL,
+      to: "reader@kindle.com",
+      host: "smtp.example.test",
+      username: "me@example.test",
+      port: 2525,
+    };
+    expect(sendTestEmail).toHaveBeenCalledWith(draft);
+    expect(readSettings().kindleEmail).toEqual(EMPTY_EMAIL);
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(readSettings().kindleEmail).toEqual(draft));
+  });
+
+  it("keeps unsaved edits when settings reload with the same saved values", async () => {
+    render(<EmailSettingsForm />);
+    type("SMTP server", "smtp.example.test");
+    act(() => writeSettings({ kindleEmail: { ...readSettings().kindleEmail } }));
+    expect((screen.getByLabelText("SMTP server") as HTMLInputElement).value).toBe(
+      "smtp.example.test",
+    );
+  });
+
+  it("shows why the test failed", async () => {
+    const sendTestEmail = vi.fn(async () => {
+      throw new Error("Couldn't reach the mail server at smtp.example.test:587");
+    });
+    setBackend({ sendTestEmail } as unknown as Backend);
+    render(<EmailSettingsForm />);
+    type("SMTP server", "smtp.example.test");
+    fireEvent.click(screen.getByRole("button", { name: /Send test email/ }));
+    expect(await screen.findByText(/Couldn't reach the mail server/)).toBeTruthy();
+  });
+});

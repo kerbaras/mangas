@@ -12,8 +12,9 @@ use mangas_core::library;
 use mangas_providers::covers::CoverFetcher;
 
 use super::cut_args::{print_progress, CutArgs, DEFAULT_PROFILE};
+use super::deliver::{try_deliver, unsent, SendArg};
 use super::export_args::FormatArg;
-use super::kindle::mark_exported;
+use super::kindle_record;
 use super::{source_by_name, stored_settings};
 use crate::output::outln;
 use crate::paths;
@@ -52,6 +53,12 @@ pub struct Args {
     /// Print the files that would be written and exit
     #[arg(long)]
     pub dry_run: bool,
+    /// After writing, email each book to the Kindle or copy it to one over USB
+    #[arg(long, value_enum)]
+    pub send: Option<SendArg>,
+    /// Mount point of the Kindle for `--send usb` [default: detected]
+    #[arg(long)]
+    pub kindle: Option<PathBuf>,
     #[command(flatten)]
     pub cut: CutArgs,
 }
@@ -159,6 +166,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     }
     let penalizer = args.cut.penalizer().await?;
     let cover = cover_file(&src.manga).await;
+    let mut failed = 0;
     for p in &plans {
         let req = volume::request(
             &src.manga,
@@ -177,7 +185,15 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
                 stats.skipped
             )?;
         }
-        mark_exported(&stats.exported_chapters(&req.chapter_dirs));
+        kindle_record::mark_exported(&lib, &stats.exported_chapters(&req.chapter_dirs));
+        kindle_record::record_export(&lib, &stats.output, &req.title, device.id);
+        if let Some(via) = args.send {
+            let file = std::path::absolute(&stats.output)?;
+            let kindle = args.kindle.as_deref();
+            if !try_deliver(&lib, &file, &req.title, via, kindle).await {
+                failed += 1;
+            }
+        }
     }
-    Ok(())
+    unsent(failed)
 }

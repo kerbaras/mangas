@@ -1,4 +1,5 @@
 use mangas_core::library::{self, Settings};
+use mangas_core::send::{EmailSettings, Security};
 use mangas_core::smartcut::Preset;
 
 #[test]
@@ -26,6 +27,13 @@ fn settings_round_trip_and_overwrite() {
         provider_languages: [("mangadex".to_string(), vec!["es".to_string()])].into(),
         update_check_hours: Some(0),
         update_notifications: Some(false),
+        kindle_email: EmailSettings {
+            to: "reader@kindle.com".into(),
+            host: "smtp.example.test".into(),
+            port: Some(2525),
+            security: Security::Tls,
+            ..Default::default()
+        },
     };
     library::set_settings(&lib, &first).unwrap();
     assert_eq!(library::get_settings(&lib).unwrap(), first);

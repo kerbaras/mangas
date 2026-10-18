@@ -16,6 +16,7 @@ import {
   type Settings as Stored,
   setSettings,
 } from "./ipc";
+import { EMPTY_EMAIL, type EmailSettings } from "./ipc.send";
 import { DEFAULT_PRESET, isPreset } from "./presets";
 
 export type Settings = {
@@ -34,6 +35,7 @@ export type Settings = {
   /** Hours between background update checks; 0 turns them off. */
   updateCheckHours: number;
   updateNotifications: boolean;
+  kindleEmail: EmailSettings;
 };
 
 const DEFAULTS: Settings = {
@@ -47,6 +49,7 @@ const DEFAULTS: Settings = {
   providerLanguages: {},
   updateCheckHours: 6,
   updateNotifications: true,
+  kindleEmail: EMPTY_EMAIL,
 };
 
 const listeners = new Set<() => void>();
@@ -65,6 +68,7 @@ const fromStored = (s: Stored, platformDataDir: string): Settings => ({
   providerLanguages: s.provider_languages ?? {},
   updateCheckHours: s.update_check_hours ?? DEFAULTS.updateCheckHours,
   updateNotifications: s.update_notifications ?? DEFAULTS.updateNotifications,
+  kindleEmail: { ...EMPTY_EMAIL, ...s.kindle_email },
 });
 
 /** Platform default; a `dataDir` equal to it is stored as `null` so the default can move. */
@@ -83,6 +87,7 @@ const toStored = (s: Settings): Stored => ({
   provider_languages: s.providerLanguages,
   update_check_hours: s.updateCheckHours,
   update_notifications: s.updateNotifications,
+  kindle_email: s.kindleEmail,
 });
 
 /** The stored field behind each app setting, so a write sends only the fields it changed. */
@@ -97,6 +102,7 @@ const STORED_KEY: { [K in keyof Settings]: keyof Stored } = {
   providerLanguages: "provider_languages",
   updateCheckHours: "update_check_hours",
   updateNotifications: "update_notifications",
+  kindleEmail: "kindle_email",
 };
 
 /** `base` with only the patched fields taken from `cached`: unset defaults stay unset. */

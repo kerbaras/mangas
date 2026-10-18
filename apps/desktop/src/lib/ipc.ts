@@ -7,6 +7,7 @@ import type { DiagnosticsBackend } from "./ipc.diagnostics";
 import type { DownloadsBackend, Enqueued, JobState } from "./ipc.downloads";
 import type { Device, ExportProgress, ExportRequest, ExportResult } from "./ipc.export";
 import type { LibraryBackend } from "./ipc.library";
+import type { SendBackend } from "./ipc.send";
 import type { Settings } from "./ipc.settings";
 import type { StorageBackend } from "./ipc.storage";
 import type { UpdatesBackend } from "./ipc.updates";
@@ -123,6 +124,7 @@ export type Unlisten = () => void;
 export type Backend = DiagnosticsBackend &
   DownloadsBackend &
   LibraryBackend &
+  SendBackend &
   StorageBackend &
   UpdatesBackend &
   VolumesBackend & {

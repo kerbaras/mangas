@@ -8,7 +8,7 @@ use mangas_core::smartcut::Preset;
 use tauri::AppHandle;
 
 use super::covers::cover_file;
-use super::kindle::{emit, mark_exported, penalizer, ExportEvent};
+use super::kindle::{emit, penalizer, record_export, ExportEvent};
 use super::{open_library, to_ipc};
 
 fn plans(
@@ -87,7 +87,7 @@ pub async fn export_volumes(
         .await
         .map_err(to_ipc)?
         .map_err(to_ipc)?;
-        mark_exported(&stats.exported_chapters(&dirs));
+        record_export(&stats, &dirs, &plan.title, &device);
         written.push(stats);
     }
     Ok(written)

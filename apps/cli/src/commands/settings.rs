@@ -14,6 +14,8 @@ pub struct Args {
 enum Action {
     /// Show or set the preferred chapter languages, most preferred first (shared with the app)
     Languages(LanguagesArgs),
+    /// Show or change the Send to Kindle email settings (SMTP server, sender, Kindle address)
+    Email(super::settings_email::EmailArgs),
 }
 
 #[derive(ClapArgs)]
@@ -25,6 +27,7 @@ struct LanguagesArgs {
 pub fn run(args: Args) -> anyhow::Result<()> {
     match args.action {
         Action::Languages(args) => languages(args),
+        Action::Email(args) => super::settings_email::run(args),
     }
 }
 
