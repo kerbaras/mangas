@@ -9,12 +9,19 @@ use crate::download::queue::{self, JobId};
 use crate::library::Library;
 
 /// The chapters to queue for one title: one per number, in the most preferred language
-/// (the check lists languages in preference order).
+/// (the check lists languages in preference order) that can actually be downloaded.
 pub fn to_download(update: &TitleUpdate) -> Vec<Chapter> {
+    let downloadable: BTreeSet<String> = update
+        .chapters
+        .iter()
+        .filter(|c| c.is_available())
+        .map(number_key)
+        .collect();
     let mut seen = BTreeSet::new();
     update
         .chapters
         .iter()
+        .filter(|c| c.is_available() || !downloadable.contains(&number_key(c)))
         .filter(|c| seen.insert(number_key(c)))
         .cloned()
         .collect()

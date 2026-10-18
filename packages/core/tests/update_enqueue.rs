@@ -1,9 +1,9 @@
 //! Auto-download hands new chapters to the persistent queue: one per number, preferred
 //! language first, only for titles that ask for it unless everything is requested.
 
-use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId};
+use mangas_core::domain::{Availability, Chapter, ChapterId, Manga, MangaId};
 use mangas_core::download::queue;
-use mangas_core::library::updates::{enqueue_new, TitleUpdate, UpdateReport};
+use mangas_core::library::updates::{enqueue_new, to_download, TitleUpdate, UpdateReport};
 use mangas_core::library::{
     open_in_memory, set_auto_download, upsert_chapters, upsert_manga, Library,
 };
@@ -71,4 +71,28 @@ fn queues_auto_download_titles_once_per_number_in_the_preferred_language() {
         "everything adds b; a's jobs are already on their way"
     );
     assert!(jobs.iter().all(|j| all.contains(j)));
+}
+
+#[test]
+fn a_locked_preferred_release_falls_back_to_one_that_can_be_downloaded() {
+    let chapter = |id: &str, number: &str, availability| Chapter {
+        id: ChapterId(id.into()),
+        number: number.into(),
+        availability,
+        ..Default::default()
+    };
+    let chapters = vec![
+        chapter("es-5", "5", Availability::Locked),
+        chapter("en-5", "5", Availability::Available),
+        chapter("es-6", "6", Availability::Locked),
+    ];
+    let ids: Vec<String> = to_download(&update("a", true, chapters))
+        .into_iter()
+        .map(|c| c.id.0)
+        .collect();
+    assert_eq!(
+        ids,
+        ["en-5", "es-6"],
+        "6 has no other release; the queue reports it locked"
+    );
 }
