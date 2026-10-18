@@ -166,9 +166,10 @@ async fn first_chapter(
         }
         skipped.push(format!("\"{}\"", manga.title));
     }
-    let tried = found.len().min(CANDIDATES);
     Err(format!(
-        "no {language} chapters in the first {tried} results"
+        "no {language} chapters in the first {} results: {}",
+        skipped.len(),
+        skipped.join(", ")
     ))
 }
 

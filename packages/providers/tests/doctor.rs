@@ -130,7 +130,10 @@ async fn no_chapters_anywhere_fails_and_stops() {
     assert_eq!(report.failed_step(), Some(Step::Chapters));
     assert_eq!(report.steps.len(), 4);
     let reason = report.steps[3].outcome.clone().unwrap_err();
-    assert_eq!(reason, "no en chapters in the first 2 results");
+    assert_eq!(
+        reason,
+        "no en chapters in the first 2 results: \"Title x\", \"Title y\""
+    );
     assert!(fetched.is_empty());
     let table = lines(&report);
     assert_eq!(table[4], "pages     -              not run");
