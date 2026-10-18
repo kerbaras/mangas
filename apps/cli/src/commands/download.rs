@@ -5,7 +5,7 @@ use anyhow::bail;
 use clap::Args as ClapArgs;
 use mangas_core::domain::{Chapter, MangaId};
 use mangas_core::download;
-use mangas_core::download::queue::{self, JobState, Scope};
+use mangas_core::download::queue::{self, Job, JobState, Scope};
 use mangas_core::library;
 
 use super::watch::{count, run_until_settled};
@@ -81,9 +81,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             }
         }
     }
-    let paused = count(&jobs, JobState::Paused);
-    if paused > 0 {
-        outln!("{paused} chapter(s) paused; `mangas queue resume --all` continues them")?;
+    if let Some(note) = waiting_note(&jobs) {
+        outln!("{note}")?;
     }
     let failed = count(&jobs, JobState::Failed);
     if failed > 0 {
@@ -114,4 +113,43 @@ fn without_unavailable(selected: Vec<Chapter>, explicit: bool) -> anyhow::Result
         outln!("{summary}")?;
     }
     Ok(available)
+}
+
+/// Chapters left undone without failing: paused ones, or queued ones held by the queue-wide
+/// pause (the worker stops once nothing more can start).
+fn waiting_note(jobs: &[Job]) -> Option<String> {
+    let (paused, held) = (count(jobs, JobState::Paused), count(jobs, JobState::Queued));
+    let what = match (paused, held) {
+        (0, 0) => return None,
+        (p, 0) => format!("{p} chapter(s) paused"),
+        (0, q) => format!("{q} chapter(s) waiting: the download queue is paused"),
+        (p, q) => format!("{p} chapter(s) paused and {q} waiting: the download queue is paused"),
+    };
+    Some(format!(
+        "{what}; `mangas queue resume --all` continues them"
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn job(state: JobState) -> Job {
+        Job {
+            state,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn chapters_held_by_the_queue_pause_are_reported_not_passed_off_as_done() {
+        assert_eq!(waiting_note(&[job(JobState::Done)]), None);
+        let held = waiting_note(&[job(JobState::Done), job(JobState::Queued)]).unwrap();
+        assert!(
+            held.starts_with("1 chapter(s) waiting: the download queue is paused"),
+            "{held}"
+        );
+        let paused = waiting_note(&[job(JobState::Paused)]).unwrap();
+        assert!(paused.starts_with("1 chapter(s) paused;"), "{paused}");
+    }
 }
