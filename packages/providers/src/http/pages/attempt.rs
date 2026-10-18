@@ -7,6 +7,7 @@ use reqwest::{Method, RequestBuilder, Response, Url};
 
 use super::super::redirect::hop_for;
 use super::super::response::{mitigated, retry_after, retryable_transport, should_retry};
+use super::resolver::refusal_in;
 use super::{Fetched, PageClient, Step};
 
 /// The outcome of one attempt and, when it is to be retried, how long to wait first.
@@ -14,7 +15,8 @@ type Attempt = (Result<Step>, Option<Duration>);
 
 impl PageClient<'_> {
     /// Rate limiting (429) and server errors retry after `Retry-After` or the backoff; a
-    /// challenge page and other statuses are final. Transport and body errors retry too.
+    /// challenge page, a refused address and other statuses are final. Transport and body
+    /// errors retry too.
     pub(super) async fn attempt(
         &self,
         url: &str,
@@ -25,6 +27,9 @@ impl PageClient<'_> {
         let response = match request.send().await {
             Ok(response) => response,
             Err(e) => {
+                if let Some(refusal) = refusal_in(&e) {
+                    return (Err(refusal.into_error(id)), None);
+                }
                 let wait = retryable_transport(&e, true)
                     .then(|| self.retry.delay(attempt, None))
                     .flatten();

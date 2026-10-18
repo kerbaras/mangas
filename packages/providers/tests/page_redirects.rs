@@ -131,7 +131,7 @@ async fn a_name_resolving_to_loopback_is_refused_before_connecting() {
         .fetch(&format!("http://ip6-localhost:{port}/p.jpg"))
         .await
         .unwrap_err();
-    assert!(format!("{err:?}").contains("non-public address"), "{err:?}");
+    assert!(matches!(err, Error::BlockedAddress { .. }), "{err:?}");
     assert!(listener.accept().is_err(), "the guarded client connected");
 }
 

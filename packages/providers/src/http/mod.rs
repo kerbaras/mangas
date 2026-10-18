@@ -20,7 +20,7 @@ pub use client::SiteClient;
 pub use config::ClientConfig;
 pub use host_policy::{host_matches, is_api_path, HostPolicy};
 pub(crate) use pages::build_http;
-pub use pages::{public_only, Fetched, PageClient, DEFAULT_PAGE_RATE, PAGE_RETRY};
+pub use pages::{public_only, Fetched, PageClient, Refusal, DEFAULT_PAGE_RATE, PAGE_RETRY};
 pub use redact::redact_query;
 pub use retry::{edge_error, parse_retry_after, retryable_status, RetryPolicy};
 pub use status::{probe_status, session_gate};

@@ -7,6 +7,7 @@ mod attempt;
 mod redirect;
 mod resolver;
 
+use std::net::IpAddr;
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -20,7 +21,7 @@ use super::{header_map, RetryPolicy};
 use crate::rate_limit::{host_key, HostLimiters};
 
 pub(crate) use redirect::build_http;
-pub use resolver::public_only;
+pub use resolver::{public_only, Refusal};
 
 /// Page requests per second to an image host that no provider declared a rate for.
 pub const DEFAULT_PAGE_RATE: u32 = 4;
@@ -94,6 +95,15 @@ impl<'a> PageClient<'a> {
         })
     }
 
+    /// Resolves every host name to `ip`, still refusing non-public ones: only for tests.
+    pub fn resolving_to(self, ip: IpAddr) -> Result<Self> {
+        Ok(Self {
+            http: redirect::build_http_resolving(ip)?,
+            public_only: true,
+            ..self
+        })
+    }
+
     /// One-byte ranged GET of `url` (`providers check`); hosts that ignore `Range` answer 200.
     pub async fn first_byte(&self, url: &str) -> Result<u16> {
         let range = ("range".to_string(), "bytes=0-0".to_string());
@@ -138,7 +148,7 @@ impl<'a> PageClient<'a> {
         if let Some(host) = domain.filter(|_| self.public_only) {
             resolver::check_proxied(&host)
                 .await
-                .map_err(|e| self.error(e))?;
+                .map_err(|e| e.into_error(self.source.name()))?;
         }
         let mut headers = self.source.page_headers(url);
         headers.extend_from_slice(extra);

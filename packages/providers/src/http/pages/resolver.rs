@@ -3,34 +3,94 @@
 //! points at 127.0.0.1, the LAN or the cloud metadata address, and since the checked addresses
 //! are the ones the connection uses, a second lookup cannot swap them.
 
-use std::net::SocketAddr;
+use std::fmt;
+use std::net::{IpAddr, SocketAddr};
 
+use mangas_core::domain::Error;
 use mangas_core::download::is_public_ip;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 
-pub(super) struct PublicResolver;
+/// Resolves with the system, or answers every name with `fixed` (tests only).
+#[derive(Default)]
+pub(super) struct PublicResolver {
+    pub(super) fixed: Option<IpAddr>,
+}
 
 impl Resolve for PublicResolver {
     fn resolve(&self, name: Name) -> Resolving {
         let host = name.as_str().to_string();
+        let fixed = self.fixed;
         Box::pin(async move {
-            let addrs: Vec<SocketAddr> =
-                tokio::net::lookup_host((host.as_str(), 0)).await?.collect();
+            let addrs: Vec<SocketAddr> = match fixed {
+                Some(ip) => vec![SocketAddr::new(ip, 0)],
+                None => tokio::net::lookup_host((host.as_str(), 0)).await?.collect(),
+            };
             let addrs = public_only(&host, addrs)?;
             Ok(Box::new(addrs.into_iter()) as Addrs)
         })
     }
 }
 
+/// Why a host is not fetched.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Refusal {
+    NonPublic { host: String, ip: IpAddr },
+    NoAddress(String),
+    Unresolved { host: String, reason: String },
+}
+
+impl fmt::Display for Refusal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NonPublic { host, ip } => {
+                write!(f, "{host} resolves to a non-public address {ip}")
+            }
+            Self::NoAddress(host) => write!(f, "{host} resolves to no address"),
+            Self::Unresolved { host, reason } => write!(f, "{host}: {reason}"),
+        }
+    }
+}
+
+impl std::error::Error for Refusal {}
+
+impl Refusal {
+    /// The app error: [`Error::BlockedAddress`] for a private address (final, never retried).
+    pub(super) fn into_error(self, source: &str) -> Error {
+        match self {
+            Self::NonPublic { host, ip } => Error::BlockedAddress { host, ip },
+            other => Error::Source {
+                name: source.to_string(),
+                message: other.to_string(),
+            },
+        }
+    }
+}
+
+/// The [`Refusal`] behind a failed request: reqwest wraps the resolver's error as a connect
+/// error, which would otherwise be retried as network trouble.
+pub(super) fn refusal_in(error: &(dyn std::error::Error + 'static)) -> Option<Refusal> {
+    let mut current = Some(error);
+    while let Some(e) = current {
+        if let Some(refusal) = e.downcast_ref::<Refusal>() {
+            return Some(refusal.clone());
+        }
+        current = e.source();
+    }
+    None
+}
+
 /// Checks `host` up front when requests go through a proxy: the connection then resolves the
 /// proxy, not the host, so [`PublicResolver`] never sees it.
-pub(super) async fn check_proxied(host: &str) -> Result<(), String> {
+pub(super) async fn check_proxied(host: &str) -> Result<(), Refusal> {
     if !proxied() {
         return Ok(());
     }
     let addrs = tokio::net::lookup_host((host, 0))
         .await
-        .map_err(|e| format!("{host}: {e}"))?
+        .map_err(|e| Refusal::Unresolved {
+            host: host.to_string(),
+            reason: e.to_string(),
+        })?
         .collect();
     public_only(host, addrs).map(|_| ())
 }
@@ -49,15 +109,15 @@ fn proxied() -> bool {
     .any(|var| std::env::var_os(var).is_some_and(|v| !v.is_empty()))
 }
 
-/// `addrs` when all of them are public; an error naming the first private one otherwise. One
+/// `addrs` when all of them are public; a refusal naming the first private one otherwise. One
 /// private address is enough to refuse: the connector may pick any of them.
-pub fn public_only(host: &str, addrs: Vec<SocketAddr>) -> Result<Vec<SocketAddr>, String> {
+pub fn public_only(host: &str, addrs: Vec<SocketAddr>) -> Result<Vec<SocketAddr>, Refusal> {
     match addrs.iter().find(|a| !is_public_ip(a.ip())) {
-        Some(private) => Err(format!(
-            "{host} resolves to non-public address {}",
-            private.ip()
-        )),
-        None if addrs.is_empty() => Err(format!("{host} resolves to no address")),
+        Some(private) => Err(Refusal::NonPublic {
+            host: host.to_string(),
+            ip: private.ip(),
+        }),
+        None if addrs.is_empty() => Err(Refusal::NoAddress(host.to_string())),
         None => Ok(addrs),
     }
 }
@@ -88,12 +148,35 @@ mod tests {
         ] {
             let addrs = vec![addr("93.184.216.34"), addr(bad)];
             let err = public_only("evil.example", addrs).unwrap_err();
-            assert!(err.contains(bad), "{err}");
+            assert!(err.to_string().contains(bad), "{err}");
         }
     }
 
     #[test]
     fn no_address_is_refused() {
         assert!(public_only("void", vec![]).is_err());
+    }
+
+    /// Stands in for reqwest's and hyper's wrappers, which expose the cause as `source()`.
+    #[derive(Debug)]
+    struct Wrapped(Refusal);
+
+    impl fmt::Display for Wrapped {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.write_str("dns error")
+        }
+    }
+
+    impl std::error::Error for Wrapped {
+        fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+            Some(&self.0)
+        }
+    }
+
+    #[test]
+    fn a_refusal_is_found_under_wrapping_errors() {
+        let refusal = Refusal::NoAddress("void".into());
+        assert_eq!(refusal_in(&Wrapped(refusal.clone())), Some(refusal));
+        assert_eq!(refusal_in(&std::io::Error::other("plain")), None);
     }
 }
