@@ -1,9 +1,11 @@
 //! The common layer every provider builds on: [`SiteClient`] (rate limit, timeouts, retries,
-//! challenge detection, JSON helpers, status probe) and [`HostPolicy`] (page image headers).
+//! challenge detection, JSON helpers, status probe), [`HostPolicy`] (page image headers) and
+//! [`PageClient`] (page image downloads under the same limiter and retry policy).
 
 mod client;
 mod config;
 mod host_policy;
+mod pages;
 mod redact;
 mod response;
 mod retry;
@@ -16,6 +18,7 @@ use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 pub use client::SiteClient;
 pub use config::ClientConfig;
 pub use host_policy::{host_matches, HostPolicy};
+pub use pages::{Fetched, PageClient, DEFAULT_PAGE_RATE, PAGE_RETRY};
 pub use redact::redact_query;
 pub use retry::{edge_error, parse_retry_after, retryable_status, RetryPolicy};
 pub use status::{probe_status, session_gate};

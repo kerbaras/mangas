@@ -2,6 +2,7 @@ use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId};
 use mangas_core::download::{self, Event};
 use mangas_core::library::{self, Refreshed};
 use mangas_core::sources::SearchGroup;
+use mangas_providers::http::PageClient;
 use tauri::{AppHandle, Emitter};
 
 use super::{open_library, settings_of, source_by_name, to_ipc};
@@ -123,7 +124,8 @@ pub async fn download_chapters(
             message: "not found: the source no longer lists this chapter".into(),
         });
     }
-    let report = download::download_chapters(src.as_ref(), &lib, &selected, &root, &emit)
+    let pages = PageClient::for_source(src.as_ref()).map_err(to_ipc)?;
+    let report = download::download_chapters(src.as_ref(), &pages, &lib, &selected, &root, &emit)
         .await
         .map_err(to_ipc)?;
     let failed = report.failed.into_iter().map(|(id, _)| id.0);

@@ -101,3 +101,30 @@ async fn different_hosts_do_not_block_each_other() {
     let took = burst(&[client(&a.uri()), client(&b.uri())], 4).await;
     assert!(took < Duration::from_millis(900), "took {took:?}");
 }
+
+#[tokio::test]
+async fn a_pause_holds_back_the_next_token_once() {
+    let bucket = mangas_providers::TokenBucket::new(10, 10);
+    bucket.pause(Duration::from_millis(200)).await;
+    bucket.pause(Duration::from_millis(200)).await;
+    let start = Instant::now();
+    bucket.acquire().await;
+    let waited = start.elapsed();
+    assert!(waited >= Duration::from_millis(200), "{waited:?}");
+    assert!(
+        waited < Duration::from_millis(390),
+        "pauses overlap: {waited:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_later_pause_counts_from_now() {
+    let bucket = mangas_providers::TokenBucket::new(10, 10);
+    bucket.pause(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(80)).await;
+    bucket.pause(Duration::from_millis(200)).await;
+    let start = Instant::now();
+    bucket.acquire().await;
+    let waited = start.elapsed();
+    assert!(waited >= Duration::from_millis(190), "{waited:?}");
+}

@@ -42,6 +42,23 @@ impl TokenBucket {
         )
     }
 
+    /// Holds every caller back for `wait` (a host answered 429): the bucket goes into debt so
+    /// the next token comes after `wait`. Overlapping pauses do not add up.
+    pub async fn pause(&self, wait: Duration) {
+        let mut state = self.state.lock().await;
+        let now = Instant::now();
+        let (capacity, per_second) = self.limits();
+        let (capacity, per_second) = (f64::from(capacity), f64::from(per_second));
+        let (tokens, _) = refill(
+            state.tokens,
+            now.duration_since(state.last),
+            capacity,
+            per_second,
+        );
+        state.last = now;
+        state.tokens = tokens.min(-wait.as_secs_f64() * per_second);
+    }
+
     /// Waits until a token is available and consumes it.
     pub async fn acquire(&self) {
         loop {
@@ -49,12 +66,9 @@ impl TokenBucket {
                 let mut state = self.state.lock().await;
                 let now = Instant::now();
                 let (capacity, per_second) = self.limits();
-                let (tokens, wait) = refill(
-                    state.tokens,
-                    now.duration_since(state.last),
-                    f64::from(capacity),
-                    f64::from(per_second),
-                );
+                let (capacity, per_second) = (f64::from(capacity), f64::from(per_second));
+                let elapsed = now.duration_since(state.last);
+                let (tokens, wait) = refill(state.tokens, elapsed, capacity, per_second);
                 state.last = now;
                 state.tokens = tokens;
                 if wait.is_zero() {
