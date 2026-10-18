@@ -3,3 +3,4 @@
 
 pub mod epub;
 pub mod kindle;
+pub mod volume;

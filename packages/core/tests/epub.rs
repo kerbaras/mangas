@@ -23,8 +23,9 @@ fn writes_valid_fixed_layout_epub() {
     let book = Book {
         id: "1234".into(),
         title: "Test <Book>".into(),
-        author: "mangas".into(),
+        authors: vec!["mangas".into()],
         language: "en".into(),
+        series: None,
         right_to_left: false,
         device_width: 1264,
         device_height: 1680,
@@ -39,6 +40,7 @@ fn writes_valid_fixed_layout_epub() {
             },
         ],
         pages: vec![page(1264, 1680), page(1264, 1680), page(600, 800)],
+        cover: None,
     };
     epub::write(&book, &out).expect("write");
 
@@ -105,13 +107,15 @@ fn failed_write_keeps_the_previous_file() {
     let empty = Book {
         id: "x".into(),
         title: "t".into(),
-        author: "a".into(),
+        authors: vec!["a".into()],
         language: "en".into(),
+        series: None,
         right_to_left: false,
         device_width: 1,
         device_height: 1,
         chapters: vec![],
         pages: vec![],
+        cover: None,
     };
     assert!(epub::write(&empty, &out).is_err());
     assert_eq!(std::fs::read(&out).unwrap(), b"previous");
@@ -123,13 +127,15 @@ fn rejects_empty_book() {
     let book = Book {
         id: "x".into(),
         title: "t".into(),
-        author: "a".into(),
+        authors: vec!["a".into()],
         language: "en".into(),
+        series: None,
         right_to_left: false,
         device_width: 1,
         device_height: 1,
         chapters: vec![],
         pages: vec![],
+        cover: None,
     };
     assert!(epub::write(&book, &dir.path().join("e.epub")).is_err());
 }
@@ -142,13 +148,15 @@ fn never_replaces_an_existing_book() {
     let book = Book {
         id: "x".into(),
         title: "t".into(),
-        author: "a".into(),
+        authors: vec!["a".into()],
         language: "en".into(),
+        series: None,
         right_to_left: false,
         device_width: 1,
         device_height: 1,
         chapters: vec![],
         pages: vec![page(600, 800)],
+        cover: None,
     };
     let written = epub::write(&book, &out).expect("write");
     assert_eq!(written, dir.path().join("Title ch 1-3 (2).epub"));

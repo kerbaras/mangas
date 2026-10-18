@@ -6,67 +6,15 @@ use std::time::Instant;
 
 use image::RgbaImage;
 use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
 
+use super::cover::cover_page;
 use super::input::{chapter_files, chapter_title, decode, uuid_like, ChapterFiles};
 use super::process::{process_page, ImageSettings};
+use super::request::{ExportRequest, ExportStats, Progress};
 use super::Device;
 use crate::domain::{Error, Result};
 use crate::export::epub::{self, Book, ChapterEntry, PageImage};
-use crate::smartcut::{is_long_strip, Options, RowPenalizer, StripPaginator};
-
-#[derive(Debug, Clone)]
-pub struct ExportRequest {
-    pub chapter_dirs: Vec<PathBuf>,
-    pub device: Device,
-    pub cut: Options,
-    pub title: String,
-    pub output: PathBuf,
-}
-
-/// Progress events, in order: one `Chapter` per directory, `Pages` as pages are finished, `Writing`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum Progress {
-    Chapter {
-        index: usize,
-        total: usize,
-        path: PathBuf,
-    },
-    Pages {
-        done: usize,
-    },
-    Writing {
-        pages: usize,
-    },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ExportStats {
-    pub pages: usize,
-    pub strips: usize,
-    pub source_rows: usize,
-    pub pagination_ms: u128,
-    pub filters_ms: u128,
-    /// Files left out because their format cannot be decoded (each one is logged).
-    #[serde(default)]
-    pub skipped: usize,
-    /// Chapter folders that gave no page (nothing decodable in them): not part of the book.
-    #[serde(default)]
-    pub empty_chapters: Vec<PathBuf>,
-    /// File actually written (differs from the request when the name was already taken).
-    pub output: PathBuf,
-}
-
-impl ExportStats {
-    /// The requested chapter folders that made it into the book.
-    pub fn exported_chapters<'a>(&self, dirs: &'a [PathBuf]) -> Vec<&'a Path> {
-        dirs.iter()
-            .filter(|d| !self.empty_chapters.contains(d))
-            .map(PathBuf::as_path)
-            .collect()
-    }
-}
+use crate::smartcut::{is_long_strip, RowPenalizer, StripPaginator};
 
 struct Run<'a> {
     settings: ImageSettings,
@@ -183,8 +131,9 @@ pub fn export(
         run.chapter(dir, &dev)
             .map_err(|e| Error::Other(format!("{}: {e}", dir.display())))?;
         if run.pages.len() > first_page {
+            let title = req.meta.chapter_titles.get(index).cloned();
             chapters.push(ChapterEntry {
-                title: chapter_title(dir, index),
+                title: title.unwrap_or_else(|| chapter_title(dir, index)),
                 first_page,
             });
         }
@@ -192,16 +141,26 @@ pub fn export(
     (run.progress)(Progress::Writing {
         pages: run.pages.len(),
     });
+    let meta = &req.meta;
     let book = Book {
         id: uuid_like(&req.title, &req.output),
         title: req.title.clone(),
-        author: "mangas".into(),
-        language: "en".into(),
+        authors: if meta.authors.is_empty() {
+            vec!["mangas".into()]
+        } else {
+            meta.authors.clone()
+        },
+        language: meta.language.clone().unwrap_or_else(|| "en".into()),
+        series: meta.series.clone(),
         right_to_left: false,
         device_width: dev.width,
         device_height: dev.height,
         chapters,
         pages: run.pages,
+        cover: meta
+            .cover
+            .as_deref()
+            .and_then(|path| cover_page(path, &run.settings)),
     };
     run.stats.output = epub::write(&book, &req.output)?;
     Ok(run.stats)

@@ -19,7 +19,7 @@ pub const ANALYSIS_WIDTH: u32 = 720;
 const LONG_STRIP_MIN_PAGES: f64 = 1.25;
 
 /// Extra per-row cut cost for an analysis-sized strip (the ML detectors plug in here).
-pub type RowPenalizer = Box<dyn Fn(&RgbaImage) -> Result<Vec<f32>> + Send + Sync>;
+pub type RowPenalizer = std::sync::Arc<dyn Fn(&RgbaImage) -> Result<Vec<f32>> + Send + Sync>;
 
 /// A rendered device page and the strip rows it shows (global rows across all fed images).
 #[derive(Debug, Clone)]

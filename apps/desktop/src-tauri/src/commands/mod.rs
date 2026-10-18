@@ -11,6 +11,7 @@ pub mod organisation;
 pub mod providers;
 pub mod storage;
 pub mod updates;
+pub mod volumes;
 
 use mangas_core::domain::Manga;
 use mangas_core::export::kindle::{Device, DEVICES};

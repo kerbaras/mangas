@@ -71,6 +71,7 @@ fn export_keeps_gif_pages_and_counts_unsupported_files() {
         cut: Preset::Balanced.options(),
         title: "Book".into(),
         output: out.clone(),
+        meta: Default::default(),
     };
     let stats = export(&req, None, &mut |_| {}).unwrap();
     assert_eq!((stats.pages, stats.skipped), (3, 1));

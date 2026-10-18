@@ -111,7 +111,7 @@ pub async fn row_penalizer(
         paths.push(cache::ensure_model(cache_dir, spec, &mut cb).await?);
     }
     let detectors = Detectors::load(&paths[0], &paths[1])?;
-    Ok(Box::new(move |img| detectors.row_penalties(img)))
+    Ok(std::sync::Arc::new(move |img| detectors.row_penalties(img)))
 }
 
 #[cfg(not(feature = "ml"))]

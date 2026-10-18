@@ -1,4 +1,7 @@
+use std::path::PathBuf;
+
 use mangas_core::covers::{self, CoverCache, Limits};
+use mangas_core::domain::Manga;
 use mangas_providers::covers::CoverFetcher;
 
 use super::{source_by_name, to_ipc};
@@ -15,4 +18,15 @@ pub async fn cover_path(source: String, manga_id: String, url: String) -> Result
         .await
         .map_err(to_ipc)?;
     Ok(path.to_string_lossy().into_owned())
+}
+
+/// The manga's cover file for an export, or `None` (the first page becomes the cover) when it
+/// has none or it can't be fetched.
+pub(super) async fn cover_file(manga: &Manga) -> Option<PathBuf> {
+    let url = manga.cover_url.clone()?;
+    cover_path(manga.source.clone(), manga.id.0.clone(), url)
+        .await
+        .inspect_err(|e| tracing::warn!("export without the series cover: {e}"))
+        .ok()
+        .map(PathBuf::from)
 }

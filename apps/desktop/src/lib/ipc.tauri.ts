@@ -19,6 +19,7 @@ import type { Category, LibraryEntry } from "./ipc.library";
 import { tauriDownloads } from "./ipc.tauri-downloads";
 import { tauriStorage } from "./ipc.tauri-storage";
 import { tauriUpdates } from "./ipc.tauri-updates";
+import { tauriVolumes } from "./ipc.tauri-volumes";
 import {
   type ExportStats,
   type KindleEvent,
@@ -112,6 +113,7 @@ export const tauriBackend: Backend = {
   ...tauriStorage,
   ...tauriUpdates,
   ...tauriDownloads,
+  ...tauriVolumes,
   onExportProgress: (cb) =>
     listen<KindleEvent>(KINDLE_EVENT, (e) => cb(toExportProgress(e.payload))),
 };

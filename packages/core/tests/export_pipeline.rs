@@ -30,6 +30,7 @@ fn exports_chapters_and_skips_empty_directories() {
         cut: Preset::Balanced.options(),
         title: "Book".into(),
         output: out.clone(),
+        meta: Default::default(),
     };
     let mut events = Vec::new();
     let stats = export(&req, None, &mut |p: Progress| events.push(p)).unwrap();
@@ -75,6 +76,7 @@ fn missing_directory_is_an_error() {
         cut: Preset::Balanced.options(),
         title: "Book".into(),
         output: root.path().join("book.epub"),
+        meta: Default::default(),
     };
     assert!(export(&req, None, &mut |_| {}).is_err());
 }
