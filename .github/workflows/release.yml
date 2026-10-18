@@ -123,7 +123,7 @@ jobs:
         with:
           projectPath: apps/desktop
           tauriScript: pnpm tauri
-          args: --target ${{ matrix.target }}
+          args: --target ${{ matrix.target }} --features ml
           tagName: ${{ needs.version.outputs.tag }}
           releaseName: Mangas ${{ needs.version.outputs.tag }}
           releaseBody: ${{ steps.notes.outputs.body }}

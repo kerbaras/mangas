@@ -28,30 +28,32 @@ rayon = "1"
 sha2 = "0.10"
 uuid = { version = "1", default-features = false, features = ["v5"] }
 futures-util = "0.3"
-ort = { version = "=2.0.0-rc.13", optional = true, default-features = false, features = ["std", "ndarray", "download-binaries", "tls-rustls", "copy-dylibs"] }
+ort = { version = "=2.0.0-rc.13", optional = true, default-features = false, features = ["std", "ndarray", "load-dynamic"] }
 ndarray = { version = "0.17", optional = true }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 url = "2"
 futures = "0.3"
 zip = { version = "9", default-features = false, features = ["deflate"] }
+flate2 = "1"
+tar = { version = "0.4", default-features = false }
 pdf-writer = "0.15"
 lettre = { version = "0.11", default-features = false, features = ["builder", "hostname", "smtp-transport", "tokio1", "tokio1-rustls", "aws-lc-rs", "rustls-platform-verifier"] }
 
 [features]
 default = []
-# Enables the ONNX detectors (ort). Off by default so the core builds without ONNX Runtime.
+# Enables the ONNX detectors (ort, `load-dynamic`): the ONNX Runtime library is downloaded at
+# runtime next to the models (see `ml::runtime`), so no build machine needs it.
 ml = ["dep:ort", "dep:ndarray"]
 cuda = ["ml", "ort/cuda"]
 
 [target.'cfg(all(target_os = "macos", target_arch = "aarch64"))'.dependencies]
 ort = { version = "=2.0.0-rc.13", optional = true, default-features = false, features = ["coreml"] }
 
-[target.'cfg(windows)'.dependencies]
-ort = { version = "=2.0.0-rc.13", optional = true, default-features = false, features = ["directml"] }
-
 [dev-dependencies]
 lopdf = "0.45"
 roxmltree = "0.21.1"
 tokio = { workspace = true, features = ["net", "io-util"] }
 tempfile = "3"
+flate2 = "1"
+tar = { version = "0.4", default-features = false }
 zip = { version = "9", default-features = false, features = ["deflate"] }

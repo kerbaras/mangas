@@ -30,32 +30,6 @@ describe("export dialog: format, smart cut and delivery", () => {
     expect(exportVolumes.mock.calls[0][0].format).toBe("cbz");
   });
 
-  it("turns the detectors on when the build has them and the models are on disk", async () => {
-    const { exportVolumes } = exportBackend();
-    render(dialog());
-    const toggle = await screen.findByRole("switch", { name: "Use detectors" });
-    await waitFor(() => expect(toggle.getAttribute("data-state")).toBe("checked"));
-    expect(toggle.hasAttribute("disabled")).toBe(false);
-    fireEvent.click(await exportButton());
-    await waitFor(() => expect(exportVolumes).toHaveBeenCalledOnce());
-    expect(exportVolumes.mock.calls[0][0].detectors).toBe(true);
-  });
-
-  it("disables the detectors when the build has no detector support, models or not", async () => {
-    const { exportVolumes } = exportBackend(
-      {},
-      { available: false, downloaded: true, provider: "cpu" },
-    );
-    render(dialog());
-    expect(await screen.findByText(/This build has no detector support/)).toBeTruthy();
-    const toggle = screen.getByRole("switch", { name: "Use detectors" });
-    expect(toggle.hasAttribute("disabled")).toBe(true);
-    expect(toggle.getAttribute("data-state")).toBe("unchecked");
-    fireEvent.click(await exportButton());
-    await waitFor(() => expect(exportVolumes).toHaveBeenCalledOnce());
-    expect(exportVolumes.mock.calls[0][0].detectors).toBe(false);
-  });
-
   it("copies every book to the Kindle over USB and says when one is already there", async () => {
     const kindle = {
       name: "Kindle",

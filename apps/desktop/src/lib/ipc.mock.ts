@@ -11,6 +11,7 @@ import {
   sampleDevices,
   sampleLibrary,
 } from "./mock-data";
+import { mockDetectors } from "./mock-detectors";
 import { mockDiagnostics } from "./mock-diagnostics";
 import { type Failure, simulateDownload } from "./mock-download";
 import { simulateExport } from "./mock-export";
@@ -176,10 +177,7 @@ export const mockBackend: Backend = {
     markExported(chapterCache.values(), request.chapter_dirs);
     return mockExportResult(request.output, request.chapter_dirs.length);
   },
-  async detectorsStatus() {
-    await wait(120);
-    return { available: !mockFlags.noDetectors, downloaded: true, provider: "cpu" };
-  },
+  ...mockDetectors(),
   ...mockDiagnostics(DATA_DIR, providers, () => settings),
   async openFolder() {},
   ...mockStorage({

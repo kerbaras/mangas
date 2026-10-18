@@ -2,9 +2,11 @@
 
 use std::path::{Path, PathBuf};
 
-use futures_util::StreamExt;
+use std::sync::atomic::AtomicBool;
+
 use sha2::{Digest, Sha256};
 
+use super::fetch::fetch;
 use super::ModelSpec;
 use crate::domain::{Error, Result};
 
@@ -14,6 +16,11 @@ pub fn model_path(cache_dir: &Path, spec: &ModelSpec) -> PathBuf {
 
 pub fn is_downloaded(cache_dir: &Path, spec: &ModelSpec) -> bool {
     model_path(cache_dir, spec).is_file()
+}
+
+/// Where a download is written before it is renamed into place.
+pub fn part_path(path: &Path) -> PathBuf {
+    path.with_extension("onnx.part")
 }
 
 pub fn sha256_hex(bytes: &[u8]) -> String {
@@ -34,11 +41,12 @@ fn verify(spec: &ModelSpec, bytes: &[u8]) -> Result<()> {
 }
 
 /// Returns the local path of `spec`, downloading it first if missing. `on_progress` receives
-/// (downloaded bytes, total bytes if known).
+/// (downloaded bytes, total bytes if known); setting `cancel` stops the download.
 pub async fn ensure_model(
     cache_dir: &Path,
     spec: &ModelSpec,
     on_progress: &mut (dyn FnMut(u64, Option<u64>) + Send),
+    cancel: &AtomicBool,
 ) -> Result<PathBuf> {
     let path = model_path(cache_dir, spec);
     if path.is_file() {
@@ -52,16 +60,9 @@ pub async fn ensure_model(
         std::fs::remove_file(&path)?;
     }
     std::fs::create_dir_all(cache_dir)?;
-    let resp = reqwest::get(spec.url).await?.error_for_status()?;
-    let total = resp.content_length();
-    let mut stream = resp.bytes_stream();
-    let mut bytes: Vec<u8> = Vec::with_capacity(total.unwrap_or(0) as usize);
-    while let Some(chunk) = stream.next().await {
-        bytes.extend_from_slice(&chunk?);
-        on_progress(bytes.len() as u64, total);
-    }
+    let bytes = fetch(spec.url, on_progress, cancel).await?;
     verify(spec, &bytes)?;
-    let tmp = path.with_extension("onnx.part");
+    let tmp = part_path(&path);
     std::fs::write(&tmp, &bytes)?;
     std::fs::rename(&tmp, &path)?;
     Ok(path)

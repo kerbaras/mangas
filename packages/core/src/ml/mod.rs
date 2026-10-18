@@ -1,10 +1,15 @@
 //! Optional ONNX detectors (speech bubbles, text, faces) that sharpen smart cutting.
-//! Models are downloaded on first use, never bundled. Inference needs the `ml` cargo feature
+//! Models and the ONNX Runtime library are downloaded on demand, never bundled. Inference needs the `ml` cargo feature
 //! (ONNX Runtime via `ort`); the pure parts (NMS, tiling, row penalties, cache) always build.
 
 pub mod cache;
+pub mod fetch;
+pub mod lease;
+pub mod models;
 pub mod nms;
 pub mod penalty;
+pub mod runtime;
+mod support;
 pub mod tiles;
 
 #[cfg(feature = "ml")]
@@ -12,9 +17,13 @@ mod detect;
 #[cfg(feature = "ml")]
 mod preprocess;
 #[cfg(feature = "ml")]
-mod runtime;
+mod session;
 #[cfg(feature = "ml")]
 pub use detect::{Detectors, DETECTOR_SCORE_THRESHOLD, NMS_IOU, TILE_OVERLAP, TILE_SIZE};
+pub use fetch::{is_cancelled, CANCELLED};
+pub use models::{ModelSpec, BUBBLE_TEXT_DETECTOR, FACE_DETECTOR, MODELS};
+pub use runtime::RuntimeStatus;
+pub use support::{download, missing_bytes, remove, RUNTIME_ITEM};
 
 use std::path::Path;
 
@@ -26,43 +35,21 @@ use crate::smartcut::RowPenalizer;
 /// Whether this build can run the detectors at all.
 pub const ENABLED: bool = cfg!(feature = "ml");
 
-pub const MODELS: [ModelSpec; 2] = [BUBBLE_TEXT_DETECTOR, FACE_DETECTOR];
-
-/// A downloadable detector. Licences are permissive on purpose (the GPL YOLOv8 bubble model is
-/// deliberately not listed).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ModelSpec {
-    pub id: &'static str,
-    pub url: &'static str,
-    pub licence: &'static str,
-    /// Hex SHA-256 of the file at `url`, checked after download.
-    pub sha256: Option<&'static str>,
-}
-
-pub const BUBBLE_TEXT_DETECTOR: ModelSpec = ModelSpec {
-    id: "comic-text-and-bubble-detector",
-    url: "https://huggingface.co/ogkalu/comic-text-and-bubble-detector/resolve/main/detector.onnx",
-    licence: "Apache-2.0",
-    sha256: Some("065744e91c0594ad8663aa8b870ce3fb27222942eded5a3cc388ce23421bd195"),
-};
-
-pub const FACE_DETECTOR: ModelSpec = ModelSpec {
-    id: "anime-face-detect-v0-n",
-    url: "https://huggingface.co/deepghs/anime_face_detection/resolve/main/face_detect_v0_n/model.onnx",
-    licence: "MIT",
-    sha256: Some("60d40c22cd57a2d129ff913227e7abcb8db9a3b98ebb8ec4fa93a72bee0dcfab"),
-};
-
 /// What the desktop/CLI show about the detectors.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Status {
     /// Built with the `ml` feature.
     pub enabled: bool,
-    /// Every model file is present in the cache.
+    /// The runtime and every model file are present.
     pub downloaded: bool,
+    pub runtime: RuntimeStatus,
     pub models: Vec<ModelStatus>,
-    /// Execution provider that would be used ("cpu", "coreml", "directml", "cuda"), if enabled.
+    /// Execution provider that would be used ("cpu", "coreml", "cuda"), if enabled.
     pub execution_provider: Option<String>,
+    /// Bytes a download would fetch now.
+    pub download_bytes: u64,
+    /// Bytes the runtime and models take on disk.
+    pub disk_bytes: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -81,17 +68,23 @@ pub fn status(cache_dir: &Path) -> Status {
             licence: m.licence.to_string(),
         })
         .collect();
+    let runtime = runtime::status(cache_dir);
+    let spec = runtime::current().filter(|_| ENABLED);
     Status {
-        enabled: ENABLED,
-        downloaded: models.iter().all(|m| m.downloaded),
+        enabled: ENABLED && spec.is_some(),
+        downloaded: models.iter().all(|m| m.downloaded)
+            && matches!(runtime, RuntimeStatus::Downloaded { .. }),
+        runtime,
         models,
         execution_provider: execution_provider_name(),
+        download_bytes: support::missing_bytes(cache_dir, spec.as_ref()),
+        disk_bytes: crate::storage::dir_size(cache_dir),
     }
 }
 
 #[cfg(feature = "ml")]
 fn execution_provider_name() -> Option<String> {
-    Some(runtime::provider_name().to_string())
+    Some(session::provider_name().to_string())
 }
 
 #[cfg(not(feature = "ml"))]
@@ -99,17 +92,14 @@ fn execution_provider_name() -> Option<String> {
     None
 }
 
-/// Downloads the models if needed and returns a smartcut row penalizer backed by them.
+/// Downloads the runtime and models if needed and returns a smartcut row penalizer backed by them.
 #[cfg(feature = "ml")]
 pub async fn row_penalizer(
     cache_dir: &Path,
     on_progress: &mut (dyn FnMut(&str, u64, Option<u64>) + Send),
 ) -> Result<RowPenalizer> {
-    let mut paths = Vec::new();
-    for spec in &MODELS {
-        let mut cb = |done, total| on_progress(spec.id, done, total);
-        paths.push(cache::ensure_model(cache_dir, spec, &mut cb).await?);
-    }
+    let never = std::sync::atomic::AtomicBool::new(false);
+    let (paths, _lease) = support::ensure_all(cache_dir, on_progress, &never).await?;
     let detectors = Detectors::load(&paths[0], &paths[1])?;
     Ok(std::sync::Arc::new(move |img| detectors.row_penalties(img)))
 }
@@ -119,7 +109,5 @@ pub async fn row_penalizer(
     _cache_dir: &Path,
     _on_progress: &mut (dyn FnMut(&str, u64, Option<u64>) + Send),
 ) -> Result<RowPenalizer> {
-    Err(crate::domain::Error::Other(
-        "detectors need a build with the `ml` feature (cargo build --features ml)".into(),
-    ))
+    Err(support::not_built())
 }

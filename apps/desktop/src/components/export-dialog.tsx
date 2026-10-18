@@ -18,8 +18,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { VolumePreview } from "@/components/volume-preview";
-import { type Async, useAsync } from "@/hooks/use-async";
+import type { Async } from "@/hooks/use-async";
 import { useClearOnChange } from "@/hooks/use-clear-on-change";
+import { useDetectorSupport } from "@/hooks/use-detector-support";
 import { useExport } from "@/hooks/use-export";
 import { useExportPlan } from "@/hooks/use-export-plan";
 import { useFreeNames } from "@/hooks/use-free-names";
@@ -36,7 +37,7 @@ import {
   pickSummary,
   withExtension,
 } from "@/lib/export-plan";
-import { detectorsStatus, type ExportResult } from "@/lib/ipc";
+import type { ExportResult } from "@/lib/ipc";
 import type { VolumePlan } from "@/lib/ipc.volumes";
 import { titleOf } from "@/lib/send-labels";
 
@@ -65,14 +66,14 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const [runs, setRuns] = useState(0);
   const folder = useOutputFolder();
   const { target, preset, setPreset, cut, settled } = useSeriesTarget(picks);
-  const detectors = useAsync(detectorsStatus, []);
+  const detectors = useDetectorSupport();
   const job = useExport();
   const send = useSend(onSent);
   const { plans, fresh, joined } = useExportPlan({ open, picks, mode, size, title });
   const emailBlocked = useEmailBlock(target.format) !== null;
   const via = delivery === "email" && emailBlocked ? "save" : delivery;
   const useDetectors =
-    detectorsUsable(detectors.state) && (detectorsOn ?? detectorsDefault(detectors.state));
+    detectorsUsable(detectors.status) && (detectorsOn ?? detectorsDefault(detectors.status));
   const planned: Async<VolumePlan[]> =
     plans.kind === "ready"
       ? {
@@ -93,7 +94,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
     books > 0 &&
     folder.output.trim() !== "" &&
     target.devices.kind === "ready" &&
-    detectors.state.kind !== "loading" &&
+    detectors.status.kind !== "loading" &&
     settled;
 
   const { reset: resetJob } = job;
@@ -169,7 +170,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
             target={target}
             preset={preset}
             onPreset={setPreset}
-            detectorsStatus={detectors.state}
+            detectorSupport={detectors}
             detectors={useDetectors}
             onDetectors={setDetectorsOn}
             output={{ value: folder.output, fallback: folder.fallback, onChange: folder.setOutput }}

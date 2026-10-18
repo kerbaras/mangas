@@ -5,6 +5,7 @@
  */
 
 import type { CutPreviewBackend } from "./ipc.cut-preview";
+import type { DetectorsBackend } from "./ipc.detectors";
 import type { DiagnosticsBackend } from "./ipc.diagnostics";
 import type { DownloadsBackend, Enqueued, JobState } from "./ipc.downloads";
 import type { Device, ExportProgress, ExportRequest, ExportResult } from "./ipc.export";
@@ -115,16 +116,12 @@ export type DownloadProgress = {
   error: string | null;
 };
 
-export type DetectorsStatus = {
-  /** Built with detector support; models download on first use. */
-  available: boolean;
-  downloaded: boolean;
-  provider: string;
-};
+export type { DetectorsStatus } from "./ipc.detectors";
 
 export type Unlisten = () => void;
 
 export type Backend = CutPreviewBackend &
+  DetectorsBackend &
   DiagnosticsBackend &
   DownloadsBackend &
   FoldersBackend &
@@ -166,7 +163,6 @@ export type Backend = CutPreviewBackend &
     importLocal(paths: string[], title?: string): Promise<ImportReport>;
     /** Resolves to the EPUB written, its page count and the files skipped as unsupported. */
     exportChapters(request: ExportRequest): Promise<ExportResult>;
-    detectorsStatus(): Promise<DetectorsStatus>;
     onExportProgress(cb: (p: ExportProgress) => void): Promise<Unlisten>;
   };
 
@@ -180,9 +176,11 @@ let current: Backend | null = null;
 /** Resolves lazily so only the bridge that applies gets pulled in. */
 export async function backend(): Promise<Backend> {
   if (current) return current;
-  current = isTauri()
+  const loaded = isTauri()
     ? (await import("./ipc.tauri")).tauriBackend
     : (await import("./ipc.mock")).mockBackend;
+  // A backend pinned with `setBackend` while the import was pending wins.
+  current ??= loaded;
   return current;
 }
 

@@ -86,12 +86,20 @@ fn walk(
     Ok(())
 }
 
-/// Removes the files directly and recursively under `dir`, keeping `dir` itself.
-/// Returns how many files and bytes went.
-pub(crate) fn empty_dir(dir: &Path) -> Result<(usize, u64)> {
-    let files = list_files(dir)?;
+/// Removes the files directly and recursively under `dir`, keeping `dir` itself and the
+/// top-level files named in `keep`. Returns how many files and bytes went.
+pub(crate) fn empty_dir(dir: &Path, keep: &[&str]) -> Result<(usize, u64)> {
+    let kept = |rel: &Path| keep.iter().any(|k| rel == Path::new(k));
+    let files: Vec<_> = list_files(dir)?
+        .into_iter()
+        .filter(|f| !kept(&f.rel))
+        .collect();
     for entry in fs::read_dir(dir).into_iter().flatten() {
-        let path = entry?.path();
+        let entry = entry?;
+        if kept(Path::new(&entry.file_name())) {
+            continue;
+        }
+        let path = entry.path();
         if path.is_dir() && !path.is_symlink() {
             fs::remove_dir_all(&path)?;
         } else {

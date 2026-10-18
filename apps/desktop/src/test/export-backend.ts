@@ -30,7 +30,18 @@ export const solo: Manga = {
   status: "ongoing",
 };
 
-const detectorsReady: DetectorsStatus = { available: true, downloaded: true, provider: "cpu" };
+/** A detector status: ready unless overridden. */
+export const detectorState = (o: Partial<DetectorsStatus> = {}): DetectorsStatus => ({
+  available: true,
+  downloaded: true,
+  provider: "cpu",
+  runtime: { state: "downloaded", version: "1.28.3" },
+  downloadBytes: 0,
+  diskBytes: 190_000_000,
+  ...o,
+});
+
+const detectorsReady = detectorState();
 
 /** A backend for the export dialog: plans with the mock planner, writes one result per book. */
 export function exportBackend(overrides: Partial<Backend> = {}, detectors = detectorsReady) {
@@ -59,6 +70,10 @@ export function exportBackend(overrides: Partial<Backend> = {}, detectors = dete
       { id: "kobo-clara", name: "Kobo Clara", width: 1072, height: 1448, format: "cbz" },
     ],
     detectorsStatus: async () => detectors,
+    downloadDetectors: async () => detectorState(),
+    cancelDetectorsDownload: async () => {},
+    removeDetectors: async () => 0,
+    onDetectorsProgress: async () => () => {},
     getSettings: async () => ({}),
     onExportProgress: async () => () => {},
     onCopyProgress: async () => () => {},

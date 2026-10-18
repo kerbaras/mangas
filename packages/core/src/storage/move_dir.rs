@@ -5,9 +5,10 @@ use serde::Serialize;
 
 use super::layout::DATA_SUBDIRS;
 use super::relocate::{check_target, rebase};
-use super::tree::{list_files, FileEntry};
+use super::tree::{empty_dir, list_files, FileEntry};
 use crate::domain::{Error, Result};
 use crate::library::{downloaded_chapters, get_settings, switch_data_dir, Library};
+use crate::ml::lease::{self, Purpose};
 
 /// Bytes copied so far out of the total to copy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -50,6 +51,8 @@ fn move_held(
     let to = fs::canonicalize(to)?;
     let from_resolved = fs::canonicalize(from).unwrap_or_else(|_| from.to_path_buf());
     check_target(&from_resolved, &to)?;
+    // Not under a detector download or removal in this process or another.
+    let lease = lease::acquire(&from_resolved.join("models"), Purpose::Move)?;
     let mut plan = Vec::new();
     for sub in DATA_SUBDIRS {
         if !list_files(&to.join(sub))?.is_empty() {
@@ -58,7 +61,11 @@ fn move_held(
                 to.display()
             )));
         }
-        plan.push((sub, list_files(&from_resolved.join(sub))?));
+        let mut files = list_files(&from_resolved.join(sub))?;
+        if sub == "models" {
+            files.retain(|f| !lease::LEASE_FILES.iter().any(|l| f.rel == Path::new(l)));
+        }
+        plan.push((sub, files));
     }
     let total: u64 = plan.iter().flat_map(|(_, f)| f).map(|f| f.bytes).sum();
     let files = plan.iter().map(|(_, f)| f.len()).sum();
@@ -70,6 +77,12 @@ fn move_held(
         discard_copy(&to, &plan, &created);
         return Err(e);
     }
+    // Empty the old models while still holding their lock, so a process with the old path can't
+    // start a download into them; the lock files go with the folder after.
+    if let Err(e) = empty_dir(&from_resolved.join("models"), &lease::LEASE_FILES) {
+        log::warn!("empty the old models folder: {e}");
+    }
+    drop(lease);
     let leftovers = DATA_SUBDIRS
         .iter()
         .map(|sub| from_resolved.join(sub))

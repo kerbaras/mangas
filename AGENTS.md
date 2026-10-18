@@ -47,4 +47,5 @@ app, small CLI. The original Go/TUI implementation was removed once the Rust por
   permission in `capabilities/default.json`; the `plugin_capability` test checks this.
 - UI: shadcn/ui components on Tailwind, Fluent 2 spacing/type scale tokens in `src/styles`.
   Desktop feel: native window chrome, no app name in the content area, sentence-case labels.
-- Models are downloaded at runtime (see `ml::models`), never committed or bundled.
+- Models and the ONNX Runtime library are downloaded at runtime (see `ml::models`,
+  `ml::runtime`; `ort` runs in `load-dynamic` mode), never committed or bundled.
