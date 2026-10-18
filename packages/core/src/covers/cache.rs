@@ -46,10 +46,16 @@ impl CoverCache {
     }
 
     /// The cached cover for this manga and URL, marked as just used. A file that was cut short or
-    /// overwritten is deleted and reported as a miss, so the caller fetches it again.
+    /// overwritten is deleted and reported as a miss, so the caller fetches it again. If a rewrite
+    /// left two files, the latest by (mtime, name) wins, the same order `remove_older` keeps.
     pub fn lookup(&self, source: &str, manga_id: &str, url: &str) -> Option<PathBuf> {
         let prefix = format!("{}-", file_stem(source, manga_id, url));
-        let name = self.names().into_iter().find(|n| n.starts_with(&prefix))?;
+        let name = self
+            .entries()
+            .into_iter()
+            .filter(|e| e.name.starts_with(&prefix))
+            .max_by(|a, b| (a.used, &a.name).cmp(&(b.used, &b.name)))?
+            .name;
         let path = self.dir.join(&name);
         let intact = stored_tag(&name)
             .zip(fs::read(&path).ok())
