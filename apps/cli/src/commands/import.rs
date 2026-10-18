@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use clap::Args as ClapArgs;
 use mangas_core::library::{self, ImportRequest};
 
+use super::stored_settings;
 use crate::output::outln;
 use crate::paths;
 
@@ -14,9 +15,9 @@ pub struct Args {
     /// Series title [default: the folder name]
     #[arg(long)]
     pub title: Option<String>,
-    /// Language the chapters are stored under
-    #[arg(long, default_value = "en")]
-    pub lang: String,
+    /// Language the chapters are stored under [default: your first preferred language]
+    #[arg(long)]
+    pub lang: Option<String>,
 }
 
 pub fn run(args: Args) -> anyhow::Result<()> {
@@ -24,7 +25,10 @@ pub fn run(args: Args) -> anyhow::Result<()> {
     let req = ImportRequest {
         paths: args.paths,
         title: args.title,
-        language: args.lang,
+        language: library::requested_languages(args.lang.as_deref(), &stored_settings())
+            .into_iter()
+            .next()
+            .unwrap_or_default(),
     };
     let report = library::import_paths(&lib, &paths::downloads()?, &req)?;
     for c in &report.imported {

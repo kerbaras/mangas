@@ -4,7 +4,7 @@ use mangas_core::domain::{Chapter, MangaId};
 use mangas_core::download::{self, Event};
 use mangas_core::library;
 
-use super::source_by_name;
+use super::{source_by_name, stored_settings};
 use crate::output::{out, outln};
 use crate::paths;
 
@@ -17,8 +17,10 @@ pub struct Args {
     pub chapters: Option<String>,
     #[arg(long, default_value = "mangadex")]
     pub source: String,
-    #[arg(long, default_value = "en")]
-    pub lang: String,
+    /// Chapter languages, most preferred first: each chapter comes in the first one that has
+    /// it, e.g. "es,en" [default: your preferred languages]
+    #[arg(long)]
+    pub lang: Option<String>,
     /// Also pack each chapter into a .cbz next to its directory
     #[arg(long)]
     pub cbz: bool,
@@ -38,8 +40,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             id
         );
     }
-    let all = source.chapters(&id, &args.lang).await?;
-    library::upsert_chapters(&lib, source.name(), &id, &args.lang, &all)?;
+    let languages = library::requested_languages(args.lang.as_deref(), &stored_settings());
+    let synced = library::sync_chapters(&lib, source.as_ref(), &id, &languages).await?;
+    let all = library::prefer_languages(&synced, &languages);
     let selected = match &args.chapters {
         Some(spec) => download::select_chapters(&all, spec)?,
         None => all,

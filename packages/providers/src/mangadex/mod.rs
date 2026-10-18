@@ -67,6 +67,10 @@ impl Provider for MangaDexProvider {
     fn build_at(&self, _settings: &Settings, base: &str) -> Result<Arc<dyn Source>> {
         Ok(Arc::new(MangaDex::with_base(base)?))
     }
+
+    fn options(&self, settings: &Settings) -> Option<serde_json::Value> {
+        serde_json::to_value(MangaDexOptions::from_settings(settings)).ok()
+    }
 }
 
 pub struct MangaDex {

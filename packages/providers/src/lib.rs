@@ -9,6 +9,7 @@ pub mod html;
 pub mod http;
 pub mod mangadex;
 pub mod mangadot;
+pub mod options;
 mod provider;
 mod rate_limit;
 mod registry;
