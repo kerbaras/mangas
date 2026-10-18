@@ -35,11 +35,13 @@ pub async fn download_detectors(app: AppHandle) -> Result<ml::Status, String> {
     let Some(_busy) = claim() else {
         return Err("detector support is already downloading, or the data folder is moving".into());
     };
+    // A Cancel racing the end of a move or an earlier download must not stop this one.
+    CANCEL.store(false, Ordering::SeqCst);
     download(&app).await
 }
 
 /// Held while a detector download or a data-folder move uses the folder; dropping it frees the
-/// folder and clears a Cancel sent meanwhile (cleared after, not before, so an early Cancel counts).
+/// folder and clears a Cancel sent meanwhile.
 pub struct Busy;
 
 impl Drop for Busy {
