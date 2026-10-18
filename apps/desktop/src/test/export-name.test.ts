@@ -42,6 +42,9 @@ describe("exportTitle", () => {
     expect(exportTitle([{ manga: tog, chapters: [chapter("3", "Season finale")] }])).toBe(
       "Tower of God ch 3",
     );
+    expect(exportTitle([{ manga: tog, chapters: [chapter("79", "S2 Prologue")] }])).toBe(
+      "Tower of God ch 79",
+    );
   });
   it("counts extra manga and ignores empty picks", () => {
     expect(

@@ -1,8 +1,11 @@
 import type { Chapter } from "./ipc";
 
-const SEASON_TAG = /^S\d+(?: Ep\. \d+(?:\.\d+)?)?(?=$| )/;
+const SEASON_TAG = /^S\d+ Ep\. \d+(?:\.\d+)?(?=$| )/;
 
-/** The `S2 Ep. 5` prefix the core gives season-numbered titles (Webtoons), if any. */
+/**
+ * The `S2 Ep. 5` prefix the core gives season-numbered titles (Webtoons), if any. A season
+ * without an episode number (`S2 Prologue`) has no tag, so it falls back to its chapter number.
+ */
 export const seasonTag = (c: Chapter): string | null => c.title?.match(SEASON_TAG)?.[0] ?? null;
 
 /** How a file name refers to one chapter: its season tag, else `ch 12`. */
