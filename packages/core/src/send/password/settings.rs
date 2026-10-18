@@ -78,7 +78,8 @@ pub fn save_settings(
     let changed = base.is_none_or(|b| b.kindle_email.password != password);
     let (mut base, mut edited) = (base.cloned(), edited.clone());
     let mut fallback = None;
-    let before = changed.then(|| store.get().ok().flatten()).flatten();
+    // What to put back if the save fails; unknown (None) when the keychain can't be read.
+    let before = changed.then(|| store.get().ok()).flatten();
     if changed {
         let kept = if password.is_empty() {
             store.delete()
@@ -107,7 +108,7 @@ pub fn save_settings(
     let mut settings = match edit_settings(lib, base.as_ref(), &edited) {
         Ok(settings) => settings,
         Err(e) => {
-            if changed && fallback.is_none() {
+            if let (Some(before), None) = (&before, &fallback) {
                 restore(store, before.as_deref());
             }
             return Err(e);
