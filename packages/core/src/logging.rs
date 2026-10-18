@@ -2,6 +2,8 @@
 //! under the data dir; the CLI writes to stderr. `log` records from dependencies (and from our
 //! own `log::` calls) are bridged into `tracing`, so both end up in the same sink.
 
+use std::ffi::OsStr;
+use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
@@ -60,6 +62,19 @@ pub fn cli_level(verbosity: u8) -> &'static str {
     }
 }
 
+/// Colour codes only for a terminal: redirected stderr (`2> log.txt`) gets plain text, and a
+/// non-empty `NO_COLOR` (https://no-color.org) turns them off everywhere.
+pub fn use_ansi(is_terminal: bool, no_color: Option<&OsStr>) -> bool {
+    is_terminal && no_color.is_none_or(OsStr::is_empty)
+}
+
+fn stderr_ansi() -> bool {
+    use_ansi(
+        std::io::stderr().is_terminal(),
+        std::env::var_os("NO_COLOR").as_deref(),
+    )
+}
+
 /// Daily-rolling appender in `dir` keeping [`KEEP_DAYS`] files; creates `dir` if needed.
 pub fn file_appender(dir: &Path) -> Result<RollingFileAppender> {
     std::fs::create_dir_all(dir)?;
@@ -80,7 +95,11 @@ pub fn init_file(dir: &Path) -> Result<()> {
     tracing_subscriber::registry()
         .with(filter(env.as_deref(), "info"))
         .with(fmt::layer().with_writer(file).with_ansi(false))
-        .with(fmt::layer().with_writer(std::io::stderr))
+        .with(
+            fmt::layer()
+                .with_writer(std::io::stderr)
+                .with_ansi(stderr_ansi()),
+        )
         .try_init()
         .map_err(|e| Error::Other(format!("logging: {e}")))?;
     log_panics();
@@ -95,6 +114,7 @@ pub fn init_stderr(verbosity: u8) -> Result<()> {
         .with(
             fmt::layer()
                 .with_writer(std::io::stderr)
+                .with_ansi(stderr_ansi())
                 .without_time()
                 .with_target(verbosity > 1),
         )
