@@ -46,7 +46,7 @@ pub fn run(args: Args) -> anyhow::Result<()> {
     match args.command.unwrap_or(Command::Usage) {
         Command::Usage => print_usage(&storage::usage(&lib, &folders)?),
         Command::Delete { id, source } => {
-            let deleted = storage::delete_downloads(&lib, &source, &id)?;
+            let deleted = storage::delete_downloads(&lib, &folders.chapters(), &source, &id)?;
             outln!(
                 "Deleted {} chapters of {id} ({}); the title stays in your library",
                 deleted.chapters,

@@ -5,7 +5,7 @@ use serde::Serialize;
 
 use super::tree::dir_size;
 use crate::domain::{Error, Result};
-use crate::download::safe_component;
+use crate::download::{cbz_path, safe_component};
 use crate::library::{downloaded_chapters, forget_download, is_local, Library};
 
 /// What deleting a title's downloads freed, and the folders it left alone.
@@ -17,15 +17,16 @@ pub struct Deleted {
     pub kept: Vec<String>,
 }
 
-/// Whether `path` looks like a folder the downloader made for this manga:
-/// `…/<source>/<manga id>/<chapter>`. Anything else (a path edited by hand, a moved library)
-/// is never deleted.
-pub fn in_download_layout(path: &Path, source: &str, manga_id: &str) -> bool {
-    let parent = path.parent();
-    path.is_absolute()
-        && path.file_name().is_some()
-        && file_name(parent) == Some(safe_component(manga_id))
-        && file_name(parent.and_then(Path::parent)) == Some(safe_component(source))
+/// Whether `path` is a folder the downloader made for this manga:
+/// `<root>/<source>/<manga id>/<chapter>`, with `root` the chapters folder. Anything else (a
+/// path edited by hand, a folder outside the data folder) is never deleted.
+pub fn in_download_layout(path: &Path, root: &Path, source: &str, manga_id: &str) -> bool {
+    let manga = path.parent();
+    let src = manga.and_then(Path::parent);
+    path.file_name().is_some()
+        && file_name(manga) == Some(safe_component(manga_id))
+        && file_name(src) == Some(safe_component(source))
+        && src.and_then(Path::parent) == Some(root)
 }
 
 fn file_name(path: Option<&Path>) -> Option<String> {
@@ -33,9 +34,15 @@ fn file_name(path: Option<&Path>) -> Option<String> {
         .map(|n| n.to_string_lossy().into_owned())
 }
 
-/// Deletes the downloaded chapter folders of one followed manga and forgets them; the manga,
-/// its chapter list and metadata stay so chapters can be downloaded again.
-pub fn delete_downloads(lib: &Library, source: &str, manga_id: &str) -> Result<Deleted> {
+/// Deletes the downloaded chapter folders (and `.cbz` archives) of one followed manga under
+/// `chapters_root` and forgets them; the manga, its chapter list and metadata stay so chapters
+/// can be downloaded again. Paths are resolved first, so a link can't lead outside the root.
+pub fn delete_downloads(
+    lib: &Library,
+    chapters_root: &Path,
+    source: &str,
+    manga_id: &str,
+) -> Result<Deleted> {
     if is_local(source) {
         return Err(Error::Other(
             "imported titles have no source to download them again from; remove the title instead"
@@ -43,16 +50,23 @@ pub fn delete_downloads(lib: &Library, source: &str, manga_id: &str) -> Result<D
         ));
     }
     let mut deleted = Deleted::default();
+    let root = fs::canonicalize(chapters_root).unwrap_or_else(|_| chapters_root.to_path_buf());
     let mut manga_dir = None;
     for chapter in downloaded_chapters(lib, Some((source, manga_id)))? {
-        let path = Path::new(&chapter.path);
-        if !in_download_layout(path, source, manga_id) {
+        let recorded = Path::new(&chapter.path);
+        let path = fs::canonicalize(recorded).unwrap_or_else(|_| recorded.to_path_buf());
+        if !in_download_layout(&path, &root, source, manga_id) {
             deleted.kept.push(chapter.path.clone());
             continue;
         }
-        if path.exists() {
-            deleted.bytes += dir_size(path);
-            fs::remove_dir_all(path)?;
+        if path.is_dir() {
+            deleted.bytes += dir_size(&path);
+            fs::remove_dir_all(&path)?;
+        }
+        let cbz = cbz_path(&path);
+        if let Ok(meta) = fs::symlink_metadata(&cbz) {
+            deleted.bytes += meta.len();
+            fs::remove_file(&cbz)?;
         }
         forget_download(lib, source, &chapter.chapter_id)?;
         deleted.chapters += 1;
@@ -71,15 +85,13 @@ mod tests {
 
     #[test]
     fn only_folders_under_source_and_manga_count_as_downloads() {
+        let root = Path::new("/data/chapters");
         let ok = Path::new("/data/chapters/mangadex/abc/ch-1");
-        assert!(in_download_layout(ok, "mangadex", "abc"));
-        assert!(!in_download_layout(ok, "mangadex", "other"));
-        assert!(!in_download_layout(ok, "tapas", "abc"));
-        assert!(!in_download_layout(Path::new("/"), "mangadex", "abc"));
-        assert!(!in_download_layout(
-            Path::new("chapters/mangadex/abc/ch-1"),
-            "mangadex",
-            "abc"
-        ));
+        assert!(in_download_layout(ok, root, "mangadex", "abc"));
+        assert!(!in_download_layout(ok, root, "mangadex", "other"));
+        assert!(!in_download_layout(ok, root, "tapas", "abc"));
+        assert!(!in_download_layout(Path::new("/"), root, "mangadex", "abc"));
+        let elsewhere = Path::new("/home/me/mangadex/abc/ch-1");
+        assert!(!in_download_layout(elsewhere, root, "mangadex", "abc"));
     }
 }

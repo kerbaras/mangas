@@ -28,8 +28,9 @@ export function DataFolderField({ onMoved }: { onMoved: () => void }) {
   const move = async (to: string) => {
     setTarget(null);
     setProgress({ copied: 0, total: 0 });
-    const unlisten = await onMoveProgress(setProgress);
+    let unlisten: (() => void) | undefined;
     try {
+      unlisten = await onMoveProgress(setProgress);
       const moved = await moveDataDir(to);
       await loadSettings();
       const left = moved.leftovers.length
@@ -41,7 +42,7 @@ export function DataFolderField({ onMoved }: { onMoved: () => void }) {
     } catch (e: unknown) {
       notifyError("Couldn't move the data folder", e);
     } finally {
-      unlisten();
+      unlisten?.();
       setProgress(null);
       onMoved();
     }

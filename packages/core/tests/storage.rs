@@ -91,7 +91,7 @@ fn deleting_downloads_keeps_the_title_and_its_chapter_list() {
     let f = folders(tmp.path());
     let lib = open_in_memory().unwrap();
     downloaded(&lib, &f.data_dir, "mangadex", "a", &[("1", 100), ("2", 50)]);
-    let deleted = delete_downloads(&lib, "mangadex", "a").unwrap();
+    let deleted = delete_downloads(&lib, &f.chapters(), "mangadex", "a").unwrap();
     assert_eq!((deleted.chapters, deleted.bytes), (2, 150));
     assert!(!f.chapters().join("mangadex/a").exists());
     assert!(get_manga(&lib, "mangadex", &MangaId("a".into()))
@@ -105,6 +105,7 @@ fn deleting_downloads_keeps_the_title_and_its_chapter_list() {
 #[test]
 fn deleting_leaves_folders_outside_the_download_layout_alone() {
     let tmp = tempfile::tempdir().unwrap();
+    let f = folders(tmp.path());
     let lib = open_in_memory().unwrap();
     upsert_manga(&lib, &manga("mangadex", "a", "A")).unwrap();
     upsert_chapters(
@@ -118,16 +119,50 @@ fn deleting_leaves_folders_outside_the_download_layout_alone() {
     let odd = tmp.path().join("my-folder");
     write(&odd.join("001.jpg"), 10);
     mark_downloaded(&lib, "mangadex", &ChapterId("1".into()), &odd).unwrap();
-    let deleted = delete_downloads(&lib, "mangadex", "a").unwrap();
+    let deleted = delete_downloads(&lib, &f.chapters(), "mangadex", "a").unwrap();
     assert_eq!(deleted.chapters, 0);
     assert_eq!(deleted.kept, vec![odd.to_string_lossy().into_owned()]);
     assert!(odd.join("001.jpg").exists());
 }
 
 #[test]
+fn deleting_skips_look_alike_folders_outside_the_data_folder() {
+    let tmp = tempfile::tempdir().unwrap();
+    let f = folders(tmp.path());
+    let lib = open_in_memory().unwrap();
+    downloaded(
+        &lib,
+        &tmp.path().join("elsewhere"),
+        "mangadex",
+        "a",
+        &[("1", 10)],
+    );
+    let deleted = delete_downloads(&lib, &f.chapters(), "mangadex", "a").unwrap();
+    assert_eq!((deleted.chapters, deleted.kept.len()), (0, 1));
+    assert!(tmp.path().join("elsewhere/chapters/mangadex/a").exists());
+}
+
+#[test]
+fn deleting_also_removes_chapter_archives() {
+    let tmp = tempfile::tempdir().unwrap();
+    let f = folders(tmp.path());
+    let lib = open_in_memory().unwrap();
+    downloaded(&lib, &f.data_dir, "mangadex", "a", &[("1", 100)]);
+    let dir = list_chapters(&lib, "mangadex", &MangaId("a".into()), None).unwrap()[0]
+        .local_path
+        .clone()
+        .unwrap();
+    let cbz = mangas_core::download::cbz_path(Path::new(&dir));
+    write(&cbz, 40);
+    let deleted = delete_downloads(&lib, &f.chapters(), "mangadex", "a").unwrap();
+    assert_eq!(deleted.bytes, 140);
+    assert!(!cbz.exists());
+}
+
+#[test]
 fn imported_titles_cant_have_their_downloads_deleted() {
     let lib = open_in_memory().unwrap();
-    assert!(delete_downloads(&lib, "local", "x").is_err());
+    assert!(delete_downloads(&lib, Path::new("/data/chapters"), "local", "x").is_err());
 }
 
 #[test]
@@ -205,4 +240,23 @@ fn moving_into_a_folder_with_downloads_changes_nothing() {
         &mut |_| {}
     )
     .is_err());
+}
+
+#[cfg(unix)]
+#[test]
+fn moving_copies_the_contents_of_linked_pages() {
+    let tmp = tempfile::tempdir().unwrap();
+    let f = folders(tmp.path());
+    let lib = open_in_memory().unwrap();
+    downloaded(&lib, &f.data_dir, "mangadex", "a", &[("1", 100)]);
+    let page = tmp.path().join("outside.jpg");
+    write(&page, 30);
+    std::os::unix::fs::symlink(&page, f.chapters().join("mangadex/a/1/002.jpg")).unwrap();
+    let target = tmp.path().join("new");
+    let moved = move_data_dir(&lib, &f.data_dir, &target, &mut |_| {}).unwrap();
+    assert_eq!((moved.files, moved.bytes), (2, 130));
+    let copied = fs::canonicalize(&target)
+        .unwrap()
+        .join("chapters/mangadex/a/1/002.jpg");
+    assert_eq!(fs::metadata(copied).unwrap().len(), 30);
 }

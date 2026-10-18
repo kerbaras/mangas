@@ -51,11 +51,12 @@ pub fn move_data_dir(
     }
     let total: u64 = plan.iter().flat_map(|(_, f)| f).map(|f| f.bytes).sum();
     let files = plan.iter().map(|(_, f)| f.len()).sum();
+    let created: Vec<bool> = DATA_SUBDIRS.iter().map(|s| !to.join(s).exists()).collect();
     let switched = copy_all(&from_resolved, &to, &plan, total, on_progress)
         .and_then(|()| verify(&to, &plan))
         .and_then(|()| switch(lib, &[from, &from_resolved], &to));
     if let Err(e) = switched {
-        discard_copy(&to);
+        discard_copy(&to, &plan, &created);
         return Err(e);
     }
     let leftovers = DATA_SUBDIRS
@@ -124,8 +125,16 @@ fn switch(lib: &Library, from: &[&Path], to: &Path) -> Result<()> {
     switch_data_dir(lib, &moved, &settings)
 }
 
-fn discard_copy(to: &Path) {
-    for sub in DATA_SUBDIRS {
-        fs::remove_dir_all(to.join(sub)).ok();
+/// Undoes a failed copy: folders the move created go entirely; in folders that were already
+/// there (empty of files), only the copied files go.
+fn discard_copy(to: &Path, plan: &Plan, created: &[bool]) {
+    for ((sub, files), created) in plan.iter().zip(created) {
+        if *created {
+            fs::remove_dir_all(to.join(sub)).ok();
+        } else {
+            for file in files {
+                fs::remove_file(to.join(sub).join(&file.rel)).ok();
+            }
+        }
     }
 }

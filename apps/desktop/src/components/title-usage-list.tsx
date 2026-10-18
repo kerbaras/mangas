@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { useForgetDownloads } from "@/hooks/use-downloads";
+import { downloadContext } from "@/lib/download-labels";
 import { deleteDownloads, type TitleUsage } from "@/lib/ipc.storage";
 import { notifyError } from "@/lib/notify";
 import { chaptersLabel, formatBytes } from "@/lib/storage";
@@ -13,6 +15,7 @@ type Props = { titles: TitleUsage[]; onChange: () => void };
 /** Each title's downloads, largest first, with a bar relative to the largest. */
 export function TitleUsageList({ titles, onChange }: Props) {
   const [pending, setPending] = useState<TitleUsage | null>(null);
+  const forget = useForgetDownloads();
   if (titles.length === 0) {
     return <p className="text-caption text-ink-3">No downloaded chapters yet.</p>;
   }
@@ -22,6 +25,10 @@ export function TitleUsageList({ titles, onChange }: Props) {
     setPending(null);
     try {
       const deleted = await deleteDownloads(t.source, t.manga_id);
+      forget((id) => {
+        const c = downloadContext(id);
+        return c?.source === t.source && c.mangaId === t.manga_id;
+      });
       toast.success(`Deleted the downloads of ${t.title}`, {
         description: `${chaptersLabel(deleted.chapters)}, ${formatBytes(deleted.bytes)} freed.${
           deleted.kept.length

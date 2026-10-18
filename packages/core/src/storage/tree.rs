@@ -1,4 +1,5 @@
-//! Filesystem walks over a folder tree. Symlinks are not followed.
+//! Filesystem walks over a folder tree. A link to a file counts as that file; links to
+//! folders are not followed.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -64,6 +65,21 @@ fn walk(
                 }),
                 Err(e) if strict => return Err(e),
                 Err(_) => {}
+            }
+        } else if kind.is_symlink() {
+            match fs::metadata(entry.path()) {
+                Ok(meta) if meta.is_file() => visit(FileEntry {
+                    rel,
+                    bytes: meta.len(),
+                }),
+                Ok(_) if strict => {
+                    return Err(std::io::Error::other(format!(
+                        "{} is a link to a folder; replace it with the folder itself first",
+                        entry.path().display()
+                    )))
+                }
+                Err(e) if strict => return Err(e),
+                _ => {}
             }
         }
     }

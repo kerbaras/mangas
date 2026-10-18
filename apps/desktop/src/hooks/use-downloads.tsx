@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from "react";
 import { downloadContext, downloadLabel, failureLog } from "@/lib/download-labels";
 import { type DownloadProgress, downloadChapters, onDownloadProgress } from "@/lib/ipc";
 import { notifyError } from "@/lib/notify";
@@ -27,6 +27,8 @@ export function chapterFailed(id: string, error: string) {
 export type DownloadMap = ReadonlyMap<string, DownloadProgress>;
 
 const DownloadsContext = createContext<DownloadMap>(new Map());
+type Forget = (match: (chapterId: string) => boolean) => void;
+const ForgetContext = createContext<Forget>(() => {});
 
 /** App-wide so progress survives leaving and re-entering a manga's chapters. */
 export function DownloadsProvider({ children }: { children: ReactNode }) {
@@ -48,9 +50,20 @@ export function DownloadsProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  return <DownloadsContext.Provider value={progress}>{children}</DownloadsContext.Provider>;
+  const forget = useCallback<Forget>(
+    (match) => setProgress((m) => new Map([...m].filter(([id]) => !match(id)))),
+    [],
+  );
+
+  return (
+    <ForgetContext.Provider value={forget}>
+      <DownloadsContext.Provider value={progress}>{children}</DownloadsContext.Provider>
+    </ForgetContext.Provider>
+  );
 }
 
 export const useDownloads = () => useContext(DownloadsContext);
+/** Drops finished progress for chapters whose files were deleted, so they stop showing "On disk". */
+export const useForgetDownloads = () => useContext(ForgetContext);
 
 export const activeCount = (m: DownloadMap) => [...m.values()].filter((p) => !p.done).length;
