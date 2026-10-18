@@ -29,17 +29,23 @@ pub fn resolve_languages(wanted: &[String], offered: &[&str]) -> Vec<String> {
     out
 }
 
-/// [`resolve_languages`] for the registered provider `id`. When it publishes none of `wanted`
-/// (or is unknown), `wanted` comes back unchanged so the provider answers with an empty list.
+/// The codes to ask the registered provider `id` for: each wanted code as it publishes it
+/// ([`offered_language`]), else unchanged, since a provider's `languages` list the editions it
+/// is known for rather than every one it carries (MangaDex has Arabic without listing it).
 pub fn languages_for(id: &str, wanted: &[String]) -> Vec<String> {
-    let resolved = registry::info(id)
-        .map(|info| resolve_languages(wanted, info.languages))
+    let offered = registry::info(id)
+        .map(|info| info.languages)
         .unwrap_or_default();
-    if resolved.is_empty() {
-        wanted.to_vec()
-    } else {
-        resolved
+    let mut out: Vec<String> = Vec::new();
+    for code in wanted
+        .iter()
+        .map(|w| offered_language(w, offered).unwrap_or(w))
+    {
+        if !out.iter().any(|o| o == code) {
+            out.push(code.to_string());
+        }
     }
+    out
 }
 
 /// The code to ask provider `id` for when the user wants `language` (see [`languages_for`]).

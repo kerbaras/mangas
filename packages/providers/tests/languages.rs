@@ -41,8 +41,19 @@ fn resolution_keeps_preference_order_without_duplicates() {
 fn registered_providers_resolve_through_their_info() {
     assert_eq!(languages_for("webtoons", &strings(&["es-la"])), ["es"]);
     assert_eq!(languages_for("mangadex", &strings(&["es-la"])), ["es-la"]);
-    assert_eq!(languages_for("tapas", &strings(&["en-gb", "es"])), ["en"]);
-    // Nothing published, or no such provider: ask as given and let it answer empty.
+    assert_eq!(
+        languages_for("tapas", &strings(&["en-gb", "es"])),
+        ["en", "es"]
+    );
+    assert_eq!(
+        languages_for("webtoons", &strings(&["es-la", "es"])),
+        ["es"]
+    );
+    // Not in the provider's list, or no such provider: ask as given (MangaDex carries Arabic).
+    assert_eq!(
+        languages_for("mangadex", &strings(&["ar", "en"])),
+        ["ar", "en"]
+    );
     assert_eq!(languages_for("tapas", &strings(&["ja"])), ["ja"]);
     assert_eq!(languages_for("local", &strings(&["es-la"])), ["es-la"]);
     assert_eq!(language_for("webtoons", "es-la"), "es");
