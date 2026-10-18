@@ -6,7 +6,7 @@ use clap::Args as ClapArgs;
 use mangas_core::domain::{collapse_groups, in_group, normalize_group, Chapter, MangaId};
 use mangas_core::download;
 use mangas_core::download::queue::{self, JobState, Scope};
-use mangas_core::library;
+use mangas_core::library::{self, Settings};
 
 use super::settled::paused_report;
 use super::watch::{count, run_until_settled};
@@ -62,8 +62,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let group = pick_group(args.group.as_deref(), args.all_groups, saved);
     let synced = match (&group, args.all_groups) {
         (Some(_), _) | (None, true) => in_group(synced, group.as_deref()),
-        // No group picked: one release per chapter, as the provider's preferred groups say.
-        (None, false) => collapse_groups(synced, &settings.preferred_groups(&args.source)),
+        (None, false) => one_release_each(synced, &settings, &id, &args.source)?,
     };
     if let (Some(group), true) = (&group, synced.is_empty()) {
         return Err(unknown_group(group, &id, &args.source));
@@ -142,6 +141,31 @@ fn without_unavailable(selected: Vec<Chapter>, explicit: bool) -> anyhow::Result
         outln!("{summary}")?;
     }
     Ok(available)
+}
+
+/// No group picked: one release per chapter, as the provider's preferred groups say, with a
+/// line saying so when other releases were left out.
+fn one_release_each(
+    chapters: Vec<Chapter>,
+    settings: &Settings,
+    id: &MangaId,
+    source: &str,
+) -> anyhow::Result<Vec<Chapter>> {
+    let preferred = settings.preferred_groups(source);
+    let total = chapters.len();
+    let kept = collapse_groups(chapters, &preferred);
+    if kept.len() < total {
+        let by = if preferred.is_empty() {
+            "no preferred groups set"
+        } else {
+            "preferred groups first"
+        };
+        let save = hint(&format!("group {id} <name>"), source);
+        outln!(
+            "Took one release per chapter ({by}); --all-groups takes every release, {save} saves a group"
+        )?;
+    }
+    Ok(kept)
 }
 
 /// `--group` wins over the title's saved group; `--all-groups` drops it.

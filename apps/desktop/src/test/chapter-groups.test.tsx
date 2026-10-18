@@ -103,9 +103,18 @@ describe("splitGroup", () => {
   it("keeps short names whole and always keeps the end of long ones", () => {
     expect(splitGroup("K Manga")).toEqual(["K Manga", ""]);
     expect(splitGroup("All For Manga Group, Wicked House Translation")).toEqual([
-      "All For Manga Group, Wicked House ",
-      "Translation",
+      "All For Manga Group, Wicked House",
+      " Translation",
     ]);
     expect(splitGroup("ThePervertedScanner")).toEqual(["ThePerver", "tedScanner"]);
+  });
+
+  it("keeps the spaces before the kept end with the end", () => {
+    expect(splitGroup("MangaDot mirror")).toEqual(["MangaDot", " mirror"]);
+    expect(splitGroup("Wicked House   Translation")).toEqual(["Wicked House", "   Translation"]);
+    expect(splitGroup("abcd efgh ijklmnopqrstuvwxyz")).toEqual([
+      "abcd efgh ijklmnop",
+      "qrstuvwxyz",
+    ]);
   });
 });
