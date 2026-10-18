@@ -144,6 +144,7 @@ async fn sync_stores_every_language() {
             description: String::new(),
             cover_url: None,
             status: MangaStatus::Ongoing,
+            ..Default::default()
         },
     )
     .unwrap();

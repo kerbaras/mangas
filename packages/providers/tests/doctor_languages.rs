@@ -24,6 +24,7 @@ impl Source for OnlyIn {
             description: String::new(),
             cover_url: None,
             status: MangaStatus::Unknown,
+            ..Default::default()
         }])
     }
     async fn manga(&self, _id: &MangaId) -> Result<Manga> {
