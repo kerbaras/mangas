@@ -46,8 +46,17 @@ impl TokenBucket {
     /// the next token comes after `wait`. Overlapping pauses do not add up.
     pub async fn pause(&self, wait: Duration) {
         let mut state = self.state.lock().await;
-        let per_second = f64::from(self.limits().1);
-        state.tokens = state.tokens.min(-wait.as_secs_f64() * per_second);
+        let now = Instant::now();
+        let (capacity, per_second) = self.limits();
+        let (capacity, per_second) = (f64::from(capacity), f64::from(per_second));
+        let (tokens, _) = refill(
+            state.tokens,
+            now.duration_since(state.last),
+            capacity,
+            per_second,
+        );
+        state.last = now;
+        state.tokens = tokens.min(-wait.as_secs_f64() * per_second);
     }
 
     /// Waits until a token is available and consumes it.

@@ -80,15 +80,18 @@ async fn download(
         .map(|r| format!("{}{r}", server.uri()))
         .collect();
     let site = Site(urls);
-    let client = PageClient::for_source(&site)
-        .and_then(PageClient::allow_private_hosts)
-        .map(|c| c.with_retry(FAST))
-        .unwrap();
+    let client = client(&site).with_retry(FAST);
     let dir = tempfile::tempdir().unwrap();
     let events = Mutex::new(Vec::new());
     let on_event = |e: Event| events.lock().unwrap().push(e);
     let result = download_chapter_with(&site, &client, &chapter(), dir.path(), &on_event).await;
     (result, events.into_inner().unwrap(), dir)
+}
+
+fn client(site: &Site) -> PageClient<'_> {
+    PageClient::for_source(site)
+        .and_then(PageClient::allow_private_hosts)
+        .unwrap()
 }
 
 fn chapter_done(events: &[Event]) -> bool {
@@ -125,11 +128,8 @@ async fn permanent_404_fails_the_chapter_with_the_page_count() {
     assert!(!chapter_done(&events), "{events:?}");
     assert!(dir.path().join("0001.png").exists(), "kept for a resume");
     assert!(!dir.path().join("0002.png").exists());
-    assert_eq!(
-        server.received_requests().await.unwrap().len(),
-        2,
-        "404 not retried"
-    );
+    // 404 is not retried.
+    assert_eq!(server.received_requests().await.unwrap().len(), 2);
 }
 
 #[tokio::test]
@@ -138,12 +138,22 @@ async fn retries_give_up_with_a_clear_error() {
     page(&server, "/1.png", ResponseTemplate::new(503), None).await;
     let (result, events, _dir) = download(&server, &["/1.png"]).await;
     let err = result.unwrap_err().to_string();
-    assert!(
-        err.contains("1 of 1 pages failed") && err.contains("HTTP 503"),
-        "{err}"
-    );
+    assert!(err.contains("1 of 1 pages failed"), "{err}");
+    assert!(err.contains("HTTP 503"), "{err}");
     assert!(!chapter_done(&events));
     assert_eq!(server.received_requests().await.unwrap().len(), 3);
+}
+
+#[tokio::test]
+async fn a_verification_page_is_a_challenge_error() {
+    let server = MockServer::start().await;
+    let page_challenge = ResponseTemplate::new(403).insert_header("cf-mitigated", "challenge");
+    page(&server, "/1.png", page_challenge, None).await;
+    let urls = vec![format!("{}/1.png", server.uri())];
+    let site = Site(urls.clone());
+    let client = client(&site);
+    let err = client.fetch(&urls[0]).await.unwrap_err();
+    assert!(matches!(err, Error::Challenge { .. }), "{err}");
 }
 
 #[tokio::test]
@@ -157,9 +167,7 @@ async fn first_byte_is_a_ranged_get_with_page_headers() {
         .mount(&server)
         .await;
     let site = Site(Vec::new());
-    let client = PageClient::for_source(&site)
-        .and_then(PageClient::allow_private_hosts)
-        .unwrap();
+    let client = client(&site);
     let url = format!("{}/1.png", server.uri());
     assert_eq!(client.first_byte(&url).await.unwrap(), 206);
 }
@@ -186,6 +194,6 @@ fn image_hosts_get_their_provider_rate() {
     let page = pool.page_bucket("https://api.site.example/page.png", DEFAULT_PAGE_RATE);
     assert!(
         std::sync::Arc::ptr_eq(&api, &page),
-        "an API host's bucket also paces its pages"
+        "API bucket paces pages"
     );
 }

@@ -2,9 +2,9 @@
 
 use std::time::Duration;
 
-use mangas_core::domain::Result;
+use mangas_core::domain::{Error, Result};
 use mangas_core::download::is_public_http_url;
-use reqwest::RequestBuilder;
+use reqwest::{RequestBuilder, Url};
 
 use super::super::response::{mitigated, retry_after, retryable_transport, should_retry};
 use super::{Fetched, PageClient};
@@ -54,10 +54,7 @@ impl PageClient<'_> {
             }
         }
         if mitigated(&response).eq_ignore_ascii_case("challenge") {
-            let message = format!(
-                "HTTP {status} for {url}: browser verification page (connect the provider in the app)"
-            );
-            return (Err(self.error(message)), None);
+            return (Err(challenge(id, response.url())), None);
         }
         match response.bytes().await {
             Err(e) => {
@@ -74,6 +71,15 @@ impl PageClient<'_> {
                 None,
             ),
         }
+    }
+}
+
+/// A verification page: the same [`Error::Challenge`] as `SiteClient`, so the app offers
+/// "Connect" for the page's host.
+fn challenge(id: &str, url: &Url) -> Error {
+    Error::Challenge {
+        name: id.to_string(),
+        site: url.origin().ascii_serialization(),
     }
 }
 
