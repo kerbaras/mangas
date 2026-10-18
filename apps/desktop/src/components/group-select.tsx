@@ -28,10 +28,15 @@ export function GroupSelect({ groups, value, onChange }: Props) {
       <SelectTrigger aria-label="Group" className="h-7 w-56">
         <SelectValue />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className="w-auto min-w-[var(--radix-select-trigger-width)] max-w-80">
         <SelectItem value={ALL}>All groups ({total})</SelectItem>
         {options.map((g) => (
-          <SelectItem key={g.name} value={g.name}>
+          <SelectItem
+            key={g.name}
+            value={g.name}
+            title={g.name}
+            className="[&>span]:min-w-0 [&>span]:truncate"
+          >
             {g.name} ({g.chapters})
           </SelectItem>
         ))}
