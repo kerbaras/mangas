@@ -1,5 +1,4 @@
-//! Page downloads through `http::PageClient`: retries on transient statuses, a clear error and
-//! no `ChapterDone` when a page cannot be fetched, page headers, ranged GET, declared CDN rates.
+//! `http::PageClient` page downloads: retries, failed chapters, headers, ranged GET, CDN rates.
 
 use std::sync::Mutex;
 use std::time::Duration;
@@ -52,6 +51,7 @@ fn chapter() -> Chapter {
         number: "1".into(),
         local_path: None,
         group: None,
+        availability: Default::default(),
     }
 }
 
@@ -128,7 +128,6 @@ async fn permanent_404_fails_the_chapter_with_the_page_count() {
     assert!(!chapter_done(&events), "{events:?}");
     assert!(dir.path().join("0001.png").exists(), "kept for a resume");
     assert!(!dir.path().join("0002.png").exists());
-    // 404 is not retried.
     assert_eq!(server.received_requests().await.unwrap().len(), 2);
 }
 
