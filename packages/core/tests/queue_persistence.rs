@@ -48,8 +48,10 @@ async fn pending_jobs_survive_a_restart_and_a_crashed_run_resumes() {
 fn enqueue_skips_chapters_on_disk_unless_forced_and_reports_unavailable_ones() {
     let lib = library::open_in_memory().unwrap();
     let mut chapters = follow(&lib, "a", 3);
-    library::mark_downloaded(&lib, "a", &chapters[0].id, "/data/a/1".as_ref()).unwrap();
-    chapters[0].local_path = Some("/data/a/1".into());
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("0001.jpg"), b"page").unwrap();
+    library::mark_downloaded(&lib, "a", &chapters[0].id, dir.path()).unwrap();
+    chapters[0].local_path = Some(dir.path().to_string_lossy().into_owned());
     chapters[2].availability = Availability::Locked;
 
     let queued = queue::enqueue(&lib, "a", chapters.clone(), false).unwrap();
@@ -182,4 +184,18 @@ fn a_page_on_disk_counts_by_index_whatever_its_extension() {
     let urls = PageUrls([urls.0, vec!["https://x/3-c.jpg".into()]].concat());
     let jobs = plan(&urls, &existing);
     assert_eq!(jobs.iter().map(|j| j.index).collect::<Vec<_>>(), [2, 3]);
+}
+
+#[test]
+fn a_chapter_whose_folder_was_deleted_outside_the_app_is_downloaded_again() {
+    let lib = library::open_in_memory().unwrap();
+    let chapters = follow(&lib, "a", 2);
+    let dir = tempfile::tempdir().unwrap();
+    let (gone, emptied) = (dir.path().join("1"), dir.path().join("2"));
+    std::fs::create_dir(&emptied).unwrap();
+    library::mark_downloaded(&lib, "a", &chapters[0].id, &gone).unwrap();
+    library::mark_downloaded(&lib, "a", &chapters[1].id, &emptied).unwrap();
+
+    let queued = queue::enqueue(&lib, "a", chapters, false).unwrap();
+    assert_eq!((queued.jobs.len(), queued.on_disk.len()), (2, 0));
 }

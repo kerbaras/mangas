@@ -18,7 +18,7 @@ fn run_cli() {
         .and_then(|rt| rt.block_on(mangas_cli::run(std::env::args_os())));
     if let Err(e) = outcome {
         eprintln!("error: {e:#}");
-        std::process::exit(1);
+        std::process::exit(mangas_cli::exit_code(&e).into());
     }
 }
 

@@ -11,6 +11,7 @@ pub mod queue;
 pub mod remove;
 pub mod search;
 pub mod settings;
+mod settled;
 pub mod storage;
 mod watch;
 

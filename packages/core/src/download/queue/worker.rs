@@ -99,7 +99,7 @@ impl Queue {
                 }
                 Err(e) => log::warn!("download queue: {e}"),
             }
-            // Under the queue-wide pause nothing more will start: a settling worker stops.
+            // With the queue-wide gate closed nothing more will start: a settling worker stops.
             if settle && tasks.is_empty() && (held || is_settled(&prev, &scope)) {
                 return Ok(());
             }
@@ -132,7 +132,8 @@ impl Queue {
             config: &self.config,
             paused: false,
         };
-        library::update_jobs_paused(&self.lib, |jobs, paused| {
+        library::update_jobs_gated(&self.lib, |jobs, gate| {
+            let paused = gate.closed(input.now);
             let plan = plan_tick(jobs, &TickInput { paused, ..input });
             (plan.changed.clone(), (plan, paused))
         })

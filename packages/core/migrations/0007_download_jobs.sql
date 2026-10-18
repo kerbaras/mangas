@@ -19,9 +19,11 @@ CREATE TABLE IF NOT EXISTS download_jobs (
     FOREIGN KEY (source, chapter_id) REFERENCES chapter (source, id) ON DELETE CASCADE
 );
 
--- Global pause shared by every process: while set, no worker claims a job.
+-- Queue-wide gate shared by every process: no worker claims a job while `paused` (the user's
+-- pause all) is set or `held_until` (unix ms; a storage move holding the queue) is ahead.
 CREATE TABLE IF NOT EXISTS download_queue (
-    id     INTEGER PRIMARY KEY CHECK (id = 1),
-    paused INTEGER NOT NULL DEFAULT 0
+    id         INTEGER PRIMARY KEY CHECK (id = 1),
+    paused     INTEGER NOT NULL DEFAULT 0,
+    held_until INTEGER NOT NULL DEFAULT 0
 );
-INSERT OR IGNORE INTO download_queue (id, paused) VALUES (1, 0);
+INSERT OR IGNORE INTO download_queue (id) VALUES (1);

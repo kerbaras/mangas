@@ -3,6 +3,7 @@
 //! serves both: with arguments it runs a command, without it opens the app.
 
 mod commands;
+mod exit;
 mod output;
 mod paths;
 
@@ -54,6 +55,8 @@ enum Command {
 
 /// Parses `args` (including the program name) and runs the command. Exits on `--help`,
 /// `--version` and usage errors, like any clap binary.
+pub use exit::{exit_code, Exit};
+
 pub async fn run<I, T>(args: I) -> anyhow::Result<()>
 where
     I: IntoIterator<Item = T>,

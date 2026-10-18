@@ -2,7 +2,9 @@
 
 use std::sync::Arc;
 
-use mangas_core::download::queue::{self, Job, JobState, Queue, QueueConfig, QueueEvent, Scope};
+use mangas_core::download::queue::{
+    self, Job, JobState, Queue, QueueConfig, QueueEvent, Scope, Settled,
+};
 use mangas_core::library::Library;
 use mangas_core::Error;
 use mangas_providers::QueueRunner;
@@ -11,17 +13,16 @@ use crate::output::{out, outln};
 use crate::paths;
 
 /// Downloads the jobs in `scope` (other processes may take some of them; they are waited for
-/// too) and returns them as they ended: done, failed, cancelled or paused.
-pub async fn run_until_settled(lib: Arc<Library>, scope: Scope) -> anyhow::Result<Vec<Job>> {
+/// too, and so is a data-folder move holding the queue) and returns them as they ended.
+pub async fn run_until_settled(lib: Arc<Library>, scope: Scope) -> anyhow::Result<Settled> {
     let runner = QueueRunner::new(Box::new(|_| {
         paths::downloads().map_err(|e| Error::Other(e.to_string()))
     }));
-    let worker = Queue::new(lib.clone(), Arc::new(runner), QueueConfig::default());
-    worker.run(scope.clone(), true, &print_event).await?;
-    Ok(queue::list(&lib)?
-        .into_iter()
-        .filter(|j| scope.contains(j.id))
-        .collect())
+    let worker = Queue::new(lib, Arc::new(runner), QueueConfig::default());
+    let on_hold = || {
+        let _ = outln!("  the data folder is being moved; downloads continue once it's done");
+    };
+    Ok(queue::run_until_settled(&worker, scope, &print_event, &on_hold).await?)
 }
 
 /// One line per finished job, an updating `page n/total` line while one runs.

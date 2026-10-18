@@ -6,6 +6,7 @@ import { Field } from "@/components/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { activeCount, useDownloads } from "@/hooks/use-downloads";
 import { pickFolder } from "@/lib/dialogs";
 import { type MoveProgress, moveDataDir, onMoveProgress } from "@/lib/ipc.storage";
@@ -16,7 +17,8 @@ import { formatBytes, plural } from "@/lib/storage";
 /** The data folder, moved (copy, verify, switch) rather than edited, so chapters follow it. */
 export function DataFolderField({ onMoved }: { onMoved: () => void }) {
   const [settings] = useSettings();
-  const downloading = activeCount(useDownloads()) > 0;
+  const active = activeCount(useDownloads());
+  const downloading = active > 0;
   const [target, setTarget] = useState<string | null>(null);
   const [progress, setProgress] = useState<MoveProgress | null>(null);
 
@@ -48,17 +50,31 @@ export function DataFolderField({ onMoved }: { onMoved: () => void }) {
     }
   };
 
+  const busy = `${plural(active, "download")} queued or running. Wait for ${active === 1 ? "it" : "them"} to finish before moving the data folder.`;
   const hint = downloading
-    ? "Wait for the downloads to finish before moving the data folder."
+    ? busy
     : "Downloaded chapters and detector models live here; the library database, cover cache and logs stay in the app data folder. Moving copies everything, checks the copy, then deletes the old folder.";
+
+  const moveButton = (
+    <Button onClick={choose} disabled={downloading || progress !== null} className="shrink-0">
+      <FolderInput /> Move…
+    </Button>
+  );
 
   return (
     <Field label="Data folder" htmlFor="data-dir" hint={progress ? undefined : hint}>
       <div className="flex gap-2">
         <Input id="data-dir" readOnly value={settings.dataDir} className="font-mono text-caption" />
-        <Button onClick={choose} disabled={downloading || progress !== null} className="shrink-0">
-          <FolderInput /> Move…
-        </Button>
+        {downloading ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="shrink-0">{moveButton}</span>
+            </TooltipTrigger>
+            <TooltipContent>{busy}</TooltipContent>
+          </Tooltip>
+        ) : (
+          moveButton
+        )}
       </div>
       {progress && (
         <div className="flex flex-col gap-1">

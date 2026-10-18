@@ -2,9 +2,10 @@ use std::sync::Arc;
 
 use anyhow::bail;
 use clap::{Args as ClapArgs, Subcommand};
-use mangas_core::download::queue::{self, Action, Job, JobId, JobState, Scope, Target};
+use mangas_core::download::queue::{self, Action, Job, JobId, JobState, QueueGate, Scope, Target};
 use mangas_core::library;
 
+use super::settled::paused_report;
 use super::watch::{count, label, run_until_settled};
 use crate::output::outln;
 use crate::paths;
@@ -46,7 +47,7 @@ struct Which {
 pub async fn run(args: Args) -> anyhow::Result<()> {
     let lib = Arc::new(library::open(&paths::library_db()?)?);
     let action = match args.command {
-        Command::Ls => return list(&queue::list(&lib)?),
+        Command::Ls => return list(&queue::list(&lib)?, library::queue_gate(&lib)?),
         Command::Clear => {
             let removed = queue::clear_finished(&lib)?;
             return Ok(outln!("removed {removed} download(s)")?);
@@ -66,13 +67,23 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     for job in &changed {
         outln!("{:>5}  {}  {}", job.id, job.state.as_str(), label(job))?;
     }
-    if changed.is_empty() {
-        outln!("nothing to {}", action.verb())?;
+    match (target, action) {
+        (Target::All, Action::Pause) => {
+            outln!("Queue paused: nothing new starts until `mangas queue resume --all`")?
+        }
+        (Target::All, Action::Resume) => outln!("Queue resumed")?,
+        _ if changed.is_empty() => outln!("nothing to {}", action.verb())?,
+        _ => {}
     }
     Ok(())
 }
 
-fn list(jobs: &[Job]) -> anyhow::Result<()> {
+fn list(jobs: &[Job], gate: QueueGate) -> anyhow::Result<()> {
+    if gate.paused {
+        outln!("Queue paused (`mangas queue resume --all` resumes it)")?;
+    } else if gate.held(queue::now_ms()) {
+        outln!("Queue held while the data folder moves")?;
+    }
     if jobs.is_empty() {
         outln!("The download queue is empty.")?;
         return Ok(());
@@ -101,13 +112,20 @@ fn pages(job: &Job) -> String {
 }
 
 async fn run_all(lib: Arc<library::Library>) -> anyhow::Result<()> {
-    let jobs = run_until_settled(lib, Scope::All).await?;
-    let failed = count(&jobs, JobState::Failed);
+    let settled = run_until_settled(lib, Scope::All).await?;
+    let jobs = &settled.jobs;
+    let failed = count(jobs, JobState::Failed);
     outln!(
         "{} done, {failed} failed, {} paused",
-        count(&jobs, JobState::Done),
-        count(&jobs, JobState::Paused)
+        count(jobs, JobState::Done),
+        count(jobs, JobState::Paused)
     )?;
+    if let Some((lines, exit)) = paused_report(&settled) {
+        for line in lines {
+            outln!("{line}")?;
+        }
+        return Err(exit.into());
+    }
     if failed > 0 {
         bail!("{failed} download(s) failed; `mangas queue retry --all` tries them again");
     }

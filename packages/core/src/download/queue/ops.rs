@@ -1,5 +1,7 @@
 //! The queue's entry points for the apps: enqueue, pause/resume/cancel/retry, clear, list.
 
+use std::path::Path;
+
 use super::job::{Job, JobId, JobState};
 use super::transitions::{apply, Action};
 use crate::domain::{Chapter, Error, Result};
@@ -38,7 +40,7 @@ pub fn enqueue(
     chapters: Vec<Chapter>,
     force: bool,
 ) -> Result<Enqueued> {
-    let chapters = with_stored_paths(lib, source, chapters)?;
+    let chapters = still_on_disk(with_stored_paths(lib, source, chapters)?);
     let (to_queue, on_disk, unavailable) = split_for_queue(chapters, force);
     let ids: Vec<_> = to_queue.iter().map(|c| c.id.clone()).collect();
     let jobs = library::enqueue_jobs(lib, source, &ids, now_ms())?;
@@ -66,6 +68,27 @@ fn with_stored_paths(lib: &Library, source: &str, chapters: Vec<Chapter>) -> Res
             _ => c,
         })
         .collect())
+}
+
+/// Forgets the path of a chapter whose folder was deleted or emptied outside the app, so it is
+/// downloaded again instead of skipped.
+fn still_on_disk(chapters: Vec<Chapter>) -> Vec<Chapter> {
+    chapters
+        .into_iter()
+        .map(|c| match c.local_path.as_deref() {
+            Some(dir) if !has_files(Path::new(dir)) => Chapter {
+                local_path: None,
+                ..c
+            },
+            _ => c,
+        })
+        .collect()
+}
+
+fn has_files(dir: &Path) -> bool {
+    std::fs::read_dir(dir)
+        .map(|mut entries| entries.any(|e| e.is_ok_and(|e| e.path().is_file())))
+        .unwrap_or(false)
 }
 
 /// Which jobs an action is for.

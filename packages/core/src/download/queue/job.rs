@@ -109,3 +109,22 @@ impl Default for Job {
         }
     }
 }
+
+/// The queue-wide gate shared by every process: no job is claimed while it is closed.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct QueueGate {
+    /// The user's "pause all"; only "resume all" clears it.
+    pub paused: bool,
+    /// Unix ms until which a storage move holds the queue (0: not held).
+    pub held_until: i64,
+}
+
+impl QueueGate {
+    pub fn held(&self, now: i64) -> bool {
+        self.held_until > now
+    }
+
+    pub fn closed(&self, now: i64) -> bool {
+        self.paused || self.held(now)
+    }
+}

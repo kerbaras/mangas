@@ -63,10 +63,22 @@ impl SiteClient {
         self.send(path, request, true, self.config.retry).await
     }
 
-    /// GET returning the body of a 2xx response; other statuses become [`Error::Source`].
+    /// GET returning the body of a 2xx response; other statuses become errors ([`status_error`]).
     pub async fn get(&self, path: &str, query: &[(&str, String)]) -> Result<String> {
         let reply = self.get_raw(path, query).await?;
         self.ok_body(path, reply)
+    }
+
+    /// [`Self::get`] for sites whose error bodies explain the failure: `detail` reads that
+    /// explanation from the body and the error keeps it.
+    pub async fn get_explained(
+        &self,
+        path: &str,
+        query: &[(&str, String)],
+        detail: fn(&str) -> Option<String>,
+    ) -> Result<String> {
+        let reply = self.get_raw(path, query).await?;
+        self.ok_or(path, reply, detail)
     }
 
     pub async fn get_json<T: DeserializeOwned>(
@@ -128,10 +140,21 @@ impl SiteClient {
     }
 
     fn ok_body(&self, path: &str, reply: Reply) -> Result<String> {
-        if (200..300).contains(&reply.status) {
-            Ok(reply.body)
-        } else {
-            Err(self.error(format!("HTTP {} for {path}", reply.status)))
+        self.ok_or(path, reply, |_| None)
+    }
+
+    fn ok_or(
+        &self,
+        path: &str,
+        reply: Reply,
+        detail: fn(&str) -> Option<String>,
+    ) -> Result<String> {
+        match reply.status {
+            200..=299 => Ok(reply.body),
+            status => {
+                let detail = detail(&reply.body);
+                Err(status_error(self.config.info.id, path, status, detail))
+            }
         }
     }
 
@@ -144,5 +167,23 @@ impl SiteClient {
             name: self.config.info.id.to_string(),
             message,
         }
+    }
+}
+
+/// A failed status as an error. 404 and 410 mean the resource is gone from the site:
+/// [`Error::NotFound`], which the download queue never retries. Anything else is a source
+/// error. The site's own `detail` stays in the message.
+pub fn status_error(source: &str, path: &str, status: u16, detail: Option<String>) -> Error {
+    let what = format!("HTTP {status} for {path}");
+    let message = match detail {
+        Some(detail) => format!("{detail} ({what})"),
+        None => what,
+    };
+    match status {
+        404 | 410 => Error::NotFound(format!("{source}: {message}")),
+        _ => Error::Source {
+            name: source.to_string(),
+            message,
+        },
     }
 }

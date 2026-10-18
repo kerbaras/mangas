@@ -5,9 +5,10 @@ use anyhow::bail;
 use clap::Args as ClapArgs;
 use mangas_core::domain::{Chapter, MangaId};
 use mangas_core::download;
-use mangas_core::download::queue::{self, Job, JobState, Scope};
+use mangas_core::download::queue::{self, JobState, Scope};
 use mangas_core::library;
 
+use super::settled::{paused_note, paused_report};
 use super::watch::{count, run_until_settled};
 use super::{source_by_name, stored_settings};
 use crate::output::outln;
@@ -71,7 +72,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         return Ok(());
     }
     outln!("Downloading {} chapter(s) of {}", queued.jobs.len(), id)?;
-    let jobs = run_until_settled(lib, Scope::Jobs(queued.jobs.into_iter().collect())).await?;
+    let settled = run_until_settled(lib, Scope::Jobs(queued.jobs.into_iter().collect())).await?;
+    let jobs = &settled.jobs;
     if args.cbz {
         for job in jobs.iter().filter(|j| j.state == JobState::Done) {
             if let Some(dir) = &job.local_path {
@@ -81,12 +83,23 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             }
         }
     }
-    if let Some(note) = waiting_note(&jobs) {
+    if let Some(note) = paused_note(jobs) {
         outln!("{note}")?;
     }
-    let failed = count(&jobs, JobState::Failed);
+    let failed = count(jobs, JobState::Failed);
+    let failed_note =
+        format!("{failed} chapter(s) failed; `mangas queue retry --all` tries them again");
+    if let Some((lines, exit)) = paused_report(&settled) {
+        for line in lines {
+            outln!("{line}")?;
+        }
+        if failed > 0 {
+            eprintln!("{failed_note}");
+        }
+        return Err(exit.into());
+    }
     if failed > 0 {
-        bail!("{failed} chapter(s) failed; `mangas queue retry --all` tries them again");
+        bail!("{failed_note}");
     }
     Ok(())
 }
@@ -113,43 +126,4 @@ fn without_unavailable(selected: Vec<Chapter>, explicit: bool) -> anyhow::Result
         outln!("{summary}")?;
     }
     Ok(available)
-}
-
-/// Chapters left undone without failing: paused ones, or queued ones held by the queue-wide
-/// pause (the worker stops once nothing more can start).
-fn waiting_note(jobs: &[Job]) -> Option<String> {
-    let (paused, held) = (count(jobs, JobState::Paused), count(jobs, JobState::Queued));
-    let what = match (paused, held) {
-        (0, 0) => return None,
-        (p, 0) => format!("{p} chapter(s) paused"),
-        (0, q) => format!("{q} chapter(s) waiting: the download queue is paused"),
-        (p, q) => format!("{p} chapter(s) paused and {q} waiting: the download queue is paused"),
-    };
-    Some(format!(
-        "{what}; `mangas queue resume --all` then `mangas queue run` continue them"
-    ))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn job(state: JobState) -> Job {
-        Job {
-            state,
-            ..Default::default()
-        }
-    }
-
-    #[test]
-    fn chapters_held_by_the_queue_pause_are_reported_not_passed_off_as_done() {
-        assert_eq!(waiting_note(&[job(JobState::Done)]), None);
-        let held = waiting_note(&[job(JobState::Done), job(JobState::Queued)]).unwrap();
-        assert!(
-            held.starts_with("1 chapter(s) waiting: the download queue is paused"),
-            "{held}"
-        );
-        let paused = waiting_note(&[job(JobState::Paused)]).unwrap();
-        assert!(paused.starts_with("1 chapter(s) paused;"), "{paused}");
-    }
 }
