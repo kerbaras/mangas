@@ -62,6 +62,22 @@ fn clearing_a_cancelled_unlisted_job_drops_its_chapter_too() {
 }
 
 #[test]
+fn a_chapter_dropped_again_after_relisting_goes_with_its_job() {
+    let lib = library::open_in_memory().unwrap();
+    queue::enqueue(&lib, "a", follow(&lib, "a", 2), false).unwrap();
+    drop_from_source(&lib);
+    follow(&lib, "a", 2);
+    drop_from_source(&lib);
+    let jobs = queue::list(&lib).unwrap();
+    assert!(jobs.iter().all(|j| j.error.as_deref() == Some(UNLISTED)));
+    assert_eq!(chapter_count(&lib), 2, "kept while their jobs are listed");
+
+    queue::dismiss(&lib, 1).unwrap();
+    queue::dismiss(&lib, 2).unwrap();
+    assert_eq!(chapter_count(&lib), 0);
+}
+
+#[test]
 fn a_chapter_listed_again_survives_dismissing_its_job() {
     let lib = library::open_in_memory().unwrap();
     queue::enqueue(&lib, "a", follow(&lib, "a", 2), false).unwrap();

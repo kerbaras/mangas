@@ -74,12 +74,12 @@ pub fn upsert_chapters(
                AND chapter_id IN (SELECT id FROM synced)",
             params![source, UNLISTED],
         )?;
-        // A dropped chapter that still has a download on its way keeps its row: the job fails
-        // with the reason instead of vanishing with it, and stays until the user clears it.
+        // A dropped chapter that still has a download on its way (or a failed one) keeps its
+        // row: the job fails with the reason instead of vanishing, until the user clears it.
         tx.execute(
             "UPDATE download_jobs
              SET state = 'failed', error = ?4, owner = NULL, not_before = 0, updated_at = ?5
-             WHERE source = ?1 AND state IN ('queued', 'running', 'paused')
+             WHERE source = ?1 AND state IN ('queued', 'running', 'paused', 'failed')
                AND chapter_id IN (SELECT id FROM chapter
                    WHERE source = ?1 AND manga_id = ?2 AND language = ?3 AND local_path IS NULL
                      AND id NOT IN (SELECT id FROM synced))",
