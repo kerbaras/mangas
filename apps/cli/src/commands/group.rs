@@ -6,6 +6,7 @@ use clap::Args as ClapArgs;
 use mangas_core::domain::{groups_of, normalize_group, MangaId};
 use mangas_core::library;
 
+use super::{hint, unknown_group};
 use crate::output::outln;
 use crate::paths;
 
@@ -27,7 +28,8 @@ pub fn run(args: Args) -> anyhow::Result<()> {
     let id = MangaId(args.id);
     let lib = library::open(&paths::library_db()?)?;
     if library::get_manga(&lib, &args.source, &id)?.is_none() {
-        bail!("{id} is not in your library; run `mangas add {id}` first");
+        let add = hint(&format!("add {id}"), &args.source);
+        bail!("{id} is not in your library; run {add} first");
     }
     let groups = groups_of(&library::list_chapters(&lib, &args.source, &id, None)?);
     if args.clear {
@@ -37,7 +39,7 @@ pub fn run(args: Args) -> anyhow::Result<()> {
     }
     if let Some(name) = normalize_group(args.name.as_deref()) {
         if !groups.iter().any(|g| g.name == name) {
-            bail!("{id} has no chapters of group \"{name}\"; `mangas group {id}` lists them");
+            return Err(unknown_group(&name, &id, &args.source));
         }
         library::set_chapter_group(&lib, &args.source, &id, Some(&name))?;
         outln!("{id}: only chapters of {name}")?;
@@ -57,7 +59,10 @@ pub fn run(args: Args) -> anyhow::Result<()> {
     }
     match saved {
         Some(name) => outln!("\nNarrowed to {name} (`--clear` shows every group)")?,
-        None => outln!("\nEvery group shown (`mangas group {id} <name>` narrows it)")?,
+        None => {
+            let narrow = hint(&format!("group {id} <name>"), &args.source);
+            outln!("\nEvery group shown ({narrow} narrows it)")?
+        }
     }
     Ok(())
 }

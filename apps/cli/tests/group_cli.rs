@@ -79,6 +79,13 @@ fn chapters_show_the_group_and_filter_by_it() {
     let rows: Vec<&str> = narrowed.lines().skip(1).filter(|l| !l.is_empty()).collect();
     assert_eq!(rows.len(), 2, "{narrowed}");
     assert!(rows.iter().all(|r| r.contains("K Manga")), "{narrowed}");
+
+    let args = [&OFFLINE[..], &["en", "--group", "Nobody"]].concat();
+    let unknown = mangas(home.path(), &args);
+    assert!(!unknown.status.success(), "{unknown:?}");
+    let err = String::from_utf8_lossy(&unknown.stderr);
+    assert!(err.contains("no chapters of group \"Nobody\""), "{err}");
+    assert!(err.contains("--source mangadot"), "{err}");
 }
 
 #[test]

@@ -15,7 +15,7 @@ use super::export_args::FormatArg;
 use super::export_cover::cover_file;
 use super::export_preset::{self, PresetAction};
 use super::kindle_record;
-use super::stored_settings;
+use super::{hint, stored_settings};
 use crate::output::outln;
 use crate::paths;
 
@@ -130,10 +130,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let src = volume::load(&lib, &args.source, &args.manga_id, None)?;
     let plans = plans(&args, &src.manga, &src.chapters)?;
     if plans.is_empty() {
-        bail!(
-            "nothing to export: no downloaded chapters match (see `mangas chapters {}`)",
-            args.manga_id
-        );
+        let list = hint(&format!("chapters {}", args.manga_id), &args.source);
+        bail!("nothing to export: no downloaded chapters match (see {list})");
     }
     let series = library::get_export_preset(&lib, &args.source, &args.manga_id)?;
     let fallback = ExportPreset::from_settings(&stored_settings());

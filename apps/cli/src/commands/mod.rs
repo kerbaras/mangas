@@ -53,3 +53,14 @@ pub fn stored_settings() -> Settings {
 pub(crate) fn plural(n: usize, one: &str, many: &str) -> String {
     format!("{n} {}", if n == 1 { one } else { many })
 }
+
+/// A command to suggest, with `--source` so it reaches the same provider.
+pub fn hint(args: &str, source: &str) -> String {
+    format!("`mangas {args} --source {source}`")
+}
+
+/// The error `chapters`, `download` and `group` give for a group the title has no chapters of.
+pub fn unknown_group(group: &str, id: &impl std::fmt::Display, source: &str) -> anyhow::Error {
+    let list = hint(&format!("group {id}"), source);
+    anyhow::anyhow!("{id} has no chapters of group \"{group}\"; {list} lists its groups")
+}

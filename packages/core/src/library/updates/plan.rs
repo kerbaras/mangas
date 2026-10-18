@@ -55,15 +55,23 @@ pub struct Known {
     pub chapter_ids: HashSet<String>,
     /// Languages synced before: in a language never synced every chapter is the baseline.
     pub languages: HashSet<String>,
+    /// `(language, number)` already stored, of the title's group when it has one: another
+    /// group's release of a chapter the reader has is not news.
+    pub numbers: HashSet<(String, String)>,
 }
 
-/// Chapters of the fetched lists that are new: not stored yet, in a language synced before.
+/// Chapters of the fetched lists that are new: not stored yet, in a language synced before,
+/// with a number not stored yet.
 pub fn new_chapters(known: &Known, lists: &[(String, Vec<Chapter>)]) -> Vec<Chapter> {
     lists
         .iter()
         .filter(|(lang, _)| known.languages.contains(lang))
         .flat_map(|(_, chapters)| chapters)
         .filter(|c| !known.chapter_ids.contains(&c.id.0))
+        .filter(|c| {
+            let number = c.number.trim();
+            number.is_empty() || !known.numbers.contains(&(c.language.clone(), number.into()))
+        })
         .cloned()
         .collect()
 }

@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { describe, expect, it } from "vitest";
 import { ChaptersTable } from "@/components/chapters-table";
 import { useChapterSelection } from "@/hooks/use-chapter-selection";
-import { duplicateIds, filterByGroup, groupsOf, sourceRef } from "@/lib/chapter-groups";
+import { duplicateIds, filterByGroup, groupsOf, shortGroup, sourceRef } from "@/lib/chapter-groups";
 import { exportTargets, pickSelected, selectableIds } from "@/lib/chapters";
 import type { Chapter } from "@/lib/ipc";
 
@@ -96,5 +96,16 @@ describe("chapters table with a group filter", () => {
     expect(screen.getByText("#7")).toBeTruthy();
     expect(screen.getByText("#8")).toBeTruthy();
     expect(screen.queryByText("#2")).toBeNull();
+  });
+});
+
+describe("shortGroup", () => {
+  it("keeps short names and cuts long ones in the middle", () => {
+    expect(shortGroup("K Manga")).toBe("K Manga");
+    const a = shortGroup("All For Manga Group, Wicked House Translation");
+    const b = shortGroup("Wicked House Translation");
+    expect(a).toHaveLength(22);
+    expect(a).toBe("All For Man…ranslation");
+    expect(a).not.toBe(b);
   });
 });

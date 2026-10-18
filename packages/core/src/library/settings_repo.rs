@@ -170,3 +170,20 @@ pub fn edit_settings(
     tx.commit()?;
     Ok(merged)
 }
+
+impl Settings {
+    /// The groups a provider prefers when a chapter has several releases
+    /// (`provider_options[source].preferred_groups`, first = best).
+    pub fn preferred_groups(&self, source: &str) -> Vec<String> {
+        self.provider_options
+            .get(source)
+            .and_then(|o| o.get("preferred_groups"))
+            .and_then(|g| g.as_array())
+            .map(|g| {
+                g.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+}

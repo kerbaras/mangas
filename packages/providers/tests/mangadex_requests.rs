@@ -80,14 +80,24 @@ async fn chapter_numbers(server: &MockServer) -> Vec<String> {
         .unwrap()
         .with_preferences(options, vec!["en".into()]);
     let chapters = source.chapters(&id(), "en").await.unwrap();
-    assert_eq!(chapters[0].group.as_deref(), Some("Mitsugoshi"));
-    chapters.into_iter().map(|c| c.number).collect()
+    assert_eq!(
+        chapters.len(),
+        12,
+        "every group's upload is kept; core picks among them"
+    );
+    let mitsugoshi = chapters
+        .iter()
+        .filter(|c| c.group.as_deref() == Some("Mitsugoshi"));
+    assert_eq!(mitsugoshi.count(), 5);
+    let mut numbers: Vec<String> = chapters.into_iter().map(|c| c.number).collect();
+    numbers.dedup();
+    numbers
 }
 
 const NUMBERS: [&str; 6] = ["1", "2.1", "2.2", "3.1", "3.2", "4.1"];
 
 #[tokio::test]
-async fn chapters_walk_every_feed_page_and_apply_group_preference() {
+async fn chapters_walk_every_feed_page_and_keep_every_group() {
     let server = feed_server(0).await;
     assert_eq!(chapter_numbers(&server).await, NUMBERS);
 }

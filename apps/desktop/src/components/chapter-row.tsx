@@ -3,7 +3,7 @@ import type { MouseEvent, ReactNode } from "react";
 import { AvailabilityCell } from "@/components/availability-cell";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { sourceRef } from "@/lib/chapter-groups";
+import { shortGroup, sourceRef } from "@/lib/chapter-groups";
 import { isUnavailable } from "@/lib/chapters";
 import { cn } from "@/lib/cn";
 import { languageLabel } from "@/lib/format";
@@ -119,7 +119,7 @@ export function ChapterRow({ chapter, selected, showSourceId, progress, onToggle
         {chapter.title ?? <span className="text-ink-3">Untitled</span>}
       </td>
       <td className="w-40 truncate pr-4 text-ink-2" title={chapter.group ?? undefined}>
-        {chapter.group ?? <span className="text-ink-3">—</span>}
+        {chapter.group ? shortGroup(chapter.group) : <span className="text-ink-3">—</span>}
         {showSourceId && (
           <span className="ml-1 text-caption text-ink-3">{sourceRef(chapter.id)}</span>
         )}

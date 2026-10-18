@@ -3,14 +3,14 @@ use std::sync::Arc;
 
 use anyhow::bail;
 use clap::Args as ClapArgs;
-use mangas_core::domain::{in_group, normalize_group, Chapter, MangaId};
+use mangas_core::domain::{collapse_groups, in_group, normalize_group, Chapter, MangaId};
 use mangas_core::download;
 use mangas_core::download::queue::{self, JobState, Scope};
 use mangas_core::library;
 
 use super::settled::paused_report;
 use super::watch::{count, run_until_settled};
-use super::{source_by_name, stored_settings};
+use super::{hint, source_by_name, stored_settings, unknown_group};
 use crate::output::outln;
 use crate::paths;
 
@@ -37,7 +37,8 @@ pub struct Args {
     /// (`mangas group`)
     #[arg(long, conflicts_with = "all_groups")]
     pub group: Option<String>,
-    /// Chapters of every group, ignoring the group saved for the title
+    /// Every group's release of each chapter, ignoring the group saved for the title (without
+    /// a group, one release per chapter is taken, preferring the provider's preferred groups)
     #[arg(long)]
     pub all_groups: bool,
 }
@@ -50,20 +51,22 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let id = MangaId(args.manga_id.clone());
     let lib = Arc::new(library::open(&paths::library_db()?)?);
     if library::get_manga(&lib, &args.source, &id)?.is_none() {
-        bail!(
-            "{} is not in your library; run `mangas add {}` first",
-            id,
-            id
-        );
+        let add = hint(&format!("add {id}"), &args.source);
+        bail!("{id} is not in your library; run {add} first");
     }
-    let requested = library::requested_languages(args.lang.as_deref(), &stored_settings());
+    let settings = stored_settings();
+    let requested = library::requested_languages(args.lang.as_deref(), &settings);
     let languages = mangas_providers::languages_for(&args.source, &requested);
     let synced = library::sync_chapters(&lib, source.as_ref(), &id, &languages).await?;
     let saved = library::chapter_group(&lib, &args.source, &id)?;
     let group = pick_group(args.group.as_deref(), args.all_groups, saved);
-    let synced = in_group(synced, group.as_deref());
+    let synced = match (&group, args.all_groups) {
+        (Some(_), _) | (None, true) => in_group(synced, group.as_deref()),
+        // No group picked: one release per chapter, as the provider's preferred groups say.
+        (None, false) => collapse_groups(synced, &settings.preferred_groups(&args.source)),
+    };
     if let (Some(group), true) = (&group, synced.is_empty()) {
-        bail!("no chapters of group \"{group}\" (`mangas chapters {id}` lists the groups; --all-groups ignores it)");
+        return Err(unknown_group(group, &id, &args.source));
     }
     if let Some(group) = &group {
         outln!("Group: {group}")?;

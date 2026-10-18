@@ -70,3 +70,34 @@ fn the_choice_is_saved_per_title_and_cleared_by_all() {
     let other = MangaId("9".into());
     assert!(!set_chapter_group(&lib, "mangadot", &other, Some("X")).unwrap());
 }
+
+#[test]
+fn collapse_keeps_one_release_per_number_and_language() {
+    use mangas_core::domain::{collapse_groups, Availability};
+    let release = |id: &str, number: &str, lang: &str, group: &str| Chapter {
+        id: ChapterId(id.into()),
+        number: number.into(),
+        language: lang.into(),
+        group: Some(group.into()),
+        ..Default::default()
+    };
+    let mut external = release("ext-1", "1", "en", "Koi");
+    external.availability = Availability::External { url: None };
+    let list = vec![
+        external,
+        release("r-1", "1", "en", "r/OPM"),
+        release("koi-2", "2", "en", "Koi"),
+        release("r-2", "2", "en", "r/OPM"),
+        release("es-2", "2", "es", "Koi"),
+        release("x", "", "en", "Koi"),
+    ];
+    let ids = |l: Vec<Chapter>| -> Vec<String> { l.into_iter().map(|c| c.id.0).collect() };
+    assert_eq!(
+        ids(collapse_groups(list.clone(), &[])),
+        ["r-1", "koi-2", "es-2", "x"]
+    );
+    assert_eq!(
+        ids(collapse_groups(list, &["R/opm".into()])),
+        ["r-1", "r-2", "es-2", "x"]
+    );
+}

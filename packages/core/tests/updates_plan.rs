@@ -73,6 +73,7 @@ fn new_means_unseen_id_in_a_language_synced_before() {
     let known = Known {
         chapter_ids: ["a", "b"].map(String::from).into(),
         languages: ["en".to_string()].into(),
+        ..Known::default()
     };
     let lists = vec![
         (
@@ -163,4 +164,26 @@ fn one_notification_per_run_naming_a_few_titles() {
     assert_eq!(body, "A, B, C and 2 more");
     report.updates.truncate(2);
     assert_eq!(notification(&report).unwrap().1, "A, B");
+}
+
+#[test]
+fn another_groups_release_of_a_stored_number_is_not_new() {
+    let known = Known {
+        chapter_ids: ["a"].map(String::from).into(),
+        languages: ["en".to_string()].into(),
+        numbers: [("en".to_string(), "1".to_string())].into(),
+    };
+    let lists = vec![(
+        "en".to_string(),
+        vec![
+            chapter("a", "1", "en"),
+            chapter("koi-1", "1", "en"),
+            chapter("b", "2", "en"),
+        ],
+    )];
+    let new: Vec<String> = new_chapters(&known, &lists)
+        .into_iter()
+        .map(|c| c.id.0)
+        .collect();
+    assert_eq!(new, ["b"]);
 }

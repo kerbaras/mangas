@@ -1,7 +1,9 @@
 //! Narrowing a chapter list to one scanlation group: sites like MangaDot list the same chapter
 //! once per group, and a reader usually follows one of them.
 
-use super::Chapter;
+use std::collections::HashMap;
+
+use super::{Availability, Chapter};
 
 /// A group in a chapter list and how many of its chapters the list holds.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -44,4 +46,45 @@ pub fn normalize_group(name: Option<&str>) -> Option<String> {
     name.map(str::trim)
         .filter(|n| !n.is_empty())
         .map(String::from)
+}
+
+/// One release per chapter number and language, for when no group is picked: a downloadable
+/// release beats an external one, then the earliest of `preferred` groups (case-insensitive),
+/// then whichever came first. Keeps the list order; chapters without a number are all kept.
+pub fn collapse_groups(chapters: Vec<Chapter>, preferred: &[String]) -> Vec<Chapter> {
+    let mut out: Vec<Chapter> = Vec::new();
+    let mut slots: HashMap<(String, String), usize> = HashMap::new();
+    for chapter in chapters {
+        let number = chapter.number.trim().to_string();
+        if number.is_empty() {
+            out.push(chapter);
+            continue;
+        }
+        match slots.get(&(chapter.language.clone(), number.clone())) {
+            Some(&i) if rank(&chapter, preferred) < rank(&out[i], preferred) => out[i] = chapter,
+            Some(_) => {}
+            None => {
+                slots.insert((chapter.language.clone(), number), out.len());
+                out.push(chapter);
+            }
+        }
+    }
+    out
+}
+
+fn rank(chapter: &Chapter, preferred: &[String]) -> (u8, usize) {
+    let tier = match &chapter.availability {
+        Availability::Available => 0,
+        Availability::External { url: Some(_) } => 1,
+        _ => 2,
+    };
+    let names: Vec<&str> = chapter
+        .group
+        .as_deref()
+        .map_or_else(Vec::new, |g| g.split(", ").map(str::trim).collect());
+    let group = preferred
+        .iter()
+        .position(|p| names.iter().any(|n| n.eq_ignore_ascii_case(p.trim())))
+        .unwrap_or(usize::MAX);
+    (tier, group)
 }

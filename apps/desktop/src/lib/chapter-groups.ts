@@ -31,3 +31,10 @@ export function sourceRef(id: string): string {
   const raw = id.slice(id.lastIndexOf(":") + 1);
   return `#${raw.length > 8 ? raw.slice(0, 8) : raw}`;
 }
+
+/** A long group name cut in the middle, so its start and its end (often what tells two apart) stay visible. */
+export function shortGroup(name: string, max = 22): string {
+  if (name.length <= max) return name;
+  const head = Math.ceil((max - 1) / 2);
+  return `${name.slice(0, head)}…${name.slice(name.length - (max - 1 - head))}`;
+}

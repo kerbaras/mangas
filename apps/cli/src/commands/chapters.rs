@@ -4,7 +4,7 @@ use mangas_core::domain::{
 };
 use mangas_core::library;
 
-use super::{source_by_name, stored_settings};
+use super::{hint, source_by_name, stored_settings, unknown_group};
 use crate::output::outln;
 use crate::paths;
 
@@ -48,8 +48,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let group = normalize_group(args.group.as_deref());
     let chapters = in_group(chapters, group.as_deref());
     if let (Some(group), true) = (&group, chapters.is_empty()) {
-        outln!("No chapters of group \"{group}\" for {id}; drop --group to list every group")?;
-        return Ok(());
+        return Err(unknown_group(group, &id, &args.source));
     }
     if chapters.is_empty() {
         let langs = languages.join("/");
@@ -69,7 +68,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         outln!("{}", format_row(c))?;
     }
     if !followed {
-        outln!("\n(not in your library; `mangas add {id}` to follow it)")?;
+        let add = hint(&format!("add {id}"), &args.source);
+        outln!("\n(not in your library; {add} to follow it)")?;
     }
     Ok(())
 }
