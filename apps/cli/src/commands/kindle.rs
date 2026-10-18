@@ -10,9 +10,11 @@ use mangas_core::export::{Format, Labels, PROFILES};
 use mangas_core::library;
 
 use super::cut_args::{print_progress, CutArgs, DEFAULT_PROFILE};
+use super::deliver::{deliver, SendArg};
 use super::export_args::FormatArg;
+use super::kindle_record;
 use crate::output::outln;
-use crate::paths;
+use crate::{paths, Exit};
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -29,6 +31,12 @@ pub struct Args {
     /// Output file [default: out.<format>]
     #[arg(long, short)]
     pub output: Option<PathBuf>,
+    /// After writing the book, email it to the Kindle or copy it to one over USB
+    #[arg(long, value_enum)]
+    pub send: Option<SendArg>,
+    /// Mount point of the Kindle for `--send usb` [default: detected]
+    #[arg(long)]
+    pub kindle: Option<PathBuf>,
     /// Print the known e-reader profiles and exit
     #[arg(long, visible_alias = "list-devices")]
     pub list_profiles: bool,
@@ -119,21 +127,27 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             stats.skipped
         )?;
     }
-    mark_exported(&stats.exported_chapters(&req.chapter_dirs));
-    Ok(())
-}
-
-/// Library chapters among `dirs` count as read from now on; folders from elsewhere are ignored.
-/// The file is already written, so a failed update only gets a warning.
-pub(super) fn mark_exported(dirs: &[&Path]) {
-    let spellings = spellings(dirs);
-    let dirs: Vec<&Path> = spellings.iter().map(PathBuf::as_path).collect();
-    let marked = paths::library_db()
-        .and_then(|db| Ok(library::open(&db)?))
-        .and_then(|lib| Ok(library::mark_exported(&lib, &dirs)?));
-    if let Err(e) = marked {
-        eprintln!("warning: could not mark the chapters as exported: {e}");
-    }
+    let not_sent = |e: anyhow::Error| -> anyhow::Error {
+        let message = format!("{} was written but not sent: {e:#}", stats.output.display());
+        Exit { code: 2, message }.into()
+    };
+    let lib = match paths::library_db().and_then(|db| Ok(library::open(&db)?)) {
+        Ok(lib) => lib,
+        Err(e) if args.send.is_some() => return Err(not_sent(e)),
+        Err(e) => {
+            eprintln!("warning: could not open the library: {e}");
+            return Ok(());
+        }
+    };
+    kindle_record::mark_exported(&lib, &stats.exported_chapters(&req.chapter_dirs));
+    kindle_record::record_export(&lib, &stats.output, &req.title, dev.id);
+    let Some(via) = args.send else {
+        return Ok(());
+    };
+    let file = std::path::absolute(&stats.output)?;
+    deliver(&lib, &file, &req.title, via, args.kindle.as_deref())
+        .await
+        .map_err(not_sent)
 }
 
 /// Series/chapter/volume labels from the library; folders it doesn't know export unlabelled.

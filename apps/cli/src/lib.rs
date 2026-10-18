@@ -47,10 +47,13 @@ enum Command {
     Update(commands::update::Args),
     /// Import chapter folders or .cbz files from disk into the library
     Import(commands::import::Args),
-    /// Export chapter folders as one EPUB, CBZ or PDF for an e-reader profile (Kindle EPUB by default)
+    /// Export chapter folders as one EPUB, CBZ or PDF for an e-reader profile (Kindle EPUB by
+    /// default), optionally sending it (--send)
     Kindle(commands::kindle::Args),
     /// Export a followed manga's downloaded chapters as volume books: EPUB, CBZ or PDF (TOC, series, cover)
     Export(commands::export::Args),
+    /// Send an EPUB to the Kindle by email or over USB
+    Send(commands::send::Args),
     /// List the providers and whether they are ready to use
     Providers(commands::providers::Args),
     /// Show or change app settings shared with the desktop app
@@ -93,6 +96,7 @@ async fn dispatch(command: Command) -> anyhow::Result<()> {
         Command::Import(args) => commands::import::run(args),
         Command::Kindle(args) => commands::kindle::run(args).await,
         Command::Export(args) => commands::export::run(args).await,
+        Command::Send(args) => commands::send::run(args).await,
         Command::Providers(args) => commands::providers::run(args).await,
         Command::Settings(args) => commands::settings::run(args),
         Command::Storage(args) => commands::storage::run(args),

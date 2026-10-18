@@ -1,5 +1,6 @@
 import { FolderOpen, Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { DeliverySection } from "@/components/delivery-section";
 import { DeviceSelect } from "@/components/device-select";
 import { DevicesPending } from "@/components/devices-pending";
 import { DownloadedPicker } from "@/components/downloaded-picker";
@@ -192,6 +193,9 @@ export function KindleScreen({ chapterIds }: Props) {
             </div>
           </Field>
           <ExportProgressPanel state={exportJob.state} onReset={exportJob.reset} />
+          <DeliverySection
+            exported={exportJob.state.kind === "done" ? exportJob.state.result.output : null}
+          />
         </div>
       </div>
     </section>

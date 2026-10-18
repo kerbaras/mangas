@@ -17,6 +17,7 @@ import type { Diagnostics } from "./ipc.diagnostics";
 import type { Enqueued } from "./ipc.downloads";
 import type { Category, LibraryEntry } from "./ipc.library";
 import { tauriDownloads } from "./ipc.tauri-downloads";
+import { tauriSend } from "./ipc.tauri-send";
 import { tauriStorage } from "./ipc.tauri-storage";
 import { tauriUpdates } from "./ipc.tauri-updates";
 import { tauriVolumes } from "./ipc.tauri-volumes";
@@ -111,6 +112,7 @@ export const tauriBackend: Backend = {
   openLogs: () => invoke<void>("open_logs"),
   reportError: (message, level = "error") => invoke<void>("log_ui_error", { message, level }),
   ...tauriStorage,
+  ...tauriSend,
   ...tauriUpdates,
   ...tauriDownloads,
   ...tauriVolumes,

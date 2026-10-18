@@ -18,6 +18,7 @@ import { mockImport } from "./mock-import";
 import { markExported, mockLibrary } from "./mock-library";
 import { emitJob, simulatedQueue } from "./mock-queue-sim";
 import { mockSearch } from "./mock-search";
+import { mockSend } from "./mock-send";
 import { mockStorage } from "./mock-storage";
 import { mockUpdates } from "./mock-updates";
 import { mockVolumes } from "./mock-volumes";
@@ -187,6 +188,7 @@ export const mockBackend: Backend = {
     },
   }),
   ...mockLibrary(library, chaptersOf),
+  ...mockSend(),
   ...simulatedQueue(),
   ...mockVolumes({
     manga: (source, id) =>

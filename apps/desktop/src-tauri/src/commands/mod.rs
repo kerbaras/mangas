@@ -9,6 +9,7 @@ pub mod import;
 pub mod kindle;
 pub mod organisation;
 pub mod providers;
+pub mod send;
 pub mod storage;
 pub mod updates;
 pub mod volumes;

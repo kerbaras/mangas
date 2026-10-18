@@ -85,11 +85,15 @@ pub fn plan(
     (add, report)
 }
 
-/// Restored preferences, keeping this machine's provider sessions and data folder.
+/// Restored preferences, keeping this machine's provider sessions, data folder and SMTP
+/// password (backups never carry one).
 pub fn merge_settings(current: &Settings, restored: &Settings) -> Settings {
+    let mut kindle_email = restored.kindle_email.clone();
+    kindle_email.password = current.kindle_email.password.clone();
     Settings {
         data_dir: current.data_dir.clone(),
         provider_sessions: current.provider_sessions.clone(),
+        kindle_email,
         ..restored.clone()
     }
 }

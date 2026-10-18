@@ -4,6 +4,7 @@ import { BackupPanel } from "@/components/backup-panel";
 import { DeviceSelect } from "@/components/device-select";
 import { DevicesPending } from "@/components/devices-pending";
 import { DiagnosticsPanel } from "@/components/diagnostics-panel";
+import { EmailSettingsForm } from "@/components/email-settings";
 import { ErrorAlert } from "@/components/error-alert";
 import { Field } from "@/components/field";
 import { FormatPicker } from "@/components/format-picker";
@@ -138,6 +139,12 @@ function SettingsForm() {
                 value={settings.defaultPreset}
                 onChange={(p) => update({ defaultPreset: p })}
               />
+            </Field>
+            <Field
+              label="Send by email"
+              hint="Books go to your Kindle address as an attachment; Amazon takes up to 50 MB per email."
+            >
+              <EmailSettingsForm />
             </Field>
           </Group>
           <Group title="Command line">

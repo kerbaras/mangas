@@ -7,6 +7,7 @@ use crate::domain::{Error, Result};
 use crate::export::Format;
 use crate::library::settings_merge::merge_edit;
 use crate::library::Library;
+use crate::send::EmailSettings;
 use crate::smartcut::Preset;
 
 /// User preferences shared by the desktop app and the CLI. Every field is optional: `None`
@@ -38,6 +39,8 @@ pub struct Settings {
     pub update_check_hours: Option<u32>,
     /// Desktop notification when a background check finds new chapters; on when `None`.
     pub update_notifications: Option<bool>,
+    /// Send to Kindle by email (SMTP server, sender, Kindle address).
+    pub kindle_email: EmailSettings,
 }
 
 /// Hours between background update checks when none is stored.

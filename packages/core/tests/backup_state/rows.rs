@@ -44,6 +44,8 @@ pub fn snapshot(db: &Path) -> Vec<Vec<Vec<Value>>> {
         "chapter",
         "download_jobs",
         "download_queue",
+        // Paths to EPUBs on this machine: machine-local like the queue, not in backups.
+        "export_history",
         "manga",
         "manga_category",
         "manga_language_sync",

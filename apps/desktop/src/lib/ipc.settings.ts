@@ -1,5 +1,6 @@
 /** Settings part of the IPC contract. */
 import type { ExportFormat, Preset } from "./ipc";
+import type { EmailSettings } from "./ipc.send";
 
 /** Browser session captured for a provider behind a verification wall. */
 export type ProviderSession = {
@@ -27,4 +28,6 @@ export type Settings = {
   update_check_hours?: number | null;
   /** Desktop notification when a background check finds new chapters; null = on. */
   update_notifications?: boolean | null;
+  /** Send to Kindle by email; the password is stored unencrypted. */
+  kindle_email?: EmailSettings;
 };
