@@ -6,7 +6,6 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use super::cbz::is_image;
 use super::plan::present_indexes;
 use crate::domain::Result;
 
@@ -27,8 +26,9 @@ pub(super) fn mark_expected(dir: &Path, pages: usize) -> Result<()> {
     Ok(())
 }
 
-/// `dir` has a page image for every index its marker records. A folder from before the marker
-/// existed counts as complete once it has any page, as it always did.
+/// `dir` has a page image for every index its marker records. A folder without a marker (from
+/// before it existed) is unknown, so it is not complete: its next download fetches the page
+/// list, writes the marker and fetches only the pages it lacks.
 pub(crate) fn is_complete(dir: &Path) -> bool {
     let recorded = std::fs::read_to_string(dir.join(MARKER))
         .ok()
@@ -42,8 +42,14 @@ fn holds_all(names: &HashSet<String>, recorded: Option<usize>) -> bool {
             let present = present_indexes(names);
             pages > 0 && (1..=pages).all(|i| present.contains(&i))
         }
-        None => names.iter().any(|n| !n.starts_with('.') && is_image(n)),
+        None => false,
     }
+}
+
+/// An aside marker file a process died with before renaming it into place.
+pub(super) fn is_marker_leftover(name: &str) -> bool {
+    name.strip_prefix(MARKER)
+        .is_some_and(|rest| rest.starts_with('.') && rest.ends_with(".new"))
 }
 
 fn file_names(dir: &Path) -> HashSet<String> {
@@ -116,8 +122,15 @@ mod tests {
     }
 
     #[test]
-    fn an_unmarked_folder_needs_one_page() {
-        assert!(holds_all(&names(&["0001.jpg"]), None));
-        assert!(!holds_all(&names(&["0001.jpg.part", MARKER]), None));
+    fn an_unmarked_folder_is_never_complete() {
+        assert!(!holds_all(&names(&["0001.jpg", "0002.jpg"]), None));
+    }
+
+    #[test]
+    fn only_aside_marker_files_are_leftovers() {
+        assert!(is_marker_leftover(".mangas-pages.4242.0.new"));
+        assert!(!is_marker_leftover(MARKER));
+        assert!(!is_marker_leftover(".mangas-pagesx.new"));
+        assert!(!is_marker_leftover("0001.jpg"));
     }
 }

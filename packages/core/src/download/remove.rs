@@ -3,6 +3,7 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
+use super::complete::is_marker_leftover;
 use crate::domain::Result;
 
 /// Removes the files in `dest` whose name matches `drop`, stopping at the first failure.
@@ -13,14 +14,14 @@ pub(super) fn remove_files(dest: &Path, drop: impl Fn(&str) -> bool) -> Result<(
     Ok(())
 }
 
-/// Drops every `.part` file left in a completed chapter's folder. One that can't be removed
-/// only gets a warning (the pages are all there) and the others still go.
+/// Drops every `.part` file and stray aside marker file left in a completed chapter's folder.
+/// One that can't be removed only gets a warning (the pages are all there) and the others go.
 pub(super) fn drop_stale_parts(dest: &Path) {
     drop_stale_parts_with(dest, |path| std::fs::remove_file(path));
 }
 
 fn drop_stale_parts_with(dest: &Path, remove: impl Fn(&Path) -> io::Result<()>) {
-    let stale = match matching_files(dest, |name| name.ends_with(".part")) {
+    let stale = match matching_files(dest, |n| n.ends_with(".part") || is_marker_leftover(n)) {
         Ok(stale) => stale,
         Err(e) => return log::warn!("could not list .part files in {}: {e}", dest.display()),
     };

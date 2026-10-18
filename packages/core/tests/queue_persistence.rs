@@ -50,6 +50,7 @@ fn enqueue_skips_chapters_on_disk_unless_forced_and_reports_unavailable_ones() {
     let mut chapters = follow(&lib, "a", 3);
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(dir.path().join("0001.jpg"), b"page").unwrap();
+    std::fs::write(dir.path().join(".mangas-pages"), "1\n").unwrap();
     library::mark_downloaded(&lib, "a", &chapters[0].id, dir.path()).unwrap();
     chapters[0].local_path = Some(dir.path().to_string_lossy().into_owned());
     chapters[2].availability = Availability::Locked;

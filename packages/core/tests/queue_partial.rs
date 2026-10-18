@@ -78,24 +78,45 @@ async fn a_complete_folder_is_still_skipped() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn a_folder_from_before_the_marker_counts_when_it_has_pages() {
+async fn a_folder_from_before_the_marker_is_repaired_on_a_plain_download() {
     let root = tempfile::tempdir().unwrap();
     let (lib, chapters, dir) = downloaded(root.path()).await;
     std::fs::remove_file(dir.join(".mangas-pages")).unwrap();
     std::fs::remove_file(dir.join("0002.jpg")).unwrap();
-    assert_eq!(
-        queue::enqueue(&lib, "a", chapters.clone(), false)
-            .unwrap()
-            .on_disk
-            .len(),
-        1
-    );
+    let stray = dir.join(".mangas-pages.4242.0.new");
+    std::fs::write(&stray, b"3\n").unwrap();
 
-    for page in 1..=6 {
-        let _ = std::fs::remove_file(dir.join(format!("{page:04}.jpg")));
-    }
+    let queued = queue::enqueue(&lib, "a", chapters.clone(), false).unwrap();
+    assert_eq!((queued.jobs.len(), queued.on_disk.len()), (1, 0));
+    let fetcher = Arc::new(Fetcher::default());
+    run(&lib, &fetcher, root.path()).await;
+
+    assert_eq!(*fetcher.fetched.lock().unwrap(), ["https://cdn/2"]);
+    let marker = std::fs::read_to_string(dir.join(".mangas-pages")).unwrap();
+    assert_eq!(marker, "6\n", "the folder has a marker now");
+    assert!(
+        !stray.exists(),
+        "a dead process's aside marker is cleaned up"
+    );
     let queued = queue::enqueue(&lib, "a", chapters, false).unwrap();
-    assert_eq!(queued.jobs.len(), 1, "an emptied folder downloads again");
+    assert_eq!(queued.on_disk.len(), 1, "and it is skipped from then on");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_whole_folder_from_before_the_marker_costs_only_the_page_list() {
+    let root = tempfile::tempdir().unwrap();
+    let (lib, chapters, dir) = downloaded(root.path()).await;
+    std::fs::remove_file(dir.join(".mangas-pages")).unwrap();
+
+    queue::enqueue(&lib, "a", chapters, false).unwrap();
+    let fetcher = Arc::new(Fetcher::default());
+    run(&lib, &fetcher, root.path()).await;
+
+    assert!(
+        fetcher.fetched.lock().unwrap().is_empty(),
+        "no page fetched"
+    );
+    assert!(dir.join(".mangas-pages").exists());
 }
 
 #[tokio::test(flavor = "multi_thread")]
