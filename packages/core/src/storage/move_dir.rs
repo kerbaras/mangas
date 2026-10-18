@@ -5,7 +5,7 @@ use serde::Serialize;
 
 use super::layout::DATA_SUBDIRS;
 use super::relocate::{check_target, rebase};
-use super::tree::{list_files, FileEntry};
+use super::tree::{empty_dir, list_files, FileEntry};
 use crate::domain::{Error, Result};
 use crate::library::{downloaded_chapters, get_settings, switch_data_dir, Library};
 use crate::ml::lease::{self, Purpose};
@@ -77,7 +77,11 @@ fn move_held(
         discard_copy(&to, &plan, &created);
         return Err(e);
     }
-    // The library now points at the new folder; the old copy can go without the lock in it.
+    // Empty the old models while still holding their lock, so a process with the old path can't
+    // start a download into them; the lock files go with the folder after.
+    if let Err(e) = empty_dir(&from_resolved.join("models"), &lease::LEASE_FILES) {
+        log::warn!("empty the old models folder: {e}");
+    }
     drop(lease);
     let leftovers = DATA_SUBDIRS
         .iter()

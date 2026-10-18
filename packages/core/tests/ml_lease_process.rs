@@ -113,8 +113,15 @@ fn a_holder_that_dies_frees_the_folder() {
         lease_path(&models).exists(),
         "the lock file outlives the holder"
     );
+    let reading = mangas_core::ml::lease::share(&models).unwrap();
+    let err = acquire(&models, Purpose::Remove).err().unwrap().to_string();
+    assert!(
+        err.contains("an export is using"),
+        "the dead downloader isn't blamed: {err}"
+    );
+    drop(reading);
     assert!(
         acquire(&models, Purpose::Download).is_ok(),
-        "but the lock does not"
+        "the lock does not outlive it"
     );
 }

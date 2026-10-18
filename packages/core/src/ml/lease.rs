@@ -62,6 +62,10 @@ pub fn acquire(models_dir: &Path, purpose: Purpose) -> Result<Lease> {
 pub fn share(models_dir: &Path) -> Result<Lease> {
     let file = open(models_dir)?;
     locked(file.try_lock_shared(), models_dir)?;
+    // Nobody can hold it exclusively now, so an owner record left is from a crashed holder.
+    if let Err(e) = remove_if_present(&models_dir.join(OWNER_FILE)) {
+        log::warn!("clear a stale lease owner: {e}");
+    }
     Ok(Lease {
         _file: file,
         owner: None,
@@ -107,11 +111,15 @@ impl Drop for Lease {
     fn drop(&mut self) {
         // Before the lock goes (with the file), so a reader never sees a stale owner.
         let Some(owner) = &self.owner else { return };
-        match fs::remove_file(owner) {
-            Err(e) if e.kind() != ErrorKind::NotFound => {
-                log::warn!("release {}: {e}", owner.display());
-            }
-            _ => {}
+        if let Err(e) = remove_if_present(owner) {
+            log::warn!("release {}: {e}", owner.display());
         }
+    }
+}
+
+fn remove_if_present(path: &Path) -> std::io::Result<()> {
+    match fs::remove_file(path) {
+        Err(e) if e.kind() != ErrorKind::NotFound => Err(e),
+        _ => Ok(()),
     }
 }
