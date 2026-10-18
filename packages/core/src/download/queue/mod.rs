@@ -8,6 +8,7 @@ mod hold;
 mod job;
 mod lease;
 mod ops;
+mod releases;
 mod retry;
 mod runner;
 mod schedule;
@@ -28,6 +29,7 @@ pub use ops::{
     clear_finished, control, dismiss, enqueue, find, gate_status, list, now_ms, reclaim_orphans,
     split_for_queue, Enqueued, Target,
 };
+pub use releases::pick_releases;
 pub use retry::{backoff, classify, Failure, RetryPolicy};
 pub use runner::{run_job, JobRunner};
 pub use schedule::{in_queue_order, is_settled, pick, Limits, Scope};

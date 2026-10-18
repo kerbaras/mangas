@@ -3,11 +3,12 @@ use std::sync::Arc;
 
 use anyhow::bail;
 use clap::Args as ClapArgs;
-use mangas_core::domain::{collapse_groups, in_group, normalize_group, Chapter, MangaId};
+use mangas_core::domain::{Chapter, MangaId};
 use mangas_core::download;
 use mangas_core::download::queue::{self, JobState, Scope};
-use mangas_core::library::{self, Settings};
+use mangas_core::library;
 
+use super::download_releases::{pick, pick_group, report_left_out};
 use super::settled::paused_report;
 use super::watch::{count, run_until_settled};
 use super::{hint, source_by_name, stored_settings, unknown_group};
@@ -60,23 +61,30 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let synced = library::sync_chapters(&lib, source.as_ref(), &id, &languages).await?;
     let saved = library::chapter_group(&lib, &args.source, &id)?;
     let group = pick_group(args.group.as_deref(), args.all_groups, saved);
-    let synced = match (&group, args.all_groups) {
-        (Some(_), _) | (None, true) => in_group(synced, group.as_deref()),
-        (None, false) => one_release_each(synced, &settings, &id, &args.source)?,
-    };
-    if let (Some(group), true) = (&group, synced.is_empty()) {
+    let picked = pick(
+        &lib,
+        &args.source,
+        &synced,
+        group.as_deref(),
+        args.all_groups,
+        &settings,
+    )?;
+    if let (Some(group), true) = (&group, picked.is_empty()) {
         return Err(unknown_group(group, &id, &args.source));
     }
     if let Some(group) = &group {
         outln!("Group: {group}")?;
     }
-    let all = library::prefer_languages(&synced, &languages);
+    let all = library::prefer_languages(&picked, &languages);
     let selected = match &args.chapters {
         Some(spec) => download::select_chapters(&all, spec)?,
         None => all,
     };
     if selected.is_empty() {
         bail!("no chapters match the selection");
+    }
+    if group.is_none() && !args.all_groups {
+        report_left_out(&synced, &selected, &id, &args.source, &settings)?;
     }
     let selected = without_unavailable(selected, args.chapters.is_some())?;
     let queued = queue::enqueue(&lib, &args.source, selected, args.force)?;
@@ -141,58 +149,4 @@ fn without_unavailable(selected: Vec<Chapter>, explicit: bool) -> anyhow::Result
         outln!("{summary}")?;
     }
     Ok(available)
-}
-
-/// No group picked: one release per chapter, as the provider's preferred groups say, with a
-/// line saying so when other releases were left out.
-fn one_release_each(
-    chapters: Vec<Chapter>,
-    settings: &Settings,
-    id: &MangaId,
-    source: &str,
-) -> anyhow::Result<Vec<Chapter>> {
-    let preferred = settings.preferred_groups(source);
-    let total = chapters.len();
-    let kept = collapse_groups(chapters, &preferred);
-    if kept.len() < total {
-        let by = if preferred.is_empty() {
-            "no preferred groups set"
-        } else {
-            "preferred groups first"
-        };
-        let save = hint(&format!("group {id} <name>"), source);
-        outln!(
-            "Took one release per chapter ({by}); --all-groups takes every release, {save} saves a group"
-        )?;
-    }
-    Ok(kept)
-}
-
-/// `--group` wins over the title's saved group; `--all-groups` drops it.
-fn pick_group(explicit: Option<&str>, all_groups: bool, saved: Option<String>) -> Option<String> {
-    match normalize_group(explicit) {
-        Some(group) => Some(group),
-        None if all_groups => None,
-        None => saved,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::pick_group;
-
-    #[test]
-    fn explicit_group_overrides_the_saved_one() {
-        let saved = || Some("Official".to_string());
-        assert_eq!(
-            pick_group(Some("K Manga"), false, saved()).as_deref(),
-            Some("K Manga")
-        );
-        assert_eq!(
-            pick_group(None, false, saved()).as_deref(),
-            Some("Official")
-        );
-        assert_eq!(pick_group(None, true, saved()), None);
-        assert_eq!(pick_group(Some(" "), false, None), None);
-    }
 }

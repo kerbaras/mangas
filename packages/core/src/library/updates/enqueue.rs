@@ -39,12 +39,20 @@ pub fn enqueue_new(lib: &Library, report: &UpdateReport, everything: bool) -> Re
         .iter()
         .filter(|u| everything || u.auto_download)
     {
-        let queued = queue::enqueue(
+        let preferred = settings.preferred_groups(&update.source);
+        let group = update.chapter_group.as_deref();
+        let chapters = queue::pick_releases(
             lib,
             &update.source,
-            to_download(update, &settings.preferred_groups(&update.source)),
-            false,
+            update.chapters.clone(),
+            group,
+            &preferred,
         )?;
+        let picked = TitleUpdate {
+            chapters,
+            ..update.clone()
+        };
+        let queued = queue::enqueue(lib, &update.source, to_download(&picked, &preferred), false)?;
         jobs.extend(queued.jobs);
     }
     Ok(jobs)

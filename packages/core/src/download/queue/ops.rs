@@ -53,7 +53,11 @@ pub fn enqueue(
     })
 }
 
-fn with_stored_paths(lib: &Library, source: &str, chapters: Vec<Chapter>) -> Result<Vec<Chapter>> {
+pub(super) fn with_stored_paths(
+    lib: &Library,
+    source: &str,
+    chapters: Vec<Chapter>,
+) -> Result<Vec<Chapter>> {
     let mut stored: Vec<Chapter> = Vec::new();
     for manga in chapters.iter().map(|c| &c.manga_id) {
         if !stored.iter().any(|c| &c.manga_id == manga) {
