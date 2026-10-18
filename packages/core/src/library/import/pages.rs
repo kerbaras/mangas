@@ -44,8 +44,10 @@ fn copy_folder(src: &Path, dest: &Path) -> Result<usize> {
 /// Extracts the images of a CBZ (nested folders included, macOS metadata skipped). Entry
 /// names never become paths, so a crafted archive cannot write outside `dest`.
 fn extract_cbz(src: &Path, dest: &Path) -> Result<usize> {
-    let mut archive = zip::ZipArchive::new(File::open(src)?)
-        .map_err(|_| Error::Import(format!("{} isn't a valid CBZ file", name_of(src))))?;
+    let mut archive = zip::ZipArchive::new(File::open(src)?).map_err(|e| match e {
+        zip::result::ZipError::Io(e) => Error::Io(e),
+        _ => Error::Import(format!("{} isn't a valid CBZ file", name_of(src))),
+    })?;
     let mut pages: Vec<(usize, String)> = (0..archive.len())
         .filter_map(|i| {
             let file = archive.by_index(i).ok()?;
