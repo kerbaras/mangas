@@ -74,7 +74,7 @@ pub fn pages_on_disk(root: &Path) -> HashSet<String> {
         std::fs::read_dir(d)
             .unwrap()
             .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
-            .filter(|n| !n.ends_with(".part"))
+            .filter(|n| !n.ends_with(".part") && !n.starts_with('.'))
             .collect()
     })
     .unwrap_or_default()

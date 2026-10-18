@@ -4,6 +4,7 @@
 mod availability;
 mod cbz;
 mod chapter;
+mod complete;
 mod event;
 mod fetcher;
 mod incomplete;
