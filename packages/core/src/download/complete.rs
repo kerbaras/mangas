@@ -12,10 +12,14 @@ use crate::domain::Result;
 /// Hidden, so exports and imports (which skip dot files and non-images) never see it.
 const MARKER: &str = ".mangas-pages";
 
-/// Records that the chapter in `dir` has `pages` pages, page `0001` to `pages`.
+/// Records that the chapter in `dir` has `pages` pages, page `0001` to `pages`. Written aside
+/// and renamed over the old marker, so a failed write never leaves it truncated and a
+/// read-only old one is still replaced.
 pub(super) fn mark_expected(dir: &Path, pages: usize) -> Result<()> {
     std::fs::create_dir_all(dir)?;
-    std::fs::write(dir.join(MARKER), format!("{pages}\n"))?;
+    let fresh = dir.join(format!("{MARKER}.new"));
+    std::fs::write(&fresh, format!("{pages}\n"))?;
+    std::fs::rename(fresh, dir.join(MARKER))?;
     Ok(())
 }
 
@@ -75,6 +79,19 @@ mod tests {
             "0002.jpg.part",
         ]);
         assert!(!holds_all(&dir, Some(3)));
+    }
+
+    #[test]
+    fn a_read_only_marker_is_replaced() {
+        let dir = tempfile::tempdir().unwrap();
+        mark_expected(dir.path(), 6).unwrap();
+        let marker = dir.path().join(MARKER);
+        let mut perms = std::fs::metadata(&marker).unwrap().permissions();
+        perms.set_readonly(true);
+        std::fs::set_permissions(&marker, perms).unwrap();
+        mark_expected(dir.path(), 8).unwrap();
+        assert_eq!(std::fs::read_to_string(marker).unwrap(), "8\n");
+        assert!(!dir.path().join(format!("{MARKER}.new")).exists());
     }
 
     #[test]
