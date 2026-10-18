@@ -80,6 +80,7 @@ pub fn upsert_chapters(
             "UPDATE download_jobs
              SET state = 'failed', error = ?4, owner = NULL, not_before = 0, updated_at = ?5
              WHERE source = ?1 AND state IN ('queued', 'running', 'paused', 'failed')
+               AND NOT (state = 'failed' AND error IS ?4)
                AND chapter_id IN (SELECT id FROM chapter
                    WHERE source = ?1 AND manga_id = ?2 AND language = ?3 AND local_path IS NULL
                      AND id NOT IN (SELECT id FROM synced))",

@@ -71,6 +71,13 @@ fn a_chapter_dropped_again_after_relisting_goes_with_its_job() {
     let jobs = queue::list(&lib).unwrap();
     assert!(jobs.iter().all(|j| j.error.as_deref() == Some(UNLISTED)));
     assert_eq!(chapter_count(&lib), 2, "kept while their jobs are listed");
+    std::thread::sleep(std::time::Duration::from_millis(5));
+    drop_from_source(&lib);
+    assert_eq!(
+        queue::list(&lib).unwrap(),
+        jobs,
+        "an unchanged refresh leaves them alone"
+    );
 
     queue::dismiss(&lib, 1).unwrap();
     queue::dismiss(&lib, 2).unwrap();
