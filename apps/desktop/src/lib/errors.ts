@@ -16,6 +16,7 @@ const HINTS: [prefix: string, hint: string][] = [
   ["io:", "A file couldn't be read or written. Check the data folder in Settings."],
   ["image:", "A page image couldn't be decoded."],
   ["not found:", "It no longer exists on the site."],
+  ["refused:", "The image host points at a local or private address, so the app won't fetch it."],
 ];
 
 /** Splits an IPC error message into a readable hint and the raw detail. */

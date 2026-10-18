@@ -64,6 +64,8 @@ describe("downloads sections", () => {
       "dismiss",
     ]);
     expect(jobActions(makeJob({ state: "failed", error: UNLISTED }))).toEqual(["dismiss"]);
+    const refused = "refused: cdn.example resolves to a non-public address 10.1.2.3";
+    expect(jobActions(makeJob({ state: "failed", error: refused }))).toEqual(["dismiss"]);
     expect(jobActions(makeJob({ state: "done", local_path: "/d/7" }))).toEqual(["open", "dismiss"]);
   });
 

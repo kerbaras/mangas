@@ -63,4 +63,17 @@ describe("chapterFailed", () => {
     for (const [, , options] of notifyError.mock.calls)
       expect(options).toMatchObject({ retry: undefined });
   });
+
+  it("offers no retry for a page host refused for its private address", () => {
+    setBackend({ reportError: async () => {} } as unknown as Backend);
+    rememberDownloads([
+      ["ch-11", { label: "Chapter 11 of Kaiju", source: "weebcentral", mangaId: "m-1" }],
+    ]);
+    chapterFailed("ch-11", "refused: cdn.example resolves to a non-public address 10.1.2.3");
+    expect(notifyError).toHaveBeenCalledWith(
+      "Chapter 11 of Kaiju didn't download",
+      expect.any(String),
+      expect.objectContaining({ retry: undefined }),
+    );
+  });
 });
