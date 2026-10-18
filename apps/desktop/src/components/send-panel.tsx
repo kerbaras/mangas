@@ -2,21 +2,32 @@ import { Mail, RefreshCw, Usb } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { type SendState, useSend } from "@/hooks/use-send";
 import { useNavigation } from "@/lib/navigation";
-import { emailReady, fileName, megabytes, titleOf } from "@/lib/send-labels";
+import { emailReady, emailRefusal, fileName, megabytes, titleOf } from "@/lib/send-labels";
 import { useSettings } from "@/lib/settings";
 
 type Props = { file: string; onSent?: () => void };
 
-/** Email or USB delivery for one EPUB, with copy progress and a "Device not found" state. */
+/** Email or USB delivery for one exported book, with copy progress and a "Device not found" state. */
 export function SendPanel({ file, onSent }: Props) {
   const [settings] = useSettings();
   const nav = useNavigation();
   const send = useSend(onSent);
   const busy = ["looking", "copying", "emailing"].includes(send.state.kind);
   const title = titleOf(file);
+  const refusal = emailRefusal(file);
   const canEmail = emailReady(settings.kindleEmail);
+  const emailButton = (
+    <Button
+      size="sm"
+      disabled={busy || !canEmail || refusal !== null}
+      onClick={() => void send.email(file, title)}
+    >
+      <Mail /> Email to Kindle
+    </Button>
+  );
 
   return (
     <div className="flex flex-col gap-3 rounded-md border border-stroke bg-surface p-3">
@@ -25,19 +36,22 @@ export function SendPanel({ file, onSent }: Props) {
           Send {fileName(file)}
         </p>
         <div className="flex shrink-0 gap-2">
-          <Button
-            size="sm"
-            disabled={busy || !canEmail}
-            onClick={() => void send.email(file, title)}
-          >
-            <Mail /> Email to Kindle
-          </Button>
+          {refusal ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>{emailButton}</span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-64">{refusal}</TooltipContent>
+            </Tooltip>
+          ) : (
+            emailButton
+          )}
           <Button size="sm" disabled={busy} onClick={() => void send.usb(file, title)}>
             <Usb /> Copy over USB
           </Button>
         </div>
       </div>
-      {!canEmail && (
+      {!canEmail && !refusal && (
         <p className="text-caption text-ink-3">
           Email needs your Kindle address and a mail server.{" "}
           <button

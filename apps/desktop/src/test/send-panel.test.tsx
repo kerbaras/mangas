@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SendPanel } from "@/components/send-panel";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { type Backend, setBackend } from "@/lib/ipc";
 import type { CopyProgress, UsbCopy } from "@/lib/ipc.send";
 import { readSettings, writeSettings } from "@/lib/settings";
@@ -67,6 +68,23 @@ describe("send panel", () => {
     const button = screen.getByRole("button", { name: /Email to Kindle/ }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
     expect(screen.getByRole("button", { name: "Set up email" })).toBeTruthy();
+  });
+
+  it("disables Email for a CBZ and says why, while USB stays available", () => {
+    writeSettings({
+      kindleEmail: { ...readSettings().kindleEmail, to: "reader@kindle.com", host: "smtp.test" },
+    });
+    stub({});
+    render(
+      <TooltipProvider>
+        <SendPanel file="/books/Solo Leveling 1-3.cbz" />
+      </TooltipProvider>,
+    );
+    const email = screen.getByRole("button", { name: /Email to Kindle/ }) as HTMLButtonElement;
+    expect(email.disabled).toBe(true);
+    const usb = screen.getByRole("button", { name: /Copy over USB/ }) as HTMLButtonElement;
+    expect(usb.disabled).toBe(false);
+    expect(screen.queryByRole("button", { name: "Set up email" })).toBeNull();
   });
 
   it("shows the server's refusal when the email fails", async () => {
