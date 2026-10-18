@@ -3,8 +3,6 @@
 
 use mangas_core::diagnostics::{self, ProviderStatus, Report};
 use serde::Serialize;
-use tauri::AppHandle;
-use tauri_plugin_opener::OpenerExt;
 
 use super::{open_library, settings_of, to_ipc};
 use crate::paths;
@@ -49,17 +47,6 @@ pub fn diagnostics() -> Result<Diagnostics, String> {
         log_dir,
         report: diagnostics::render(&report),
     })
-}
-
-/// Opens the log folder in the system file manager, creating it if logging never could.
-#[tauri::command]
-#[tracing::instrument(level = "error", skip_all)]
-pub fn open_logs(app: AppHandle) -> Result<(), String> {
-    let dir = paths::log_dir().map_err(to_ipc)?;
-    std::fs::create_dir_all(&dir).map_err(to_ipc)?;
-    app.opener()
-        .open_path(dir.to_string_lossy(), None::<&str>)
-        .map_err(to_ipc)
 }
 
 /// Errors the UI caught (error boundary, unhandled rejections) go to the same log file, and so

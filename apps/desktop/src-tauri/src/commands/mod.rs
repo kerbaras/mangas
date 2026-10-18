@@ -5,6 +5,7 @@ pub mod covers;
 pub mod diagnostics;
 pub mod downloads;
 mod errors;
+pub mod folders;
 pub mod import;
 pub mod kindle;
 pub mod organisation;

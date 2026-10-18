@@ -19,29 +19,29 @@ import {
   type DownloadJob,
   dismissDownload,
   isUnlisted,
-  openDownloadFolder,
+  openJobFolder,
   pauseDownload,
   resumeDownload,
   retryDownload,
 } from "@/lib/ipc.downloads";
 import { notifyError } from "@/lib/notify";
 
-type Spec = { label: string; icon: ReactNode; run: (id: number) => Promise<unknown> };
+type Spec = { label: string; icon: ReactNode; run: (job: DownloadJob) => Promise<unknown> };
 
 const ACTIONS: Record<JobAction, Spec> = {
-  pause: { label: "Pause", icon: <Pause />, run: pauseDownload },
-  resume: { label: "Resume", icon: <Play />, run: resumeDownload },
-  cancel: { label: "Cancel", icon: <X />, run: cancelDownload },
-  retry: { label: "Retry", icon: <RotateCcw />, run: retryDownload },
-  dismiss: { label: "Clear", icon: <Trash2 />, run: dismissDownload },
-  open: { label: "Open folder", icon: <FolderOpen />, run: openDownloadFolder },
+  pause: { label: "Pause", icon: <Pause />, run: (j) => pauseDownload(j.id) },
+  resume: { label: "Resume", icon: <Play />, run: (j) => resumeDownload(j.id) },
+  cancel: { label: "Cancel", icon: <X />, run: (j) => cancelDownload(j.id) },
+  retry: { label: "Retry", icon: <RotateCcw />, run: (j) => retryDownload(j.id) },
+  dismiss: { label: "Clear", icon: <Trash2 />, run: (j) => dismissDownload(j.id) },
+  open: { label: "Open folder", icon: <FolderOpen />, run: openJobFolder },
 };
 
 function ActionButton({ job, action }: { job: DownloadJob; action: JobAction }) {
   const spec = ACTIONS[action];
   const run = () =>
     void spec
-      .run(job.id)
+      .run(job)
       .catch((e: unknown) =>
         notifyError(`Couldn't ${spec.label.toLowerCase()} chapter ${job.number}`, e),
       );

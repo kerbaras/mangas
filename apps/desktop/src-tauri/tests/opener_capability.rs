@@ -1,84 +1,44 @@
-//! A plugin call the capability doesn't grant fails silently in the UI, so check them together.
+//! Folders open through the `open_folder` command, which checks the path; the webview itself
+//! must not be able to open arbitrary paths with the opener plugin.
 
 use std::{fs, path::Path};
 
-use serde_json::Value;
-
 const CAPABILITY: &str = include_str!("../capabilities/default.json");
-const CONFIG: &str = include_str!("../tauri.conf.json");
 
-/// What `opener:default` grants, per the plugin's `permissions/default.toml`.
-const OPENER_DEFAULT: [&str; 2] = ["opener:allow-open-url", "opener:allow-reveal-item-in-dir"];
-
-/// The UI-side opener functions and the permission each needs.
-const CALLS: [(&str, &str); 3] = [
-    ("openPath(", "opener:allow-open-path"),
-    ("openUrl(", "opener:allow-open-url"),
-    ("revealItemInDir(", "opener:allow-reveal-item-in-dir"),
-];
-
-fn granted() -> Vec<String> {
-    let capability: Value = serde_json::from_str(CAPABILITY).unwrap();
-    let mut out = Vec::new();
-    for p in capability["permissions"].as_array().unwrap() {
-        let id = p.as_str().or_else(|| p["identifier"].as_str()).unwrap();
-        if id == "opener:default" {
-            out.extend(OPENER_DEFAULT.map(String::from));
-        }
-        out.push(id.to_string());
-    }
-    out
-}
-
-fn ui_sources(dir: &Path, out: &mut Vec<String>) {
+fn ui_sources(dir: &Path, out: &mut Vec<(String, String)>) {
     for entry in fs::read_dir(dir).unwrap().flatten() {
         let path = entry.path();
         if path.is_dir() && !path.ends_with("test") {
             ui_sources(&path, out);
         } else if path.extension().is_some_and(|e| e == "ts" || e == "tsx") {
-            out.push(fs::read_to_string(&path).unwrap());
+            out.push((
+                path.display().to_string(),
+                fs::read_to_string(&path).unwrap(),
+            ));
         }
     }
 }
 
 #[test]
-fn every_opener_call_in_the_ui_is_granted() {
+fn the_webview_cannot_open_paths_directly() {
+    assert!(!CAPABILITY.contains("opener:allow-open-path"));
+    assert!(!CAPABILITY.contains("opener:allow-reveal-item-in-dir"));
+}
+
+#[test]
+fn the_ui_opens_folders_only_through_open_folder() {
     let mut sources = Vec::new();
     ui_sources(
         &Path::new(env!("CARGO_MANIFEST_DIR")).join("../src"),
         &mut sources,
     );
-    let granted = granted();
-    let used: Vec<_> = CALLS
-        .iter()
-        .filter(|(call, _)| sources.iter().any(|s| s.contains(call)))
-        .collect();
-    assert!(
-        used.iter().any(|(call, _)| *call == "openPath("),
-        "scan found no openPath call"
-    );
-    for (call, permission) in used {
-        assert!(
-            granted.iter().any(|g| g == permission),
-            "{call} needs {permission}"
-        );
+    for (file, source) in &sources {
+        for call in ["openPath(", "revealItemInDir("] {
+            assert!(
+                !source.contains(call),
+                "{file} calls {call}; use openFolder"
+            );
+        }
     }
-}
-
-#[test]
-fn open_path_is_scoped_and_reaches_dot_folders() {
-    let capability: Value = serde_json::from_str(CAPABILITY).unwrap();
-    let open_path = capability["permissions"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|p| p["identifier"] == "opener:allow-open-path")
-        .unwrap();
-    assert!(!open_path["allow"].as_array().unwrap().is_empty());
-    // The data dir is `~/.local/share/mangas` on Linux, and `**` skips dot folders by default.
-    let config: Value = serde_json::from_str(CONFIG).unwrap();
-    assert_eq!(
-        config["plugins"]["opener"]["requireLiteralLeadingDot"],
-        false
-    );
+    assert!(sources.iter().any(|(_, s)| s.contains("\"open_folder\"")));
 }

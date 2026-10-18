@@ -2,8 +2,10 @@
  * Download queue part of the IPC contract (`mangas_core::download::queue`). Jobs persist across
  * restarts and are shared with the CLI; every change arrives as a `QueueEvent`.
  */
+
 import type { DownloadProgress, Unlisten } from "./ipc";
 import { backend } from "./ipc";
+import { openFolder } from "./ipc.folders";
 
 /** Mirrors `mangas_core::download::queue::JobState`. */
 export type JobState = "queued" | "running" | "paused" | "done" | "failed" | "cancelled";
@@ -91,8 +93,6 @@ export type DownloadsBackend = {
   /** Removes one done, failed or cancelled job (and a chapter row kept only for it). */
   dismissDownload(id: number): Promise<void>;
   queueStatus(): Promise<QueueStatus>;
-  /** Opens the downloaded chapter folder of job `id` in the file manager. */
-  openDownloadFolder(id: number): Promise<void>;
   onQueueEvent(cb: (e: QueueEvent) => void): Promise<Unlisten>;
 };
 
@@ -104,7 +104,11 @@ export const retryDownload = async (id: number | null) => (await backend()).retr
 export const clearDownloads = async () => (await backend()).clearDownloads();
 export const dismissDownload = async (id: number) => (await backend()).dismissDownload(id);
 export const queueStatus = async () => (await backend()).queueStatus();
-export const openDownloadFolder = async (id: number) => (await backend()).openDownloadFolder(id);
+/** Opens the folder a job downloaded its chapter to. */
+export const openJobFolder = async (job: DownloadJob) => {
+  if (!job.local_path) throw new Error(`chapter ${job.number} is not on disk`);
+  return openFolder(job.local_path);
+};
 export const onQueueEvent = async (cb: (e: QueueEvent) => void) =>
   (await backend()).onQueueEvent(cb);
 

@@ -38,8 +38,9 @@ app, small CLI. The original Go/TUI implementation was removed once the Rust por
 - Functional style: pure functions, data in / data out, IO at the edges (sources, library, fs).
 - No `unwrap()`/`expect()` outside tests. Core errors use `thiserror`; binaries use `anyhow`.
 - Tauri commands and CLI subcommands only parse input, call core, and format output.
-- Plugin calls from the UI (`@tauri-apps/plugin-*`, e.g. `openPath`) need a matching permission in
-  `src-tauri/capabilities/default.json`, or they fail silently; `opener_capability` tests this.
+- Folders open only through the `open_folder` command (`openFolder` in `ipc.folders.ts`): it
+  requires a real directory inside the app's folders or an export folder. Never grant the webview
+  `opener:allow-open-path`; other plugin calls need a permission in `capabilities/default.json`.
 - UI: shadcn/ui components on Tailwind, Fluent 2 spacing/type scale tokens in `src/styles`.
   Desktop feel: native window chrome, no app name in the content area, sentence-case labels.
 - Models are downloaded at runtime (see `ml::models`), never committed or bundled.
