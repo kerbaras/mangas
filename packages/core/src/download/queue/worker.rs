@@ -90,7 +90,9 @@ impl Queue {
                 Ok((plan, status)) => {
                     // The step recorded their last page counts.
                     if let Ok(mut p) = progress.lock() {
-                        finished.iter().for_each(|(id, _)| drop(p.remove(id)));
+                        for (id, _) in &finished {
+                            p.remove(id);
+                        }
                     }
                     finished.clear();
                     for job in plan.claimed {

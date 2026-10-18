@@ -50,7 +50,7 @@ const section = (name: string) => screen.getByRole("region", { name: new RegExp(
 describe("Downloads screen", () => {
   it("shows every section with a state label on each row", async () => {
     setup();
-    expect(await screen.findByText("Kaiju · Chapter 1")).toBeInTheDocument();
+    expect(await screen.findByTitle("Kaiju · Chapter 1")).toBeInTheDocument();
     expect(within(section("Active")).getByText("Downloading")).toBeInTheDocument();
     expect(within(section("Active")).getByText("5/20 pages")).toBeInTheDocument();
     expect(within(section("Queued")).getByRole("listitem")).toHaveTextContent("Queued");
@@ -64,7 +64,7 @@ describe("Downloads screen", () => {
 
   it("clears an unlisted chapter and completed jobs", async () => {
     const { backend } = setup();
-    const row = (await screen.findByText("Kaiju · Chapter 4")).closest("li") as HTMLElement;
+    const row = (await screen.findByTitle("Kaiju · Chapter 4")).closest("li") as HTMLElement;
     await userEvent.click(within(row).getByRole("button", { name: "Clear" }));
     expect(backend.dismissDownload).toHaveBeenCalledWith(4);
     await userEvent.click(screen.getByRole("button", { name: /Clear completed/ }));
