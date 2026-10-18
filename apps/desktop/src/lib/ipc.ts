@@ -130,6 +130,8 @@ export type Backend = DiagnosticsBackend & {
   /** Searches the enabled providers (only `providers` when not empty), one group each. */
   searchAll(query: string, providers: string[]): Promise<SearchGroup[]>;
   followManga(source: string, id: string): Promise<Manga>;
+  /** The stored record when followed, otherwise the source's full details. */
+  getManga(source: string, id: string): Promise<Manga>;
   unfollowManga(source: string, id: string): Promise<void>;
   listChapters(source: string, mangaId: string, refresh?: boolean): Promise<Chapter[]>;
   /** Follows the manga if needed, then resolves to the ids of chapters that failed; progress arrives via `onDownloadProgress`. */
@@ -177,6 +179,7 @@ export const providerStatus = async (id: string) => (await backend()).providerSt
 export const searchAll = async (q: string, providers: string[]) =>
   (await backend()).searchAll(q, providers);
 export const followManga = async (s: string, id: string) => (await backend()).followManga(s, id);
+export const getManga = async (s: string, id: string) => (await backend()).getManga(s, id);
 export const unfollowManga = async (s: string, id: string) =>
   (await backend()).unfollowManga(s, id);
 export const listChapters = async (s: string, id: string, refresh = false) =>

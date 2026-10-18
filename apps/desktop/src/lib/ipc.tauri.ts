@@ -61,6 +61,7 @@ export const tauriBackend: Backend = {
       );
     return manga;
   },
+  getManga: (source, id) => invoke<Manga>("get_manga", { source, id }),
   unfollowManga: async (source, id) => {
     await invoke<boolean>("unfollow_manga", { source, id });
   },

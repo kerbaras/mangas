@@ -35,6 +35,17 @@ pub async fn follow_manga(source: String, id: String, language: String) -> Resul
     Ok(manga)
 }
 
+/// The stored record of a followed manga, otherwise the source's full details (not saved).
+/// Search results can be sparse, so the details screen never relies on them alone.
+#[tauri::command]
+pub async fn get_manga(source: String, id: String) -> Result<Manga, String> {
+    let id = MangaId(id);
+    if let Some(stored) = library::get_manga(&open_library()?, &source, &id).map_err(to_ipc)? {
+        return Ok(stored);
+    }
+    source_by_name(&source)?.manga(&id).await.map_err(to_ipc)
+}
+
 #[tauri::command]
 pub fn unfollow_manga(source: String, id: String) -> Result<bool, String> {
     library::remove_manga(&open_library()?, &source, &MangaId(id)).map_err(to_ipc)

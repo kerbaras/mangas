@@ -19,6 +19,7 @@ import {
   sampleLibrary,
 } from "./mock-data";
 import { mockDiagnostics } from "./mock-diagnostics";
+import { simulateExport } from "./mock-export";
 import { mockExportResult, mockFlags } from "./mock-flags";
 import { mockImport } from "./mock-import";
 import { mockSearch } from "./mock-search";
@@ -71,23 +72,6 @@ async function simulateDownload(chapter: Chapter, fail: boolean) {
     if (done) chapter.local_path = `${DATA_DIR}/mangadex/${chapter.manga_id}/${chapter.number}`;
     for (const cb of downloadListeners)
       cb({ chapter_id: chapter.id, page, pages, done, error: null });
-  }
-}
-
-const stages = [
-  "Reading pages",
-  "Detecting cut points",
-  "Cutting strips",
-  "Filtering for e-ink",
-  "Writing EPUB",
-];
-
-async function simulateExport(total: number) {
-  for (const stage of stages) {
-    for (let current = 1; current <= total; current++) {
-      await wait(60);
-      for (const cb of exportListeners) cb({ stage, current, total });
-    }
   }
 }
 
@@ -153,6 +137,14 @@ export const mockBackend: Backend = {
     library.set(`${source}:${id}`, manga);
     return manga;
   },
+  async getManga(source, id) {
+    await wait(300);
+    const manga =
+      library.get(`${source}:${id}`) ??
+      sampleCatalog.find((m) => m.source === source && m.id === id);
+    if (!manga) throw new Error(`not found: manga ${source}:${id}`);
+    return manga;
+  },
   async unfollowManga(source, id) {
     await wait(150);
     library.delete(`${source}:${id}`);
@@ -179,7 +171,7 @@ export const mockBackend: Backend = {
     return report;
   },
   async exportKindle(request) {
-    await simulateExport(Math.max(1, request.chapter_dirs.length * 6));
+    await simulateExport(exportListeners, Math.max(1, request.chapter_dirs.length * 6));
     return mockExportResult(request.output, request.chapter_dirs.length);
   },
   async detectorsStatus() {

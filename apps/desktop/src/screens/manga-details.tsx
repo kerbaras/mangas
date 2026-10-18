@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAsync } from "@/hooks/use-async";
 import { useChapterSelection } from "@/hooks/use-chapter-selection";
 import { useDownloads } from "@/hooks/use-downloads";
+import { useMangaDetails } from "@/hooks/use-manga-details";
 import {
   downloadable,
   exportable,
@@ -30,8 +31,9 @@ import { notifyError } from "@/lib/notify";
 
 type Props = { manga: Manga };
 
-export function MangaDetailsScreen({ manga }: Props) {
-  const { source, id } = manga;
+export function MangaDetailsScreen({ manga: card }: Props) {
+  const { source, id } = card;
+  const { manga, loading } = useMangaDetails(card);
   const nav = useNavigation();
   const refreshToast = `refresh-${source}:${id}`;
   const mounted = useRef(true);
@@ -97,9 +99,13 @@ export function MangaDetailsScreen({ manga }: Props) {
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h2 className="text-subtitle font-semibold">{manga.title}</h2>
-            <StatusBadge status={manga.status} />
+            {!loading && <StatusBadge status={manga.status} />}
           </div>
-          <p className="mt-2 line-clamp-3 max-w-2xl text-body text-ink-2">{manga.description}</p>
+          {loading ? (
+            <DescriptionSkeleton />
+          ) : (
+            <p className="mt-2 line-clamp-3 max-w-2xl text-body text-ink-2">{manga.description}</p>
+          )}
           <p className="mt-2 text-caption text-ink-3">
             {all.length} chapters · {all.filter((c) => c.local_path).length} on disk
           </p>
@@ -166,5 +172,14 @@ export function MangaDetailsScreen({ manga }: Props) {
         )}
       </div>
     </section>
+  );
+}
+
+function DescriptionSkeleton() {
+  return (
+    <div role="status" aria-label="Loading details" className="mt-2 flex max-w-2xl flex-col gap-2">
+      <span className="h-3 w-[28rem] max-w-full animate-pulse rounded-sm bg-surface-2" />
+      <span className="h-3 w-[22rem] max-w-full animate-pulse rounded-sm bg-surface-2" />
+    </div>
   );
 }
