@@ -126,7 +126,7 @@ fn waiting_note(jobs: &[Job]) -> Option<String> {
         (p, q) => format!("{p} chapter(s) paused and {q} waiting: the download queue is paused"),
     };
     Some(format!(
-        "{what}; `mangas queue resume --all` continues them"
+        "{what}; `mangas queue resume --all` then `mangas queue run` continue them"
     ))
 }
 
