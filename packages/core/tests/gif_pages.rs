@@ -70,6 +70,7 @@ fn export_keeps_gif_pages_and_counts_unsupported_files() {
         chapter_dirs: vec![ch],
         device: device("kindle-paperwhite12").unwrap(),
         cut: Preset::Balanced.options(),
+        page: Default::default(),
         title: "Book".into(),
         output: out.clone(),
         meta: Default::default(),

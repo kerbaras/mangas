@@ -94,6 +94,7 @@ fn every_format_keeps_an_existing_file() {
             device: profile("kindle-paperwhite12").unwrap(),
             format,
             cut: Preset::Balanced.options(),
+            page: Default::default(),
             title: "Again".into(),
             output: stats.output.clone(),
             labels: Default::default(),

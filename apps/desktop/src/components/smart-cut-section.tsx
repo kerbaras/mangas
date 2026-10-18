@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Field } from "@/components/field";
 import { PresetPicker } from "@/components/preset-picker";
 import { Switch } from "@/components/ui/switch";
@@ -12,13 +13,22 @@ type Props = {
   status: Async<DetectorsStatus>;
   detectors: boolean;
   onDetectors: (on: boolean) => void;
+  /** The series' smart-cut options entry. */
+  children?: ReactNode;
 };
 
 /**
- * Smart cut in the export dialog: the cut preset and the detectors switch. Per-series smart-cut
- * options (preview, presets) belong in this section too, next to the preset picker.
+ * Smart cut in the export dialog: the cut preset, the series' smart-cut options and the detectors
+ * switch.
  */
-export function SmartCutSection({ preset, onPreset, status, detectors, onDetectors }: Props) {
+export function SmartCutSection({
+  preset,
+  onPreset,
+  status,
+  detectors,
+  onDetectors,
+  children,
+}: Props) {
   const usable = detectorsUsable(status);
   return (
     <section aria-label="Smart cut" className="flex flex-col gap-3">
@@ -28,6 +38,7 @@ export function SmartCutSection({ preset, onPreset, status, detectors, onDetecto
       >
         <PresetPicker value={preset} onChange={onPreset} compact />
       </Field>
+      {children}
       <div className="flex items-start justify-between gap-4">
         <div>
           <label htmlFor="detectors" className="text-body font-medium">

@@ -4,7 +4,7 @@ import { ExportDialog } from "@/components/export-dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { setBackend } from "@/lib/ipc";
 import { writeSettings } from "@/lib/settings";
-import { chapters, exportBackend, solo } from "./export-backend";
+import { chapters, enabledButton, exportBackend, solo } from "./export-backend";
 
 afterEach(() => {
   setBackend(null);
@@ -17,7 +17,7 @@ const dialog = () => (
   </TooltipProvider>
 );
 
-const exportButton = () => screen.findByRole("button", { name: /Export 2 books/ });
+const exportButton = () => enabledButton(/Export 2 books/);
 
 describe("export dialog: format, smart cut and delivery", () => {
   it("writes the picked format and names the files with its extension", async () => {
@@ -75,7 +75,7 @@ describe("export dialog: format, smart cut and delivery", () => {
     exportBackend({ findKindles: async () => [kindle], sendUsb });
     render(dialog());
     fireEvent.mouseDown(await screen.findByRole("tab", { name: "Kindle over USB" }));
-    fireEvent.click(await screen.findByRole("button", { name: /Export 2 books and copy/ }));
+    fireEvent.click(await enabledButton(/Export 2 books and copy/));
     await waitFor(() => expect(sendUsb).toHaveBeenCalledTimes(2));
     expect(sendUsb).toHaveBeenCalledWith("/k/Solo v1.epub", "Solo v1", kindle.root);
     expect(await screen.findByText(/Already on Kindle: .*Solo v1\.epub/)).toBeTruthy();

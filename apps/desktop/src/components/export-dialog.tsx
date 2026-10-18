@@ -22,9 +22,9 @@ import { type Async, useAsync } from "@/hooks/use-async";
 import { useClearOnChange } from "@/hooks/use-clear-on-change";
 import { useExport } from "@/hooks/use-export";
 import { useExportPlan } from "@/hooks/use-export-plan";
-import { useExportTarget } from "@/hooks/use-export-target";
 import { useFreeNames } from "@/hooks/use-free-names";
 import { type Book, useSend } from "@/hooks/use-send";
+import { useSeriesTarget } from "@/hooks/use-series-target";
 import { exportJob } from "@/lib/export-job";
 import type { ExportPick } from "@/lib/export-name";
 import {
@@ -36,10 +36,9 @@ import {
   pickSummary,
   withExtension,
 } from "@/lib/export-plan";
-import { detectorsStatus, type ExportResult, type Preset } from "@/lib/ipc";
+import { detectorsStatus, type ExportResult } from "@/lib/ipc";
 import type { VolumePlan } from "@/lib/ipc.volumes";
 import { titleOf } from "@/lib/send-labels";
-import { useSettings } from "@/lib/settings";
 
 type Props = {
   open: boolean;
@@ -54,20 +53,18 @@ type Props = {
 
 /** The one export flow: what to write (bundle, title), how (profile, format, smart cut), where. */
 export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: Props) {
-  const [settings] = useSettings();
   const chapters = picks.flatMap((p) => p.chapters);
   const [mode, setMode] = useState<BundleMode>(() =>
     picks.length > 1 ? "single" : initialMode(chapters),
   );
   const [size, setSize] = useState(10);
   const [title, setTitle] = useState("");
-  const [preset, setPreset] = useState<Preset>(settings.defaultPreset);
   const [detectorsOn, setDetectorsOn] = useState<boolean | null>(null);
   const [delivery, setDelivery] = useState<Delivery>("save");
   const [written, setWritten] = useState<Book[]>([]);
   const [runs, setRuns] = useState(0);
   const folder = useOutputFolder();
-  const target = useExportTarget();
+  const { target, preset, setPreset, cut, settled } = useSeriesTarget(picks);
   const detectors = useAsync(detectorsStatus, []);
   const job = useExport();
   const send = useSend(onSent);
@@ -91,7 +88,13 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const sending = ["looking", "copying", "emailing"].includes(send.state.kind);
   const busy = job.state.kind === "running" || sending;
   const ready =
-    fresh && named && books > 0 && folder.output.trim() !== "" && target.devices.kind === "ready";
+    fresh &&
+    named &&
+    books > 0 &&
+    folder.output.trim() !== "" &&
+    target.devices.kind === "ready" &&
+    detectors.state.kind !== "loading" &&
+    settled;
 
   const { reset: resetJob } = job;
   const { reset: resetSend } = send;
@@ -172,6 +175,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
             output={{ value: folder.output, fallback: folder.fallback, onChange: folder.setOutput }}
             delivery={via}
             onDelivery={setDelivery}
+            cut={{ ...cut, chapters }}
           />
         </div>
         <div className="mt-4 flex flex-col gap-3 empty:hidden">

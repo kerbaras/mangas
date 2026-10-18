@@ -1,13 +1,24 @@
 //! `mangas kindle` defaults: format, and the title looked up in an in-memory library.
 
 use super::*;
+use crate::commands::kindle_library::*;
 use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId};
+use mangas_core::library::Library;
 
 #[test]
 fn kindle_writes_epub_unless_the_flags_say_otherwise() {
-    assert_eq!(legacy_format(None, None), Format::Epub);
-    assert_eq!(legacy_format(None, Some(Path::new("b.pdf"))), Format::Pdf);
-    assert_eq!(legacy_format(Some(Format::Cbz), None), Format::Cbz);
+    assert_eq!(legacy_format(None, None, None), Format::Epub);
+    assert_eq!(
+        legacy_format(None, Some(Path::new("b.pdf")), None),
+        Format::Pdf
+    );
+    assert_eq!(legacy_format(Some(Format::Cbz), None, None), Format::Cbz);
+    let series = Some(Format::Cbz);
+    assert_eq!(legacy_format(None, None, series), Format::Cbz);
+    assert_eq!(
+        legacy_format(None, Some(Path::new("b.pdf")), series),
+        Format::Pdf
+    );
 }
 
 /// A library following "Kaiju No. 8" with chapter `c1` downloaded to `<root>/m-uuid/c1`.
@@ -68,4 +79,20 @@ fn a_folder_the_library_does_not_know_keeps_its_parent_name() {
     std::fs::create_dir_all(&other).unwrap();
     assert_eq!(title(&lib, std::slice::from_ref(&other)), "loose");
     assert_eq!(default_title(None, &[other]), "loose");
+}
+
+#[test]
+fn the_series_preset_applies_only_to_folders_of_that_series() {
+    let root = tempfile::tempdir().unwrap();
+    let (lib, dir) = downloaded(&root.path().canonicalize().unwrap());
+    let preset = ExportPreset {
+        page_height: Some(0.7),
+        ..Default::default()
+    };
+    library::set_export_preset(&lib, "mangadex", "m-uuid", &preset).unwrap();
+    let slashed = PathBuf::from(format!("{}/", dir.display()));
+    assert_eq!(series_preset(&lib, &[slashed]).unwrap(), Some(preset));
+    let loose = root.path().join("loose/c9");
+    std::fs::create_dir_all(&loose).unwrap();
+    assert_eq!(series_preset(&lib, &[dir, loose]).unwrap(), None);
 }

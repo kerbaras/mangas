@@ -5,8 +5,8 @@ use std::path::Path;
 use mangas_core::domain::{Availability, Chapter, ChapterId, Manga, MangaId};
 use mangas_core::library::{
     create_category, delete_category, mark_downloaded, mark_exported, set_auto_download,
-    set_manga_categories, set_reading_status, set_settings, upsert_chapters, upsert_manga, Library,
-    ReadingStatus, Settings,
+    set_export_preset, set_manga_categories, set_reading_status, set_settings, upsert_chapters,
+    upsert_manga, Library, ReadingStatus, Settings,
 };
 
 pub fn follow(lib: &Library, source: &str, id: &str) -> MangaId {
@@ -43,6 +43,12 @@ pub fn fill(lib: &Library, downloads: &Path) {
     set_reading_status(lib, "mangadex", &b, ReadingStatus::OnHold).unwrap();
     set_reading_status(lib, "tapas", &t, ReadingStatus::Dropped).unwrap();
     set_auto_download(lib, "mangadex", &a, true).unwrap();
+    let preset = mangas_core::export::ExportPreset {
+        page_height: Some(0.8),
+        trim_margins: Some(true),
+        ..Default::default()
+    };
+    set_export_preset(lib, "mangadex", &a.0, &preset).unwrap();
 
     let mut locked = chapter(&a, "a2", "en");
     locked.availability = Availability::External {

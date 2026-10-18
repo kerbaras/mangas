@@ -95,6 +95,7 @@ pub fn request(
         device,
         format: Format::Epub,
         cut,
+        page: Default::default(),
         title: plan.title.clone(),
         title_explicit: false,
         output: output_dir.join(&plan.file_name),

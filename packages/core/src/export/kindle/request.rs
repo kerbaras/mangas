@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::Device;
 use crate::export::epub::Series;
-use crate::export::{Format, Labels};
+use crate::export::{Format, Labels, PageSettings};
 use crate::smartcut::Options;
 
 /// Book-level metadata; the default is a plain chapter bundle titled by `ExportRequest::title`.
@@ -32,6 +32,8 @@ pub struct ExportRequest {
     pub device: Device,
     pub format: Format,
     pub cut: Options,
+    /// Page height, margin trim and filter tweaks; the default leaves the profile as is.
+    pub page: PageSettings,
     pub title: String,
     /// The user typed `title`; it then beats the library's chapter title in ComicInfo.
     pub title_explicit: bool,
@@ -42,6 +44,11 @@ pub struct ExportRequest {
 }
 
 impl ExportRequest {
+    /// The same export with `page` tweaks.
+    pub fn with_page(self, page: PageSettings) -> ExportRequest {
+        ExportRequest { page, ..self }
+    }
+
     /// The same export written as `format`, the output's extension changed to match.
     pub fn with_format(self, format: Format) -> ExportRequest {
         ExportRequest {

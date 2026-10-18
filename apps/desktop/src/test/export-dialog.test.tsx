@@ -5,7 +5,7 @@ import { ExportDialog } from "@/components/export-dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { initialMode } from "@/lib/export-plan";
 import { setBackend } from "@/lib/ipc";
-import { ch, chapters, exportBackend, solo } from "./export-backend";
+import { ch, chapters, enabledButton, exportBackend, solo } from "./export-backend";
 
 afterEach(() => setBackend(null));
 
@@ -33,7 +33,7 @@ describe("export dialog: bundles", () => {
     expect(await screen.findByText("Solo v1.epub")).toBeTruthy();
     expect(screen.getByText("Solo v2.epub")).toBeTruthy();
     expect(screen.getByText("Chapters 1–2 · 2 chapters")).toBeTruthy();
-    fireEvent.click(await screen.findByRole("button", { name: /Export 2 books/ }));
+    fireEvent.click(await enabledButton(/Export 2 books/));
     await waitFor(() => expect(exportVolumes).toHaveBeenCalledOnce());
     expect(exportVolumes.mock.calls[0]).toMatchObject([
       {
@@ -54,7 +54,7 @@ describe("export dialog: bundles", () => {
     fireEvent.mouseDown(await screen.findByRole("tab", { name: "Per chapter" }));
     expect(await screen.findByText("3 files")).toBeTruthy();
     expect(screen.getByText("Solo ch 1.epub")).toBeTruthy();
-    fireEvent.click(await screen.findByRole("button", { name: /Export 3 books/ }));
+    fireEvent.click(await enabledButton(/Export 3 books/));
     await waitFor(() => expect(exportVolumes).toHaveBeenCalledOnce());
     expect(exportVolumes.mock.calls[0][0].grouping).toEqual({ kind: "per_chapter" });
   });
@@ -107,7 +107,7 @@ describe("export dialog: bundles", () => {
     );
     expect(await screen.findByText("Solo +1 more.epub")).toBeTruthy();
     expect(screen.queryByRole("tab", { name: "By volume" })).toBeNull();
-    fireEvent.click(await screen.findByRole("button", { name: /Export book/ }));
+    fireEvent.click(await enabledButton(/Export book/));
     await waitFor(() => expect(exportChapters).toHaveBeenCalledOnce());
     expect(exportChapters.mock.calls[0]).toMatchObject([
       { chapter_dirs: ["/d/1", "/d/9"], output: expect.stringMatching(/Solo \+1 more\.epub$/) },

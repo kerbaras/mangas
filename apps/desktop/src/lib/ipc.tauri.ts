@@ -16,6 +16,7 @@ import { DEFAULT_LANGUAGE } from "./ipc";
 import type { Diagnostics } from "./ipc.diagnostics";
 import type { Enqueued } from "./ipc.downloads";
 import type { Category, LibraryEntry } from "./ipc.library";
+import { tauriCutPreview } from "./ipc.tauri-cut-preview";
 import { tauriDownloads } from "./ipc.tauri-downloads";
 import { tauriFolders } from "./ipc.tauri-folders";
 import { tauriSend } from "./ipc.tauri-send";
@@ -117,6 +118,7 @@ export const tauriBackend: Backend = {
   ...tauriDownloads,
   ...tauriFolders,
   ...tauriVolumes,
+  ...tauriCutPreview,
   onExportProgress: (cb) =>
     listen<ExportEvent>(EXPORT_EVENT, (e) => cb(toExportProgress(e.payload))),
 };

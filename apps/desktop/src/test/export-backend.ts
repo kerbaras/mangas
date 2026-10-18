@@ -1,4 +1,5 @@
-import { vi } from "vitest";
+import { screen, waitFor } from "@testing-library/react";
+import { expect, vi } from "vitest";
 import {
   type Backend,
   type Chapter,
@@ -64,4 +65,11 @@ export function exportBackend(overrides: Partial<Backend> = {}, detectors = dete
     ...overrides,
   } as unknown as Backend);
   return { planVolumes, exportVolumes };
+}
+
+/** The dialog's export button once it can be clicked (devices and detectors status loaded). */
+export async function enabledButton(name: RegExp) {
+  const button = await screen.findByRole("button", { name });
+  await waitFor(() => expect(button).toHaveProperty("disabled", false));
+  return button;
 }

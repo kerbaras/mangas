@@ -3,6 +3,8 @@
  * `ipc.tauri.ts` inside Tauri, `ipc.mock.ts` in a plain browser (`pnpm dev:web`).
  * Types here are what the screens consume; the Rust wire shapes live in `ipc.wire.ts`.
  */
+
+import type { CutPreviewBackend } from "./ipc.cut-preview";
 import type { DiagnosticsBackend } from "./ipc.diagnostics";
 import type { DownloadsBackend, Enqueued, JobState } from "./ipc.downloads";
 import type { Device, ExportProgress, ExportRequest, ExportResult } from "./ipc.export";
@@ -122,7 +124,8 @@ export type DetectorsStatus = {
 
 export type Unlisten = () => void;
 
-export type Backend = DiagnosticsBackend &
+export type Backend = CutPreviewBackend &
+  DiagnosticsBackend &
   DownloadsBackend &
   FoldersBackend &
   LibraryBackend &

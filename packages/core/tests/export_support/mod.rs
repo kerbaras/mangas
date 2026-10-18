@@ -41,6 +41,7 @@ pub fn run_labelled(
         device: profile(device).unwrap(),
         format,
         cut: Preset::Balanced.options(),
+        page: Default::default(),
         title: "Tom & Jerry".into(),
         output: root.path().join(file),
         labels,

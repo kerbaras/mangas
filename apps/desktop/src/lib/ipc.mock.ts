@@ -3,6 +3,7 @@
  * drives the same progress events the Rust side emits, so every screen works in `pnpm dev:web`.
  */
 import type { Backend, Chapter, ExportProgress, Manga, Settings, Unlisten } from "./ipc";
+import { mockCutPreview } from "./mock-cut-preview";
 import {
   sampleProviders as providers,
   sampleCatalog,
@@ -190,6 +191,7 @@ export const mockBackend: Backend = {
   }),
   ...mockLibrary(library, chaptersOf),
   ...mockSend(),
+  ...mockCutPreview(),
   ...simulatedQueue(),
   ...mockVolumes({
     manga: (source, id) =>
