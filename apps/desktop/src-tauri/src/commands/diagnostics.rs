@@ -62,8 +62,12 @@ pub fn open_logs(app: AppHandle) -> Result<(), String> {
         .map_err(to_ipc)
 }
 
-/// Errors the UI caught (error boundary, unhandled rejections) go to the same log file.
+/// Errors the UI caught (error boundary, unhandled rejections) go to the same log file, and so
+/// do recoverable failures (`level: "warn"`, e.g. one chapter that didn't download).
 #[tauri::command]
-pub fn log_ui_error(message: String) {
-    tracing::error!(target: "mangas::ui", "{message}");
+pub fn log_ui_error(message: String, level: Option<String>) {
+    match level.as_deref() {
+        Some("warn") => tracing::warn!(target: "mangas::ui", "{message}"),
+        _ => tracing::error!(target: "mangas::ui", "{message}"),
+    }
 }

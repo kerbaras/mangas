@@ -14,6 +14,7 @@ import { listProviders, type Manga } from "@/lib/ipc";
 import { useNavigation } from "@/lib/navigation";
 import { notifyError } from "@/lib/notify";
 import { searchable } from "@/lib/provider-prefs";
+import { rememberInput, searchInput } from "@/lib/search-session";
 import { useSettings } from "@/lib/settings";
 
 const FILTER_KEY = "mangas.search.filter";
@@ -25,7 +26,7 @@ export function SearchScreen() {
   const [settings] = useSettings();
   const listed = useAsync(listProviders, []);
   const providers = listed.state.kind === "ready" ? searchable(listed.state.data, settings) : [];
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(searchInput);
   const debounced = useDebounced(query, 300);
   const { groups, retry } = useMultiSearch(
     debounced,
@@ -66,7 +67,10 @@ export function SearchScreen() {
             type="search"
             autoFocus
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              rememberInput(e.target.value);
+            }}
             placeholder="Title, author or keyword"
             aria-label="Search manga"
             className="h-9 pl-9"

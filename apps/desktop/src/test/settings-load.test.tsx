@@ -1,0 +1,66 @@
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { type Backend, setBackend } from "@/lib/ipc";
+import { mockBackend } from "@/lib/ipc.mock";
+import { loadSettings, readSettings, readSettingsLoad, writeSettings } from "@/lib/settings";
+import { SettingsScreen } from "@/screens/settings";
+
+function backend(getSettings: Backend["getSettings"]) {
+  const setSettings = vi.fn(async () => {});
+  const defaultDataDir = async () => "/home/me/.local/share/mangas";
+  setBackend({ getSettings, setSettings, defaultDataDir } as unknown as Backend);
+  return setSettings;
+}
+
+afterEach(() => setBackend(null));
+
+describe("settings load", () => {
+  it("keeps a failed load instead of throwing, and does not save over the stored settings", async () => {
+    const setSettings = backend(async () => {
+      throw "library: database is locked";
+    });
+    await loadSettings();
+    expect(readSettingsLoad()).toEqual({ kind: "failed", error: "library: database is locked" });
+    writeSettings({ defaultDevice: "kindle-scribe" });
+    expect(setSettings).not.toHaveBeenCalled();
+  });
+
+  it("shows the error on the Settings screen and retries from it", async () => {
+    const getSettings = vi.fn(async () => {
+      throw "library: database is locked";
+    });
+    backend(getSettings);
+    await loadSettings();
+    render(<SettingsScreen />);
+    expect(screen.getByText("Couldn't load your settings")).toBeTruthy();
+    expect(screen.getByText("library: database is locked")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /try again/i }));
+    await waitFor(() => expect(getSettings).toHaveBeenCalledTimes(2));
+  });
+
+  it("keeps settings that loaded when an overlapping load fails later", async () => {
+    const stored = await mockBackend.getSettings();
+    let calls = 0;
+    backend(async () => {
+      calls += 1;
+      if (calls === 1) return stored;
+      await new Promise((r) => setTimeout(r, 10));
+      throw "library: database is locked";
+    });
+    await Promise.all([loadSettings(), loadSettings()]);
+    expect(readSettingsLoad()).toEqual({ kind: "ready" });
+  });
+
+  it("never lets an older answer replace a newer one", async () => {
+    const stored = await mockBackend.getSettings();
+    let calls = 0;
+    backend(async () => {
+      calls += 1;
+      if (calls === 2) return { ...stored, default_device: "kindle-scribe" };
+      await new Promise((r) => setTimeout(r, 10));
+      return { ...stored, default_device: "kindle-oasis" };
+    });
+    await Promise.all([loadSettings(), loadSettings()]);
+    expect(readSettings().defaultDevice).toBe("kindle-scribe");
+  });
+});

@@ -3,6 +3,7 @@
  * backend at startup (`loadSettings`) and written through on every change.
  */
 import { useCallback, useSyncExternalStore } from "react";
+import { errorMessage } from "./format";
 import {
   DEFAULT_LANGUAGE,
   defaultDataDir,
@@ -72,17 +73,45 @@ const notify = () => {
 
 export const readSettings = (): Settings => cached;
 
-/** Hydrates from the backend; the platform data dir replaces the `~` placeholder default. */
+/** Whether the stored settings are in: until they are, `cached` holds placeholder defaults. */
+export type SettingsLoad =
+  | { kind: "loading" }
+  | { kind: "ready" }
+  | { kind: "failed"; error: string };
+let load: SettingsLoad = { kind: "loading" };
+let loads = 0;
+export const readSettingsLoad = (): SettingsLoad => load;
+
+/**
+ * Hydrates from the backend; the platform data dir replaces the `~` placeholder default. Never
+ * throws: a failure is kept in `readSettingsLoad()` for the Settings screen to show and retry,
+ * unless settings already loaded: an older answer never replaces a newer one, and a failed
+ * reload doesn't hide loaded settings.
+ */
 export async function loadSettings(): Promise<void> {
-  const [stored, platform] = await Promise.all([getSettings(), defaultDataDir()]);
-  platformDataDir = platform || DEFAULTS.dataDir;
-  cached = fromStored(stored, platformDataDir);
+  const gen = ++loads;
+  if (load.kind !== "ready") {
+    load = { kind: "loading" };
+    notify();
+  }
+  try {
+    const [stored, platform] = await Promise.all([getSettings(), defaultDataDir()]);
+    if (gen !== loads && load.kind === "ready") return;
+    platformDataDir = platform || DEFAULTS.dataDir;
+    cached = fromStored(stored, platformDataDir);
+    load = { kind: "ready" };
+  } catch (e: unknown) {
+    if (gen !== loads || load.kind === "ready") return;
+    load = { kind: "failed", error: errorMessage(e) };
+  }
   notify();
 }
 
+/** Writes through only once loaded, so placeholder defaults never overwrite what is stored. */
 export function writeSettings(patch: Partial<Settings>) {
   cached = { ...cached, ...patch };
   notify();
+  if (load.kind !== "ready") return;
   void setSettings(toStored(cached)).catch((e: unknown) => console.warn("settings not saved", e));
 }
 
@@ -96,3 +125,6 @@ export function useSettings(): [Settings, (patch: Partial<Settings>) => void] {
   const update = useCallback((patch: Partial<Settings>) => writeSettings(patch), []);
   return [settings, update];
 }
+
+export const useSettingsLoad = (): SettingsLoad =>
+  useSyncExternalStore(subscribe, readSettingsLoad, readSettingsLoad);

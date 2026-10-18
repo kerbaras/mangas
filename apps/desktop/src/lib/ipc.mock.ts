@@ -35,6 +35,8 @@ let settings: Settings = {
   provider_options: {},
 };
 
+const failSettingsUntil = mockFlags.settingsFail ? Date.now() + 1500 : 0;
+
 const library = new Map(
   (mockFlags.emptyLibrary ? [] : sampleLibrary).map((m) => [`${m.source}:${m.id}`, m]),
 );
@@ -59,13 +61,15 @@ function chaptersOf(source: string, id: string): Chapter[] {
   return list;
 }
 
-async function simulateDownload(chapter: Chapter, fail: boolean) {
+type Failure = { page: number; error: string };
+
+async function simulateDownload(chapter: Chapter, failure: Failure | null) {
   const pages = 18 + (chapter.id.length % 7);
   for (let page = 1; page <= pages; page++) {
     await wait(90 + Math.random() * 120);
-    if (fail && page === Math.floor(pages / 2)) {
+    if (failure && page === failure.page) {
       for (const cb of downloadListeners)
-        cb({ chapter_id: chapter.id, page, pages, done: true, error: "HTTP 429 from source" });
+        cb({ chapter_id: chapter.id, page, pages, done: true, error: failure.error });
       return;
     }
     const done = page === pages;
@@ -73,6 +77,13 @@ async function simulateDownload(chapter: Chapter, fail: boolean) {
     for (const cb of downloadListeners)
       cb({ chapter_id: chapter.id, page, pages, done, error: null });
   }
+}
+
+/** The core's challenge error for a provider behind a browser check that has no session yet. */
+function wallOf(source: string): Failure | null {
+  const info = providers.find((p) => p.id === source);
+  if (!info?.needs_browser_session || settings.provider_sessions[source]) return null;
+  return { page: 1, error: `challenge: ${info.name} needs a browser session for ${info.site}` };
 }
 
 export const mockBackend: Backend = {
@@ -86,6 +97,7 @@ export const mockBackend: Backend = {
   },
   async getSettings() {
     await wait(50);
+    if (Date.now() < failSettingsUntil) throw new Error("library: database is locked");
     return settings;
   },
   async setSettings(next) {
@@ -156,7 +168,12 @@ export const mockBackend: Backend = {
     const all = chaptersOf(source, mangaId);
     const picked = chapterIds.flatMap((id) => all.filter((c) => c.id === id));
     void (async () => {
-      for (const [i, chapter] of picked.entries()) await simulateDownload(chapter, i === 2);
+      const wall = wallOf(source);
+      for (const [i, chapter] of picked.entries())
+        await simulateDownload(
+          chapter,
+          wall ?? (i === 2 ? { page: 9, error: "HTTP 429 from source" } : null),
+        );
     })();
     return [];
   },

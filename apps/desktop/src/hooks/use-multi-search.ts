@@ -3,6 +3,8 @@ import { errorMessage } from "@/lib/format";
 import { type SearchGroup, searchAll } from "@/lib/ipc";
 import { recordStatus } from "@/lib/provider-status";
 import type { GroupState } from "@/lib/search-groups";
+import { cachedResults, rememberResults } from "@/lib/search-session";
+import { useSettings } from "@/lib/settings";
 
 const failed = (provider: string, reason: string): SearchGroup => ({
   provider,
@@ -13,13 +15,19 @@ const failed = (provider: string, reason: string): SearchGroup => ({
 /**
  * Searches each provider in its own call so groups show up as they answer instead of waiting
  * for the slowest; `retry(id)` reruns one. Only the latest call per provider lands, and every
- * answer is recorded as that provider's status.
+ * answer is recorded as that provider's status. The last query's groups are kept in
+ * `search-session` under the query, provider list and search settings, so coming back to the same
+ * search shows them again; only providers still searching when the screen was left are asked
+ * again, and changed languages or provider options search afresh.
  */
 export function useMultiSearch(query: string, ids: string[]) {
   const [groups, setGroups] = useState<Record<string, GroupState>>({});
   const generation = useRef(0);
   const latest = useRef<Record<string, number>>({});
+  const [{ preferredLanguages, providerLanguages, providerOptions }] = useSettings();
   const key = ids.join(",");
+  const prefs = JSON.stringify([preferredLanguages, providerLanguages, providerOptions]);
+  const current = useRef({ query: "", key: "" });
 
   const searchOne = useCallback((q: string, id: string, gen: number) => {
     const token = (latest.current[id] ?? 0) + 1;
@@ -37,11 +45,20 @@ export function useMultiSearch(query: string, ids: string[]) {
 
   useEffect(() => {
     const gen = ++generation.current;
-    setGroups({});
     const q = query.trim();
+    const cacheKey = `${key}|${prefs}`;
+    current.current = { query: q, key: cacheKey };
+    const cached = cachedResults(q, cacheKey);
+    const ids = key.split(",").filter(Boolean);
+    setGroups(cached ?? {});
     if (!q) return;
-    for (const id of key.split(",").filter(Boolean)) searchOne(q, id, gen);
-  }, [query, key, searchOne]);
+    for (const id of ids) if (cached?.[id]?.kind !== "done") searchOne(q, id, gen);
+  }, [query, key, prefs, searchOne]);
+
+  // Every groups change past the reset above belongs to `current`: stale answers are dropped.
+  useEffect(() => {
+    rememberResults(current.current.query, current.current.key, groups);
+  }, [groups]);
 
   const retry = useCallback(
     (id: string) => {
