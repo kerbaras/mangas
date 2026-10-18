@@ -3,7 +3,8 @@
 use std::path::Path;
 
 use super::job::{Job, JobId, JobState};
-use super::transitions::{apply, Action};
+use super::lease::{mark_stale, LEASE_MS};
+use super::transitions::{apply, recover, Action};
 use crate::domain::{Chapter, Error, Result};
 use crate::download::split_available;
 use crate::library::{self, Library};
@@ -143,9 +144,21 @@ pub fn clear_finished(lib: &Library) -> Result<usize> {
     library::delete_jobs(lib, &[JobState::Done, JobState::Cancelled])
 }
 
-/// Every job in queue order.
+/// Every job in queue order, running ones whose lease expired marked `stale_lease`.
 pub fn list(lib: &Library) -> Result<Vec<Job>> {
-    library::list_jobs(lib)
+    Ok(mark_stale(library::list_jobs(lib)?, now_ms(), LEASE_MS))
+}
+
+/// Returns the running jobs whose lease expired by `now` (their process died) to the queue,
+/// pages kept, and returns them. Run when a process starts, before its worker.
+pub fn reclaim_orphans(lib: &Library, now: i64) -> Result<Vec<Job>> {
+    library::update_jobs(lib, |jobs| {
+        let back: Vec<Job> = jobs
+            .iter()
+            .filter_map(|j| recover(j, now, LEASE_MS))
+            .collect();
+        (back.clone(), back)
+    })
 }
 
 pub fn now_ms() -> i64 {

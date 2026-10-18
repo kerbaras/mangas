@@ -25,6 +25,8 @@ export type DownloadJob = {
   not_before: number;
   owner: string | null;
   heartbeat_at: number;
+  /** Running, but its process died (lease expired): a worker queues it again soon. */
+  stale_lease: boolean;
   created_at: number;
   updated_at: number;
   manga_title: string;

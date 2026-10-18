@@ -33,6 +33,7 @@ export function emitJob(chapter: Chapter, source: string, patch: Partial<Downloa
     not_before: 0,
     owner: null,
     heartbeat_at: now,
+    stale_lease: false,
     created_at: before?.created_at ?? now,
     updated_at: now,
     manga_title: "",

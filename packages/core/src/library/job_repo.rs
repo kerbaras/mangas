@@ -145,6 +145,7 @@ fn row_to_job(row: &Row<'_>) -> rusqlite::Result<Job> {
         not_before: row.get(9)?,
         owner: row.get(10)?,
         heartbeat_at: row.get(11)?,
+        stale_lease: false,
         created_at: row.get(12)?,
         updated_at: row.get(13)?,
         manga_title: row.get(14)?,

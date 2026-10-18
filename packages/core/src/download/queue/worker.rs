@@ -9,11 +9,12 @@ use tokio::sync::{mpsc, Notify};
 use tokio::task::JoinHandle;
 
 use super::events::{diff, QueueEvent};
-use super::job::{Job, JobId, JobState};
+use super::job::{Job, JobId};
+use super::lease::{new_owner, Clock};
 use super::ops::now_ms;
 use super::retry::{classify, Failure};
 use super::runner::JobRunner;
-use super::schedule::Scope;
+use super::schedule::{is_settled, Scope};
 use super::tick::{plan_tick, QueueConfig, TickInput, TickPlan};
 use super::transitions::is_run_by;
 use crate::domain::Result;
@@ -35,6 +36,7 @@ pub struct Queue {
     config: QueueConfig,
     owner: String,
     wake: Notify,
+    clock: Clock,
 }
 
 impl Queue {
@@ -43,9 +45,15 @@ impl Queue {
             lib,
             runner,
             config,
-            owner: format!("{}-{}", std::process::id(), now_ms()),
+            owner: new_owner(),
             wake: Notify::new(),
+            clock: Arc::new(now_ms),
         }
+    }
+
+    /// Uses `clock` for every time decision (claims, heartbeats, lease expiry, backoff).
+    pub fn with_clock(self, clock: Clock) -> Self {
+        Queue { clock, ..self }
     }
 
     pub fn library(&self) -> &Library {
@@ -125,7 +133,7 @@ impl Queue {
             .collect();
         let input = TickInput {
             owner: &self.owner,
-            now: now_ms(),
+            now: (self.clock)(),
             in_flight: &in_flight,
             finished,
             scope,
@@ -188,11 +196,4 @@ impl Queue {
             let _ = tx.send((job.id, run, outcome.as_ref().map(classify)));
         })
     }
-}
-
-/// No job in `scope` is queued (retry backoff included) or running in any process.
-pub fn is_settled(jobs: &[Job], scope: &Scope) -> bool {
-    !jobs
-        .iter()
-        .any(|j| scope.contains(j.id) && matches!(j.state, JobState::Queued | JobState::Running))
 }

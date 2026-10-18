@@ -88,20 +88,36 @@ fn list(jobs: &[Job], gate: QueueGate) -> anyhow::Result<()> {
         outln!("The download queue is empty.")?;
         return Ok(());
     }
-    for job in jobs {
-        outln!(
-            "{:>5}  {:<9} {:>9}  {}{}",
-            job.id,
-            job.state.as_str(),
-            pages(job),
-            label(job),
-            job.error
-                .as_deref()
-                .map(|e| format!("  ({e})"))
-                .unwrap_or_default()
-        )?;
+    for row in rows(jobs) {
+        outln!("{row}")?;
     }
     Ok(())
+}
+
+/// One line per job, the state column as wide as its longest entry.
+fn rows(jobs: &[Job]) -> Vec<String> {
+    let width = jobs.iter().map(|j| state(j).len()).max().unwrap_or(0);
+    jobs.iter()
+        .map(|job| {
+            let error = job.error.as_deref().map(|e| format!("  ({e})"));
+            format!(
+                "{:>5}  {:<width$} {:>9}  {}{}",
+                job.id,
+                state(job),
+                pages(job),
+                label(job),
+                error.unwrap_or_default()
+            )
+        })
+        .collect()
+}
+
+/// The job's state, flagged when it runs under a dead process's lease.
+fn state(job: &Job) -> String {
+    match job.stale_lease {
+        true => format!("{} (stale lease)", job.state.as_str()),
+        false => job.state.as_str().to_string(),
+    }
 }
 
 fn pages(job: &Job) -> String {
@@ -130,4 +146,39 @@ async fn run_all(lib: Arc<library::Library>) -> anyhow::Result<()> {
         bail!("{failed} download(s) failed; `mangas queue retry --all` tries them again");
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_running_job_under_a_dead_lease_is_flagged() {
+        let job = Job {
+            state: JobState::Running,
+            ..Default::default()
+        };
+        assert_eq!(state(&job), "running");
+        let stale = Job {
+            stale_lease: true,
+            ..job
+        };
+        assert_eq!(state(&stale), "running (stale lease)");
+    }
+
+    #[test]
+    fn the_state_column_fits_a_stale_lease() {
+        let job = |id, stale_lease| Job {
+            id,
+            state: JobState::Running,
+            stale_lease,
+            pages_done: 5,
+            pages_total: 72,
+            ..Default::default()
+        };
+        let rows = rows(&[job(1, true), job(22, false)]);
+        let column = |row: &String| row.find("5/72").unwrap();
+        assert_eq!(column(&rows[0]), column(&rows[1]));
+        assert!(rows[0].contains("running (stale lease) "));
+    }
 }

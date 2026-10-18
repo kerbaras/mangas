@@ -1,6 +1,8 @@
 //! Shared fixtures for the queue tests: a library with chapters and a scriptable runner.
 #![allow(dead_code)]
 
+pub mod pages;
+
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Mutex;
