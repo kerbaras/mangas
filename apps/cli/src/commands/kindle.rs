@@ -87,7 +87,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .clone()
         .unwrap_or_else(|| PathBuf::from(format!("out.{format}")));
     let penalizer = args.cut.penalizer().await?;
-    let labels = labels_of(&args.chapters);
+    let (labels, series) = from_library(&args.chapters);
     let req = ExportRequest {
         chapter_dirs: args.chapters.clone(),
         device: dev,
@@ -96,7 +96,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         title: args
             .title
             .clone()
-            .unwrap_or_else(|| default_title(labels.series.as_deref(), &args.chapters)),
+            .unwrap_or_else(|| default_title(series.as_deref(), &args.chapters)),
         title_explicit: args.title.is_some(),
         output: output.clone(),
         meta: Default::default(),
@@ -138,15 +138,20 @@ pub(super) fn mark_exported(dirs: &[&Path]) {
     }
 }
 
-/// Series/chapter/volume labels from the library; folders it doesn't know export unlabelled.
-fn labels_of(chapters: &[PathBuf]) -> Labels {
+/// Series/chapter/volume labels from the library (folders it doesn't know export unlabelled),
+/// plus the first chapter's series for the default title, which a mixed export lacks in `Labels`.
+fn from_library(chapters: &[PathBuf]) -> (Labels, Option<String>) {
     paths::library_db()
         .and_then(|db| Ok(library::open(&db)?))
-        .and_then(|lib| labels_in(&lib, chapters))
+        .and_then(|lib| Ok((labels_in(&lib, chapters)?, first_series(&lib, chapters)?)))
         .unwrap_or_else(|e: anyhow::Error| {
             eprintln!("warning: could not read the chapters' series and numbers: {e}");
-            Labels::default()
+            (Labels::default(), None)
         })
+}
+
+fn first_series(lib: &Library, chapters: &[PathBuf]) -> anyhow::Result<Option<String>> {
+    Ok(labels_in(lib, &chapters[..chapters.len().min(1)])?.series)
 }
 
 fn labels_in(lib: &Library, chapters: &[PathBuf]) -> anyhow::Result<Labels> {

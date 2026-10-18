@@ -36,8 +36,7 @@ fn downloaded(root: &Path) -> (Library, PathBuf) {
 }
 
 fn title(lib: &Library, chapters: &[PathBuf]) -> String {
-    let labels = labels_in(lib, chapters).unwrap();
-    default_title(labels.series.as_deref(), chapters)
+    default_title(first_series(lib, chapters).unwrap().as_deref(), chapters)
 }
 
 #[test]
@@ -49,6 +48,16 @@ fn a_downloaded_chapter_is_titled_from_the_library() {
     let relative = Path::new("data/m-uuid/c1");
     library::mark_downloaded(&lib, "mangadex", &ChapterId("c1".into()), relative).unwrap();
     assert_eq!(title(&lib, &[relative.into()]), "Kaiju No. 8");
+}
+
+#[test]
+fn a_mixed_export_is_titled_after_its_first_chapter() {
+    let root = tempfile::tempdir().unwrap();
+    let (lib, dir) = downloaded(&root.path().canonicalize().unwrap());
+    let loose = root.path().join("loose/c9");
+    std::fs::create_dir_all(&loose).unwrap();
+    assert_eq!(title(&lib, &[dir.clone(), loose.clone()]), "Kaiju No. 8");
+    assert_eq!(labels_in(&lib, &[dir, loose]).unwrap().series, None);
 }
 
 #[test]
