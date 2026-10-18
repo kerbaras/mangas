@@ -48,6 +48,7 @@ function seedJob(i: number, now: number): DownloadJob {
     not_before: start?.error && state === "queued" ? now + 30_000 : 0,
     owner: null,
     heartbeat_at: now,
+    stale_lease: false,
     created_at: now - (60 - i) * 60_000,
     updated_at: now - (60 - i) * 1000,
     manga_title: manga.title,

@@ -50,6 +50,7 @@ export const pendingCount = (jobs: Iterable<DownloadJob>) =>
 export function stateLabel(job: DownloadJob): string {
   switch (job.state) {
     case "running":
+      if (job.stale_lease) return "Stale, will resume";
       return job.pages_total === 0 ? "Starting" : "Downloading";
     case "queued":
       return job.error ? "Retrying" : "Queued";

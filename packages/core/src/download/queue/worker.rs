@@ -88,7 +88,6 @@ impl Queue {
             }
             match self.step(&scope, &tasks, &progress, &finished) {
                 Ok((plan, status)) => {
-                    // The step recorded their last page counts.
                     if let Ok(mut p) = progress.lock() {
                         for (id, _) in &finished {
                             p.remove(id);

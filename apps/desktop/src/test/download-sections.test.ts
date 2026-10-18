@@ -42,6 +42,9 @@ describe("downloads sections", () => {
     expect(label({ state: "queued", error: "HTTP 503" })).toBe("Retrying");
     expect(label({ state: "running" })).toBe("Starting");
     expect(label({ state: "running", pages_total: 20 })).toBe("Downloading");
+    expect(label({ state: "running", pages_total: 20, stale_lease: true })).toBe(
+      "Stale, will resume",
+    );
     expect(label({ state: "paused" })).toBe("Paused");
     expect(label({ state: "failed" })).toBe("Failed");
     expect(label({ state: "cancelled" })).toBe("Cancelled");
