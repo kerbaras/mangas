@@ -42,3 +42,33 @@ fn the_release_on_disk_is_picked_and_not_downloaded_again() {
     assert!(queued.jobs.is_empty(), "no second download");
     assert_eq!(queued.on_disk.len(), 1);
 }
+
+#[test]
+fn a_folder_missing_pages_does_not_win_over_a_downloadable_release() {
+    let lib = open_in_memory().unwrap();
+    let manga = Manga {
+        id: MangaId("opm".into()),
+        source: "mangadex".into(),
+        title: "OPM".into(),
+        ..Default::default()
+    };
+    upsert_manga(&lib, &manga).unwrap();
+    let release = |id: &str| Chapter {
+        id: ChapterId(id.into()),
+        manga_id: manga.id.clone(),
+        language: "en".into(),
+        number: "5".into(),
+        ..Default::default()
+    };
+    let mut locked = release("locked-5");
+    locked.availability = mangas_core::domain::Availability::Locked;
+    let listed = vec![locked, release("open-5")];
+    upsert_chapters(&lib, "mangadex", &manga.id, "en", &listed).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join(".mangas-pages"), "3\n").unwrap();
+    mark_downloaded(&lib, "mangadex", &ChapterId("locked-5".into()), dir.path()).unwrap();
+
+    let picked = pick_releases(&lib, "mangadex", listed, None, &[]).unwrap();
+    let ids: Vec<&str> = picked.iter().map(|c| c.id.0.as_str()).collect();
+    assert_eq!(ids, ["open-5"], "its pages are gone, so it is not on disk");
+}
