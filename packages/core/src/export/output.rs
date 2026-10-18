@@ -61,14 +61,16 @@ fn claim_free_file(path: &Path) -> std::io::Result<(PathBuf, File)> {
     unreachable!("candidate_names is infinite")
 }
 
-/// The file names in `dir`; a folder not created yet is empty.
+/// The file names in `dir`. A folder not created yet, or one we may write to but not list,
+/// counts as empty: creating the file then decides, as it did before names were compared.
 fn file_names(dir: &Path) -> std::io::Result<Vec<String>> {
+    use std::io::ErrorKind::{NotFound, PermissionDenied};
     match std::fs::read_dir(dir) {
         Ok(entries) => Ok(entries
             .filter_map(|e| e.ok())
             .map(|e| e.file_name().to_string_lossy().into_owned())
             .collect()),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(e) if matches!(e.kind(), NotFound | PermissionDenied) => Ok(Vec::new()),
         Err(e) => Err(e),
     }
 }
@@ -118,4 +120,26 @@ pub(crate) fn xml_escape(s: &str) -> String {
         .replace('<', "&lt;")
         .replace('>', "&gt;")
         .replace('"', "&quot;")
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    #[test]
+    fn a_folder_we_can_write_but_not_list_still_takes_the_export() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("drop");
+        std::fs::create_dir(&dir).unwrap();
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o300)).unwrap();
+        if std::fs::read_dir(&dir).is_ok() {
+            return; // root ignores the mode; nothing to test
+        }
+        let wanted = vec!["Book.epub".to_string()];
+        assert_eq!(free_names_in(&dir, &wanted).unwrap(), wanted);
+        let written = write_new(&dir.join("Book.epub"), |_| Ok(()));
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
+        assert_eq!(written.unwrap(), dir.join("Book.epub"));
+    }
 }
