@@ -2598,7 +2598,7 @@ checksum = "e20f57f9918e5bd7bc58c22cdd70a6afc7375d4dd9683af5f2b34bd3d2bba619"
 
 [[package]]
 name = "mangas-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -2611,7 +2611,7 @@ dependencies = [
 
 [[package]]
 name = "mangas-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -2640,7 +2640,7 @@ dependencies = [
 
 [[package]]
 name = "mangas-desktop"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2665,7 +2665,7 @@ dependencies = [
 
 [[package]]
 name = "mangas-providers"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "chrono",

@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.2.0] - 2026-10-18
+
+### Added
+
+- **providers:** WeebCentral provider on a shared html helper (#67)
+- **providers:** Add Tapas provider (free episodes) (#65)
+- **providers:** Add Comick provider (comick.live, session-aware search) (#66)
+- **providers:** Webtoons (LINE) provider for originals and canvas (#69)
+- **search:** Multi-provider search and provider management (#78)
+- List locked and externally hosted chapters with an availability (#84)
+- **desktop:** Fetch covers through the provider and cache them on disk (#77)
+- **cli:** Provider options, preferred languages and multi-language sync (#83)
+- Authors, artists, year and tags in manga details (#86)
+
+### Fixed
+
+- **providers:** Share one rate limiter per host across clients and calls (#64)
+- **cli:** Exit quietly when stdout is closed (broken pipe) (#79)
+- **cli:** Plain log output when stderr is not a terminal (#81)
+- **providers:** Name skipped check results, flag skipped live tests, redact debug query values (#85)
+- **desktop:** Load the stored manga on the details screen instead of the search card (#82)
+- Clean up failed local imports and show plain import errors in a toast (#89)
+- **desktop:** Log every Tauri command error once, under the command's name (#87)
+- **tests:** Default the new Manga metadata fields in test fixtures (#96)
+- **download:** Fetch pages through the provider's rate limit and retry policy (#90)
+- **providers:** Send the site referer and same-origin fetch headers on API requests (#95)
+- **desktop:** Settings load error with retry, search kept on back, chapter download failures logged with Connect (#98)
+- Provider text polish and regional language fallback in search and details (#97)
 ## [0.1.0] - 2026-10-18
 
 ### Added
@@ -60,6 +88,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **desktop:** A reconnect waits for a session newer than the one it started with
 - **mangadot:** Search text parameter named like the site's own search route (search=)
 - **desktop:** Connect window navigation must stay on https
+[0.2.0]: https://github.com/kerbaras/mangas/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/kerbaras/mangas/compare/v0.1.0-rc.6...v0.1.0
 [0.1.0-rc.6]: https://github.com/kerbaras/mangas/compare/v0.1.0-rc.5...v0.1.0-rc.6
 [0.1.0-rc.5]: https://github.com/kerbaras/mangas/compare/v0.1.0-rc.4...v0.1.0-rc.5
