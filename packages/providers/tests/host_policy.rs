@@ -143,3 +143,34 @@ fn another_port_on_the_site_host_is_another_service() {
         ["referer", "cookie", "user-agent"]
     );
 }
+
+#[test]
+fn http_is_upgraded_only_for_hosts_known_to_serve_https() {
+    let policy = HostPolicy::new("https://example.com", &["cdn.example.net", "*"], None);
+    let up = |url: &str| policy.upgrade(url);
+    assert_eq!(up("http://example.com/a.jpg"), "https://example.com/a.jpg");
+    assert_eq!(
+        up("http://img.example.com/a.jpg"),
+        "https://img.example.com/a.jpg"
+    );
+    assert_eq!(
+        up("http://s1.cdn.example.net/a.jpg"),
+        "https://s1.cdn.example.net/a.jpg"
+    );
+    // Unknown hosts ("*" says nothing about a host), explicit ports and https stay as they are.
+    assert_eq!(up("http://mirror.org/a.jpg"), "http://mirror.org/a.jpg");
+    assert_eq!(
+        up("http://example.com:8080/a.jpg"),
+        "http://example.com:8080/a.jpg"
+    );
+    assert_eq!(up("https://mirror.org/a.jpg"), "https://mirror.org/a.jpg");
+}
+
+#[test]
+fn a_plain_http_site_is_not_upgraded() {
+    let policy = HostPolicy::new("http://example.com", &[], None);
+    assert_eq!(
+        policy.upgrade("http://example.com/a.jpg"),
+        "http://example.com/a.jpg"
+    );
+}

@@ -15,6 +15,10 @@ pub enum Error {
     /// [`crate::domain::Availability::reason`].
     #[error("chapter {number} can't be downloaded: {reason}")]
     Unavailable { number: String, reason: String },
+    /// A page or cover host resolves to a loopback, private or metadata address. Final: the
+    /// answer will not change on a retry.
+    #[error("refused: {host} resolves to a non-public address {ip}")]
+    BlockedAddress { host: String, ip: std::net::IpAddr },
     #[error("library: {0}")]
     Library(#[from] rusqlite::Error),
     #[error("network: {0}")]

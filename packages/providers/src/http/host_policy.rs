@@ -66,6 +66,31 @@ impl HostPolicy {
         headers
     }
 
+    /// `url` with `http:` turned into `https:` when its host is known to serve https: the site
+    /// itself (when its own origin is https) or a declared image host (not `"*"`, which says
+    /// nothing about a host). Anything else is returned unchanged.
+    pub fn upgrade(&self, url: &str) -> String {
+        let Ok(mut parsed) = Url::parse(url) else {
+            return url.to_string();
+        };
+        let host = parsed.host_str().unwrap_or_default().to_string();
+        let site =
+            self.scheme == "https" && !self.host.is_empty() && host_matches(&host, &self.host);
+        let declared = self
+            .image_hosts
+            .iter()
+            .any(|pattern| *pattern != "*" && host_matches(&host, pattern));
+        let known = site || declared;
+        // An explicit port is a service of its own; https on it is not implied.
+        if parsed.scheme() != "http" || parsed.port().is_some() || !known {
+            return url.to_string();
+        }
+        match parsed.set_scheme("https") {
+            Ok(()) => parsed.to_string(),
+            Err(()) => url.to_string(),
+        }
+    }
+
     /// Headers of a request sent to the client's own base. All of them carry the site's referer:
     /// Cloudflare site rules challenge API calls that do not look like they come from the site.
     /// `/api` paths are the site's own `fetch()` calls, so they also carry the origin and, with a

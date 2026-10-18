@@ -38,7 +38,9 @@ pub fn is_public_http_url(raw: &str) -> bool {
     }
 }
 
-fn is_public_ip(ip: IpAddr) -> bool {
+/// True for an address on the public internet: not loopback, private, link-local, CGNAT,
+/// documentation, benchmarking, multicast/reserved or a v4-mapped form of those.
+pub fn is_public_ip(ip: IpAddr) -> bool {
     match ip {
         IpAddr::V4(v4) => {
             let [a, b, _, _] = v4.octets();
@@ -60,9 +62,7 @@ fn is_public_ip(ip: IpAddr) -> bool {
                 || v6.is_unspecified()
                 || (seg & 0xfe00) == 0xfc00
                 || (seg & 0xffc0) == 0xfe80
-                || v6
-                    .to_ipv4_mapped()
-                    .is_some_and(|v4| !is_public_ip(IpAddr::V4(v4))))
+                || v6.to_ipv4().is_some_and(|v4| !is_public_ip(IpAddr::V4(v4))))
         }
     }
 }

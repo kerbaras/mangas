@@ -6,12 +6,13 @@ use crate::domain::Error;
 const LISTED: usize = 3;
 
 /// `failed` holds the 1-based index and error of every page that could not be fetched. A
-/// browser verification wins over the count: the app turns it into a "Connect" prompt.
+/// browser verification wins over the count: the app turns it into a "Connect" prompt. A
+/// refused address comes next: it is final, so the queue must not retry the chapter.
 pub fn incomplete(mut failed: Vec<(usize, Error)>, total: usize) -> Error {
-    if let Some(at) = failed
-        .iter()
-        .position(|(_, e)| matches!(e, Error::Challenge { .. }))
-    {
+    let challenge = |e: &Error| matches!(e, Error::Challenge { .. });
+    let blocked = |e: &Error| matches!(e, Error::BlockedAddress { .. });
+    let first = |wanted: &dyn Fn(&Error) -> bool| failed.iter().position(|(_, e)| wanted(e));
+    if let Some(at) = first(&challenge).or_else(|| first(&blocked)) {
         return failed.swap_remove(at).1;
     }
     failed.sort_by_key(|(index, _)| *index);

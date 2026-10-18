@@ -54,6 +54,11 @@ impl SiteClient {
         self.policy.headers_for(url)
     }
 
+    /// `url` upgraded to https when the host is known to serve it (see [`HostPolicy::upgrade`]).
+    pub fn page_url(&self, url: &str) -> String {
+        self.policy.upgrade(url)
+    }
+
     /// GET `base + path`; a verification page becomes [`Error::Challenge`], any other final
     /// response is returned for the provider to interpret.
     pub async fn get_raw(&self, path: &str, query: &[(&str, String)]) -> Result<Reply> {

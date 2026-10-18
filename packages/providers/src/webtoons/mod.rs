@@ -182,6 +182,10 @@ impl Source for Webtoons {
         self.site.page_headers(url)
     }
 
+    fn page_url(&self, url: &str) -> String {
+        self.site.page_url(url)
+    }
+
     async fn status(&self) -> ProviderStatus {
         self.site.status(PROBE).await
     }

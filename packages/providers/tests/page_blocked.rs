@@ -1,0 +1,32 @@
+//! A page host whose name resolves to a non-public address is refused once, with a message that
+//! says so, instead of being retried as a network error.
+
+use std::time::{Duration, Instant};
+
+use mangas_core::domain::Error;
+use mangas_core::download::PageFetcher;
+use mangas_core::library::Settings;
+use mangas_providers::http::PageClient;
+
+#[tokio::test]
+async fn a_name_resolving_to_a_private_address_is_refused_at_once() {
+    let source = mangas_providers::source("mangadex", &Settings::default()).unwrap();
+    for ip in [
+        "127.0.0.1",
+        "10.1.2.3",
+        "::ffff:127.0.0.1",
+        "169.254.169.254",
+    ] {
+        let client = PageClient::for_source(source.as_ref())
+            .and_then(|c| c.resolving_to(ip.parse().unwrap()))
+            .unwrap();
+        let started = Instant::now();
+        let err = client.fetch("https://cdn.qa.test/x.jpg").await.unwrap_err();
+        // PAGE_RETRY waits 1 s before its first retry: anything faster made one attempt.
+        assert!(started.elapsed() < Duration::from_secs(1), "{ip}: retried");
+        assert!(matches!(err, Error::BlockedAddress { .. }), "{err:?}");
+        let ip = ip.parse::<std::net::IpAddr>().unwrap();
+        let expected = format!("refused: cdn.qa.test resolves to a non-public address {ip}");
+        assert_eq!(err.to_string(), expected);
+    }
+}

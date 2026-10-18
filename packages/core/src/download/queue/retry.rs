@@ -51,6 +51,7 @@ pub fn classify(error: &Error) -> Failure {
         && !matches!(
             error,
             Error::Challenge { .. }
+                | Error::BlockedAddress { .. }
                 | Error::Unavailable { .. }
                 | Error::NotFound(_)
                 | Error::Io(_)
