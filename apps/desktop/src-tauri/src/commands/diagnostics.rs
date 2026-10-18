@@ -18,10 +18,12 @@ pub struct Diagnostics {
 #[tracing::instrument(level = "error", skip_all)]
 pub fn diagnostics() -> Result<Diagnostics, String> {
     let settings = settings_of(&open_library()?)?;
-    let log_dir = paths::log_dir()
-        .map_err(to_ipc)?
-        .to_string_lossy()
-        .into_owned();
+    let log_dir = paths::log_dir().map_err(to_ipc)?;
+    // Logging may never have created it, and "Open logs folder" only opens existing folders.
+    if let Err(e) = std::fs::create_dir_all(&log_dir) {
+        tracing::warn!("could not create the log folder: {e}");
+    }
+    let log_dir = log_dir.to_string_lossy().into_owned();
     let providers = mangas_providers::providers()
         .into_iter()
         .map(|p| ProviderStatus {
