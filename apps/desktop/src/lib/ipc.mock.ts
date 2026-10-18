@@ -180,6 +180,7 @@ export const mockBackend: Backend = {
     return { available: true, downloaded: true, provider: "cpu" };
   },
   ...mockDiagnostics(DATA_DIR, providers, () => settings),
+  async openFolder() {},
   ...mockStorage({
     library: () => [...library.values()],
     dataDir: () => settings.data_dir ?? DATA_DIR,

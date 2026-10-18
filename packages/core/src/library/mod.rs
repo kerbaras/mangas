@@ -9,6 +9,7 @@ mod download_repo;
 mod entries;
 mod export_history;
 mod export_labels;
+mod folders;
 mod gate_repo;
 pub mod import;
 mod job_repo;
@@ -37,6 +38,7 @@ pub use download_repo::{downloaded_chapters, forget_download, DownloadedChapter}
 pub use entries::{list_entries, LibraryEntry};
 pub use export_history::{list_exports, record_export, record_sent, ExportRecord};
 pub use export_labels::{chapter_titles, export_labels};
+pub use folders::{export_folders, openable_folder};
 pub use gate_repo::{
     queue_gate, queue_paused, set_queue_held_until, set_queue_paused, take_queue_hold,
 };

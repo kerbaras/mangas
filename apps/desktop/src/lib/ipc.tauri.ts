@@ -17,6 +17,7 @@ import type { Diagnostics } from "./ipc.diagnostics";
 import type { Enqueued } from "./ipc.downloads";
 import type { Category, LibraryEntry } from "./ipc.library";
 import { tauriDownloads } from "./ipc.tauri-downloads";
+import { tauriFolders } from "./ipc.tauri-folders";
 import { tauriSend } from "./ipc.tauri-send";
 import { tauriStorage } from "./ipc.tauri-storage";
 import { tauriUpdates } from "./ipc.tauri-updates";
@@ -109,12 +110,12 @@ export const tauriBackend: Backend = {
   setReadingStatus: (source, mangaId, status) =>
     invoke<void>("set_reading_status", { source, mangaId, status }),
   diagnostics: () => invoke<Diagnostics>("diagnostics"),
-  openLogs: () => invoke<void>("open_logs"),
   reportError: (message, level = "error") => invoke<void>("log_ui_error", { message, level }),
   ...tauriStorage,
   ...tauriSend,
   ...tauriUpdates,
   ...tauriDownloads,
+  ...tauriFolders,
   ...tauriVolumes,
   onExportProgress: (cb) =>
     listen<KindleEvent>(KINDLE_EVENT, (e) => cb(toExportProgress(e.payload))),

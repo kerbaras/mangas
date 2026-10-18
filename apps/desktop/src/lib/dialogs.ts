@@ -1,5 +1,7 @@
 /** Native dialogs and shell actions; no-ops with sensible fallbacks outside Tauri. */
 import { isTauri } from "./ipc";
+import { openFolder } from "./ipc.folders";
+import { notifyError } from "./notify";
 
 export async function pickFolder(title: string, fallback: string): Promise<string | null> {
   if (!isTauri()) return fallback;
@@ -48,10 +50,9 @@ export async function pickImportPaths(kind: ImportKind): Promise<string[]> {
   return Array.isArray(picked) ? picked : [picked];
 }
 
+/** Opens `path` in the file manager; says so in a toast when it can't. */
 export async function revealFolder(path: string): Promise<void> {
-  if (!isTauri()) return;
-  const { openPath } = await import("@tauri-apps/plugin-opener");
-  await openPath(path);
+  await openFolder(path).catch((e: unknown) => notifyError("Couldn't open the folder", e));
 }
 
 /** Opens a web page in the default browser (a new tab outside Tauri). */

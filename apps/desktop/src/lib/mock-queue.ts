@@ -114,10 +114,6 @@ export const mockQueue: DownloadsBackend = {
     remove(job);
   },
   queueStatus: async () => ({ ...gate }),
-  async openDownloadFolder(id) {
-    const job = [...jobs.values()].find((j) => j.id === id);
-    if (!job?.local_path) throw new Error(`chapter is not on disk`);
-  },
   onQueueEvent(cb): Promise<Unlisten> {
     listeners.add(cb);
     return Promise.resolve(() => listeners.delete(cb));

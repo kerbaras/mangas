@@ -15,6 +15,5 @@ export const tauriDownloads: DownloadsBackend = {
   clearDownloads: () => invoke<number>("clear_downloads"),
   dismissDownload: (id) => invoke<void>("dismiss_download", { id }),
   queueStatus: () => invoke<QueueStatus>("queue_status"),
-  openDownloadFolder: (id) => invoke<void>("open_download_folder", { id }),
   onQueueEvent: (cb) => listen<QueueEvent>(QUEUE_EVENT, (e) => cb(e.payload)),
 };
