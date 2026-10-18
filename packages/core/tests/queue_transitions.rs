@@ -159,6 +159,11 @@ fn a_source_404_fails_at_once_as_not_found() {
         message: "HTTP 503 for /at-home/server/x".into(),
     });
     assert!(busy.retryable);
+    let pages = classify(&Error::Other(
+        "incomplete chapter: 2 of 9 pages failed (page 3: source x: HTTP 404 for /p3; page 4: io: reset)"
+            .into(),
+    ));
+    assert!(!pages.retryable, "a page that is gone stays gone");
 }
 
 #[test]

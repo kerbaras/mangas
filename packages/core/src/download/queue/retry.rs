@@ -41,7 +41,12 @@ pub struct Failure {
 /// that will not change (gone from the source: not found, HTTP 404/410) fail at once; network
 /// trouble is retried.
 pub fn classify(error: &Error) -> Failure {
-    let gone = matches!(error, Error::Source { message, .. } if is_gone(message));
+    // Several failed pages come wrapped as "incomplete chapter: ... page 3: ... HTTP 404 ...".
+    let gone = match error {
+        Error::Source { message, .. } => is_gone(message),
+        Error::Other(message) => message.starts_with("incomplete chapter") && is_gone(message),
+        _ => false,
+    };
     let retryable = !gone
         && !matches!(
             error,
