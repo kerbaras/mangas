@@ -125,13 +125,11 @@ fn remove_partials(dest: &Path) -> Result<()> {
     Ok(())
 }
 
-/// A page image name: digits, a dot, an image extension.
+/// A page file name: digits, a dot, any extension (an unknown body keeps the URL's).
 fn is_page_name(name: &str) -> bool {
     let numbered = |stem: &str| !stem.is_empty() && stem.chars().all(|c| c.is_ascii_digit());
-    is_image(name)
-        && name
-            .rsplit_once('.')
-            .is_some_and(|(stem, _)| numbered(stem))
+    name.rsplit_once('.')
+        .is_some_and(|(stem, _)| numbered(stem))
 }
 
 /// Writes to `<name>.part` first so an interrupted download never leaves a truncated page
