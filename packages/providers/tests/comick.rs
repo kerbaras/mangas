@@ -57,7 +57,7 @@ fn chapter_page_filters_language_and_reports_last_page() {
     let side = &chapters[1];
     assert_eq!(
         side.id,
-        ChapterId("00-solo-leveling/67H16VGw-chapter-193-en".into())
+        ChapterId("67H16VGw-chapter-193-en@00-solo-leveling".into())
     );
     assert_eq!(side.title.as_deref(), Some("Side Story 14"));
     assert_eq!(side.volume.as_deref(), Some("3"));
@@ -72,18 +72,26 @@ fn chapter_page_filters_language_and_reports_last_page() {
 #[test]
 fn chapter_ids_round_trip_to_reader_paths() {
     let id = chapter_id(&solo(), "lkRE7", "0", "en");
-    assert_eq!(id.0, "00-solo-leveling/lkRE7-chapter-0-en");
+    assert_eq!(id.0, "lkRE7-chapter-0-en@00-solo-leveling");
     assert_eq!(
         chapter_path(&id).unwrap(),
         "/comic/00-solo-leveling/lkRE7-chapter-0-en"
     );
     assert!(chapter_path(&ChapterId("lkRE7".into())).is_err());
-    assert!(chapter_path(&ChapterId("/lkRE7-chapter-0-en".into())).is_err());
+    assert!(chapter_path(&ChapterId("lkRE7-chapter-0-en@".into())).is_err());
+    assert!(chapter_path(&ChapterId("lkRE7-chapter-0-en@a/b".into())).is_err());
+}
+
+#[test]
+fn same_numbered_releases_differ_in_the_first_eight_chars() {
+    let a = chapter_id(&solo(), "5N_wGCXG", "200", "en");
+    let b = chapter_id(&solo(), "h94WANth", "200", "en");
+    assert_ne!(a.0[..8], b.0[..8]);
 }
 
 #[test]
 fn reader_page_lists_absolute_image_urls() {
-    let id = ChapterId("00-solo-leveling/lkRE7-chapter-0-en".into());
+    let id = ChapterId("lkRE7-chapter-0-en@00-solo-leveling".into());
     let pages = parse_reader_page(&id, &fixture("chapter.html")).unwrap();
     assert_eq!(pages.0.len(), 2);
     assert!(pages.0[0].starts_with("https://cdn1.comicknew.pictures/00-solo-leveling/"));

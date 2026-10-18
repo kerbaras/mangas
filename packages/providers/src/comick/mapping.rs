@@ -103,17 +103,20 @@ fn to_chapter(entry: &ChapterEntry, manga: &MangaId) -> Chapter {
     }
 }
 
-/// Chapter ids are the reader page path under `/comic/`: `{slug}/{hid}-chapter-{chap}-{lang}`
-/// (the site answers 404 without the full suffix).
+/// Chapter ids are `{hid}-chapter-{chap}-{lang}@{slug}`: the reader page needs the full
+/// suffix (404 without it) plus the slug, and the id leads with the release-unique hid so
+/// same-numbered releases get distinct download directories.
 pub fn chapter_id(manga: &MangaId, hid: &str, number: &str, lang: &str) -> ChapterId {
-    ChapterId(format!("{manga}/{hid}-chapter-{number}-{lang}"))
+    ChapterId(format!("{hid}-chapter-{number}-{lang}@{manga}"))
 }
 
 /// Path of the reader page of `chapter`, from the id produced by [`chapter_id`].
 pub fn chapter_path(chapter: &ChapterId) -> Result<String> {
-    match chapter.0.split_once('/') {
-        Some((slug, page)) if !slug.is_empty() && page.contains("-chapter-") => {
-            Ok(format!("/comic/{}", chapter.0))
+    match chapter.0.rsplit_once('@') {
+        Some((page, slug))
+            if !slug.is_empty() && !slug.contains('/') && page.contains("-chapter-") =>
+        {
+            Ok(format!("/comic/{slug}/{page}"))
         }
         _ => Err(source_error(format!("malformed chapter id {}", chapter.0))),
     }
