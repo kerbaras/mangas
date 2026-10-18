@@ -1,11 +1,12 @@
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{Duration, Instant};
 
 use tokio::sync::Mutex;
 
 /// Token bucket: at most `capacity` requests in a burst, refilled at `per_second`.
 pub struct TokenBucket {
-    capacity: f64,
-    per_second: f64,
+    capacity: AtomicU32,
+    per_second: AtomicU32,
     state: Mutex<BucketState>,
 }
 
@@ -17,13 +18,28 @@ struct BucketState {
 impl TokenBucket {
     pub fn new(capacity: u32, per_second: u32) -> Self {
         Self {
-            capacity: f64::from(capacity),
-            per_second: f64::from(per_second),
+            capacity: AtomicU32::new(capacity),
+            per_second: AtomicU32::new(per_second),
             state: Mutex::new(BucketState {
                 tokens: f64::from(capacity),
                 last: Instant::now(),
             }),
         }
+    }
+
+    /// Lowers the burst and refill rate to at most these values; never raises them.
+    pub fn tighten(&self, capacity: u32, per_second: u32) {
+        self.capacity.fetch_min(capacity, Ordering::Relaxed);
+        self.per_second
+            .fetch_min(per_second.max(1), Ordering::Relaxed);
+    }
+
+    /// Current `(capacity, per_second)`.
+    pub fn limits(&self) -> (u32, u32) {
+        (
+            self.capacity.load(Ordering::Relaxed),
+            self.per_second.load(Ordering::Relaxed),
+        )
     }
 
     /// Waits until a token is available and consumes it.
@@ -32,11 +48,12 @@ impl TokenBucket {
             let wait = {
                 let mut state = self.state.lock().await;
                 let now = Instant::now();
+                let (capacity, per_second) = self.limits();
                 let (tokens, wait) = refill(
                     state.tokens,
                     now.duration_since(state.last),
-                    self.capacity,
-                    self.per_second,
+                    f64::from(capacity),
+                    f64::from(per_second),
                 );
                 state.last = now;
                 state.tokens = tokens;

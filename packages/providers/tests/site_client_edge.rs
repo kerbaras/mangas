@@ -60,8 +60,14 @@ async fn edge_error_page_is_retried_on_a_json_api() {
 async fn edge_error_page_gives_up_after_the_retry_budget() {
     let server = MockServer::start().await;
     respond(&server, edge_page(), Some(3)).await;
-    let reply = client(&server, true).get_raw("/feed", &[]).await.unwrap();
-    assert_eq!(reply.status, 400);
+    let err = client(&server, true)
+        .get_raw("/feed", &[])
+        .await
+        .unwrap_err();
+    let message = err.to_string();
+    assert!(message.contains("HTTP 400 for /feed"), "{message}");
+    assert!(message.contains("edge error page"), "{message}");
+    assert!(message.contains("after 3 attempts"), "{message}");
 }
 
 #[tokio::test]

@@ -25,9 +25,20 @@ pub const USER_AGENT: &str = concat!(
 );
 
 /// Status and body of a response; providers map their own error payloads.
+#[derive(Debug)]
 pub struct Reply {
     pub status: u16,
     pub body: String,
+}
+
+impl Reply {
+    /// A reply whose body was not read (it is about to be retried).
+    pub fn empty(status: u16) -> Self {
+        Self {
+            status,
+            body: String::new(),
+        }
+    }
 }
 
 /// Cloudflare marks challenge responses with `cf-mitigated: challenge`; older edges only send
