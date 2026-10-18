@@ -12,6 +12,7 @@ mod retry;
 mod runner;
 mod schedule;
 mod settle;
+mod task;
 mod tick;
 mod transitions;
 mod worker;
