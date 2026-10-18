@@ -1,0 +1,50 @@
+{
+  "result": {
+    "query": "tower of god",
+    "start": 1,
+    "display": 10,
+    "total": 3,
+    "searchedList": [
+      {
+        "titleNo": 8136,
+        "title": "Tower of God: Urek Mazino",
+        "readCount": 6970025,
+        "thumbnailMobile": "/20250708_168/1751933875506EHS70_PNG/Thumb_Square_8136.png",
+        "authorNameList": [
+          "SIU"
+        ],
+        "representGenre": "FANTASY",
+        "titleUnsuitableForChildren": false,
+        "titleBadges": null,
+        "searchMode": "TITLE"
+      },
+      {
+        "titleNo": 95,
+        "title": "Tower of God",
+        "readCount": 1251078026,
+        "thumbnailMobile": "/20230324_171/1679612128056zKhRj_JPEG/1TowerOfGod_thumbnail_mobile.jpg",
+        "authorNameList": [
+          "SIU"
+        ],
+        "representGenre": "FANTASY",
+        "titleUnsuitableForChildren": false,
+        "titleBadges": null,
+        "searchMode": "TITLE"
+      },
+      {
+        "titleNo": 4837,
+        "title": "G.O.D.",
+        "readCount": 2431222,
+        "thumbnailMobile": "/20240803_216/1722620414221R4K4f_JPEG/4GOD_Return_Thumbnail_Mobile_240801.jpg",
+        "authorNameList": [
+          "blaukornbrot"
+        ],
+        "representGenre": "DRAMA",
+        "titleUnsuitableForChildren": false,
+        "titleBadges": null,
+        "searchMode": "TITLE"
+      }
+    ]
+  },
+  "success": true
+}

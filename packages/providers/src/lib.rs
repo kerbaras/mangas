@@ -13,6 +13,7 @@ mod rate_limit;
 mod registry;
 mod session;
 pub mod tapas;
+pub mod webtoons;
 pub mod weebcentral;
 
 pub use mangas_core::sources::{Header, PageUrls, ProviderStatus, Source};
