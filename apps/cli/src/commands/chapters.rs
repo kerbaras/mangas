@@ -46,7 +46,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         return Ok(());
     }
     outln!(
-        "{:<8} {:<5} {:<8} {:<6} {:<36}  title",
+        "{:<8} {:<5} {:<9} {:<6} {:<36}  title",
         "chapter",
         "vol",
         "status",
@@ -71,7 +71,7 @@ fn format_row(c: &Chapter) -> String {
         _ => title.to_string(),
     };
     format!(
-        "{:<8} {:<5} {:<8} {:<6} {:<36}  {title}",
+        "{:<8} {:<5} {:<9} {:<6} {:<36}  {title}",
         c.number,
         c.volume.as_deref().unwrap_or("-"),
         status(c),
@@ -80,9 +80,10 @@ fn format_row(c: &Chapter) -> String {
     )
 }
 
-/// `on disk`, `locked`, `external` or `-` (downloadable, not downloaded yet).
+/// `exported`, `on disk`, `locked`, `external` or `-` (downloadable, not downloaded yet).
 fn status(c: &Chapter) -> &'static str {
     match (&c.availability, c.is_downloaded()) {
+        (_, true) if c.is_exported() => "exported",
         (_, true) => "on disk",
         (Availability::Locked, false) => "locked",
         (Availability::External { .. }, false) => "external",

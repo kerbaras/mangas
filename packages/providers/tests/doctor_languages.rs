@@ -41,7 +41,7 @@ impl Source for OnlyIn {
                 number: "1".into(),
                 local_path: None,
                 group: None,
-                availability: Default::default(),
+                ..Default::default()
             })
             .into_iter()
             .collect())

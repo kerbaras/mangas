@@ -1,40 +1,62 @@
 import { Library, Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
+import { CategoriesDialog } from "@/components/categories-dialog";
 import { EmptyState } from "@/components/empty-state";
+import type { EntryHandlers } from "@/components/entry-menu";
 import { ErrorAlert } from "@/components/error-alert";
 import { ImportMenu } from "@/components/import-menu";
+import { LibraryList } from "@/components/library-list";
+import { LibraryToolbar } from "@/components/library-toolbar";
 import { MangaCard } from "@/components/manga-card";
 import { ScreenHeader } from "@/components/screen-header";
-import { type LibrarySort, SortMenu, sortLibrary } from "@/components/sort-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useImport } from "@/hooks/use-import";
-import { useLibrary } from "@/hooks/use-library";
+import { useLibraryView } from "@/hooks/use-library-view";
+import { useShelf } from "@/hooks/use-shelf";
 import { mangaKey } from "@/lib/format";
-import type { Manga } from "@/lib/ipc";
+import type { Category } from "@/lib/ipc.library";
+import { filterEntries, liveView, sortEntries } from "@/lib/library-view";
 import { useNavigation } from "@/lib/navigation";
 import { notifyError } from "@/lib/notify";
 
+const noCategories: Category[] = [];
+
 export function LibraryScreen() {
   const nav = useNavigation();
-  const { state, reload, unfollow } = useLibrary();
+  const shelf = useShelf();
+  const { state, reload } = shelf;
   const imports = useImport(reload);
-  const [filter, setFilter] = useState("");
-  const [sort, setSort] = useState<LibrarySort>("title");
+  const [query, setQuery] = useState("");
+  const [stored, setView] = useLibraryView();
+  const [editing, setEditing] = useState(false);
 
-  const items = useMemo(() => {
-    if (state.kind !== "ready") return [];
-    const q = filter.trim().toLowerCase();
-    return sortLibrary(
-      state.data.filter((m) => !q || m.title.toLowerCase().includes(q)),
-      sort,
-    );
-  }, [state, filter, sort]);
+  const entries = state.kind === "ready" ? state.data.entries : [];
+  const categories = state.kind === "ready" ? state.data.categories : noCategories;
+  const view = liveView(
+    stored,
+    entries,
+    categories.map((c) => c.id),
+  );
+  const items = useMemo(
+    () => sortEntries(filterEntries(entries, view, query), view.sort),
+    [entries, view, query],
+  );
 
-  const open = (m: Manga) => nav.go({ screen: "manga", manga: m });
-  const onUnfollow = (m: Manga) =>
-    unfollow(m).catch((e: unknown) => notifyError(`Couldn't unfollow ${m.title}`, e));
-  const count = state.kind === "ready" ? state.data.length : null;
+  const handlers: EntryHandlers = {
+    onOpen: (e) => nav.go({ screen: "manga", manga: e }),
+    onUnfollow: (e) =>
+      shelf.unfollow(e).catch((err: unknown) => notifyError(`Couldn't unfollow ${e.title}`, err)),
+    onStatus: (e, status) =>
+      shelf.setStatus(e, status).catch((err: unknown) => notifyError("Couldn't set status", err)),
+    onToggleCategory: (e, id, on) =>
+      shelf
+        .toggleCategory(e, id, on)
+        .catch((err: unknown) => notifyError("Couldn't change categories", err)),
+    onEditCategories: () => setEditing(true),
+  };
+  const count = state.kind === "ready" ? entries.length : null;
+  const filtered = query.trim() !== "" || view.category !== null || !!view.source || !!view.status;
 
   return (
     <section className="flex h-full flex-col">
@@ -44,26 +66,40 @@ export function LibraryScreen() {
             <Search className="pointer-events-none absolute top-2 left-2 size-4 text-ink-3" />
             <Input
               type="search"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
               placeholder="Filter by title"
               aria-label="Filter by title"
               className="w-56 pl-7"
             />
           </div>
         ) : null}
-        {count ? <SortMenu value={sort} onChange={setSort} /> : null}
         <ImportMenu busy={imports.busy} onPick={imports.start} />
         <Button variant="primary" size="sm" onClick={() => nav.go({ screen: "search" })}>
           <Plus /> Follow a manga
         </Button>
       </ScreenHeader>
-      <div className="flex-1 overflow-auto p-4">
-        {state.kind === "loading" && <p className="text-ink-3">Loading…</p>}
+      {count !== null ? (
+        <LibraryToolbar
+          view={view}
+          entries={entries}
+          categories={categories}
+          onChange={setView}
+          onEditCategories={() => setEditing(true)}
+        />
+      ) : null}
+      <div className="flex-1 overflow-auto">
+        {state.kind === "loading" && <p className="p-4 text-ink-3">Loading…</p>}
         {state.kind === "error" && (
-          <ErrorAlert title="Couldn't open the library" message={state.message} onRetry={reload} />
+          <div className="p-4">
+            <ErrorAlert
+              title="Couldn't open the library"
+              message={state.message}
+              onRetry={reload}
+            />
+          </div>
         )}
-        {state.kind === "ready" && state.data.length === 0 && (
+        {state.kind === "ready" && entries.length === 0 && (
           <EmptyState
             icon={<Library />}
             title="Nothing on the shelf yet"
@@ -77,21 +113,37 @@ export function LibraryScreen() {
             have. Chapters show up here, ready to send to your Kindle.
           </EmptyState>
         )}
-        {state.kind === "ready" && state.data.length > 0 && items.length === 0 && (
-          <EmptyState title={`Nothing matches “${filter.trim()}”`}>
-            Try a shorter title, or clear the filter.
+        {entries.length > 0 && items.length === 0 && filtered && (
+          <EmptyState title="Nothing matches">
+            {query.trim()
+              ? `No title here matches “${query.trim()}”. Try a shorter title, or clear the filter.`
+              : "No title here has this category, source or status. Pick another or clear the filters."}
           </EmptyState>
         )}
-        {items.length > 0 && (
-          <ul className="grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-3">
-            {items.map((m) => (
-              <li key={mangaKey(m)}>
-                <MangaCard manga={m} onOpen={open} onUnfollow={onUnfollow} />
+        {items.length > 0 && view.layout === "grid" && (
+          <ul className="grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-3 p-4">
+            {items.map((e) => (
+              <li key={mangaKey(e)}>
+                <MangaCard entry={e} categories={categories} {...handlers} />
               </li>
             ))}
           </ul>
         )}
+        {items.length > 0 && view.layout === "list" && (
+          <LibraryList entries={items} categories={categories} {...handlers} />
+        )}
       </div>
+      <CategoriesDialog
+        open={editing}
+        onOpenChange={setEditing}
+        categories={categories}
+        onCreate={shelf.addCategory}
+        onRename={shelf.renameCategory}
+        onDelete={async (id) => {
+          await shelf.removeCategory(id);
+          if (stored.category === id) setView({ category: null });
+        }}
+      />
     </section>
   );
 }

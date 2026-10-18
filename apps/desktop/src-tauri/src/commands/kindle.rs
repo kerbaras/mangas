@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use mangas_core::export::kindle::{self, ExportRequest, ExportStats, Progress};
+use mangas_core::library;
 use mangas_core::ml;
 use mangas_core::smartcut::Preset;
 use tauri::{AppHandle, Emitter};
@@ -64,13 +65,24 @@ pub async fn export_kindle(
     };
     let handle = app.clone();
     // Mapped here, not in the closure, so the error is logged under this command's span.
-    tauri::async_runtime::spawn_blocking(move || {
+    let (stats, dirs) = tauri::async_runtime::spawn_blocking(move || {
         let mut on_progress = |p: Progress| emit(&handle, ExportEvent::Export(p));
-        kindle::export(&req, penalizer, &mut on_progress)
+        kindle::export(&req, penalizer, &mut on_progress).map(|s| (s, req.chapter_dirs))
     })
     .await
     .map_err(to_ipc)?
-    .map_err(to_ipc)
+    .map_err(to_ipc)?;
+    mark_exported(&stats.exported_chapters(&dirs));
+    Ok(stats)
+}
+
+/// The EPUB is written either way; a library that can't record it only loses the "exported" mark.
+fn mark_exported(dirs: &[&std::path::Path]) {
+    if let Err(e) =
+        open_library().and_then(|lib| library::mark_exported(&lib, dirs).map_err(to_ipc))
+    {
+        tracing::warn!("could not mark chapters exported: {e}");
+    }
 }
 
 fn models_dir() -> Result<PathBuf, String> {

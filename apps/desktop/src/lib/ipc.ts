@@ -4,6 +4,7 @@
  * Types here are what the screens consume; the Rust wire shapes live in `ipc.wire.ts`.
  */
 import type { DiagnosticsBackend } from "./ipc.diagnostics";
+import type { LibraryBackend } from "./ipc.library";
 import type { Settings } from "./ipc.settings";
 import type { StorageBackend } from "./ipc.storage";
 
@@ -39,6 +40,8 @@ export type Chapter = {
   group?: string | null;
   /** Whether the source lets this chapter be downloaded; absent means available. */
   availability?: Availability;
+  /** When the chapter was last part of a successful export (UTC, RFC 3339). */
+  exported_at?: string | null;
 };
 
 /** Mirrors `mangas_core::domain::Availability` (serde tag = "kind"). */
@@ -127,6 +130,7 @@ export type DetectorsStatus = {
 export type Unlisten = () => void;
 
 export type Backend = DiagnosticsBackend &
+  LibraryBackend &
   StorageBackend & {
     listLibrary(): Promise<Manga[]>;
     listDevices(): Promise<Device[]>;

@@ -22,11 +22,11 @@ import { mockDiagnostics } from "./mock-diagnostics";
 import { simulateExport } from "./mock-export";
 import { mockExportResult, mockFlags } from "./mock-flags";
 import { mockImport } from "./mock-import";
+import { markExported, mockLibrary } from "./mock-library";
 import { mockSearch } from "./mock-search";
 import { mockStorage } from "./mock-storage";
 
 const DATA_DIR = "~/.local/share/mangas";
-
 let settings: Settings = {
   data_dir: null,
   default_device: null,
@@ -37,7 +37,6 @@ let settings: Settings = {
 };
 
 const failSettingsUntil = mockFlags.settingsFail ? Date.now() + 1500 : 0;
-
 const library = new Map(
   (mockFlags.emptyLibrary ? [] : sampleLibrary).map((m) => [`${m.source}:${m.id}`, m]),
 );
@@ -187,6 +186,7 @@ export const mockBackend: Backend = {
   },
   async exportKindle(request) {
     await simulateExport(exportListeners, Math.max(1, request.chapter_dirs.length * 6));
+    markExported(chapterCache.values(), request.chapter_dirs);
     return mockExportResult(request.output, request.chapter_dirs.length);
   },
   async detectorsStatus() {
@@ -201,6 +201,7 @@ export const mockBackend: Backend = {
       settings = { ...settings, data_dir: dir };
     },
   }),
+  ...mockLibrary(library, chaptersOf),
   onDownloadProgress: (cb) => subscribe(downloadListeners, cb),
   onExportProgress: (cb) => subscribe(exportListeners, cb),
 };

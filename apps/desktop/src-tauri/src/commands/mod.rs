@@ -6,6 +6,7 @@ pub mod diagnostics;
 mod errors;
 pub mod import;
 pub mod kindle;
+pub mod organisation;
 pub mod providers;
 pub mod storage;
 

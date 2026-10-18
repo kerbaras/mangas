@@ -1,9 +1,10 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use anyhow::{bail, Context};
 use clap::Args as ClapArgs;
 use mangas_core::export::kindle::{device, export, ExportRequest, Progress, DEVICES};
+use mangas_core::library;
 use mangas_core::ml;
 use mangas_core::smartcut::{Options, Preset};
 
@@ -163,5 +164,26 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             stats.skipped
         )?;
     }
+    mark_exported(&stats.exported_chapters(&req.chapter_dirs));
     Ok(())
+}
+
+/// Library chapters among `dirs` count as read from now on; folders from elsewhere are ignored.
+/// Each folder is matched as made absolute and as resolved (symlinks), since the library may
+/// store either spelling. The EPUB is already written, so a failed update only gets a warning.
+fn mark_exported(dirs: &[&Path]) {
+    let mut spellings: Vec<PathBuf> = dirs
+        .iter()
+        .flat_map(|d| [std::path::absolute(d).ok(), d.canonicalize().ok()])
+        .flatten()
+        .collect();
+    spellings.sort();
+    spellings.dedup();
+    let dirs: Vec<&Path> = spellings.iter().map(PathBuf::as_path).collect();
+    let marked = paths::library_db()
+        .and_then(|db| Ok(library::open(&db)?))
+        .and_then(|lib| Ok(library::mark_exported(&lib, &dirs)?));
+    if let Err(e) = marked {
+        eprintln!("warning: could not mark the chapters as exported: {e}");
+    }
 }

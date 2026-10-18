@@ -116,6 +116,7 @@ fn to_chapter(entry: &ChapterEntry, manga: &MangaId) -> Chapter {
         volume: Some(text(entry.vol.as_ref())).filter(|v| !v.is_empty()),
         number,
         local_path: None,
+        exported_at: None,
         group: Some(groups.join(", ")).filter(|g| !g.trim().is_empty()),
         availability: Default::default(),
     }

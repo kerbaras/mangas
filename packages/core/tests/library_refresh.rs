@@ -1,7 +1,7 @@
 use std::sync::Mutex;
 
 use async_trait::async_trait;
-use mangas_core::domain::{Availability, Chapter, ChapterId, Error, Manga, MangaId};
+use mangas_core::domain::{Chapter, ChapterId, Error, Manga, MangaId};
 use mangas_core::library::{
     get_manga, list_chapters, open_in_memory, refresh_from_source, upsert_manga, Refreshed,
 };
@@ -21,7 +21,7 @@ fn chapter(number: &str) -> Chapter {
         number: number.into(),
         local_path: None,
         group: None,
-        availability: Availability::default(),
+        ..Default::default()
     }
 }
 

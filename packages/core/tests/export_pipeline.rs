@@ -34,6 +34,12 @@ fn exports_chapters_and_skips_empty_directories() {
     let mut events = Vec::new();
     let stats = export(&req, None, &mut |p: Progress| events.push(p)).unwrap();
     assert_eq!(stats.pages, 3);
+    let dirs = &req.chapter_dirs;
+    assert_eq!(stats.empty_chapters, vec![dirs[1].clone()]);
+    assert_eq!(
+        stats.exported_chapters(dirs),
+        vec![dirs[0].as_path(), dirs[2].as_path()]
+    );
     assert_eq!(
         events
             .iter()

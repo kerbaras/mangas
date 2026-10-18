@@ -51,7 +51,7 @@ fn chapter() -> Chapter {
         number: "1".into(),
         local_path: None,
         group: None,
-        availability: Default::default(),
+        ..Default::default()
     }
 }
 

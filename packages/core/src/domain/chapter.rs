@@ -4,10 +4,10 @@ use serde::{Deserialize, Serialize};
 
 use super::{Availability, MangaId};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ChapterId(pub String);
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Chapter {
     pub id: ChapterId,
     pub manga_id: MangaId,
@@ -24,11 +24,18 @@ pub struct Chapter {
     /// Whether the source lets this chapter be downloaded.
     #[serde(default)]
     pub availability: Availability,
+    /// When the chapter was last part of a successful export (RFC 3339, UTC); the library sets it.
+    #[serde(default)]
+    pub exported_at: Option<String>,
 }
 
 impl Chapter {
     pub fn is_downloaded(&self) -> bool {
         self.local_path.is_some()
+    }
+
+    pub fn is_exported(&self) -> bool {
+        self.exported_at.is_some()
     }
 
     /// The source lets this chapter be downloaded.

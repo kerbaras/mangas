@@ -142,6 +142,7 @@ pub fn to_chapters(manga: &MangaId, title: &Title, pages: Vec<EpisodePage>) -> V
             volume: None,
             number: e.episode_no.to_string(),
             local_path: None,
+            exported_at: None,
             group: None,
             availability: Default::default(),
         })

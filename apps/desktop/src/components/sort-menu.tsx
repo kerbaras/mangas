@@ -8,22 +8,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { Manga } from "@/lib/ipc";
-
-export type LibrarySort = "title" | "status" | "source";
-
-const options: { id: LibrarySort; label: string }[] = [
-  { id: "title", label: "Title" },
-  { id: "status", label: "Status" },
-  { id: "source", label: "Source" },
-];
-
-export function sortLibrary(items: Manga[], sort: LibrarySort): Manga[] {
-  return [...items].sort(
-    (a, b) =>
-      (sort === "title" ? 0 : a[sort].localeCompare(b[sort])) || a.title.localeCompare(b.title),
-  );
-}
+import { type LibrarySort, SORTS } from "@/lib/library-view";
 
 export function SortMenu({
   value,
@@ -42,7 +27,7 @@ export function SortMenu({
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Sort by</DropdownMenuLabel>
         <DropdownMenuRadioGroup value={value} onValueChange={(v) => onChange(v as LibrarySort)}>
-          {options.map((o) => (
+          {SORTS.map((o) => (
             <DropdownMenuRadioItem key={o.id} value={o.id}>
               {o.label}
             </DropdownMenuRadioItem>

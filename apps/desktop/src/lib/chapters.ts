@@ -108,3 +108,10 @@ export function selectionSummary(
   const base = `${n} selected`;
   return (toGet === 0 ? `${base}, all downloaded` : `${base}, ${toGet} to download`) + tail;
 }
+
+/** "24 chapters · 5 on disk · 2 exported" under a title on its details screen. */
+export function chapterSummary(all: Chapter[]) {
+  const onDisk = all.filter((c) => c.local_path).length;
+  const exported = all.filter((c) => c.local_path && c.exported_at).length;
+  return `${all.length} chapters · ${onDisk} on disk${exported ? ` · ${exported} exported` : ""}`;
+}
