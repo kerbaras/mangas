@@ -1,6 +1,6 @@
 use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId};
 use mangas_core::download::{self, Event};
-use mangas_core::library;
+use mangas_core::library::{self, Refreshed};
 use mangas_core::sources::SearchGroup;
 use tauri::{AppHandle, Emitter};
 
@@ -65,14 +65,12 @@ pub async fn list_chapters(
     // Imported manga have no provider to refresh from; the library is the only list.
     if refresh && !library::is_local(&source) {
         let src = source_by_name(&source)?;
-        let fresh = src.chapters(&id, &language).await.map_err(to_ipc)?;
-        let followed = library::get_manga(&lib, &source, &id)
-            .map_err(to_ipc)?
-            .is_some();
-        if !followed {
+        let refreshed = library::refresh_from_source(&lib, src.as_ref(), &id, &language)
+            .await
+            .map_err(to_ipc)?;
+        if let Refreshed::NotFollowed(fresh) = refreshed {
             return Ok(fresh);
         }
-        library::upsert_chapters(&lib, src.name(), &id, &language, &fresh).map_err(to_ipc)?;
     }
     // Local chapters keep the language they were imported with (`mangas import --lang`).
     let language = (!library::is_local(&source)).then_some(language.as_str());
