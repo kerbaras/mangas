@@ -2,6 +2,7 @@
 
 mod api;
 mod dedupe;
+mod external;
 mod mapping;
 mod options;
 mod pages;
@@ -21,9 +22,10 @@ const REQUESTS_PER_SECOND: u32 = 5;
 /// Cheap health endpoint (`pong`).
 const PROBE: &str = "/ping";
 pub use dedupe::{dedupe_chapters, FeedChapter};
+pub use external::secure_link;
 pub use mapping::{
     cover_url, error_detail, parse_error_response, parse_feed_response, parse_manga_response,
-    parse_search_response, secure_link, FeedPage, SOURCE_NAME,
+    parse_search_response, FeedPage, SOURCE_NAME,
 };
 pub use options::{MangaDexOptions, ALL_CONTENT_RATINGS};
 pub use pages::{parse_at_home_response, uploads_mirror, UPLOADS_ORIGIN};

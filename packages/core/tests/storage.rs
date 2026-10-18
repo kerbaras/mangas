@@ -206,6 +206,7 @@ fn moving_copies_verifies_switches_and_removes_the_old_folders() {
     assert!(moved.leftovers.is_empty());
     assert_eq!(seen.last().map(|p| (p.copied, p.total)), Some((175, 175)));
     assert!(!f.chapters().exists() && !f.models().exists());
+    assert!(!f.data_dir.exists(), "the emptied old folder is removed");
     assert!(target.join("models/m.onnx").exists());
     let settings = get_settings(&lib).unwrap();
     assert_eq!(settings.data_dir.as_deref(), Some(target.to_str().unwrap()));

@@ -75,7 +75,9 @@ fn move_held(
         .map(|sub| from_resolved.join(sub))
         .filter(|old| old.exists() && fs::remove_dir_all(old).is_err())
         .map(|old| old.to_string_lossy().into_owned())
-        .collect();
+        .collect::<Vec<_>>();
+    // The old data folder itself goes too once nothing else is left in it.
+    let _ = fs::remove_dir(&from_resolved);
     Ok(Moved {
         data_dir: to.to_string_lossy().into_owned(),
         files,
