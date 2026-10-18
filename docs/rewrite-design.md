@@ -53,7 +53,10 @@ Rules: the Tauri layer and the CLI contain no business logic. Everything testabl
   the library in `models/runtime/<version>/` and calls `ort::init_from` once before the first
   session. Living under `models/`, it moves with the data folder, counts as detector support in
   storage usage, is deleted with the models and stays out of backups. A failed download or load
-  leaves export working without detectors.
+  leaves export working without detectors. A download, a data-folder move and a removal
+  (`ml remove`, Settings, Storage) each hold `models/.detectors.lease` (`ml::lease`, owner pid,
+  renewed every 5 s, taken over after 30 s without renewal), so the app and the CLI never change
+  the folder under one another. A move doesn't copy the lease.
 - **Inference**: `ort` with execution providers chosen at runtime: CoreML (Apple silicon), CUDA
   (opt-in `cuda` feature), CPU everywhere else. Windows runs on CPU: the official runtime archive
   has no DirectML provider. Detection is optional; smart cut works without

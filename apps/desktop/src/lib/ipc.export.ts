@@ -16,7 +16,13 @@ export type Device = {
 };
 
 /** `total` is null while the count is not known yet (cutting pages). */
-export type ExportProgress = { stage: string; current: number; total: number | null };
+export type ExportProgress = {
+  stage: string;
+  current: number;
+  total: number | null;
+  /** Shown once as a toast, e.g. that missing detector support is downloading first. */
+  notice?: string;
+};
 
 export type ExportRequest = {
   chapter_dirs: string[];

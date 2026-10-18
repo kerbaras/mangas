@@ -98,6 +98,13 @@ impl CutArgs {
             return Ok(None);
         }
         let cache = paths::models()?;
+        let missing = ml::status(&cache).download_bytes;
+        if missing > 0 {
+            eprintln!(
+                "Detector support was missing; downloading {}…",
+                mangas_core::storage::human_size(missing)
+            );
+        }
         let mut on_progress = |id: &str, done: u64, total: Option<u64>| {
             eprint!(
                 "\rdownloading {id}: {done}/{}",

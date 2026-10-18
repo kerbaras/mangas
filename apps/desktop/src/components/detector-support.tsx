@@ -41,15 +41,6 @@ export function DetectorSupportActions({ support, manage = false }: Props) {
       </div>
     );
   }
-  const failure = support.failure ?? runtimeFailure(status);
-  if (failure)
-    return (
-      <ErrorAlert
-        title="Couldn't set up detector support"
-        message={`${failure}. Exports still work without detectors.`}
-        onRetry={() => void support.download()}
-      />
-    );
   const remove = async () => {
     try {
       const freed = await support.remove();
@@ -60,24 +51,38 @@ export function DetectorSupportActions({ support, manage = false }: Props) {
       notifyError("Couldn't remove detector support", e);
     }
   };
-  if (!status.downloaded) {
-    const pending = pendingRemoval(status);
+  const pending = pendingRemoval(status);
+  const notice = pending && <span className="text-caption text-ink-3">{pending}</span>;
+  const removeAgain = manage && pending && (
+    <Button size="sm" variant="ghost" onClick={() => void remove()}>
+      <Trash2 /> Remove again
+    </Button>
+  );
+  const failure = support.failure ?? runtimeFailure(status);
+  if (failure)
     return (
       <div className="flex flex-col gap-1.5">
-        {pending && <span className="text-caption text-ink-3">{pending}</span>}
+        <ErrorAlert
+          title="Couldn't set up detector support"
+          message={`${failure}. Exports still work without detectors.`}
+          onRetry={() => void support.download()}
+        />
+        {notice}
+        {removeAgain && <div>{removeAgain}</div>}
+      </div>
+    );
+  if (!status.downloaded)
+    return (
+      <div className="flex flex-col gap-1.5">
+        {notice}
         <div className="flex flex-wrap gap-2">
           <Button size="sm" onClick={() => void support.download()}>
             <Download /> {downloadLabel(status.downloadBytes)}
           </Button>
-          {manage && pending && (
-            <Button size="sm" variant="ghost" onClick={() => void remove()}>
-              <Trash2 /> Remove again
-            </Button>
-          )}
+          {removeAgain}
         </div>
       </div>
     );
-  }
   if (!manage) return null;
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">

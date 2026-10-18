@@ -21,6 +21,10 @@ pub(super) enum ExportEvent {
         done: u64,
         total: Option<u64>,
     },
+    /// Detector support is missing (deleted, or never downloaded) and downloads first.
+    DetectorsMissing {
+        bytes: u64,
+    },
     Export(Progress),
     /// A volume export starts book `index` of `total`.
     Volume {
@@ -123,6 +127,10 @@ pub(super) async fn penalizer(
         return Ok(None);
     }
     let cache = models_dir()?;
+    let bytes = ml::status(&cache).download_bytes;
+    if bytes > 0 {
+        emit(app, ExportEvent::DetectorsMissing { bytes });
+    }
     let mut on_progress = |id: &str, done: u64, total: Option<u64>| {
         let id = id.to_string();
         emit(app, ExportEvent::ModelDownload { id, done, total });

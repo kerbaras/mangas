@@ -4,7 +4,10 @@ import { DetectorSupportActions } from "@/components/detector-support";
 import type { DetectorSupport } from "@/hooks/use-detector-support";
 import { detectorState } from "./export-backend";
 
-const pending = (remove: () => Promise<number>): DetectorSupport => ({
+const pending = (
+  remove: () => Promise<number>,
+  failure: string | null = null,
+): DetectorSupport => ({
   status: {
     kind: "ready",
     data: detectorState({
@@ -16,7 +19,7 @@ const pending = (remove: () => Promise<number>): DetectorSupport => ({
   },
   progress: null,
   downloading: false,
-  failure: null,
+  failure,
   download: vi.fn(async () => {}),
   cancel: vi.fn(),
   remove,
@@ -38,5 +41,14 @@ describe("detector support after a partial remove", () => {
     expect(screen.getByText(notice)).toBeTruthy();
     expect(screen.getByRole("button", { name: /Download detector support/ })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Remove again/ })).toBeNull();
+  });
+
+  it("keeps the notice and Remove again after a failed download", () => {
+    const remove = vi.fn(async () => 0);
+    render(<DetectorSupportActions support={pending(remove, "network: timed out")} manage />);
+    expect(screen.getByText(/network: timed out/)).toBeTruthy();
+    expect(screen.getByText(notice)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Remove again/ }));
+    expect(remove).toHaveBeenCalledOnce();
   });
 });

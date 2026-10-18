@@ -8,6 +8,7 @@ use super::relocate::{check_target, rebase};
 use super::tree::{list_files, FileEntry};
 use crate::domain::{Error, Result};
 use crate::library::{downloaded_chapters, get_settings, switch_data_dir, Library};
+use crate::ml::lease::{self, Purpose};
 
 /// Bytes copied so far out of the total to copy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -50,6 +51,8 @@ fn move_held(
     let to = fs::canonicalize(to)?;
     let from_resolved = fs::canonicalize(from).unwrap_or_else(|_| from.to_path_buf());
     check_target(&from_resolved, &to)?;
+    // Not under a detector download or removal in this process or another.
+    let _lease = lease::acquire(&from_resolved.join("models"), Purpose::Move)?;
     let mut plan = Vec::new();
     for sub in DATA_SUBDIRS {
         if !list_files(&to.join(sub))?.is_empty() {
@@ -58,7 +61,15 @@ fn move_held(
                 to.display()
             )));
         }
-        plan.push((sub, list_files(&from_resolved.join(sub))?));
+        let files = list_files(&from_resolved.join(sub))?;
+        let lease = Path::new(lease::LEASE_FILE);
+        plan.push((
+            sub,
+            files
+                .into_iter()
+                .filter(|f| f.rel != lease)
+                .collect::<Vec<_>>(),
+        ));
     }
     let total: u64 = plan.iter().flat_map(|(_, f)| f).map(|f| f.bytes).sum();
     let files = plan.iter().map(|(_, f)| f.len()).sum();

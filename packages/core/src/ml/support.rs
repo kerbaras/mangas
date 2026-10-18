@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 
 use super::cache::{ensure_model, is_downloaded, model_path, part_path};
+use super::lease::{self, Purpose};
 use super::{runtime, status, Status, ENABLED, MODELS};
 use crate::domain::{Error, Result};
 
@@ -36,6 +37,10 @@ pub(super) async fn ensure_all(
         return Err(not_built());
     }
     let spec = runtime::current().ok_or_else(runtime::unsupported)?;
+    // Held only while something is missing, so exports with everything on disk never wait.
+    let _lease = (missing_bytes(models_dir, Some(&spec)) > 0)
+        .then(|| lease::acquire(models_dir, Purpose::Download))
+        .transpose()?;
     let mut on_runtime = |done, total| on_progress(RUNTIME_ITEM, done, total);
     runtime::ensure(models_dir, &spec, &mut on_runtime, cancel).await?;
     let mut paths = Vec::new();
@@ -66,6 +71,7 @@ pub fn missing_bytes(models_dir: &Path, spec: Option<&runtime::RuntimeSpec>) -> 
 /// Deletes the models and the runtime; returns the bytes freed. A runtime the OS keeps locked
 /// (a loaded DLL on Windows) stays, and status reports it as `RemovePending` until a later remove.
 pub fn remove(models_dir: &Path) -> Result<u64> {
+    let _lease = lease::acquire(models_dir, Purpose::Remove)?;
     let mut freed = 0;
     for model in &MODELS {
         let path = model_path(models_dir, model);

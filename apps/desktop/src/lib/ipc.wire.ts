@@ -11,6 +11,7 @@ import type {
   Preset,
 } from "./ipc";
 import type { RuntimeState } from "./ipc.detectors";
+import { formatBytes } from "./storage";
 
 /** Mirrors `mangas_core::export::kindle::Progress` (serde tag = "kind"). */
 export type ExportStage =
@@ -21,6 +22,7 @@ export type ExportStage =
 /** Payload of the `export-progress` event (outer tag = "event"). */
 export type ExportEvent =
   | { event: "model_download"; id: string; done: number; total: number | null }
+  | { event: "detectors_missing"; bytes: number }
   | ({ event: "export" } & ExportStage)
   | { event: "volume"; index: number; total: number; title: string };
 
@@ -66,6 +68,10 @@ export type ExportChaptersArgs = {
 };
 
 export const toExportProgress = (e: ExportEvent): ExportProgress => {
+  if (e.event === "detectors_missing") {
+    const notice = `Detector support was missing; downloading ${formatBytes(e.bytes)}…`;
+    return { stage: notice, current: 0, total: null, notice };
+  }
   if (e.event === "model_download") {
     return { stage: `Downloading detector ${e.id}`, current: e.done, total: e.total };
   }

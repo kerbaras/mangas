@@ -4,6 +4,7 @@
 
 pub mod cache;
 pub mod fetch;
+pub mod lease;
 pub mod models;
 pub mod nms;
 pub mod penalty;

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { combineResults, notifyExported } from "@/lib/export-summary";
 import { errorMessage } from "@/lib/format";
 import { type ExportProgress, type ExportResult, onExportProgress } from "@/lib/ipc";
@@ -20,7 +21,9 @@ export function useExport() {
     let unlisten: (() => void) | null = null;
     let alive = true;
     onExportProgress((progress) => {
-      if (running.current) setState({ kind: "running", progress });
+      if (!running.current) return;
+      if (progress.notice) toast.info(progress.notice, { id: "export-notice" });
+      setState({ kind: "running", progress });
     }).then((u) => {
       if (alive) unlisten = u;
       else u();
