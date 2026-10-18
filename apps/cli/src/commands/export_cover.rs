@@ -6,14 +6,17 @@ use mangas_core::covers::{self, CoverCache, Limits};
 use mangas_core::domain::Manga;
 use mangas_providers::covers::CoverFetcher;
 
-use super::source_by_name;
+use super::stored_settings;
 use crate::paths;
 
 /// The cached series cover, fetched once if needed; `None` (first page as cover) when offline.
 pub(super) async fn cover_file(manga: &Manga) -> Option<PathBuf> {
     let url = manga.cover_url.as_deref()?;
     let cache = CoverCache::new(paths::folders().ok()?.covers, Limits::default());
-    let fetcher = source_by_name(&manga.source).and_then(|s| Ok(CoverFetcher::for_source(s)?));
+    let settings = stored_settings();
+    let fetcher = mangas_providers::source(&manga.source, &settings)
+        .and_then(|s| CoverFetcher::via(s, &settings.network()))
+        .map_err(anyhow::Error::from);
     let fetched = match fetcher {
         Ok(f) => covers::cover(&cache, &f, &manga.source, &manga.id.0, url)
             .await

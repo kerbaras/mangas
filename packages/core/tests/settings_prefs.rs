@@ -1,6 +1,6 @@
 use mangas_core::library::{self, merge_edit, Network, ProxyMode, Settings, Theme};
 
-fn stored_json(path: &std::path::Path) -> serde_json::Value {
+fn stored(path: &std::path::Path) -> Settings {
     let raw: String = rusqlite::Connection::open(path)
         .unwrap()
         .query_row("SELECT value FROM setting WHERE key = 'app'", [], |r| {
@@ -11,31 +11,33 @@ fn stored_json(path: &std::path::Path) -> serde_json::Value {
 }
 
 #[test]
-fn only_changed_keys_are_stored() {
+fn new_settings_round_trip_and_reset_keeps_another_change() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("mangas.db");
     let lib = library::open(&path).unwrap();
     let edited = Settings {
         theme: Some(Theme::Dark),
         download_concurrency: Some(2),
+        proxy_mode: Some(ProxyMode::Custom),
+        proxy_url: Some("http://127.0.0.1:8888".into()),
         ..Settings::default()
     };
     library::edit_settings(&lib, Some(&Settings::default()), &edited).unwrap();
-    assert_eq!(
-        stored_json(&path),
-        serde_json::json!({ "theme": "dark", "download_concurrency": 2 })
-    );
+    assert_eq!(stored(&path), edited);
 
-    // Reset to defaults drops the keys again; the other process's change stays.
+    // Resetting the edited fields keeps what another process changed meanwhile.
     let other = Settings {
-        proxy_mode: Some(ProxyMode::None),
+        update_check_hours: Some(0),
         ..edited.clone()
     };
     library::set_settings(&lib, &other).unwrap();
     library::edit_settings(&lib, Some(&edited), &Settings::default()).unwrap();
     assert_eq!(
-        stored_json(&path),
-        serde_json::json!({ "proxy_mode": "none" })
+        stored(&path),
+        Settings {
+            update_check_hours: Some(0),
+            ..Settings::default()
+        }
     );
 }
 
@@ -116,4 +118,19 @@ fn command_line_networks_parse_and_store() {
     assert_eq!(off.proxy_mode, Some(ProxyMode::None));
     assert_eq!(off.proxy_url, custom.proxy_url, "the URL is kept for later");
     assert_eq!(Network::System.store(&off).proxy_mode, None);
+}
+
+#[test]
+fn every_field_is_serialized_for_the_desktop() {
+    // The desktop reads `provider_sessions[id]` and compares fields with `null`.
+    let json = serde_json::to_value(Settings::default()).unwrap();
+    for key in [
+        "provider_sessions",
+        "data_dir",
+        "theme",
+        "proxy_mode",
+        "proxy_url",
+    ] {
+        assert!(json.get(key).is_some(), "{key} missing");
+    }
 }

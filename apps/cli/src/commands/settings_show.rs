@@ -17,7 +17,9 @@ pub fn run(args: ShowArgs) -> anyhow::Result<()> {
     let lib = library::open(&paths::library_db()?)?;
     let settings = library::get_settings(&lib)?;
     if args.json {
-        outln!("{}", serde_json::to_string_pretty(&shareable(&settings))?)?;
+        let defaults = serde_json::to_value(Settings::default())?;
+        let diff = changed(serde_json::to_value(shareable(&settings))?, &defaults);
+        outln!("{}", serde_json::to_string_pretty(&diff)?)?;
         return Ok(());
     }
     for (key, value) in lines(&settings) {
@@ -35,6 +37,24 @@ fn shareable(settings: &Settings) -> Settings {
         out.kindle_email.password = "***".into();
     }
     out
+}
+
+/// The entries of `value` that differ from `default`, at every depth.
+fn changed(value: serde_json::Value, default: &serde_json::Value) -> serde_json::Value {
+    use serde_json::Value;
+    match value {
+        Value::Object(map) => Value::Object(
+            map.into_iter()
+                .filter_map(|(k, v)| {
+                    let base = default.get(&k).unwrap_or(&Value::Null);
+                    let v = changed(v, base);
+                    let unset = v.is_null() || v.as_object().is_some_and(|o| o.is_empty());
+                    (!unset && &v != base).then_some((k, v))
+                })
+                .collect(),
+        ),
+        other => other,
+    }
 }
 
 fn or_default<T>(value: Option<T>, shown: impl Fn(T) -> String, default: &str) -> String {
