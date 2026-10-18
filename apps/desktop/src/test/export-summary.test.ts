@@ -34,6 +34,8 @@ describe("notifyExported", () => {
     notifyExported(result);
     expect(toast.success).toHaveBeenCalledWith("Exported 30 pages to Solo ch 1.epub", {
       id: "export",
+      description: null,
+      action: null,
     });
     expect(toast.warning).not.toHaveBeenCalled();
   });

@@ -23,7 +23,7 @@ const openLogsOrSay = () =>
 export function notifyExported(result: ExportResult) {
   const { title, warning } = exportSummary(result);
   if (!warning) {
-    toast.success(title, { id: "export" });
+    toast.success(title, { id: "export", description: null, action: null });
     return;
   }
   toast.warning(title, {
