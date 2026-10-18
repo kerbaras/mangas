@@ -11,6 +11,7 @@ mod mirror;
 mod pages;
 mod plan;
 pub mod queue;
+mod remove;
 mod selection;
 
 pub use availability::{ensure_available, skipped_summary, split_available};

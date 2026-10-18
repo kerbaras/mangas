@@ -8,6 +8,7 @@ use super::event::{Event, OnEvent};
 use super::fetcher::PageFetcher;
 use super::incomplete::{incomplete, missing_on_disk};
 use super::plan::{page_file_name_for, plan, PageJob};
+use super::remove::{drop_stale_parts, remove_files};
 use crate::domain::{ChapterId, Result};
 use crate::sources::PageUrls;
 
@@ -101,27 +102,9 @@ pub async fn download_pages_with(
         // source no longer has) would end up in an export as old or duplicate pages.
         remove_files(dest, |name| is_image(name) && !written.contains(name))?;
     }
-    // The chapter is complete and this run holds its folder: any `.part` left is stale. A
-    // file that can't be removed only gets a warning; the pages are all there.
-    if let Err(e) = remove_files(dest, |name| name.ends_with(".part")) {
-        log::warn!(
-            "could not remove stale .part files in {}: {e}",
-            dest.display()
-        );
-    }
+    // The chapter is complete and this run holds its folder: any `.part` left is stale.
+    drop_stale_parts(dest);
     Ok(total)
-}
-
-/// Removes the files in `dest` whose name matches `drop`.
-/// A name that is not valid UTF-8 is matched on its lossy spelling but removed by its real one.
-fn remove_files(dest: &Path, drop: impl Fn(&str) -> bool) -> Result<()> {
-    for entry in std::fs::read_dir(dest)? {
-        let entry = entry?;
-        if entry.file_type()?.is_file() && drop(&entry.file_name().to_string_lossy()) {
-            std::fs::remove_file(entry.path())?;
-        }
-    }
-    Ok(())
 }
 
 /// A page `.part` file (`0007.png.part`) left by an interrupted run. Its name came from that
