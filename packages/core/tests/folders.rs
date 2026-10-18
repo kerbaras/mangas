@@ -21,22 +21,22 @@ fn opens_folders_inside_a_root_even_under_dot_folders() {
     let (_tmp, data, _) = tree();
     let dir = data.join("chapters/95/80");
     assert_eq!(
-        openable_folder(&dir, std::slice::from_ref(&data)).unwrap(),
+        openable_folder(&dir, std::slice::from_ref(&data), &[]).unwrap(),
         dir.canonicalize().unwrap()
     );
-    assert!(openable_folder(&data, std::slice::from_ref(&data)).is_ok());
+    assert!(openable_folder(&data, std::slice::from_ref(&data), &[]).is_ok());
 }
 
 #[test]
 fn refuses_files_missing_paths_and_folders_outside_the_roots() {
     let (_tmp, data, outside) = tree();
     let roots = [data.clone()];
-    assert!(openable_folder(&data.join("chapters/95/80/0001.jpg"), &roots).is_err());
-    assert!(openable_folder(&outside.join("run.sh"), &roots).is_err());
-    assert!(openable_folder(&outside, &roots).is_err());
-    assert!(openable_folder(&data.join("missing"), &roots).is_err());
-    assert!(openable_folder(&data.join("../../../elsewhere"), &roots).is_err());
-    assert!(openable_folder(&data, &[]).is_err());
+    assert!(openable_folder(&data.join("chapters/95/80/0001.jpg"), &roots, &[]).is_err());
+    assert!(openable_folder(&outside.join("run.sh"), &roots, &[]).is_err());
+    assert!(openable_folder(&outside, &roots, &[]).is_err());
+    assert!(openable_folder(&data.join("missing"), &roots, &[]).is_err());
+    assert!(openable_folder(&data.join("../../../elsewhere"), &roots, &[]).is_err());
+    assert!(openable_folder(&data, &[], &[]).is_err());
 }
 
 #[cfg(unix)]
@@ -45,7 +45,7 @@ fn a_symlink_out_of_a_root_is_refused() {
     let (_tmp, data, outside) = tree();
     let link = data.join("escape");
     std::os::unix::fs::symlink(&outside, &link).unwrap();
-    assert!(openable_folder(&link, &[data]).is_err());
+    assert!(openable_folder(&link, &[data], &[]).is_err());
 }
 
 #[test]
@@ -66,5 +66,17 @@ fn the_log_folder_is_created_so_it_can_be_opened() {
     let (_tmp, data, _) = tree();
     let dir = mangas_core::logging::ensure_log_dir(&data).unwrap();
     assert!(dir.is_dir());
-    assert!(openable_folder(&dir, &[data]).is_ok());
+    assert!(openable_folder(&dir, &[data], &[]).is_ok());
+}
+
+#[test]
+fn an_export_folder_opens_but_not_the_folders_under_it() {
+    let (_tmp, data, outside) = tree();
+    let child = outside.join("Documents");
+    fs::create_dir_all(&child).unwrap();
+    let roots = [data.clone()];
+    let exports = [outside.clone()];
+    assert!(openable_folder(&outside, &roots, &exports).is_ok());
+    assert!(openable_folder(&child, &roots, &exports).is_err());
+    assert!(openable_folder(&data.join("chapters/95/80"), &roots, &exports).is_ok());
 }

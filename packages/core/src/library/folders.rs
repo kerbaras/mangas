@@ -9,16 +9,18 @@ use crate::domain::{Error, Result};
 /// How many recent exports count as export folders.
 const RECENT_EXPORTS: usize = 200;
 
-/// `path` resolved (symlinks, `..`), if it is a directory inside one of `roots`.
-pub fn openable_folder(path: &Path, roots: &[PathBuf]) -> Result<PathBuf> {
+/// `path` resolved (symlinks, `..`), if it is a directory inside one of `roots` or exactly one
+/// of `exact` (export folders: exporting to `~` must not open every folder under it).
+pub fn openable_folder(path: &Path, roots: &[PathBuf], exact: &[PathBuf]) -> Result<PathBuf> {
     let dir = path.canonicalize()?;
     if !dir.is_dir() {
         return Err(Error::Other(format!("{} is not a folder", path.display())));
     }
-    let inside = roots
-        .iter()
-        .filter_map(|r| r.canonicalize().ok())
-        .any(|root| dir.starts_with(root));
+    let resolved = |dirs: &[PathBuf]| -> Vec<PathBuf> {
+        dirs.iter().filter_map(|d| d.canonicalize().ok()).collect()
+    };
+    let inside =
+        resolved(roots).iter().any(|root| dir.starts_with(root)) || resolved(exact).contains(&dir);
     if !inside {
         return Err(Error::Other(format!(
             "{} is outside the app's folders",
