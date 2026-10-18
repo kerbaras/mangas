@@ -2,7 +2,7 @@
 
 use mangas_core::domain::{ChapterId, Error, MangaId, MangaStatus};
 use mangas_providers::weebcentral::{
-    cover_url, number_chapters, parse_chapters, parse_label, parse_pages, parse_search,
+    cover_url, fill_gaps, number_chapters, parse_chapters, parse_label, parse_pages, parse_search,
     parse_series, Label,
 };
 
@@ -85,21 +85,36 @@ fn chapter_list_keeps_label_numbers_oldest_first() {
 }
 
 #[test]
-fn prologues_keep_their_label_and_no_number() {
+fn prologues_come_first_numbered_before_chapter_one() {
     let id = MangaId("01J76XY7EF75DJNQCV04HTPDZK".into());
     let chapters = parse_chapters(&fixture("chapters_prologue.html"), &id).unwrap();
     let expected = [
+        ("0.33", Some("Prologue 1")),
+        ("0.67", Some("Prologue 16")),
         ("1", None),
         ("2", None),
         ("350.5", None),
-        ("", Some("Prologue 16")),
-        ("", Some("Prologue 1")),
     ];
     let expected: Vec<_> = expected
         .iter()
         .map(|(n, t)| (n.to_string(), t.map(str::to_string)))
         .collect();
     assert_eq!(summary(&chapters), expected);
+}
+
+#[test]
+fn gaps_are_spread_between_their_neighbours() {
+    let numbers = |v: &[Option<&str>]| v.iter().map(|n| n.map(str::to_string)).collect();
+    let filled = fill_gaps(numbers(&[None, Some("0"), None, None, Some("1.5"), None]));
+    assert_eq!(filled, ["-0.5", "0", "0.5", "1", "1.5", "2"]);
+    assert_eq!(fill_gaps(numbers(&[None, None])), ["0.33", "0.67"]);
+    let long = fill_gaps(numbers(&[&[None; 12][..], &[Some("1")]].concat()));
+    assert_eq!((long[0].as_str(), long[11].as_str()), ("0.077", "0.923"));
+    // Out of order neighbours: the run still follows the one before it.
+    assert_eq!(
+        fill_gaps(numbers(&[Some("5"), None, Some("2")])),
+        ["5", "5.5", "2"]
+    );
 }
 
 #[test]

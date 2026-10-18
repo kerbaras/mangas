@@ -2,6 +2,7 @@
 //! or HTMX fragment with the shared [`crate::html`] helper. One request per `Source` call.
 
 mod chapters;
+mod numbering;
 mod pages;
 mod search;
 mod series;
@@ -13,7 +14,8 @@ use mangas_core::domain::{Chapter, ChapterId, Error, Manga, MangaId, Result};
 use mangas_core::library::Settings;
 use mangas_core::sources::{Header, PageUrls, ProviderStatus, Source};
 
-pub use chapters::{number_chapters, parse_chapters, parse_label, Label};
+pub use chapters::{parse_chapters, parse_label, Label};
+pub use numbering::{fill_gaps, number_chapters};
 pub use pages::parse_pages;
 pub use search::{cover_url, parse_search};
 pub use series::parse_series;

@@ -2,10 +2,9 @@
 //! `<a href="/chapters/{id}">` with its label ("Chapter 12.5", "Episode 3", "S2 - Chapter 5",
 //! "Prologue 4") in the first `span.grow > span`.
 
-use std::collections::HashSet;
+use mangas_core::domain::{parse_number, Chapter, ChapterId, MangaId, Result};
 
-use mangas_core::domain::{parse_number, sort_by_number, Chapter, ChapterId, MangaId, Result};
-
+use super::numbering::number_chapters;
 use super::series::segment_after;
 use crate::html;
 
@@ -75,43 +74,4 @@ pub fn parse_chapters(body: &str, manga: &MangaId) -> Result<Vec<Chapter>> {
         listed.push((ChapterId(id), label));
     }
     Ok(number_chapters(listed, manga))
-}
-
-/// Chapters from `(id, label)` pairs in the site's order (newest first), sorted by number.
-/// Labels with a series-wide number keep it. Once seasons appear the label numbers repeat, so
-/// every chapter is numbered by its position in reading order (oldest = 1, like the absolute
-/// episode numbers of the official releases) and keeps its label as the title. Other labels
-/// get no number and keep the label as the title.
-pub fn number_chapters(listed: Vec<(ChapterId, String)>, manga: &MangaId) -> Vec<Chapter> {
-    let mut seen = HashSet::new();
-    let listed: Vec<_> = listed
-        .into_iter()
-        .filter(|(id, _)| seen.insert(id.clone()))
-        .collect();
-    let labels: Vec<Label> = listed.iter().map(|(_, l)| parse_label(l)).collect();
-    let seasonal = labels.iter().any(|l| matches!(l, Label::Season { .. }));
-    let total = listed.len();
-    let chapters = listed
-        .into_iter()
-        .zip(labels)
-        .enumerate()
-        .map(|(i, ((id, raw), label))| {
-            let (number, title) = match label {
-                _ if seasonal => ((total - i).to_string(), Some(raw)),
-                Label::Numbered { number, title } => (number, title),
-                Label::Season { .. } | Label::Other => (String::new(), Some(raw)),
-            };
-            Chapter {
-                id,
-                manga_id: manga.clone(),
-                title: title.filter(|t| !t.trim().is_empty()),
-                language: "en".to_string(),
-                volume: None,
-                number,
-                local_path: None,
-                group: None,
-            }
-        })
-        .collect();
-    sort_by_number(chapters)
 }
