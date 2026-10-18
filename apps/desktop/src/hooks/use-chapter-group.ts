@@ -38,10 +38,11 @@ export function useChapterGroup(entry: LibraryEntry | null, onSaved: () => void)
     followed.current = now;
   }, [source, id, picked, save]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: runs when the stored value changes
+  // Every reload (a new entry) with no save pending shows what the library stores.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs on each reloaded entry
   useEffect(() => {
     if (pending.current === 0) setPicked(undefined);
-  }, [saved]);
+  }, [entry]);
 
   const change = useCallback(
     (next: string | null) => {

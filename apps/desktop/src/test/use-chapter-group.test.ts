@@ -67,6 +67,19 @@ describe("useChapterGroup", () => {
     expect(calls).toEqual(["K Manga"]);
   });
 
+  it("shows a group saved elsewhere during a pending save once it settles", async () => {
+    const { result, rerender } = renderHook(({ e }) => useChapterGroup(e, () => {}), {
+      initialProps: { e: entry(null) },
+    });
+    act(() => result.current.setGroup("K Manga"));
+    await waitFor(() => expect(calls).toEqual(["K Manga"]));
+    rerender({ e: entry("Official") });
+    expect(result.current.group).toBe("K Manga");
+    await act(async () => resolvers.shift()?.());
+    rerender({ e: entry("Official") });
+    expect(result.current.group).toBe("Official");
+  });
+
   it("starts from the saved choice", () => {
     const { result } = renderHook(() => useChapterGroup(entry("Official"), () => {}));
     expect(result.current.group).toBe("Official");
