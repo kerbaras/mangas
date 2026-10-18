@@ -46,7 +46,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         return Ok(());
     }
     outln!(
-        "{:<8} {:<5} {:<8} {:<6} {:<36}  title",
+        "{:<8} {:<5} {:<9} {:<6} {:<36}  title",
         "chapter",
         "vol",
         "status",
@@ -71,7 +71,7 @@ fn format_row(c: &Chapter) -> String {
         _ => title.to_string(),
     };
     format!(
-        "{:<8} {:<5} {:<8} {:<6} {:<36}  {title}",
+        "{:<8} {:<5} {:<9} {:<6} {:<36}  {title}",
         c.number,
         c.volume.as_deref().unwrap_or("-"),
         status(c),
