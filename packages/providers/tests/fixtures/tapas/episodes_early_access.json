@@ -1,0 +1,11 @@
+{
+  "_comment": "trimmed: /series/171693/episodes?page=1&sort=NEWEST (early access, free)",
+  "code": 200,
+  "data": {
+    "pagination": {"since": 1792283685000, "page": 2, "has_next": false, "sort": "NEWEST", "index": 0, "to_prev": false, "max_limit": 20, "init_load": 0, "web": false, "total": 686, "search_limit": 21, "since_date": "2026-10-18T00:34:45Z", "original_max_limit": 20, "default_max_limit": 20, "since_date_str": "2026-10-18 00:34:45", "limit": 20},
+    "episodes": [
+      {"id": 4009950, "title": "72.5", "thumb_url": "https://us-a.tapas.io/sa/a7/ab2e54c9-256d-4bea-a5d4-940ba7031917.jpg", "publish_date": "2026-10-31T14:30:00Z", "closing_date": null, "scene": 0, "pending_scene": 686, "book": false, "free": true, "nsfw": false, "open_comments": true, "read": false, "liked": false, "unlocked": false, "nu": false, "early_access": true, "mature": false, "free_access": false, "view_cnt": 410, "like_cnt": 83, "comment_cnt": 4, "unlock_cnt": 0, "related_ep_id": null, "relative_publish_date": "Oct 31", "escape_title": "72.5", "prev_ep_id": -1, "next_ep_id": -1, "has_bgm": false, "bgm_url": "", "bgm_title": "", "closing": null, "must_pay": false, "scheduled": true},
+      {"id": 4009946, "title": "72.1", "thumb_url": "https://us-a.tapas.io/sa/f9/9fd74af8-ad71-440c-9d1a-579fbf7a8c83.jpg", "publish_date": "2026-10-15T14:25:00Z", "closing_date": null, "scene": 682, "pending_scene": 682, "book": false, "free": true, "nsfw": false, "open_comments": true, "read": false, "liked": false, "unlocked": false, "nu": false, "early_access": false, "mature": false, "free_access": false, "view_cnt": 7229, "like_cnt": 1256, "comment_cnt": 27, "unlock_cnt": 0, "related_ep_id": null, "relative_publish_date": "2 days ago", "escape_title": "72.1", "prev_ep_id": -1, "next_ep_id": -1, "has_bgm": false, "bgm_url": "", "bgm_title": "", "closing": null, "must_pay": false, "scheduled": false}
+    ]
+  }
+}

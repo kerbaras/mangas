@@ -1,0 +1,13 @@
+{
+  "_comment": "Recorded from tapas.io with scripts/record-fixture.sh (-c 'birthDate=2000-01-01; adjustedBirthDate=2000-01-01'), then trimmed: 1 search result, the series info block, 2 + 1 episodes over two pages (has_next false on page 2), 1 page image.",
+  "query": "politidoodles",
+  "language": "en",
+  "pages_need_referer": true,
+  "routes": [
+    { "path": "/search", "query": { "q": "politidoodles", "t": "COMICS" }, "file": "search.html" },
+    { "path": "/series/2101/info", "file": "series.html" },
+    { "path": "/series/2101/episodes", "query": { "page": "1" }, "file": "episodes_1.json" },
+    { "path": "/series/2101/episodes", "query": { "page": "2" }, "file": "episodes_2.json" },
+    { "path": "/episode/21321", "file": "episode.html" }
+  ]
+}
