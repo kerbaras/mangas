@@ -101,8 +101,14 @@ pub async fn download_pages_with(
         // source no longer has) would end up in an export as old or duplicate pages.
         remove_files(dest, |name| is_image(name) && !written.contains(name))?;
     }
-    // The chapter is complete and this run holds its folder: any `.part` left is stale.
-    remove_files(dest, |name| name.ends_with(".part"))?;
+    // The chapter is complete and this run holds its folder: any `.part` left is stale. A
+    // file that can't be removed only gets a warning; the pages are all there.
+    if let Err(e) = remove_files(dest, |name| name.ends_with(".part")) {
+        log::warn!(
+            "could not remove stale .part files in {}: {e}",
+            dest.display()
+        );
+    }
     Ok(total)
 }
 
