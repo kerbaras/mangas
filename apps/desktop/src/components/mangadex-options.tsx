@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
   CONTENT_RATINGS,
+  editMangaDexOptions,
   MANGADEX,
   type MangaDexOptions,
   parseGroups,
@@ -20,12 +21,13 @@ export function MangaDexOptionsForm() {
   const [settings, update] = useSettings();
   const stored = settings.providerOptions[MANGADEX];
   const options = parseMangaDexOptions(stored);
-  /** Only the changed option on top of what is stored: defaults filled in by the parser are
-   * not edits, so they can't overwrite an option the CLI set meanwhile. */
-  const save = (patch: Partial<MangaDexOptions>) => {
-    const raw = stored && typeof stored === "object" && !Array.isArray(stored) ? stored : {};
-    update({ providerOptions: { ...settings.providerOptions, [MANGADEX]: { ...raw, ...patch } } });
-  };
+  const save = (patch: Partial<MangaDexOptions>) =>
+    update({
+      providerOptions: {
+        ...settings.providerOptions,
+        [MANGADEX]: editMangaDexOptions(stored, patch),
+      },
+    });
 
   const joined = options.preferred_groups.join(", ");
   const [groups, setGroups] = useState(joined);

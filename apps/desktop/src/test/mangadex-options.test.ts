@@ -1,11 +1,33 @@
 import { describe, expect, it } from "vitest";
 import {
+  editMangaDexOptions,
   MANGADEX_DEFAULTS,
   parseGroups,
   parseMangaDexOptions,
   toggleLanguage,
   toggleRating,
 } from "@/lib/mangadex-options";
+
+describe("editMangaDexOptions", () => {
+  it("puts the patch on the stored entry without filling in defaults", () => {
+    expect(editMangaDexOptions({ data_saver: true, extra: 1 }, { data_saver: false })).toEqual({
+      data_saver: false,
+      extra: 1,
+    });
+    expect(editMangaDexOptions(undefined, { preferred_groups: ["A"] })).toEqual({
+      preferred_groups: ["A"],
+    });
+  });
+
+  it("repairs stored options of the wrong type so the core accepts the entry", () => {
+    const stored = { data_saver: "yes", preferred_groups: ["CLI"], content_ratings: [1] };
+    expect(editMangaDexOptions(stored, { content_ratings: ["safe", "erotica"] })).toEqual({
+      data_saver: false,
+      preferred_groups: ["CLI"],
+      content_ratings: ["safe", "erotica"],
+    });
+  });
+});
 
 describe("parseMangaDexOptions", () => {
   it("defaults to safe + suggestive, full quality, no groups", () => {

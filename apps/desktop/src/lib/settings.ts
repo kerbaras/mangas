@@ -95,7 +95,7 @@ const STORED_KEY: { [K in keyof Settings]: keyof Stored } = {
 const edit = (base: Stored, patch: Partial<Settings>): Stored => {
   const next = toStored(cached);
   const keys = Object.keys(patch) as (keyof Settings)[];
-  return keys.reduce((s, k) => ({ ...s, [STORED_KEY[k]]: next[STORED_KEY[k]] }), base);
+  return { ...base, ...Object.fromEntries(keys.map((k) => [STORED_KEY[k], next[STORED_KEY[k]]])) };
 };
 
 const notify = () => {
