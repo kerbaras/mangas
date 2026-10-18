@@ -1,19 +1,11 @@
 //! Pure checks that a body is a whole, usable cover image.
 
-use image::ImageFormat;
-
 use super::key::content_tag;
 
 /// File extension for an image body, from its magic bytes; `None` for anything that is not a
 /// supported image (an HTML error page served with a 200, say).
 pub fn image_extension(bytes: &[u8]) -> Option<&'static str> {
-    match image::guess_format(bytes).ok()? {
-        ImageFormat::Jpeg => Some("jpg"),
-        ImageFormat::Png => Some("png"),
-        ImageFormat::WebP => Some("webp"),
-        ImageFormat::Gif => Some("gif"),
-        _ => None,
-    }
+    crate::images::sniff_extension(bytes).filter(|ext| crate::images::is_page_extension(ext))
 }
 
 /// Extension for a body that decodes completely to a non-empty image. Truncated downloads and
