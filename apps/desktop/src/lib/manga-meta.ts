@@ -1,12 +1,15 @@
 import type { Manga } from "./ipc";
 
-/** "Chugong · Art by Jang Sung-Rak · 2018"; artists who are also the authors aren't repeated. */
+/**
+ * "2018 · Chugong · Art by Jang Sung-Rak". The year leads so a long credit list can't truncate
+ * it; artists who are also the authors aren't repeated.
+ */
 export function creditsLine({ authors = [], artists = [], year }: Manga): string {
   const artOnly = artists.filter((a) => !authors.includes(a));
   return [
+    year ? String(year) : "",
     authors.join(", "),
     artOnly.length > 0 ? `Art by ${artOnly.join(", ")}` : "",
-    year ? String(year) : "",
   ]
     .filter(Boolean)
     .join(" · ");

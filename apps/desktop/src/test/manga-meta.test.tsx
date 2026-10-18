@@ -14,9 +14,9 @@ const base: Manga = {
 };
 
 describe("creditsLine", () => {
-  it("joins authors, art-only credits and the year", () => {
+  it("joins the year, authors and art-only credits", () => {
     const m = { ...base, authors: ["Chugong"], artists: ["Jang Sung-Rak"], year: 2018 };
-    expect(creditsLine(m)).toBe("Chugong · Art by Jang Sung-Rak · 2018");
+    expect(creditsLine(m)).toBe("2018 · Chugong · Art by Jang Sung-Rak");
   });
   it("doesn't repeat a mangaka who is author and artist", () => {
     const m = { ...base, authors: ["Oda Eiichiro"], artists: ["Oda Eiichiro"] };
