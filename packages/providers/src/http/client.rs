@@ -7,7 +7,9 @@ use reqwest::{Client, RequestBuilder};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use super::response::{mitigated, retry_after, retryable_transport, should_retry, Attempt};
+use super::response::{
+    edge_rejected, mitigated, retry_after, retryable_transport, should_retry, Attempt,
+};
 use super::{
     header_map, is_challenge, probe_status, session_gate, ClientConfig, HostPolicy, Reply,
     RetryPolicy, USER_AGENT,
@@ -141,8 +143,12 @@ impl SiteClient {
         };
         let status = response.status().as_u16();
         let after = retry_after(&response);
-        if should_retry(&response, idempotent) {
+        let json_api = self.config.json_api;
+        if should_retry(&response, idempotent, json_api) {
             if let Some(after) = wait(after) {
+                if edge_rejected(&response, json_api) {
+                    log::warn!("{}: HTTP {status} edge error page", self.config.info.id);
+                }
                 return (
                     Ok(Reply {
                         status,

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use chrono::{TimeZone, Utc};
-use mangas_providers::http::{parse_retry_after, retryable_status, RetryPolicy};
+use mangas_providers::http::{edge_error, parse_retry_after, retryable_status, RetryPolicy};
 
 const POLICY: RetryPolicy = RetryPolicy {
     max_retries: 3,
@@ -63,4 +63,20 @@ fn retry_after_seconds_and_http_dates() {
     );
     assert_eq!(parse_retry_after("soon", now), None);
     assert_eq!(parse_retry_after("-3", now), None);
+}
+
+#[test]
+fn html_400_from_a_json_api_is_an_edge_error() {
+    assert!(edge_error(400, "text/html; charset=utf-8", true));
+    assert!(edge_error(400, "Text/HTML", true));
+    assert!(
+        !edge_error(400, "application/json", true),
+        "real request error"
+    );
+    assert!(
+        !edge_error(400, "text/html", false),
+        "HTML sites keep their 400s"
+    );
+    assert!(!edge_error(404, "text/html", true));
+    assert!(!edge_error(400, "", true));
 }

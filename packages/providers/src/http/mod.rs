@@ -15,7 +15,7 @@ use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 pub use client::SiteClient;
 pub use config::ClientConfig;
 pub use host_policy::{host_matches, HostPolicy};
-pub use retry::{parse_retry_after, retryable_status, RetryPolicy};
+pub use retry::{edge_error, parse_retry_after, retryable_status, RetryPolicy};
 pub use status::{probe_status, session_gate};
 
 pub const USER_AGENT: &str = concat!(

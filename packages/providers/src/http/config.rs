@@ -19,6 +19,8 @@ pub struct ClientConfig {
     pub timeout: Duration,
     pub connect_timeout: Duration,
     pub retry: RetryPolicy,
+    /// The base serves a JSON API, so an HTML `400` from it is an edge error worth retrying.
+    pub json_api: bool,
     /// Known lifetime of the browser session; older sessions report `NeedsSession`.
     pub session_ttl: Option<Duration>,
 }
@@ -33,6 +35,7 @@ impl ClientConfig {
             timeout: Duration::from_secs(30),
             connect_timeout: Duration::from_secs(10),
             retry: RetryPolicy::default(),
+            json_api: false,
             session_ttl: None,
         }
     }

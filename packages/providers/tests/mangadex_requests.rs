@@ -42,10 +42,20 @@ fn feed_asks_for_groups_and_every_rating() {
     assert!(has("contentRating[]", "pornographic"));
 }
 
-#[tokio::test]
-async fn chapters_walk_every_feed_page_and_apply_group_preference() {
+/// Serves the two-page feed fixture; `edge_errors` HTML `400`s come first on page 2.
+async fn feed_server(edge_errors: u64) -> MockServer {
     let server = MockServer::start().await;
     let feed = format!("/manga/{EMINENCE}/feed");
+    if edge_errors > 0 {
+        let page = "<!doctype html><title>MangaDex</title>400: Bad Request";
+        Mock::given(path(feed.as_str()))
+            .and(query_param("offset", "6"))
+            .respond_with(ResponseTemplate::new(400).set_body_raw(page, "text/html"))
+            .up_to_n_times(edge_errors)
+            .expect(edge_errors)
+            .mount(&server)
+            .await;
+    }
     for (offset, file) in [
         ("0", "feed_groups_page1.json"),
         ("6", "feed_groups_page2.json"),
@@ -57,6 +67,10 @@ async fn chapters_walk_every_feed_page_and_apply_group_preference() {
             .mount(&server)
             .await;
     }
+    server
+}
+
+async fn chapter_numbers(server: &MockServer) -> Vec<String> {
     let options = MangaDexOptions {
         preferred_groups: vec!["Mitsugoshi".into()],
         ..MangaDexOptions::default()
@@ -65,7 +79,20 @@ async fn chapters_walk_every_feed_page_and_apply_group_preference() {
         .unwrap()
         .with_preferences(options, vec!["en".into()]);
     let chapters = source.chapters(&id(), "en").await.unwrap();
-    let numbers: Vec<_> = chapters.iter().map(|c| c.number.as_str()).collect();
-    assert_eq!(numbers, ["1", "2.1", "2.2", "3.1", "3.2", "4.1"]);
     assert_eq!(chapters[0].group.as_deref(), Some("Mitsugoshi"));
+    chapters.into_iter().map(|c| c.number).collect()
+}
+
+const NUMBERS: [&str; 6] = ["1", "2.1", "2.2", "3.1", "3.2", "4.1"];
+
+#[tokio::test]
+async fn chapters_walk_every_feed_page_and_apply_group_preference() {
+    let server = feed_server(0).await;
+    assert_eq!(chapter_numbers(&server).await, NUMBERS);
+}
+
+#[tokio::test]
+async fn feed_page_survives_one_edge_error_page() {
+    let server = feed_server(1).await;
+    assert_eq!(chapter_numbers(&server).await, NUMBERS);
 }
