@@ -109,3 +109,41 @@ fn a_partial_folder_of_a_downloadable_release_resumes() {
         "its missing pages are fetched, not a second release"
     );
 }
+
+#[test]
+fn a_complete_folder_wins_over_a_partial_one() {
+    let lib = open_in_memory().unwrap();
+    let manga = Manga {
+        id: MangaId("opm".into()),
+        source: "mangadex".into(),
+        title: "OPM".into(),
+        ..Default::default()
+    };
+    upsert_manga(&lib, &manga).unwrap();
+    let release = |id: &str| Chapter {
+        id: ChapterId(id.into()),
+        manga_id: manga.id.clone(),
+        language: "en".into(),
+        number: "7".into(),
+        ..Default::default()
+    };
+    let listed = vec![release("partial-7"), release("done-7")];
+    upsert_chapters(&lib, "mangadex", &manga.id, "en", &listed).unwrap();
+    let partial = tempfile::tempdir().unwrap();
+    std::fs::write(partial.path().join(".mangas-pages"), "3\n").unwrap();
+    mark_downloaded(
+        &lib,
+        "mangadex",
+        &ChapterId("partial-7".into()),
+        partial.path(),
+    )
+    .unwrap();
+    let done = tempfile::tempdir().unwrap();
+    std::fs::write(done.path().join("0001.jpg"), b"page").unwrap();
+    std::fs::write(done.path().join(".mangas-pages"), "1\n").unwrap();
+    mark_downloaded(&lib, "mangadex", &ChapterId("done-7".into()), done.path()).unwrap();
+
+    let picked = pick_releases(&lib, "mangadex", listed, None, &[]).unwrap();
+    let ids: Vec<&str> = picked.iter().map(|c| c.id.0.as_str()).collect();
+    assert_eq!(ids, ["done-7"]);
+}
