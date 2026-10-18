@@ -1,10 +1,13 @@
 //! Update checks: re-sync every followed title and report the chapters the library didn't have.
-//! `plan` holds the pure parts (which titles, what is new, the summary), `check` the IO edge.
+//! `plan` holds the pure parts (which titles, what is new, the summary), `check` the IO edge,
+//! `enqueue` hands auto-download titles to the download queue.
 
 mod check;
+mod enqueue;
 mod plan;
 
 pub use check::{check, Resolve, SourceFor};
+pub use enqueue::{enqueue_new, to_download};
 pub use plan::{new_chapters, notification, select, summary, Known, Summary, Target, UpdatePolicy};
 
 use serde::{Deserialize, Serialize};

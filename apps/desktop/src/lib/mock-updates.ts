@@ -72,7 +72,8 @@ export function mockUpdates(
           `${summary.chapters} new chapters in ${summary.titles} titles`,
           updates.map((u) => u.title).join(", "),
         );
-      return { updates, failures: [], checked: followed.length, skipped: 0, summary };
+      const queued = updates.filter((u) => u.auto_download).length;
+      return { updates, failures: [], checked: followed.length, skipped: 0, summary, queued };
     },
     async markViewed(source, id) {
       fresh.delete(key(source, id));

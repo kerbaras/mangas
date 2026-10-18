@@ -102,15 +102,20 @@ impl Summary {
     }
 }
 
+/// What makes two chapters "the same chapter" across languages: "2" and "2.0" match.
+pub(super) fn number_key(c: &Chapter) -> String {
+    match parse_number(c.number.trim()) {
+        Some(n) => n.to_string(),
+        None if c.number.trim().is_empty() => format!("#{}", c.id.0),
+        None => c.number.trim().to_string(),
+    }
+}
+
 pub fn summary(report: &UpdateReport) -> Summary {
     let numbers = |chapters: &[Chapter]| -> usize {
         chapters
             .iter()
-            .map(|c| match parse_number(c.number.trim()) {
-                Some(n) => n.to_string(),
-                None if c.number.trim().is_empty() => format!("#{}", c.id.0),
-                None => c.number.trim().to_string(),
-            })
+            .map(number_key)
             .collect::<BTreeSet<_>>()
             .len()
     };

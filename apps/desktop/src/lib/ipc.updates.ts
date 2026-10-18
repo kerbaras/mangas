@@ -29,6 +29,8 @@ export type UpdateRun = {
   checked: number;
   skipped: number;
   summary: UpdateSummary;
+  /** Chapters queued for download (titles with auto-download on). */
+  queued: number;
 };
 
 export type UpdatesBackend = {

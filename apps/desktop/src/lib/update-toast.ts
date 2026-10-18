@@ -7,9 +7,11 @@ const ID = "update-check";
 
 export function toastRun(run: UpdateRun) {
   const title = summaryLine(run.summary);
+  const queued = run.queued > 0 ? ` · ${run.queued} queued for download` : "";
   if (run.failures.length === 0) {
     const show = run.summary.chapters > 0 ? toast.success : toast.info;
-    show(title, { id: ID, description: run.updates.map((u) => u.title).join(", ") || undefined });
+    const titles = run.updates.map((u) => u.title).join(", ");
+    show(title, { id: ID, description: titles ? `${titles}${queued}` : undefined });
     return;
   }
   const providers = [...new Set(run.failures.map((f) => f.source))];

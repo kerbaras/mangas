@@ -5,9 +5,10 @@ use mangas_core::domain::MangaId;
 use mangas_core::library::updates::{self, Summary, UpdatePolicy, UpdateReport};
 use mangas_core::library::{self};
 use serde::Serialize;
-use tauri::AppHandle;
+use tauri::{AppHandle, State};
 use tauri_plugin_notification::NotificationExt;
 
+use super::downloads::Downloads;
 use super::{errors::to_ipc, open_library, settings_of};
 
 /// A check's report with its totals, for the toast.
@@ -16,24 +17,48 @@ pub struct UpdateRun {
     #[serde(flatten)]
     report: UpdateReport,
     summary: Summary,
+    /// Chapters queued for download (titles with auto-download on).
+    queued: usize,
 }
 
 /// Checks the followed titles for new chapters. A `background` run (launch, timer) notifies the
-/// desktop when something is new, unless notifications are off in the settings.
+/// desktop when something is new, unless notifications are off in the settings. New chapters of
+/// auto-download titles go to the download queue.
 #[tauri::command]
-#[tracing::instrument(level = "error", skip(app))]
-pub async fn check_updates(app: AppHandle, background: bool) -> Result<UpdateRun, String> {
+#[tracing::instrument(level = "error", skip(app, downloads))]
+pub async fn check_updates(
+    app: AppHandle,
+    downloads: State<'_, Downloads>,
+    background: bool,
+) -> Result<UpdateRun, String> {
     let lib = open_library()?;
     let report = mangas_providers::updates::check_updates(&lib, &UpdatePolicy::default())
         .await
         .map_err(to_ipc)?;
+    let queued = queue_new(&downloads, &report)?;
     if background && settings_of(&lib)?.notify_updates() {
         if let Some((title, body)) = updates::notification(&report) {
             notify(&app, &title, &body);
         }
     }
     let summary = updates::summary(&report);
-    Ok(UpdateRun { report, summary })
+    Ok(UpdateRun {
+        report,
+        summary,
+        queued,
+    })
+}
+
+fn queue_new(downloads: &Downloads, report: &UpdateReport) -> Result<usize, String> {
+    if !report.updates.iter().any(|u| u.auto_download) {
+        return Ok(0);
+    }
+    let queue = downloads.queue()?;
+    let jobs = updates::enqueue_new(queue.library(), report, false).map_err(to_ipc)?;
+    if !jobs.is_empty() {
+        queue.nudge();
+    }
+    Ok(jobs.len())
 }
 
 fn notify(app: &AppHandle, title: &str, body: &str) {

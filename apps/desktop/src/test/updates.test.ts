@@ -75,6 +75,7 @@ describe("update runs", () => {
       checked: 1,
       skipped: 0,
       summary: { chapters: 1, titles: 1, unreachable: 0 },
+      queued: 0,
     };
     finish(run);
     expect(await first).toBe(run);
