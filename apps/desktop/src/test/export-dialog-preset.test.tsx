@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { setBackend } from "@/lib/ipc";
 import type { ExportPreset } from "@/lib/ipc.cut-preview";
 import { writeSettings } from "@/lib/settings";
-import { ch, chapters, exportBackend, solo } from "./export-backend";
+import { ch, chapters, enabledButton, exportBackend, solo } from "./export-backend";
 
 afterEach(() => {
   setBackend(null);
@@ -33,7 +33,7 @@ describe("export dialog: series export preset", () => {
     expect(getExportPreset).toHaveBeenCalledWith("mangadex", "m");
     expect(await screen.findByText("Solo v1.cbz")).toBeTruthy();
     expect(screen.getByLabelText("CBZ")).toHaveProperty("checked", true);
-    fireEvent.click(await screen.findByRole("button", { name: /Export 2 books/ }));
+    fireEvent.click(await enabledButton(/Export 2 books/));
     await waitFor(() => expect(exportVolumes).toHaveBeenCalledOnce());
     expect(exportVolumes.mock.calls[0][0]).toMatchObject({
       device: "kobo-clara",
@@ -47,7 +47,7 @@ describe("export dialog: series export preset", () => {
     render(dialog());
     await screen.findByText("Using series preset");
     fireEvent.mouseDown(await screen.findByRole("tab", { name: "Per chapter" }));
-    fireEvent.click(await screen.findByRole("button", { name: /Export 3 books/ }));
+    fireEvent.click(await enabledButton(/Export 3 books/));
     await waitFor(() => expect(exportVolumes).toHaveBeenCalledOnce());
     expect(exportVolumes.mock.calls[0][0]).toMatchObject({
       grouping: { kind: "per_chapter" },
@@ -62,7 +62,7 @@ describe("export dialog: series export preset", () => {
     await screen.findByText("Solo v1.cbz");
     fireEvent.click(screen.getByLabelText("PDF"));
     expect(await screen.findByText("Solo v1.pdf")).toBeTruthy();
-    fireEvent.click(await screen.findByRole("button", { name: /Export 2 books/ }));
+    fireEvent.click(await enabledButton(/Export 2 books/));
     await waitFor(() => expect(exportVolumes).toHaveBeenCalledOnce());
     expect(exportVolumes.mock.calls[0][0]).toMatchObject({ device: "kobo-clara", format: "pdf" });
   });
@@ -70,7 +70,7 @@ describe("export dialog: series export preset", () => {
   it("shows no hint and the stored defaults when the series has no preset", async () => {
     const { exportVolumes } = withPreset(null);
     render(dialog());
-    fireEvent.click(await screen.findByRole("button", { name: /Export 2 books/ }));
+    fireEvent.click(await enabledButton(/Export 2 books/));
     await waitFor(() => expect(exportVolumes).toHaveBeenCalledOnce());
     expect(screen.queryByText("Using series preset")).toBeNull();
     expect(exportVolumes.mock.calls[0][0]).toMatchObject({

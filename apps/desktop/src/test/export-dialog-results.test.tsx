@@ -4,7 +4,7 @@ import { ExportDialog } from "@/components/export-dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { setBackend } from "@/lib/ipc";
 import { writeSettings } from "@/lib/settings";
-import { chapters, exportBackend, solo } from "./export-backend";
+import { chapters, enabledButton, exportBackend, solo } from "./export-backend";
 
 afterEach(() => {
   setBackend(null);
@@ -22,7 +22,7 @@ const dialog = (onSent?: () => void) => (
   </TooltipProvider>
 );
 
-const exportButton = () => screen.findByRole("button", { name: /Export 2 books/ });
+const exportButton = () => enabledButton(/Export 2 books/);
 
 describe("export dialog: what it shows before and after writing", () => {
   it("previews the names a folder that already holds the books leaves free", async () => {
@@ -62,7 +62,7 @@ describe("export dialog: what it shows before and after writing", () => {
     exportBackend({ findKindles: async () => [kindle], sendUsb });
     render(dialog(onSent));
     fireEvent.mouseDown(await screen.findByRole("tab", { name: "Kindle over USB" }));
-    fireEvent.click(await screen.findByRole("button", { name: /Export 2 books and copy/ }));
+    fireEvent.click(await enabledButton(/Export 2 books and copy/));
     expect(await screen.findByText("Copy failed")).toBeTruthy();
     expect(screen.getByText(/No space left on device/)).toBeTruthy();
     expect(screen.getByText(/Copied to Kindle: .*Solo v1\.epub/)).toBeTruthy();
@@ -86,5 +86,12 @@ describe("export dialog: what it shows before and after writing", () => {
     expect(await screen.findByText("Wrote 2 books")).toBeTruthy();
     fireEvent.click(screen.getByText("Fewest cuts"));
     await waitFor(() => expect(screen.queryByText("Wrote 2 books")).toBeNull());
+  });
+  it("waits for the detectors status before it exports", async () => {
+    exportBackend({ detectorsStatus: () => new Promise(() => {}) });
+    render(dialog());
+    expect(await screen.findByText("Solo v1.epub")).toBeTruthy();
+    const button = await screen.findByRole("button", { name: /Export 2 books/ });
+    expect(button).toHaveProperty("disabled", true);
   });
 });

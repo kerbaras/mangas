@@ -88,7 +88,12 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const sending = ["looking", "copying", "emailing"].includes(send.state.kind);
   const busy = job.state.kind === "running" || sending;
   const ready =
-    fresh && named && books > 0 && folder.output.trim() !== "" && target.devices.kind === "ready";
+    fresh &&
+    named &&
+    books > 0 &&
+    folder.output.trim() !== "" &&
+    target.devices.kind === "ready" &&
+    detectors.state.kind !== "loading";
 
   const { reset: resetJob } = job;
   const { reset: resetSend } = send;

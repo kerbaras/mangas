@@ -1,6 +1,7 @@
 import { RotateCcw, Save, Scissors } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { CutPreviewPane, type PreviewState } from "@/components/cut-preview-pane";
+import { SeriesPresetHint } from "@/components/series-preset-hint";
 import { SmartCutForm } from "@/components/smart-cut-form";
 import { Button } from "@/components/ui/button";
 import {
@@ -53,13 +54,15 @@ export function SmartCutButton(props: Props) {
   const usable = props.series !== null && props.chapters.length > 0 && props.device;
   return (
     <div className="flex items-center justify-between gap-4">
-      <p className="text-caption text-ink-3">
-        {props.saved
-          ? "Using series preset"
-          : usable
+      {props.saved ? (
+        <SeriesPresetHint preset={props.saved} />
+      ) : (
+        <p className="text-caption text-ink-3">
+          {usable
             ? "Preview the cut and save options for this series."
             : "Pick chapters of one series to preview the cut."}
-      </p>
+        </p>
+      )}
       <Button size="sm" disabled={!usable} onClick={() => setOpen(true)}>
         <Scissors /> Smart-cut options…
       </Button>
