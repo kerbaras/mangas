@@ -177,7 +177,7 @@ export const mockBackend: Backend = {
   },
   async detectorsStatus() {
     await wait(120);
-    return { available: true, downloaded: true, provider: "cpu" };
+    return { available: !mockFlags.noDetectors, downloaded: true, provider: "cpu" };
   },
   ...mockDiagnostics(DATA_DIR, providers, () => settings),
   async openFolder() {},

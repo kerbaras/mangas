@@ -1,11 +1,10 @@
-import { Mail, RefreshCw, Usb } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Mail, Usb } from "lucide-react";
+import { SendStatus } from "@/components/send-status";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { type SendState, useSend } from "@/hooks/use-send";
+import { useSend } from "@/hooks/use-send";
 import { useNavigation } from "@/lib/navigation";
-import { emailReady, emailRefusal, fileName, megabytes, titleOf } from "@/lib/send-labels";
+import { emailReady, emailRefusal, fileName, titleOf } from "@/lib/send-labels";
 import { useSettings } from "@/lib/settings";
 
 type Props = { file: string; onSent?: () => void };
@@ -69,55 +68,4 @@ export function SendPanel({ file, onSent }: Props) {
       <SendStatus state={send.state} onRetry={() => void send.usb(file, title)} />
     </div>
   );
-}
-
-function SendStatus({ state, onRetry }: { state: SendState; onRetry: () => void }) {
-  switch (state.kind) {
-    case "idle":
-      return null;
-    case "looking":
-      return <p className="text-caption text-ink-3">Looking for a Kindle…</p>;
-    case "emailing":
-      return <p className="text-caption text-ink-3">Sending email…</p>;
-    case "copying":
-      return (
-        <div aria-live="polite">
-          <div className="flex justify-between text-caption text-ink-3">
-            <span>Copying to {state.device}…</span>
-            {state.total > 0 && (
-              <span className="tabular-nums">
-                {megabytes(state.done)} / {megabytes(state.total)}
-              </span>
-            )}
-          </div>
-          <Progress value={state.done} max={state.total} className="mt-1.5" />
-        </div>
-      );
-    case "no-device":
-      return (
-        <Alert>
-          <Usb />
-          <AlertTitle>Device not found</AlertTitle>
-          <AlertDescription>
-            Connect your Kindle with a USB cable and unlock it; it shows up as a drive named Kindle.
-            <Button size="sm" onClick={onRetry} className="mt-1">
-              <RefreshCw /> Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
-      );
-    case "done":
-      return (
-        <p role="status" className="text-caption text-ink-2">
-          {state.message}
-        </p>
-      );
-    case "error":
-      return (
-        <Alert variant="destructive">
-          <AlertTitle>{state.via === "email" ? "Email not sent" : "Copy failed"}</AlertTitle>
-          <AlertDescription>{state.message}</AlertDescription>
-        </Alert>
-      );
-  }
 }

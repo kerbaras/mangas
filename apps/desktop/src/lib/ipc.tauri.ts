@@ -23,8 +23,8 @@ import { tauriStorage } from "./ipc.tauri-storage";
 import { tauriUpdates } from "./ipc.tauri-updates";
 import { tauriVolumes } from "./ipc.tauri-volumes";
 import {
-  type ExportStats,
   type ExportEvent,
+  type ExportStats,
   type MlStatus,
   toDetectorsStatus,
   toExportArgs,

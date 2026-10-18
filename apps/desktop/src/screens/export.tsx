@@ -1,111 +1,42 @@
-import { FolderOpen, Send } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Send } from "lucide-react";
+import { useState } from "react";
 import { DeliverySection } from "@/components/delivery-section";
-import { DeviceSelect } from "@/components/device-select";
-import { DevicesPending } from "@/components/devices-pending";
 import { DownloadedPicker } from "@/components/downloaded-picker";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorAlert } from "@/components/error-alert";
-import { ExportProgressPanel } from "@/components/export-progress";
-import { Field } from "@/components/field";
-import { FormatPicker } from "@/components/format-picker";
-import { PresetPicker } from "@/components/preset-picker";
+import { ExportDialog } from "@/components/export-dialog";
 import { ScreenHeader } from "@/components/screen-header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { useAsync } from "@/hooks/use-async";
 import { useDownloadedChapters } from "@/hooks/use-downloaded-chapters";
-import { useExport } from "@/hooks/use-export";
-import { detectorHint } from "@/lib/detector-hint";
-import { pickFolder } from "@/lib/dialogs";
-import { effectiveFormat, formatLabel } from "@/lib/export-formats";
-import { exportFileName, exportTitle, joinPath } from "@/lib/export-name";
-import { detectorsStatus, listDevices, type Preset } from "@/lib/ipc";
+import type { ExportPick } from "@/lib/export-name";
 import { useNavigation } from "@/lib/navigation";
-import { useSettings } from "@/lib/settings";
 
 type Props = { chapterIds?: string[] };
 
+/** Picks downloaded chapters across the library for the export dialog; keeps the history. */
 export function ExportScreen({ chapterIds }: Props) {
   const nav = useNavigation();
-  const [settings, update] = useSettings();
   const groups = useDownloadedChapters();
-  const devices = useAsync(listDevices, []);
-  const detectors = useAsync(detectorsStatus, []);
-  const exportJob = useExport();
-
   const [selected, setSelected] = useState<Set<string>>(new Set(chapterIds ?? []));
-  // Device and format are the stored defaults: picking one here keeps it for next time.
-  const device = settings.defaultDevice;
-  const deviceList = devices.state.kind === "ready" ? devices.state.data : [];
-  const format = effectiveFormat(settings.defaultFormat, deviceList, device);
-  const recommended = deviceList.find((d) => d.id === device);
-  const [preset, setPreset] = useState<Preset>(settings.defaultPreset);
-  const [useDetectors, setUseDetectors] = useState(true);
-  const [output, setOutput] = useState(`${settings.dataDir}/kindle`);
-  const outputTouched = useRef(false);
-  const editOutput = (dir: string) => {
-    outputTouched.current = true;
-    setOutput(dir);
-  };
+  const [open, setOpen] = useState(false);
+  const [exported, setExported] = useState<string | null>(null);
 
-  // Settings hydrate asynchronously; keep the default output in step until the user picks one.
-  useEffect(() => {
-    if (!outputTouched.current) setOutput(`${settings.dataDir}/kindle`);
-  }, [settings.dataDir]);
-
-  useEffect(() => {
-    if (detectors.state.kind === "ready" && !detectors.state.data.downloaded)
-      setUseDetectors(false);
-  }, [detectors.state]);
-
-  const allChapters =
-    groups.state.kind === "ready" ? groups.state.data.flatMap((g) => g.chapters) : [];
-  const picked = allChapters.filter((c) => selected.has(c.id) && c.local_path);
-  const picks =
+  const picks: ExportPick[] =
     groups.state.kind === "ready"
-      ? groups.state.data.map((g) => ({
-          manga: g.manga,
-          chapters: g.chapters.filter((c) => selected.has(c.id) && c.local_path),
-        }))
+      ? groups.state.data
+          .map((g) => ({
+            manga: g.manga,
+            chapters: g.chapters.filter((c) => selected.has(c.id) && c.local_path),
+          }))
+          .filter((p) => p.chapters.length > 0)
       : [];
-  const busy = exportJob.state.kind === "running";
-
-  const chooseOutput = async () => {
-    const dir = await pickFolder(
-      "Choose where to write the exported files",
-      `${settings.dataDir}/kindle`,
-    );
-    if (dir) editOutput(dir);
-  };
-
-  const run = () => {
-    const title = exportTitle(picks);
-    exportJob.run({
-      chapter_dirs: picked.flatMap((c) => (c.local_path ? [c.local_path] : [])),
-      device,
-      format,
-      preset,
-      detectors: useDetectors,
-      output: joinPath(output, exportFileName(title, format)),
-      title,
-    });
-  };
+  const count = picks.reduce((n, p) => n + p.chapters.length, 0);
 
   return (
     <section className="flex h-full flex-col">
-      <ScreenHeader title="Export" subtitle={`${picked.length} chapters picked`}>
-        <Button
-          variant="primary"
-          size="sm"
-          disabled={busy || picked.length === 0 || !output || devices.state.kind !== "ready"}
-          onClick={run}
-        >
-          <Send /> Export{" "}
-          {picked.length > 0
-            ? `${picked.length} ${picked.length === 1 ? "chapter" : "chapters"}`
-            : ""}
+      <ScreenHeader title="Export" subtitle={`${count} chapters picked`}>
+        <Button variant="primary" size="sm" disabled={count === 0} onClick={() => setOpen(true)}>
+          <Send /> Export{count > 0 ? ` ${count} ${count === 1 ? "chapter" : "chapters"}` : ""}
         </Button>
       </ScreenHeader>
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(280px,2fr)_minmax(360px,3fr)]">
@@ -136,68 +67,22 @@ export function ExportScreen({ chapterIds }: Props) {
             />
           )}
         </div>
-        <div className="flex flex-col gap-5 overflow-auto p-4">
-          <Field label="Device" htmlFor="device">
-            {devices.state.kind === "ready" ? (
-              <DeviceSelect
-                id="device"
-                devices={devices.state.data}
-                value={device}
-                onChange={(id) => update({ defaultDevice: id })}
-              />
-            ) : (
-              <DevicesPending state={devices.state} />
-            )}
-          </Field>
-          <Field
-            label="Format"
-            hint={
-              recommended
-                ? `${recommended.name} reads ${formatLabel(recommended.format)} best.`
-                : undefined
-            }
-          >
-            <FormatPicker value={format} onChange={(f) => update({ defaultFormat: f })} />
-          </Field>
-          <Field
-            label="Cut preset"
-            hint="Long strips are cut into pages at gutters; a preset decides how hard to avoid cutting through art."
-          >
-            <PresetPicker value={preset} onChange={setPreset} />
-          </Field>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <label htmlFor="detectors" className="text-body font-medium">
-                Use detectors
-              </label>
-              <p className="mt-0.5 text-caption text-ink-3">{detectorHint(detectors.state)}</p>
-            </div>
-            <Switch
-              id="detectors"
-              checked={useDetectors}
-              onCheckedChange={setUseDetectors}
-              disabled={detectors.state.kind !== "ready" || !detectors.state.data.available}
-            />
-          </div>
-          <Field label="Output folder" htmlFor="output">
-            <div className="flex gap-2">
-              <Input
-                id="output"
-                value={output}
-                onChange={(e) => editOutput(e.target.value)}
-                className="font-mono text-caption"
-              />
-              <Button onClick={chooseOutput} aria-label="Choose output folder">
-                <FolderOpen /> Choose…
-              </Button>
-            </div>
-          </Field>
-          <ExportProgressPanel state={exportJob.state} onReset={exportJob.reset} />
-          <DeliverySection
-            exported={exportJob.state.kind === "done" ? exportJob.state.result.output : null}
-          />
+        <div className="flex flex-col gap-4 overflow-auto p-4">
+          <p className="text-caption text-ink-3">
+            Pick chapters, then Export opens the export dialog: bundle, format, smart cut and
+            delivery. Books written before can be sent again from the list below.
+          </p>
+          <DeliverySection exported={exported} />
         </div>
       </div>
+      {open && (
+        <ExportDialog
+          open
+          onOpenChange={setOpen}
+          picks={picks}
+          onExported={(results) => setExported(results.at(-1)?.output ?? null)}
+        />
+      )}
     </section>
   );
 }

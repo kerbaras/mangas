@@ -94,6 +94,12 @@ export const downloadable = (chapters: Chapter[], selected: Selection) =>
 export const exportable = (chapters: Chapter[], selected: Selection) =>
   pickSelected(chapters, selected).filter(isDownloaded);
 
+/** What Details' "Export" opens on: the selected downloaded chapters, else every downloaded one. */
+export function exportTargets(chapters: Chapter[], selected: Selection): Chapter[] {
+  const picked = exportable(chapters, selected);
+  return picked.length > 0 ? picked : chapters.filter((c) => !isUnavailable(c) && isDownloaded(c));
+}
+
 /** `shown` (default: all of `chapters`) are the rows on screen, which the skipped count covers. */
 export function selectionSummary(
   chapters: Chapter[],
