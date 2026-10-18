@@ -11,6 +11,7 @@ use wiremock::matchers::{header_exists, method, path, path_regex, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const KONYAKU: &str = r#"{"manga_list":[{"id":32807,"title":"Konyaku Hakisarete"}]}"#;
+const KONYAKU_DETAIL: &str = r#"{"manga":{"id":32807,"title":"Konyaku Hakisarete"}}"#;
 const OTHER: &str = r#"{"manga_list":[{"id":1,"title":"Naruto"}]}"#;
 const EMPTY: &str = r#"{"manga_list":[]}"#;
 
@@ -46,8 +47,7 @@ async fn api(server: &MockServer, route: &str, query: Option<(&str, &str)>, body
 }
 
 fn source(server: &MockServer, session: Option<Session>) -> MangaDot {
-    let site = server.uri();
-    MangaDot::with_base(&site, &format!("{site}/api"), session).unwrap()
+    MangaDot::with_base(&format!("{}/api", server.uri()), session).unwrap()
 }
 
 /// Headers of every request received on `route`.
@@ -67,17 +67,12 @@ fn header<'a>(request: &'a wiremock::Request, name: &str) -> Option<&'a str> {
 async fn api_requests_pass_the_referer_rule_with_same_origin_fetch_headers() {
     let server = edge().await;
     api(&server, "/api/search", None, KONYAKU).await;
-    Mock::given(path("/manga/32807"))
-        .respond_with(
-            ResponseTemplate::new(200)
-                .set_body_string(r#"<meta property="og:title" content="Konyaku Hakisarete"/>"#),
-        )
-        .mount(&server)
-        .await;
+    api(&server, "/api/manga/32807", None, KONYAKU_DETAIL).await;
     let source = source(&server, Some(session()));
     let found = source.search("konyaku", 5).await.unwrap();
     assert_eq!(found[0].id, MangaId("32807".into()));
-    source.manga(&MangaId("32807".into())).await.unwrap();
+    let manga = source.manga(&MangaId("32807".into())).await.unwrap();
+    assert_eq!(manga.title, "Konyaku Hakisarete");
 
     let search = &sent(&server, "/api/search").await[0];
     assert_eq!(header(search, "referer"), Some("https://mangadot.net/"));
@@ -88,10 +83,9 @@ async fn api_requests_pass_the_referer_rule_with_same_origin_fetch_headers() {
     assert_eq!(header(search, "cookie"), Some("cf_clearance=abc"));
     assert_eq!(header(search, "user-agent"), Some("UA"));
 
-    let page = &sent(&server, "/manga/32807").await[0];
-    assert_eq!(header(page, "referer"), Some("https://mangadot.net/"));
-    assert_eq!(header(page, "origin"), None);
-    assert_eq!(header(page, "sec-fetch-mode"), None);
+    let detail = &sent(&server, "/api/manga/32807").await[0];
+    assert_eq!(header(detail, "origin"), Some("https://mangadot.net"));
+    assert_eq!(header(detail, "sec-fetch-mode"), Some("cors"));
 }
 
 #[tokio::test]

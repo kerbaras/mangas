@@ -150,7 +150,7 @@ async fn session_sites_report_needs_session() {
     use mangas_providers::Source;
     let server = MockServer::start().await;
     let api = format!("{}/api", server.uri());
-    let without = mangadot::MangaDot::with_base(&server.uri(), &api, None).unwrap();
+    let without = mangadot::MangaDot::with_base(&api, None).unwrap();
     assert_eq!(without.status().await, ProviderStatus::NeedsSession);
 
     let challenge = ResponseTemplate::new(403).set_body_string("cdn-cgi/challenge-platform");
@@ -160,10 +160,10 @@ async fn session_sites_report_needs_session() {
         user_agent: "UA".into(),
         saved_at: None,
     };
-    let stale = mangadot::MangaDot::with_base(&server.uri(), &api, Some(session.clone())).unwrap();
+    let stale = mangadot::MangaDot::with_base(&api, Some(session.clone())).unwrap();
     assert_eq!(stale.status().await, ProviderStatus::NeedsSession);
 
     ok(&server, "/api/manga", r#"{"manga_list":[]}"#).await;
-    let fresh = mangadot::MangaDot::with_base(&server.uri(), &api, Some(session)).unwrap();
+    let fresh = mangadot::MangaDot::with_base(&api, Some(session)).unwrap();
     assert_eq!(fresh.status().await, ProviderStatus::Ready);
 }

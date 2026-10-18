@@ -13,8 +13,8 @@ use mangas_core::library::Settings;
 use mangas_core::sources::{Header, PageUrls, ProviderStatus, Source};
 
 pub use mapping::{
-    chapter_id, images_path, loader_status, parse_chapters, parse_images, parse_manga_list,
-    parse_manga_page, site_url, SITE, SOURCE_NAME,
+    chapter_id, images_path, parse_chapters, parse_images, parse_manga_detail, parse_manga_list,
+    site_url, SITE, SOURCE_NAME,
 };
 pub use search::{honoured, matches};
 
@@ -57,37 +57,33 @@ impl Provider for MangaDotProvider {
     }
 
     fn build_at(&self, settings: &Settings, base: &str) -> Result<Arc<dyn Source>> {
-        let base = base.trim_end_matches('/');
+        let api = format!("{}/api", base.trim_end_matches('/'));
         let session = Session::from_settings(settings, INFO.id);
-        Ok(Arc::new(MangaDot::with_base(
-            base,
-            &format!("{base}/api"),
-            session,
-        )?))
+        Ok(Arc::new(MangaDot::with_base(&api, session)?))
     }
 }
 
+/// Everything goes through the API: the site's HTML pages stay challenged for any client that is
+/// not the browser, even with a valid session (#94).
 pub struct MangaDot {
     api: SiteClient,
-    site: SiteClient,
 }
 
 impl MangaDot {
     pub fn new(session: Option<Session>) -> Result<Self> {
-        Self::with_base(SITE, API_BASE, session)
+        Self::with_base(API_BASE, session)
     }
 
-    /// Points the source at other hosts (tests).
-    pub fn with_base(site: &str, api: &str, session: Option<Session>) -> Result<Self> {
-        let config = |base| ClientConfig {
+    /// Points the source at another API host (tests).
+    pub fn with_base(api: &str, session: Option<Session>) -> Result<Self> {
+        let config = ClientConfig {
             requests_per_second: REQUESTS_PER_SECOND,
             // Mirrored chapters point at other sites' CDNs; they all get the referer.
             image_hosts: &["*"],
-            ..ClientConfig::new(INFO, base)
+            ..ClientConfig::new(INFO, api)
         };
         Ok(Self {
-            api: SiteClient::new(config(api), session.clone())?,
-            site: SiteClient::new(config(site), session)?,
+            api: SiteClient::new(config, session)?,
         })
     }
 
@@ -140,8 +136,8 @@ impl Source for MangaDot {
     }
 
     async fn manga(&self, id: &MangaId) -> Result<Manga> {
-        let html = self.site.get(&format!("/manga/{id}"), &[]).await?;
-        parse_manga_page(id, &html)
+        let body = self.api.get(&format!("/manga/{id}"), &[]).await?;
+        parse_manga_detail(id, &body)
     }
 
     async fn chapters(&self, id: &MangaId, language: &str) -> Result<Vec<Chapter>> {

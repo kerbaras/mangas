@@ -10,6 +10,12 @@ pub struct MangaList {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct MangaDetail {
+    #[serde(default)]
+    pub manga: Option<MangaEntry>,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct MangaEntry {
     pub id: u64,
     pub title: String,

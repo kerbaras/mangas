@@ -1,7 +1,7 @@
-use mangas_core::domain::{ChapterId, MangaId, MangaStatus};
+use mangas_core::domain::{ChapterId, Error, MangaId, MangaStatus};
 use mangas_providers::mangadot::{
-    images_path, loader_status, matches, parse_chapters, parse_images, parse_manga_list,
-    parse_manga_page, site_url,
+    images_path, matches, parse_chapters, parse_images, parse_manga_detail, parse_manga_list,
+    site_url,
 };
 
 const SEARCH: &str = r#"{"manga_list":[{"id":32807,"title":"Konyaku Hakisarete","genres":["Comedy"],"status":"Ongoing","photo":"/uploads/ea2cc63c.webp","date_added":"2026-06-30 07:25:30+00","description":"The protagonist"}]}"#;
@@ -70,27 +70,35 @@ fn images_become_absolute_urls() {
     );
 }
 
+/// `/api/manga/115` as recorded live on the PM tunnel (#94), trimmed.
+const DETAIL: &str = r#"{"manga":{"id":115,"title":"BERSERK","genres":["Action","Seinen"],"status":"Ongoing","photo":"/uploads/cover_eaee0cbaeae8d124.jpg","date_added":"2026-02-19 13:01:59+00","description":"His name is Guts, the Black Swordsman.","banner_image":"/uploads/banners/821b5570ba731094cbbec2a9.webp","is_adult":false,"chapter_count":434,"latest_chapter_number":"386.00","authors":"[\"MIURA Kentaro\"]","year":1989,"avg_rating":9.4,"alt_titles":["Berserk Max"],"tags":[{"category":"Audience Demographics","is_adult":false,"tags":[{"name":"Seinen","weight":"core","is_adult":false}]}]}}"#;
+
 #[test]
-fn manga_page_reads_open_graph_tags() {
-    let html = r#"<html><head><meta property="og:title" content="ONE PIECE &amp; Co"/><meta property="og:description" content="Pirates."><meta property="og:image" content="https://mangadot.net/uploads/op.webp"></head></html>"#;
-    let m = parse_manga_page(&MangaId("41".into()), html).unwrap();
-    assert_eq!(m.title, "ONE PIECE & Co");
-    assert_eq!(m.description, "Pirates.");
+fn manga_detail_maps_the_api_record() {
+    let m = parse_manga_detail(&MangaId("115".into()), DETAIL).unwrap();
+    assert_eq!(m.id, MangaId("115".into()));
+    assert_eq!(m.source, "mangadot");
+    assert_eq!(m.title, "BERSERK");
+    assert_eq!(m.description, "His name is Guts, the Black Swordsman.");
     assert_eq!(
         m.cover_url.as_deref(),
-        Some("https://mangadot.net/uploads/op.webp")
+        Some("https://mangadot.net/uploads/cover_eaee0cbaeae8d124.jpg")
     );
-    assert!(parse_manga_page(&MangaId("1".into()), "<html></html>").is_err());
+    assert_eq!(m.status, MangaStatus::Ongoing);
 }
 
 #[test]
-fn manga_page_status_comes_from_the_inlined_loader_data() {
-    // As served: the stream chunk is a JS string, so quotes arrive escaped.
-    let html = r#"<meta property="og:title" content="X"/><script>window.__reactRouterContext.streamController.enqueue("[{"_1":2},"manga",{"_3":4},"id",42,"title","X","status","Completed","photo","/uploads/a.webp","other",{"status":-5}]");</script>"#;
-    assert_eq!(loader_status(html).as_deref(), Some("Completed"));
-    let m = parse_manga_page(&MangaId("42".into()), html).unwrap();
-    assert_eq!(m.status, MangaStatus::Completed);
-    assert_eq!(loader_status("<html></html>"), None);
+fn manga_detail_without_a_record_is_not_found() {
+    let id = MangaId("1".into());
+    assert!(matches!(
+        parse_manga_detail(&id, r#"{"manga":null}"#),
+        Err(Error::NotFound(_))
+    ));
+    assert!(matches!(
+        parse_manga_detail(&id, "{}"),
+        Err(Error::NotFound(_))
+    ));
+    assert!(parse_manga_detail(&id, "<html>").is_err());
 }
 
 #[test]

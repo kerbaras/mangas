@@ -72,6 +72,8 @@ Rules: the Tauri layer and the CLI contain no business logic. Everything testabl
   `/api` paths, the site's own `fetch()` calls, also get `Origin: <site>` and, with a session,
   `sec-fetch-site: same-origin`, `sec-fetch-mode: cors`, `sec-fetch-dest: empty`. Cloudflare site
   rules (MangaDot) challenge API calls that do not look same-origin, even with valid cookies.
+  MangaDot's HTML pages stay challenged for non-browser clients even then, so that provider
+  reads everything (detail included) from its JSON API.
 - **`Session`**: cookies + user agent + `saved_at` from the settings; `ClientConfig.session_ttl`
   makes older sessions report `NeedsSession` without a request.
 - **Preferences**: `Settings.preferred_languages` (generic, never empty via

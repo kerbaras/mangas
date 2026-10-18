@@ -1,12 +1,12 @@
 {
-  "_comment": "Hand-written in the shapes of Wayback captures of mangadot.net (the live site is Cloudflare-gated from CI and the Devin VM). The site root serves /manga/{id}; the API lives under /api, where Cloudflare answers the challenge page to any request without a Referer (#94).",
+  "_comment": "Hand-written in the shapes of Wayback captures and a live /api/manga/{id} sample of mangadot.net (the live site is Cloudflare-gated from CI and the Devin VM). Everything goes through /api, where Cloudflare answers the challenge page to any request without a Referer (#94).",
   "query": "konyaku",
   "language": "en",
   "pages_need_referer": true,
   "challenge_without_referer": "/api/",
   "routes": [
     { "path": "/api/search", "query": { "search": "konyaku" }, "file": "search.json" },
-    { "path": "/manga/32807", "file": "manga.html" },
+    { "path": "/api/manga/32807", "file": "manga.json" },
     { "path": "/api/manga/32807/chapters/list", "file": "chapters.json" },
     { "path": "/api/chapters/616677/images", "file": "images.json" }
   ]
