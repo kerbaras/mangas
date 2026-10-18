@@ -1,6 +1,8 @@
 //! Streams a download into memory with progress and cooperative cancellation.
 
+use std::future::Future;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 use futures_util::StreamExt;
 
@@ -20,19 +22,29 @@ pub async fn fetch(
     on_progress: &mut (dyn FnMut(u64, Option<u64>) + Send),
     cancel: &AtomicBool,
 ) -> Result<Vec<u8>> {
-    let resp = reqwest::get(url).await?.error_for_status()?;
+    let resp = or_cancel(reqwest::get(url), cancel)
+        .await??
+        .error_for_status()?;
     let total = resp.content_length();
     let mut stream = resp.bytes_stream();
     let mut bytes: Vec<u8> = Vec::with_capacity(total.unwrap_or(0) as usize);
-    while let Some(chunk) = stream.next().await {
-        if cancel.load(Ordering::Relaxed) {
-            return Err(Error::Other(CANCELLED.into()));
-        }
+    while let Some(chunk) = or_cancel(stream.next(), cancel).await? {
         bytes.extend_from_slice(&chunk?);
         on_progress(bytes.len() as u64, total);
     }
-    if cancel.load(Ordering::Relaxed) {
-        return Err(Error::Other(CANCELLED.into()));
-    }
     Ok(bytes)
+}
+
+/// Awaits `fut`, giving up with [`CANCELLED`] once `cancel` is set, even if the server stalls.
+async fn or_cancel<T>(fut: impl Future<Output = T>, cancel: &AtomicBool) -> Result<T> {
+    let watch = async {
+        while !cancel.load(Ordering::Relaxed) {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+    };
+    tokio::select! {
+        biased;
+        () = watch => Err(Error::Other(CANCELLED.into())),
+        out = fut => Ok(out),
+    }
 }

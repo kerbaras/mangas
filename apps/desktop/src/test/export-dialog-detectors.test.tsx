@@ -2,12 +2,15 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ExportDialog } from "@/components/export-dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { clearFailure, downloadState } from "@/lib/detector-download";
 import { type DetectorsStatus, setBackend } from "@/lib/ipc";
 import type { DetectorsProgress } from "@/lib/ipc.detectors";
 import { writeSettings } from "@/lib/settings";
 import { chapters, detectorState, enabledButton, exportBackend, solo } from "./export-backend";
 
-afterEach(() => {
+afterEach(async () => {
+  await waitFor(() => expect(downloadState().downloading).toBe(false));
+  clearFailure();
   setBackend(null);
   writeSettings({ defaultFormat: null, defaultDevice: "kindle-paperwhite12" });
 });
@@ -116,6 +119,27 @@ describe("export dialog: detector support", () => {
     );
     listen();
     await waitFor(() => expect(downloadDetectors).toHaveBeenCalledOnce());
+  });
+
+  it("still shows a running download after the dialog is closed and reopened", async () => {
+    const missing = detectorState({
+      downloaded: false,
+      runtime: { state: "not_downloaded", version: "1.28.3" },
+      downloadBytes: 1000,
+    });
+    let finish: () => void = () => {};
+    const downloadDetectors = vi.fn(
+      () => new Promise<DetectorsStatus>((resolve) => (finish = () => resolve(detectorState()))),
+    );
+    exportBackend({ downloadDetectors }, missing);
+    const first = render(dialog());
+    fireEvent.click(await screen.findByRole("button", { name: /Download detector support/ }));
+    await waitFor(() => expect(downloadDetectors).toHaveBeenCalledOnce());
+    first.unmount();
+    render(dialog());
+    expect(await screen.findByText("Starting download…")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Download detector support/ })).toBeNull();
+    finish();
   });
 
   it("never starts the download when Cancel is clicked before it begins", async () => {

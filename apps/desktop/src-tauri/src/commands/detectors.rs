@@ -33,7 +33,7 @@ pub fn detectors_status() -> Result<ml::Status, String> {
 #[tracing::instrument(level = "error", skip_all)]
 pub async fn download_detectors(app: AppHandle) -> Result<ml::Status, String> {
     if DOWNLOADING.swap(true, Ordering::SeqCst) {
-        return Err("detector support is already downloading".into());
+        return Err("detector support is already downloading, or the data folder is moving".into());
     }
     let result = download(&app).await;
     // Cleared after, not before: a Cancel sent while the call was on its way still counts.
@@ -42,9 +42,15 @@ pub async fn download_detectors(app: AppHandle) -> Result<ml::Status, String> {
     result
 }
 
-/// True while [`download_detectors`] writes into the data folder.
-pub fn downloading() -> bool {
-    DOWNLOADING.load(Ordering::SeqCst)
+/// Keeps downloads out of the data folder while it moves; false if one is already running.
+pub fn claim() -> bool {
+    DOWNLOADING
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_ok()
+}
+
+pub fn release() {
+    DOWNLOADING.store(false, Ordering::SeqCst);
 }
 
 async fn download(app: &AppHandle) -> Result<ml::Status, String> {
