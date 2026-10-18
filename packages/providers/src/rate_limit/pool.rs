@@ -1,6 +1,8 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 
+use super::shared::file_name;
 use super::TokenBucket;
 use crate::http::host_matches;
 
@@ -12,6 +14,8 @@ pub struct HostLimiters {
     buckets: Mutex<HashMap<String, Arc<TokenBucket>>>,
     /// Image host patterns (see [`host_matches`]) and the rate their provider declared.
     declared: Mutex<Vec<(String, u32)>>,
+    /// Folder of the per-host bucket files once the buckets are shared across processes.
+    dir: Mutex<Option<PathBuf>>,
 }
 
 impl HostLimiters {
@@ -21,14 +25,36 @@ impl HostLimiters {
         SHARED.get_or_init(HostLimiters::default)
     }
 
+    /// Keeps every bucket (existing and future) in a file under `dir`, one per host, so every
+    /// process pointing at the same folder shares one budget per host. The apps pass a folder
+    /// in the platform data dir, which the CLI and the desktop app have in common.
+    /// Only the first call takes effect: a bucket's file cannot change once in use.
+    pub fn share_across_processes(&self, dir: PathBuf) {
+        let buckets = self.buckets.lock().unwrap_or_else(PoisonError::into_inner);
+        let mut current = self.dir.lock().unwrap_or_else(PoisonError::into_inner);
+        if current.is_some() {
+            return;
+        }
+        for (key, bucket) in buckets.iter() {
+            bucket.share_in(dir.join(file_name(key)));
+        }
+        *current = Some(dir);
+    }
+
     /// The bucket for the host of `url`, created on first use with a burst of
     /// `requests_per_second` and tightened if a later caller asks for less.
     pub fn bucket(&self, url: &str, requests_per_second: u32) -> Arc<TokenBucket> {
         let rate = requests_per_second.max(1);
+        let key = host_key(url);
         let mut buckets = self.buckets.lock().unwrap_or_else(PoisonError::into_inner);
-        let bucket = buckets
-            .entry(host_key(url))
-            .or_insert_with(|| Arc::new(TokenBucket::new(rate, rate)));
+        let bucket = buckets.entry(key.clone()).or_insert_with(|| {
+            let bucket = TokenBucket::new(rate, rate);
+            let dir = self.dir.lock().unwrap_or_else(PoisonError::into_inner);
+            if let Some(dir) = dir.as_ref() {
+                bucket.share_in(dir.join(file_name(&key)));
+            }
+            Arc::new(bucket)
+        });
         bucket.tighten(rate, rate);
         Arc::clone(bucket)
     }

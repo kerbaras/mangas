@@ -15,6 +15,11 @@ pub fn library_db() -> anyhow::Result<PathBuf> {
     Ok(dirs()?.data_dir().join("mangas.db"))
 }
 
+/// Per-host rate limit buckets shared with the desktop app (platform dir, like the database).
+pub fn rate_limits() -> anyhow::Result<PathBuf> {
+    Ok(dirs()?.data_dir().join("rate-limits"))
+}
+
 /// Folder chosen in the desktop app's Settings, so the CLI and the app see the same chapters
 /// and models; the platform data dir when none is set or the library cannot be read.
 fn data_dir() -> anyhow::Result<PathBuf> {
