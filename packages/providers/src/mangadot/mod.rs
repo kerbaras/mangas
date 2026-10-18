@@ -1,9 +1,10 @@
-//! MangaDot source (<https://mangadot.net>): a JSON API behind a Cloudflare verification, so
-//! requests carry the browser [`Session`] captured by the desktop app.
+//! MangaDot source (<https://mangadot.net>): a JSON API behind a Cloudflare rule that only lets
+//! same-origin-looking requests (the site `Referer`) through. No browser [`Session`] is needed;
+//! a stored one is still sent, and a challenge still asks for one (#94).
 
 mod api;
 mod mapping;
-mod search;
+mod metadata;
 
 use std::sync::Arc;
 
@@ -13,10 +14,9 @@ use mangas_core::library::Settings;
 use mangas_core::sources::{Header, PageUrls, ProviderStatus, Source};
 
 pub use mapping::{
-    chapter_id, images_path, loader_status, parse_chapters, parse_images, parse_manga_list,
-    parse_manga_page, site_url, SITE, SOURCE_NAME,
+    chapter_id, images_path, parse_chapters, parse_images, parse_manga_detail, parse_manga_list,
+    site_url, SITE, SOURCE_NAME,
 };
-pub use search::{honoured, matches};
 
 use crate::http::{ClientConfig, SiteClient};
 use crate::provider::{Capability, Provider, ProviderInfo};
@@ -26,10 +26,6 @@ const API_BASE: &str = "https://mangadot.net/api";
 const REQUESTS_PER_SECOND: u32 = 3;
 /// One title of the catalogue: the cheapest API call that passes through the verification.
 const PROBE: &str = "/manga?limit=1&page=1";
-/// Titles per catalogue page when the text search has to be done locally.
-const CATALOGUE_PAGE: usize = 500;
-/// Upper bound of catalogue pages walked for one local search.
-const CATALOGUE_MAX_PAGES: usize = 20;
 
 pub const INFO: ProviderInfo = ProviderInfo {
     id: SOURCE_NAME,
@@ -41,7 +37,7 @@ pub const INFO: ProviderInfo = ProviderInfo {
         Capability::Chapters,
         Capability::Download,
     ],
-    needs_browser_session: true,
+    needs_browser_session: false,
     icon_url: Some("https://mangadot.net/favicon.ico"),
 };
 
@@ -57,56 +53,34 @@ impl Provider for MangaDotProvider {
     }
 
     fn build_at(&self, settings: &Settings, base: &str) -> Result<Arc<dyn Source>> {
-        let base = base.trim_end_matches('/');
+        let api = format!("{}/api", base.trim_end_matches('/'));
         let session = Session::from_settings(settings, INFO.id);
-        Ok(Arc::new(MangaDot::with_base(
-            base,
-            &format!("{base}/api"),
-            session,
-        )?))
+        Ok(Arc::new(MangaDot::with_base(&api, session)?))
     }
 }
 
+/// Everything goes through the API: the site's HTML pages stay challenged for any client that is
+/// not the browser, even with a valid session (#94).
 pub struct MangaDot {
     api: SiteClient,
-    site: SiteClient,
 }
 
 impl MangaDot {
     pub fn new(session: Option<Session>) -> Result<Self> {
-        Self::with_base(SITE, API_BASE, session)
+        Self::with_base(API_BASE, session)
     }
 
-    /// Points the source at other hosts (tests).
-    pub fn with_base(site: &str, api: &str, session: Option<Session>) -> Result<Self> {
-        let config = |base| ClientConfig {
+    /// Points the source at another API host (tests).
+    pub fn with_base(api: &str, session: Option<Session>) -> Result<Self> {
+        let config = ClientConfig {
             requests_per_second: REQUESTS_PER_SECOND,
             // Mirrored chapters point at other sites' CDNs; they all get the referer.
             image_hosts: &["*"],
-            ..ClientConfig::new(INFO, base)
+            ..ClientConfig::new(INFO, api)
         };
         Ok(Self {
-            api: SiteClient::new(config(api), session.clone())?,
-            site: SiteClient::new(config(site), session)?,
+            api: SiteClient::new(config, session)?,
         })
-    }
-
-    /// Walks the catalogue page by page, keeping titles that match `query`.
-    async fn search_catalogue(&self, query: &str, limit: usize) -> Result<Vec<Manga>> {
-        let mut found = Vec::new();
-        for page in 1..=CATALOGUE_MAX_PAGES {
-            let params = [
-                ("limit", CATALOGUE_PAGE.to_string()),
-                ("page", page.to_string()),
-            ];
-            let items = parse_manga_list(&self.api.get("/manga", &params).await?)?;
-            let last = items.len() < CATALOGUE_PAGE;
-            found.extend(search::filter(items, query, limit - found.len()));
-            if last || found.len() >= limit {
-                break;
-            }
-        }
-        Ok(found)
     }
 }
 
@@ -116,28 +90,21 @@ impl Source for MangaDot {
         SOURCE_NAME
     }
 
-    /// Tries the search endpoint first; if it ignores the text (the results do not mostly
-    /// match it), filters the catalogue locally instead.
+    /// The API ranks by relevance and pads the tail with fuzzy matches; its order is kept.
     async fn search(&self, query: &str, limit: usize) -> Result<Vec<Manga>> {
         let limit = limit.clamp(1, 100);
-        // `search` is the name the site's own search page uses for the text (its route reads
-        // and writes `?search=`); the API is assumed to take the same one.
         let params = [
             ("search", query.to_string()),
             ("limit", limit.to_string()),
             ("page", "1".to_string()),
         ];
         let items = parse_manga_list(&self.api.get("/search", &params).await?)?;
-        if search::honoured(&items, query) {
-            Ok(search::filter(items, query, limit))
-        } else {
-            self.search_catalogue(query, limit).await
-        }
+        Ok(items.into_iter().take(limit).collect())
     }
 
     async fn manga(&self, id: &MangaId) -> Result<Manga> {
-        let html = self.site.get(&format!("/manga/{id}"), &[]).await?;
-        parse_manga_page(id, &html)
+        let body = self.api.get(&format!("/manga/{id}"), &[]).await?;
+        parse_manga_detail(id, &body)
     }
 
     async fn chapters(&self, id: &MangaId, language: &str) -> Result<Vec<Chapter>> {

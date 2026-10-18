@@ -55,12 +55,12 @@ export function ProviderRow({
         </p>
       </div>
       <ProviderLanguages provider={p} />
-      {p.needs_browser_session && session && (
+      {session && (
         <Button size="sm" variant="ghost" onClick={on.onDisconnect} disabled={connecting}>
           <Link2Off /> Disconnect
         </Button>
       )}
-      {p.needs_browser_session && needsConnect && (
+      {(p.needs_browser_session ? needsConnect : status?.state === "needs_session") && (
         <Button size="sm" variant="primary" onClick={on.onConnect} disabled={connecting}>
           {connecting ? <Loader2 className="animate-spin" /> : <Link2 />} Connect
         </Button>

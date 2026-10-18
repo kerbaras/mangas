@@ -33,8 +33,10 @@ fn unknown_ids_list_the_known_ones() {
 
 #[test]
 fn info_serialises_for_the_apps() {
-    let json = serde_json::to_value(info("mangadot").unwrap()).unwrap();
+    let json = serde_json::to_value(info("comick").unwrap()).unwrap();
     assert_eq!(json["needs_browser_session"], true);
+    let optional = serde_json::to_value(info("mangadot").unwrap()).unwrap();
+    assert_eq!(optional["needs_browser_session"], false);
     assert_eq!(json["capabilities"][0], "search");
     let status = serde_json::to_value(ProviderStatus::Unreachable { reason: "x".into() });
     assert_eq!(
@@ -47,7 +49,7 @@ fn info_serialises_for_the_apps() {
 async fn status_without_a_request_when_the_session_is_missing() {
     let settings = Settings::default();
     assert_eq!(
-        status("mangadot", &settings).await,
+        status("comick", &settings).await,
         ProviderStatus::NeedsSession
     );
     let unknown = status("nope", &settings).await;

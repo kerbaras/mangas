@@ -1,7 +1,6 @@
-use mangas_core::domain::{ChapterId, MangaId, MangaStatus};
+use mangas_core::domain::{ChapterId, Error, MangaId, MangaStatus};
 use mangas_providers::mangadot::{
-    images_path, loader_status, matches, parse_chapters, parse_images, parse_manga_list,
-    parse_manga_page, site_url,
+    images_path, parse_chapters, parse_images, parse_manga_detail, parse_manga_list, site_url,
 };
 
 const SEARCH: &str = r#"{"manga_list":[{"id":32807,"title":"Konyaku Hakisarete","genres":["Comedy"],"status":"Ongoing","photo":"/uploads/ea2cc63c.webp","date_added":"2026-06-30 07:25:30+00","description":"The protagonist"}]}"#;
@@ -70,34 +69,53 @@ fn images_become_absolute_urls() {
     );
 }
 
+/// `/api/manga/115` as recorded live on the PM tunnel (#94), trimmed.
+const DETAIL: &str = r#"{"manga":{"id":115,"title":"BERSERK","genres":["Action","Seinen"],"status":"Ongoing","photo":"/uploads/cover_eaee0cbaeae8d124.jpg","description":"His name is Guts, the Black Swordsman.","is_adult":false,"chapter_count":434,"latest_chapter_number":"386.00","authors":"[\"MIURA Kentaro\",\"MORI Kouji\"]","artists":"[\"MIURA Kentaro\",\"Studio Gaga\"]","year":1989,"alt_titles":["Berserk Max"],"tags":[{"category":"Setting","is_adult":false,"tags":[{"name":"Swordplay","weight":"core","is_adult":false}]},{"category":"Audience Demographics","is_adult":false,"tags":[{"name":"Seinen","weight":"core","is_adult":false}]},{"category":"Character Archetype","is_adult":false,"tags":[{"name":"Anti-Hero","weight":"core","is_adult":false}]}]}}"#;
+
 #[test]
-fn manga_page_reads_open_graph_tags() {
-    let html = r#"<html><head><meta property="og:title" content="ONE PIECE &amp; Co"/><meta property="og:description" content="Pirates."><meta property="og:image" content="https://mangadot.net/uploads/op.webp"></head></html>"#;
-    let m = parse_manga_page(&MangaId("41".into()), html).unwrap();
-    assert_eq!(m.title, "ONE PIECE & Co");
-    assert_eq!(m.description, "Pirates.");
+fn manga_detail_maps_the_api_record() {
+    let m = parse_manga_detail(&MangaId("115".into()), DETAIL).unwrap();
+    assert_eq!(m.id, MangaId("115".into()));
+    assert_eq!(m.source, "mangadot");
+    assert_eq!(m.title, "BERSERK");
+    assert_eq!(m.description, "His name is Guts, the Black Swordsman.");
     assert_eq!(
         m.cover_url.as_deref(),
-        Some("https://mangadot.net/uploads/op.webp")
+        Some("https://mangadot.net/uploads/cover_eaee0cbaeae8d124.jpg")
     );
-    assert!(parse_manga_page(&MangaId("1".into()), "<html></html>").is_err());
+    assert_eq!(m.status, MangaStatus::Ongoing);
+    assert_eq!(m.authors, ["MIURA Kentaro", "MORI Kouji"]);
+    assert_eq!(m.artists, ["MIURA Kentaro", "Studio Gaga"]);
+    assert_eq!(m.year, Some(1989));
+    assert_eq!(m.tags, ["Action", "Seinen", "Swordplay", "Anti-Hero"]);
 }
 
 #[test]
-fn manga_page_status_comes_from_the_inlined_loader_data() {
-    // As served: the stream chunk is a JS string, so quotes arrive escaped.
-    let html = r#"<meta property="og:title" content="X"/><script>window.__reactRouterContext.streamController.enqueue("[{"_1":2},"manga",{"_3":4},"id",42,"title","X","status","Completed","photo","/uploads/a.webp","other",{"status":-5}]");</script>"#;
-    assert_eq!(loader_status(html).as_deref(), Some("Completed"));
-    let m = parse_manga_page(&MangaId("42".into()), html).unwrap();
-    assert_eq!(m.status, MangaStatus::Completed);
-    assert_eq!(loader_status("<html></html>"), None);
+fn manga_detail_tolerates_missing_or_malformed_metadata() {
+    let id = MangaId("1".into());
+    let garbage = r#"{"manga":{"id":1,"title":"X","authors":"MIURA Kentaro","artists":null,"year":"n/a","genres":null,"tags":[{"category":"c"},"x"]}}"#;
+    let m = parse_manga_detail(&id, garbage).unwrap();
+    assert!(m.authors.is_empty() && m.artists.is_empty() && m.tags.is_empty());
+    assert_eq!(m.year, None);
+    let empty = r#"{"manga":{"id":1,"title":"X","authors":"[]","artists":["  ","Ann"],"year":0}}"#;
+    let m = parse_manga_detail(&id, empty).unwrap();
+    assert!(m.authors.is_empty());
+    assert_eq!(m.artists, ["Ann"]);
+    assert_eq!(m.year, None);
 }
 
 #[test]
-fn title_matching_is_word_based_and_case_insensitive() {
-    assert!(matches("Jujutsu Kaisen", "kaisen"));
-    assert!(matches("Jujutsu Kaisen", "JUJUTSU kai"));
-    assert!(!matches("Jujutsu Kaisen", "naruto"));
+fn manga_detail_without_a_record_is_not_found() {
+    let id = MangaId("1".into());
+    assert!(matches!(
+        parse_manga_detail(&id, r#"{"manga":null}"#),
+        Err(Error::NotFound(_))
+    ));
+    assert!(matches!(
+        parse_manga_detail(&id, "{}"),
+        Err(Error::NotFound(_))
+    ));
+    assert!(parse_manga_detail(&id, "<html>").is_err());
 }
 
 #[test]
@@ -126,20 +144,6 @@ fn page_headers_come_from_the_host_policy() {
         source.page_headers("https://cdn.example/002.webp"),
         vec![referer]
     );
-}
-
-#[test]
-fn search_endpoint_is_trusted_only_when_results_mostly_match() {
-    use mangas_providers::mangadot::honoured;
-    let items = parse_manga_list(SEARCH).unwrap();
-    assert!(honoured(&items, "konyaku"));
-    let latest: Vec<_> = (0..3)
-        .flat_map(|_| parse_manga_list(SEARCH).unwrap())
-        .collect();
-    let mut mixed = latest;
-    mixed[0].title = "Naruto".into();
-    assert!(!honoured(&mixed, "naruto"));
-    assert!(!honoured(&[], "naruto"));
 }
 
 #[test]

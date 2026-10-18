@@ -19,7 +19,7 @@ export const sampleProviders: ProviderInfo[] = [
     site: "https://mangadot.net",
     languages: ["en"],
     capabilities,
-    needs_browser_session: true,
+    needs_browser_session: false,
     icon_url: null,
   },
   {
