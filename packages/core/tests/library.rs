@@ -14,6 +14,7 @@ fn sample(id: &str, title: &str) -> Manga {
         description: String::new(),
         cover_url: None,
         status: MangaStatus::Ongoing,
+        ..Default::default()
     }
 }
 

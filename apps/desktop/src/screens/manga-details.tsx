@@ -6,6 +6,7 @@ import { ChaptersTable } from "@/components/chapters-table";
 import { Cover } from "@/components/cover";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorAlert } from "@/components/error-alert";
+import { MangaMeta } from "@/components/manga-meta";
 import { ScreenHeader } from "@/components/screen-header";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -34,7 +35,7 @@ type Props = { manga: Manga };
 
 export function MangaDetailsScreen({ manga: card }: Props) {
   const { source, id } = card;
-  const { manga, loading } = useMangaDetails(card);
+  const { manga, loading, reload: reloadManga } = useMangaDetails(card);
   const nav = useNavigation();
   const refreshToast = `refresh-${source}:${id}`;
   const mounted = useRef(true);
@@ -57,6 +58,11 @@ export function MangaDetailsScreen({ manga: card }: Props) {
       }),
     [source, id],
   );
+  // Refreshing a followed title's chapters also saves its source record; show what that filled.
+  const refreshed = chapters.state.kind === "ready" ? chapters.state.data : null;
+  useEffect(() => {
+    if (refreshed) reloadManga();
+  }, [refreshed, reloadManga]);
   const downloads = useDownloads();
   const [language, setLanguage] = useState<string | null>(null);
 
@@ -102,6 +108,7 @@ export function MangaDetailsScreen({ manga: card }: Props) {
             <h2 className="text-subtitle font-semibold">{manga.title}</h2>
             {!loading && <StatusBadge status={manga.status} />}
           </div>
+          {!loading && <MangaMeta manga={manga} />}
           {loading ? (
             <DescriptionSkeleton />
           ) : (

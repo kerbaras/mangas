@@ -42,6 +42,21 @@ pub struct MangaAttributes {
     pub description: Localized,
     #[serde(default)]
     pub status: Option<String>,
+    #[serde(default)]
+    pub year: Option<u16>,
+    #[serde(default)]
+    pub tags: Vec<Tag>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Tag {
+    pub attributes: TagAttributes,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TagAttributes {
+    #[serde(default)]
+    pub name: Localized,
 }
 
 #[derive(Debug, Deserialize)]
@@ -57,7 +72,7 @@ pub struct RelationshipAttributes {
     /// `cover_art` file.
     #[serde(default, rename = "fileName")]
     pub file_name: Option<String>,
-    /// `scanlation_group` name.
+    /// `scanlation_group`, `author` and `artist` name.
     #[serde(default)]
     pub name: Option<String>,
 }

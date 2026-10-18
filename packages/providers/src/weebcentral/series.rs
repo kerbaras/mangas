@@ -1,4 +1,5 @@
-//! `/series/{id}`: title (`h1`), cover (`og:image`), the "Status:" and "Description" entries.
+//! `/series/{id}`: title (`h1`), cover (`og:image`), and the "Author(s)", "Tags(s)", "Status",
+//! "Released" and "Description" entries.
 //! Unknown ids redirect to `/404`, a normal page without a series `h1`.
 
 use mangas_core::domain::{Error, Manga, MangaId, MangaStatus, Result};
@@ -20,6 +21,9 @@ pub fn parse_series(id: &MangaId, body: &str) -> Result<Manga> {
         .and_then(|li| html::first(li, "p").ok().flatten())
         .map(html::text_lines)
         .unwrap_or_default();
+    let year = field(&doc, "Released")?
+        .and_then(|li| html::first(li, "span").ok().flatten())
+        .and_then(|span| html::text(span).parse().ok());
     Ok(Manga {
         id: id.clone(),
         source: SOURCE_NAME.to_string(),
@@ -27,7 +31,23 @@ pub fn parse_series(id: &MangaId, body: &str) -> Result<Manga> {
         description,
         cover_url: html::meta(&doc, "og:image")?,
         status,
+        authors: links(&doc, "Author(s)")?,
+        artists: Vec::new(),
+        year,
+        tags: links(&doc, "Tags(s)")?,
     })
+}
+
+/// The link texts of the `label` entry ("Author(s)": one link per author).
+fn links(doc: &Document, label: &str) -> Result<Vec<String>> {
+    let Some(li) = field(doc, label)? else {
+        return Ok(Vec::new());
+    };
+    Ok(html::select(li, "a")?
+        .into_iter()
+        .map(html::text)
+        .filter(|t| !t.is_empty())
+        .collect())
 }
 
 /// The `<li>` whose leading `<strong>` reads `label` (with or without a trailing colon).

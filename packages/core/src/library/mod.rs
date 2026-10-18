@@ -5,6 +5,7 @@ mod db;
 pub mod import;
 mod languages;
 mod manga_repo;
+mod refresh;
 mod settings_repo;
 mod sync;
 
@@ -15,5 +16,6 @@ pub use languages::{
     in_languages, parse_languages, prefer_languages, requested_languages, validate_languages,
 };
 pub use manga_repo::{get_manga, list_manga, remove_manga, upsert_manga};
+pub use refresh::{refresh_from_source, Refreshed};
 pub use settings_repo::{get_settings, set_settings, ProviderSession, Settings, DEFAULT_LANGUAGE};
 pub use sync::{fetch_chapters, store_chapters, sync_chapters};

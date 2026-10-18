@@ -3,16 +3,20 @@ use rusqlite::{params, OptionalExtension, Row};
 use super::Library;
 use crate::domain::{Manga, MangaId, MangaStatus, Result};
 
-const COLUMNS: &str = "id, source, title, description, cover_url, status";
+const COLUMNS: &str =
+    "id, source, title, description, cover_url, status, authors, artists, year, tags";
 
 /// Inserts the manga or refreshes its metadata if it is already followed.
 pub fn upsert_manga(lib: &Library, manga: &Manga) -> Result<()> {
     lib.conn()?.execute(
-        "INSERT INTO manga (id, source, title, description, cover_url, status)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+        "INSERT INTO manga
+            (id, source, title, description, cover_url, status, authors, artists, year, tags)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
          ON CONFLICT (source, id) DO UPDATE SET
             title = excluded.title, description = excluded.description,
-            cover_url = excluded.cover_url, status = excluded.status",
+            cover_url = excluded.cover_url, status = excluded.status,
+            authors = excluded.authors, artists = excluded.artists,
+            year = excluded.year, tags = excluded.tags",
         params![
             manga.id.0,
             manga.source,
@@ -20,6 +24,10 @@ pub fn upsert_manga(lib: &Library, manga: &Manga) -> Result<()> {
             manga.description,
             manga.cover_url,
             status_to_str(manga.status),
+            list_to_json(&manga.authors),
+            list_to_json(&manga.artists),
+            manga.year,
+            list_to_json(&manga.tags),
         ],
     )?;
     Ok(())
@@ -62,7 +70,20 @@ fn row_to_manga(row: &Row<'_>) -> rusqlite::Result<Manga> {
         description: row.get(3)?,
         cover_url: row.get(4)?,
         status: status_from_str(&row.get::<_, String>(5)?),
+        authors: list_from_json(&row.get::<_, String>(6)?),
+        artists: list_from_json(&row.get::<_, String>(7)?),
+        year: row.get(8)?,
+        tags: list_from_json(&row.get::<_, String>(9)?),
     })
+}
+
+fn list_to_json(items: &[String]) -> String {
+    serde_json::to_string(items).unwrap_or_else(|_| "[]".to_string())
+}
+
+/// A malformed list reads as empty rather than hiding the whole manga.
+fn list_from_json(raw: &str) -> Vec<String> {
+    serde_json::from_str(raw).unwrap_or_default()
 }
 
 fn status_to_str(s: MangaStatus) -> &'static str {

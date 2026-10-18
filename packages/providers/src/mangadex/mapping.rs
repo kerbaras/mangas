@@ -134,6 +134,14 @@ fn manga_from_data(m: &MangaData) -> Manga {
         description: pick_text(&attrs.description).unwrap_or_default(),
         cover_url,
         status: status_from_str(attrs.status.as_deref()),
+        authors: names(&m.relationships, "author"),
+        artists: names(&m.relationships, "artist"),
+        year: attrs.year,
+        tags: attrs
+            .tags
+            .iter()
+            .filter_map(|t| pick_text(&t.attributes.name))
+            .collect(),
     }
 }
 
@@ -154,13 +162,25 @@ fn chapter_from_data(c: &ChapterData, manga_id: &MangaId) -> Chapter {
 
 /// Names of the `scanlation_group` relationships (needs `includes[]=scanlation_group`).
 fn group_names(relationships: &[Relationship]) -> Option<String> {
-    let names: Vec<&str> = relationships
+    let names = names(relationships, "scanlation_group");
+    (!names.is_empty()).then(|| names.join(", "))
+}
+
+/// Names of the expanded relationships of `kind`, once each (a mangaka is often both author
+/// and artist, but never twice in one list).
+fn names(relationships: &[Relationship], kind: &str) -> Vec<String> {
+    let mut found: Vec<String> = Vec::new();
+    for name in relationships
         .iter()
-        .filter(|r| r.kind == "scanlation_group")
+        .filter(|r| r.kind == kind)
         .filter_map(|r| r.attributes.as_ref()?.name.as_deref())
         .filter(|n| !n.is_empty())
-        .collect();
-    (!names.is_empty()).then(|| names.join(", "))
+    {
+        if !found.iter().any(|f| f == name) {
+            found.push(name.to_string());
+        }
+    }
+    found
 }
 
 /// English first, then a romanised title, then whatever the source has.

@@ -6,7 +6,7 @@ use mangas_core::domain::{
 use mangas_core::sources::PageUrls;
 
 use super::api::{Episode, EpisodesResponse};
-use super::html::{attr, clean_text, meta, tags, text_after};
+use super::html::{attr, clean_text, meta, tags, text_after, texts_of_class};
 
 pub const SOURCE_NAME: &str = "tapas";
 pub const SITE: &str = "https://tapas.io";
@@ -47,10 +47,12 @@ fn search_item(item: &str) -> Option<Manga> {
         description: text_after(item, "class=\"desc", "</p>").unwrap_or_default(),
         cover_url: tags(item, "img").first().and_then(|t| attr(t, "src")),
         status: MangaStatus::Unknown,
+        ..Default::default()
     })
 }
 
-/// `GET /series/{id}/info` -> the series. The page shows no publication status.
+/// `GET /series/{id}/info` -> the series: creators as authors, genres as tags. The page shows
+/// no publication status or year.
 pub fn parse_series(id: &MangaId, html: &str) -> Result<Manga> {
     let title = text_after(html, "<a class=\"title\"", "</a>")
         .or_else(|| meta(html, "og:site_name").map(|t| t.trim_start_matches("Read ").to_string()))
@@ -62,6 +64,9 @@ pub fn parse_series(id: &MangaId, html: &str) -> Result<Manga> {
         description: text_after(html, "class=\"description__body\"", "</span>").unwrap_or_default(),
         cover_url: meta(html, "og:image"),
         status: MangaStatus::Unknown,
+        authors: texts_of_class(html, "creator__item"),
+        tags: texts_of_class(html, "genre-btn"),
+        ..Default::default()
     })
 }
 

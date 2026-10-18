@@ -23,6 +23,7 @@ fn manga(id: &str) -> Manga {
         description: String::new(),
         cover_url: None,
         status: MangaStatus::Unknown,
+        ..Default::default()
     }
 }
 

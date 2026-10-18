@@ -16,6 +16,11 @@ export type Manga = {
   description: string;
   cover_url: string | null;
   status: "ongoing" | "completed" | "hiatus" | "cancelled" | "unknown";
+  /** Credits, first-publication year and genre tags; empty when the source doesn't publish them. */
+  authors?: string[];
+  artists?: string[];
+  year?: number | null;
+  tags?: string[];
 };
 
 /** Mirrors `mangas_core::domain::Chapter`. */

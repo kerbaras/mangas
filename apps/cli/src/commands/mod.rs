@@ -2,6 +2,7 @@ pub mod add;
 pub mod chapters;
 pub mod download;
 pub mod import;
+pub mod info;
 pub mod kindle;
 pub mod list;
 pub mod providers;

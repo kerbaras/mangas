@@ -79,6 +79,7 @@ mod tests {
             description: String::new(),
             cover_url: None,
             status: MangaStatus::Ongoing,
+            ..Default::default()
         }
     }
 

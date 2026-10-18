@@ -30,6 +30,29 @@ pub struct ComicData {
     pub default_thumbnail: Option<String>,
     #[serde(default)]
     pub status: Option<i64>,
+    #[serde(default)]
+    pub year: Option<u16>,
+    #[serde(default)]
+    pub authors: Vec<Person>,
+    #[serde(default)]
+    pub artists: Vec<Person>,
+    #[serde(default)]
+    pub md_comic_md_genres: Vec<GenreLink>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Person {
+    pub name: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GenreLink {
+    pub md_genres: Genre,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Genre {
+    pub name: String,
 }
 
 /// `/api/comics/{slug}/chapter-list`: one page of chapters, newest first.

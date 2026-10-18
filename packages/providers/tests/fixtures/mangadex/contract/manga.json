@@ -46,16 +46,124 @@
     "fr",
     "pl"
    ],
-   "latestUploadedChapter": "6027287f-bd88-4517-a478-6d0f03380113"
+   "latestUploadedChapter": "6027287f-bd88-4517-a478-6d0f03380113",
+   "tags": [
+    {
+     "id": "391b0423-d847-456f-aff0-8b0cfc03066b",
+     "type": "tag",
+     "attributes": {
+      "name": {
+       "en": "Action"
+      },
+      "group": "genre"
+     }
+    },
+    {
+     "id": "39730448-9a5f-48a2-85b0-a70db87b1233",
+     "type": "tag",
+     "attributes": {
+      "name": {
+       "en": "Demons"
+      },
+      "group": "theme"
+     }
+    },
+    {
+     "id": "799c202e-7daa-44eb-9cf7-8a3c0441531e",
+     "type": "tag",
+     "attributes": {
+      "name": {
+       "en": "Martial Arts"
+      },
+      "group": "theme"
+     }
+    },
+    {
+     "id": "87cc87cd-a395-47af-b27a-93258283bbc6",
+     "type": "tag",
+     "attributes": {
+      "name": {
+       "en": "Adventure"
+      },
+      "group": "genre"
+     }
+    },
+    {
+     "id": "a1f53773-c69a-4ce5-8cab-fffcd90b1565",
+     "type": "tag",
+     "attributes": {
+      "name": {
+       "en": "Magic"
+      },
+      "group": "theme"
+     }
+    },
+    {
+     "id": "aafb99c1-7f60-43fa-b75f-fc9502ce29c7",
+     "type": "tag",
+     "attributes": {
+      "name": {
+       "en": "Harem"
+      },
+      "group": "theme"
+     }
+    },
+    {
+     "id": "ace04997-f6bd-436e-b261-779182193d3d",
+     "type": "tag",
+     "attributes": {
+      "name": {
+       "en": "Isekai"
+      },
+      "group": "genre"
+     }
+    },
+    {
+     "id": "b9af3a63-f058-46de-a9a0-e0c13906197a",
+     "type": "tag",
+     "attributes": {
+      "name": {
+       "en": "Drama"
+      },
+      "group": "genre"
+     }
+    },
+    {
+     "id": "cdc58593-87dd-415e-bbc0-2ec27bf404cc",
+     "type": "tag",
+     "attributes": {
+      "name": {
+       "en": "Fantasy"
+      },
+      "group": "genre"
+     }
+    },
+    {
+     "id": "f4122d1c-3b44-44d0-9936-ff7502c39ad3",
+     "type": "tag",
+     "attributes": {
+      "name": {
+       "en": "Adaptation"
+      },
+      "group": "format"
+     }
+    }
+   ]
   },
   "relationships": [
    {
     "id": "c6c278e1-268b-4b7b-84ec-3289bd0c08f0",
-    "type": "author"
+    "type": "author",
+    "attributes": {
+     "name": "Aizawa Daisuke"
+    }
    },
    {
     "id": "fa94e213-0833-495e-bef2-42f00e6a827e",
-    "type": "artist"
+    "type": "artist",
+    "attributes": {
+     "name": "kanco"
+    }
    },
    {
     "id": "604b2d95-7e18-42ef-9323-85c3cbb32962",

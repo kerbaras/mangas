@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { useMangaDetails } from "@/hooks/use-manga-details";
 import { type Backend, type Manga, setBackend } from "@/lib/ipc";
@@ -25,9 +25,9 @@ describe("useMangaDetails", () => {
     const pending = new Promise<Manga>((r) => (resolve = r));
     backendWith(() => pending);
     const { result } = renderHook(() => useMangaDetails(card));
-    expect(result.current).toEqual({ manga: card, loading: true });
+    expect(result.current).toMatchObject({ manga: card, loading: true });
     resolve(stored);
-    await waitFor(() => expect(result.current).toEqual({ manga: stored, loading: false }));
+    await waitFor(() => expect(result.current).toMatchObject({ manga: stored, loading: false }));
   });
   it("asks for the card's source and id", async () => {
     const calls: string[] = [];
@@ -38,11 +38,21 @@ describe("useMangaDetails", () => {
     renderHook(() => useMangaDetails(card));
     await waitFor(() => expect(calls).toEqual(["webtoons:en-webtoon-95"]));
   });
+  it("reload shows the record saved since it was first read", async () => {
+    const credited: Manga = { ...stored, authors: ["SIU"], year: 2010 };
+    let latest = stored;
+    backendWith(async () => latest);
+    const { result } = renderHook(() => useMangaDetails(card));
+    await waitFor(() => expect(result.current.manga).toEqual(stored));
+    latest = credited;
+    act(() => result.current.reload());
+    await waitFor(() => expect(result.current).toMatchObject({ manga: credited, loading: false }));
+  });
   it("keeps the card when the details can't be loaded", async () => {
     backendWith(async () => {
       throw new Error("network: down");
     });
     const { result } = renderHook(() => useMangaDetails(card));
-    await waitFor(() => expect(result.current).toEqual({ manga: card, loading: false }));
+    await waitFor(() => expect(result.current).toMatchObject({ manga: card, loading: false }));
   });
 });
