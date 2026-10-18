@@ -1,8 +1,9 @@
 # Mangas
 
-Desktop manga/manhwa library and Kindle exporter. Follow series from MangaDex, download chapters,
-and turn them into fixed-layout EPUBs sized for a Kindle. Long webtoon strips are cut into pages at
-gutters instead of at fixed heights, so panels, speech bubbles and faces stay whole.
+Desktop manga/manhwa library and Kindle exporter. Follow series from MangaDex, MangaDot,
+WeebCentral, Tapas, Comick and Webtoons, download chapters, and turn them into fixed-layout EPUBs
+sized for a Kindle. Long webtoon strips are cut into pages at gutters instead of at fixed heights,
+so panels, speech bubbles and faces stay whole.
 
 Rust core, Tauri 2 + React desktop app, and a small CLI that exposes the same operations.
 
@@ -13,7 +14,7 @@ Website and downloads: https://kerbaras.github.io/mangas
 | Path | Crate / package | What it does |
 |---|---|---|
 | `packages/core` | `mangas-core` | the `Source` contract, SQLite library, downloads, smart cut, Kindle filters, EPUB writer, optional ONNX detectors |
-| `packages/providers` | `mangas-providers` | site adapters (MangaDex, MangaDot, WeebCentral, Tapas) on a shared rate-limited client, provider registry, browser-session support for Cloudflare-protected sites |
+| `packages/providers` | `mangas-providers` | site adapters (MangaDex, MangaDot, WeebCentral, Tapas, Comick, Webtoons) on a shared rate-limited client, provider registry, browser-session support for Cloudflare-protected sites |
 | `apps/cli` | `mangas-cli` | the command line as a library (+ a dev binary): `search`, `add`, `remove`, `chapters`, `download`, `list`, `kindle`, `export` |
 | `apps/web` | `@mangas/web` | the landing page (Astro + Tailwind, static), deployed to GitHub Pages by `.github/workflows/pages.yml` |
 | `apps/desktop` | `@mangas/desktop` | Tauri shell (`src-tauri`, IPC only) and the React UI (`src`); builds the shipped `mangas` executable, which runs the CLI when given arguments and opens the app otherwise |
@@ -27,9 +28,9 @@ Builds for macOS (arm64, Intel), Windows (x64, arm64) and Linux (x64, arm64) are
 [releases page](https://github.com/kerbaras/mangas/releases). Release candidates are marked
 pre-release.
 
-The macOS bundle is ad-hoc signed unless the repository has an Apple Developer ID: on first
-launch right-click the app and choose Open (or allow it under System Settings → Privacy &
-Security). To ship signed and notarized builds, add these repository secrets and the release
+The macOS bundle is ad-hoc signed unless the repository has an Apple Developer ID: open the app
+once, then go to System Settings → Privacy & Security and click Open Anyway (right-click → Open
+no longer works on macOS 15). To ship signed and notarized builds, add these repository secrets and the release
 workflow picks them up: `APPLE_CERTIFICATE` (base64 `.p12`), `APPLE_CERTIFICATE_PASSWORD`,
 `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD` (app-specific password), `APPLE_TEAM_ID`.
 

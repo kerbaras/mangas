@@ -1,8 +1,10 @@
 ---
 import dark1280 from "../assets/library-dark-1280.webp";
 import dark2560 from "../assets/library-dark-2560.webp";
+import darkMobile from "../assets/library-dark-mobile.webp";
 import light1280 from "../assets/library-light-1280.webp";
 import light2560 from "../assets/library-light-2560.webp";
+import lightMobile from "../assets/library-light-mobile.webp";
 
 // Pre-sized WebP files (the site uses the passthrough image service), light and dark.
 const sizes = "(min-width: 1120px) 1040px, calc(100vw - 48px)";
@@ -13,6 +15,19 @@ const darkSet = srcset(dark1280, dark2560);
 
 <figure class="overflow-hidden rounded-lg border border-stroke bg-surface shadow-[0_8px_32px_rgb(0_0_0/0.08)]">
   <picture>
+    {/* Phones get the left of the grid at full size; the whole window is unreadable at 390 px. */}
+    <source
+      media="(max-width: 639px) and (prefers-color-scheme: dark)"
+      srcset={darkMobile.src}
+      width={darkMobile.width}
+      height={darkMobile.height}
+    />
+    <source
+      media="(max-width: 639px)"
+      srcset={lightMobile.src}
+      width={lightMobile.width}
+      height={lightMobile.height}
+    />
     <source media="(prefers-color-scheme: dark)" srcset={darkSet} sizes={sizes} />
     <img
       src={light1280.src}
