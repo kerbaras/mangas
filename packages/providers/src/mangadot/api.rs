@@ -25,6 +25,18 @@ pub struct MangaEntry {
     pub photo: Option<String>,
     #[serde(default)]
     pub status: Option<String>,
+    /// JSON-encoded list of names (`"[\"A\"]"`); see `metadata`.
+    #[serde(default)]
+    pub authors: Option<serde_json::Value>,
+    #[serde(default)]
+    pub artists: Option<serde_json::Value>,
+    #[serde(default)]
+    pub year: Option<serde_json::Value>,
+    #[serde(default)]
+    pub genres: Option<serde_json::Value>,
+    /// Groups of `{ "category", "tags": [{ "name" }] }`.
+    #[serde(default)]
+    pub tags: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]

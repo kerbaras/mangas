@@ -146,14 +146,15 @@ async fn status_probe_maps_responses() {
 }
 
 #[tokio::test]
-async fn session_sites_report_needs_session() {
+async fn challenges_report_needs_session_with_or_without_a_session() {
     use mangas_providers::Source;
     let server = MockServer::start().await;
     let api = format!("{}/api", server.uri());
+    let challenge = ResponseTemplate::new(403).set_body_string("cdn-cgi/challenge-platform");
+    fail(&server, "/api/manga", challenge.clone(), 1).await;
     let without = mangadot::MangaDot::with_base(&api, None).unwrap();
     assert_eq!(without.status().await, ProviderStatus::NeedsSession);
 
-    let challenge = ResponseTemplate::new(403).set_body_string("cdn-cgi/challenge-platform");
     fail(&server, "/api/manga", challenge, 1).await;
     let session = Session {
         cookies: "cf_clearance=old".into(),

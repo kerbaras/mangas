@@ -70,7 +70,7 @@ fn images_become_absolute_urls() {
 }
 
 /// `/api/manga/115` as recorded live on the PM tunnel (#94), trimmed.
-const DETAIL: &str = r#"{"manga":{"id":115,"title":"BERSERK","genres":["Action","Seinen"],"status":"Ongoing","photo":"/uploads/cover_eaee0cbaeae8d124.jpg","date_added":"2026-02-19 13:01:59+00","description":"His name is Guts, the Black Swordsman.","banner_image":"/uploads/banners/821b5570ba731094cbbec2a9.webp","is_adult":false,"chapter_count":434,"latest_chapter_number":"386.00","authors":"[\"MIURA Kentaro\"]","year":1989,"avg_rating":9.4,"alt_titles":["Berserk Max"],"tags":[{"category":"Audience Demographics","is_adult":false,"tags":[{"name":"Seinen","weight":"core","is_adult":false}]}]}}"#;
+const DETAIL: &str = r#"{"manga":{"id":115,"title":"BERSERK","genres":["Action","Seinen"],"status":"Ongoing","photo":"/uploads/cover_eaee0cbaeae8d124.jpg","description":"His name is Guts, the Black Swordsman.","is_adult":false,"chapter_count":434,"latest_chapter_number":"386.00","authors":"[\"MIURA Kentaro\",\"MORI Kouji\"]","artists":"[\"MIURA Kentaro\",\"Studio Gaga\"]","year":1989,"alt_titles":["Berserk Max"],"tags":[{"category":"Setting","is_adult":false,"tags":[{"name":"Swordplay","weight":"core","is_adult":false}]},{"category":"Audience Demographics","is_adult":false,"tags":[{"name":"Seinen","weight":"core","is_adult":false}]},{"category":"Character Archetype","is_adult":false,"tags":[{"name":"Anti-Hero","weight":"core","is_adult":false}]}]}}"#;
 
 #[test]
 fn manga_detail_maps_the_api_record() {
@@ -84,6 +84,24 @@ fn manga_detail_maps_the_api_record() {
         Some("https://mangadot.net/uploads/cover_eaee0cbaeae8d124.jpg")
     );
     assert_eq!(m.status, MangaStatus::Ongoing);
+    assert_eq!(m.authors, ["MIURA Kentaro", "MORI Kouji"]);
+    assert_eq!(m.artists, ["MIURA Kentaro", "Studio Gaga"]);
+    assert_eq!(m.year, Some(1989));
+    assert_eq!(m.tags, ["Action", "Seinen", "Swordplay", "Anti-Hero"]);
+}
+
+#[test]
+fn manga_detail_tolerates_missing_or_malformed_metadata() {
+    let id = MangaId("1".into());
+    let garbage = r#"{"manga":{"id":1,"title":"X","authors":"MIURA Kentaro","artists":null,"year":"n/a","genres":null,"tags":[{"category":"c"},"x"]}}"#;
+    let m = parse_manga_detail(&id, garbage).unwrap();
+    assert!(m.authors.is_empty() && m.artists.is_empty() && m.tags.is_empty());
+    assert_eq!(m.year, None);
+    let empty = r#"{"manga":{"id":1,"title":"X","authors":"[]","artists":["  ","Ann"],"year":0}}"#;
+    let m = parse_manga_detail(&id, empty).unwrap();
+    assert!(m.authors.is_empty());
+    assert_eq!(m.artists, ["Ann"]);
+    assert_eq!(m.year, None);
 }
 
 #[test]

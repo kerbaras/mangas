@@ -89,23 +89,24 @@ async fn api_requests_pass_the_referer_rule_with_same_origin_fetch_headers() {
 }
 
 #[tokio::test]
-async fn status_probe_is_ready_with_a_session_and_needs_one_without() {
+async fn status_probe_is_ready_without_a_session_and_needs_one_on_a_challenge() {
     let server = edge().await;
-    api(&server, "/api/manga", Some(("limit", "1")), KONYAKU).await;
-    assert_eq!(
-        source(&server, Some(session())).status().await,
-        ProviderStatus::Ready
-    );
-    assert_eq!(sent(&server, "/api/manga").await.len(), 1);
     assert_eq!(
         source(&server, None).status().await,
         ProviderStatus::NeedsSession
     );
+    api(&server, "/api/manga", Some(("limit", "1")), KONYAKU).await;
+    assert_eq!(source(&server, None).status().await, ProviderStatus::Ready);
     assert_eq!(
-        sent(&server, "/api/manga").await.len(),
-        1,
-        "probed without a session"
+        source(&server, Some(session())).status().await,
+        ProviderStatus::Ready
     );
+    let probes = sent(&server, "/api/manga").await;
+    assert_eq!(probes.len(), 3);
+    assert_eq!(header(&probes[1], "referer"), Some("https://mangadot.net/"));
+    assert_eq!(header(&probes[1], "cookie"), None);
+    assert_eq!(header(&probes[1], "sec-fetch-mode"), None);
+    assert_eq!(header(&probes[2], "cookie"), Some("cf_clearance=abc"));
 }
 
 #[tokio::test]

@@ -6,6 +6,7 @@ use mangas_core::domain::{
 use mangas_core::sources::PageUrls;
 
 use super::api::{ChapterEntry, ChapterImages, MangaDetail, MangaEntry, MangaList};
+use super::metadata;
 
 pub const SOURCE_NAME: &str = "mangadot";
 pub const SITE: &str = "https://mangadot.net";
@@ -48,7 +49,10 @@ pub fn to_manga(entry: MangaEntry) -> Manga {
         description: entry.description.unwrap_or_default(),
         cover_url: entry.photo.as_deref().map(site_url),
         status: parse_status(entry.status.as_deref()),
-        ..Default::default()
+        authors: metadata::names(entry.authors.as_ref()),
+        artists: metadata::names(entry.artists.as_ref()),
+        year: metadata::year(entry.year.as_ref()),
+        tags: metadata::tags(entry.genres.as_ref(), entry.tags.as_ref()),
     }
 }
 

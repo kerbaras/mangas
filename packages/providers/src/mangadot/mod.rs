@@ -1,8 +1,10 @@
-//! MangaDot source (<https://mangadot.net>): a JSON API behind a Cloudflare verification, so
-//! requests carry the browser [`Session`] captured by the desktop app.
+//! MangaDot source (<https://mangadot.net>): a JSON API behind a Cloudflare rule that only lets
+//! same-origin-looking requests (the site `Referer`) through. No browser [`Session`] is needed;
+//! a stored one is still sent, and a challenge still asks for one (#94).
 
 mod api;
 mod mapping;
+mod metadata;
 
 use std::sync::Arc;
 
@@ -35,7 +37,7 @@ pub const INFO: ProviderInfo = ProviderInfo {
         Capability::Chapters,
         Capability::Download,
     ],
-    needs_browser_session: true,
+    needs_browser_session: false,
     icon_url: Some("https://mangadot.net/favicon.ico"),
 };
 

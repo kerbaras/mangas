@@ -72,8 +72,10 @@ Rules: the Tauri layer and the CLI contain no business logic. Everything testabl
   `/api` paths, the site's own `fetch()` calls, also get `Origin: <site>` and, with a session,
   `sec-fetch-site: same-origin`, `sec-fetch-mode: cors`, `sec-fetch-dest: empty`. Cloudflare site
   rules (MangaDot) challenge API calls that do not look same-origin, even with valid cookies.
-  MangaDot's HTML pages stay challenged for non-browser clients even then, so that provider
-  reads everything (detail included) from its JSON API.
+  With the Referer, MangaDot's API answers without any cookies, so its session is optional
+  (`needs_browser_session: false`): the status probe always runs, and a challenge still becomes
+  `Error::Challenge` / `NeedsSession`, so Connect stays the fallback. Its HTML pages stay
+  challenged for non-browser clients even with a session, so it reads everything from the API.
 - **`Session`**: cookies + user agent + `saved_at` from the settings; `ClientConfig.session_ttl`
   makes older sessions report `NeedsSession` without a request.
 - **Preferences**: `Settings.preferred_languages` (generic, never empty via
@@ -166,8 +168,8 @@ Every registered provider goes through the same contract suite
 4. Live: add `<id>_live_contract` / `<id>_live_check` to `tests/live.rs` if CI can reach the
    site. They are `#[ignore]` and do nothing unless `MANGAS_LIVE=1`:
    `MANGAS_LIVE=1 cargo test -p mangas-providers --test live -- --ignored <id>`. The manual
-   `live-smoke` workflow runs them (MangaDex, WeebCentral, Tapas and Webtoons; MangaDot and Comick's
-   search are Cloudflare-gated from CI, so Comick's live tests walk its open endpoints and check
+   `live-smoke` workflow runs them (MangaDex, WeebCentral, Tapas and Webtoons; Comick's
+   search is Cloudflare-gated from CI, so Comick's live tests walk its open endpoints and check
    the missing-session report instead).
 5. By hand: `mangas providers check <id> [--query q] [--lang es]` walks status → search → manga
    → chapters → pages → a one-byte GET of the first page with the provider's headers. It
