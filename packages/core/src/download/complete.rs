@@ -4,6 +4,7 @@
 
 use std::collections::HashSet;
 use std::path::Path;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::cbz::is_image;
 use super::plan::present_indexes;
@@ -14,10 +15,13 @@ const MARKER: &str = ".mangas-pages";
 
 /// Records that the chapter in `dir` has `pages` pages, page `0001` to `pages`. Written aside
 /// and renamed over the old marker, so a failed write never leaves it truncated and a
-/// read-only old one is still replaced.
+/// read-only old one is still replaced. Each write has its own aside name, so two writers never
+/// rename each other's file away.
 pub(super) fn mark_expected(dir: &Path, pages: usize) -> Result<()> {
+    static WRITES: AtomicUsize = AtomicUsize::new(0);
     std::fs::create_dir_all(dir)?;
-    let fresh = dir.join(format!("{MARKER}.new"));
+    let n = WRITES.fetch_add(1, Ordering::Relaxed);
+    let fresh = dir.join(format!("{MARKER}.{}.{n}.new", std::process::id()));
     std::fs::write(&fresh, format!("{pages}\n"))?;
     std::fs::rename(fresh, dir.join(MARKER))?;
     Ok(())
@@ -91,7 +95,24 @@ mod tests {
         std::fs::set_permissions(&marker, perms).unwrap();
         mark_expected(dir.path(), 8).unwrap();
         assert_eq!(std::fs::read_to_string(marker).unwrap(), "8\n");
-        assert!(!dir.path().join(format!("{MARKER}.new")).exists());
+        let names = file_names(dir.path());
+        assert_eq!(
+            names,
+            HashSet::from([MARKER.to_string()]),
+            "nothing left aside"
+        );
+    }
+
+    #[test]
+    fn concurrent_writers_each_land_their_marker() {
+        let dir = tempfile::tempdir().unwrap();
+        std::thread::scope(|s| {
+            for pages in 1..=8 {
+                let dir = dir.path();
+                s.spawn(move || mark_expected(dir, pages).unwrap());
+            }
+        });
+        assert_eq!(file_names(dir.path()), HashSet::from([MARKER.to_string()]));
     }
 
     #[test]
