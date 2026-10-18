@@ -101,3 +101,26 @@ fn collapse_keeps_one_release_per_number_and_language() {
         ["r-1", "r-2", "es-2", "x"]
     );
 }
+
+#[test]
+fn collapse_keeps_chapters_of_restarted_volumes() {
+    use mangas_core::domain::collapse_groups;
+    let release = |id: &str, volume: Option<&str>, group: &str| Chapter {
+        id: ChapterId(id.into()),
+        number: "1".into(),
+        language: "en".into(),
+        volume: volume.map(String::from),
+        group: Some(group.into()),
+        ..Default::default()
+    };
+    let list = vec![
+        release("v1", Some("1"), "A"),
+        release("v1-b", None, "B"),
+        release("v2", Some("2"), "A"),
+    ];
+    let ids: Vec<String> = collapse_groups(list, &[])
+        .into_iter()
+        .map(|c| c.id.0)
+        .collect();
+    assert_eq!(ids, ["v1", "v2"]);
+}

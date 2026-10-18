@@ -92,3 +92,20 @@ fn auto_download_is_a_persisted_per_title_flag() {
     assert!(!list_entries(&lib).unwrap()[0].auto_download);
     assert!(!set_auto_download(&lib, "mangadex", &MangaId("x".into()), true).unwrap());
 }
+
+#[test]
+fn another_release_of_a_stored_chapter_is_not_new() {
+    let lib = open_in_memory().unwrap();
+    let id = follow(&lib, "a");
+    let first = chapters(&id, &["1", "2"], "en");
+    upsert_chapters(&lib, "mangadex", &id, "en", &first).unwrap();
+    let mut listed = first.clone();
+    listed.push(Chapter {
+        id: ChapterId("koi-2".into()),
+        number: "2.0".into(),
+        ..first[1].clone()
+    });
+    listed.extend(chapters(&id, &["3"], "en"));
+    upsert_chapters(&lib, "mangadex", &id, "en", &listed).unwrap();
+    assert_eq!(new_count(&lib), 1, "only chapter 3 is new");
+}

@@ -7,7 +7,7 @@ use rusqlite::params;
 
 use super::UpdateReport;
 use super::{new_chapters, select, CheckFailure, Known, Target, TitleUpdate, UpdatePolicy};
-use crate::domain::{Chapter, Error, MangaId, Result};
+use crate::domain::{Availability, Chapter, Error, MangaId, Result};
 use crate::library::{fetch_chapters, get_manga, list_entries, store_chapters, Library};
 use crate::sources::Source;
 
@@ -125,21 +125,29 @@ fn known(lib: &Library, source: &str, id: &MangaId, group: Option<&str>) -> Resu
         languages: column(
             "SELECT language FROM manga_language_sync WHERE source = ?1 AND manga_id = ?2",
         )?,
-        numbers: numbers(&conn, source, id, group)?,
+        releases: releases(&conn, source, id, group)?,
     })
 }
 
-fn numbers(
+fn releases(
     conn: &rusqlite::Connection,
     source: &str,
     id: &MangaId,
     group: Option<&str>,
-) -> Result<HashSet<(String, String)>> {
+) -> Result<Vec<Chapter>> {
     let mut stmt = conn.prepare(
-        "SELECT language, TRIM(number) FROM chapter WHERE source = ?1 AND manga_id = ?2
-            AND (?3 IS NULL OR scanlation_group = ?3)",
+        "SELECT language, volume, number, availability FROM chapter
+         WHERE source = ?1 AND manga_id = ?2 AND (?3 IS NULL OR scanlation_group = ?3)",
     )?;
-    let rows = stmt.query_map(params![source, id.0, group], |r| Ok((r.get(0)?, r.get(1)?)))?;
+    let rows = stmt.query_map(params![source, id.0, group], |r| {
+        Ok(Chapter {
+            language: r.get(0)?,
+            volume: r.get(1)?,
+            number: r.get(2)?,
+            availability: Availability::from_columns(&r.get::<_, String>(3)?, None),
+            ..Chapter::default()
+        })
+    })?;
     Ok(rows.collect::<rusqlite::Result<_>>()?)
 }
 

@@ -1,9 +1,7 @@
 //! Narrowing a chapter list to one scanlation group: sites like MangaDot list the same chapter
 //! once per group, and a reader usually follows one of them.
 
-use std::collections::HashMap;
-
-use super::{Availability, Chapter};
+use super::{parse_number, Availability, Chapter};
 
 /// A group in a chapter list and how many of its chapters the list holds.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -48,28 +46,34 @@ pub fn normalize_group(name: Option<&str>) -> Option<String> {
         .map(String::from)
 }
 
-/// One release per chapter number and language, for when no group is picked: a downloadable
+/// One release per chapter for when no group is picked (see [`same_slot`]): a downloadable
 /// release beats an external one, then the earliest of `preferred` groups (case-insensitive),
 /// then whichever came first. Keeps the list order; chapters without a number are all kept.
 pub fn collapse_groups(chapters: Vec<Chapter>, preferred: &[String]) -> Vec<Chapter> {
     let mut out: Vec<Chapter> = Vec::new();
-    let mut slots: HashMap<(String, String), usize> = HashMap::new();
     for chapter in chapters {
-        let number = chapter.number.trim().to_string();
-        if number.is_empty() {
-            out.push(chapter);
-            continue;
-        }
-        match slots.get(&(chapter.language.clone(), number.clone())) {
-            Some(&i) if rank(&chapter, preferred) < rank(&out[i], preferred) => out[i] = chapter,
+        match out.iter().position(|o| same_slot(o, &chapter)) {
+            Some(i) if rank(&chapter, preferred) < rank(&out[i], preferred) => out[i] = chapter,
             Some(_) => {}
-            None => {
-                slots.insert((chapter.language.clone(), number), out.len());
-                out.push(chapter);
-            }
+            None => out.push(chapter),
         }
     }
     out
+}
+
+/// Whether two chapters are releases of the same chapter: same language, same number (`1` is
+/// `1.0`) and no conflicting volumes (numbering can restart per volume). Chapters without a
+/// number never match.
+pub fn same_slot(a: &Chapter, b: &Chapter) -> bool {
+    let number = |c: &Chapter| {
+        let n = c.number.trim();
+        (!n.is_empty()).then(|| parse_number(n).map_or_else(|| n.to_string(), |v| v.to_string()))
+    };
+    let compatible = match (volume_of(a), volume_of(b)) {
+        (Some(x), Some(y)) => x == y,
+        _ => true,
+    };
+    a.language == b.language && compatible && number(a).is_some_and(|n| Some(n) == number(b))
 }
 
 fn rank(chapter: &Chapter, preferred: &[String]) -> (u8, usize) {
@@ -87,4 +91,8 @@ fn rank(chapter: &Chapter, preferred: &[String]) -> (u8, usize) {
         .position(|p| names.iter().any(|n| n.eq_ignore_ascii_case(p.trim())))
         .unwrap_or(usize::MAX);
     (tier, group)
+}
+
+fn volume_of(c: &Chapter) -> Option<&str> {
+    c.volume.as_deref().map(str::trim).filter(|v| !v.is_empty())
 }

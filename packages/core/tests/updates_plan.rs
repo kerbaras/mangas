@@ -167,23 +167,36 @@ fn one_notification_per_run_naming_a_few_titles() {
 }
 
 #[test]
-fn another_groups_release_of_a_stored_number_is_not_new() {
+fn another_release_of_a_stored_chapter_is_not_new() {
     let known = Known {
         chapter_ids: ["a"].map(String::from).into(),
         languages: ["en".to_string()].into(),
-        numbers: [("en".to_string(), "1".to_string())].into(),
+        releases: vec![chapter("a", "1.0", "en"), locked("l", "3")],
     };
     let lists = vec![(
         "en".to_string(),
         vec![
-            chapter("a", "1", "en"),
+            chapter("a", "1.0", "en"),
             chapter("koi-1", "1", "en"),
             chapter("b", "2", "en"),
+            locked("l2", "3"),
+            chapter("koi-3", "3", "en"),
         ],
     )];
     let new: Vec<String> = new_chapters(&known, &lists)
         .into_iter()
         .map(|c| c.id.0)
         .collect();
-    assert_eq!(new, ["b"]);
+    assert_eq!(
+        new,
+        ["b", "koi-3"],
+        "1 = 1.0; the first downloadable 3 is news"
+    );
+}
+
+fn locked(id: &str, number: &str) -> Chapter {
+    Chapter {
+        availability: mangas_core::domain::Availability::Locked,
+        ..chapter(id, number, "en")
+    }
 }

@@ -1,7 +1,7 @@
 use rusqlite::{params, Row};
 
 use super::{language_sync, Library};
-use crate::domain::{sort_by_number, Availability, Chapter, ChapterId, MangaId, Result};
+use crate::domain::{same_slot, sort_by_number, Availability, Chapter, ChapterId, MangaId, Result};
 use crate::download::queue::{now_ms, UNLISTED};
 
 /// Stores the `language` chapter list of `manga_id` as the source currently reports it.
@@ -36,6 +36,8 @@ pub fn upsert_chapters(
             params![source, manga_id.0],
         )?;
         let seen_before = language_sync::synced_before(&tx, source, manga_id, language)?;
+        // Another group's release of a chapter already stored is not a new chapter.
+        let stored = stored_releases(&tx, source, manga_id, language)?;
         let mut stmt = tx.prepare(
             "INSERT INTO chapter
                 (id, manga_id, source, title, language, volume, number, scanlation_group,
@@ -61,7 +63,7 @@ pub fn upsert_chapters(
                 c.group,
                 availability,
                 external_url,
-                seen_before,
+                seen_before && !stored.iter().any(|s| same_slot(s, c)),
             ])?;
         }
         // A chapter the source lists again is no longer "unlisted": its job retries normally
@@ -136,6 +138,26 @@ fn row_to_chapter(row: &Row<'_>) -> rusqlite::Result<Chapter> {
         availability: Availability::from_columns(&row.get::<_, String>(8)?, row.get(9)?),
         exported_at: row.get(10)?,
     })
+}
+
+fn stored_releases(
+    conn: &rusqlite::Connection,
+    source: &str,
+    manga_id: &MangaId,
+    language: &str,
+) -> Result<Vec<Chapter>> {
+    let mut stmt = conn.prepare(
+        "SELECT volume, number FROM chapter WHERE source = ?1 AND manga_id = ?2 AND language = ?3",
+    )?;
+    let rows = stmt.query_map(params![source, manga_id.0, language], |r| {
+        Ok(Chapter {
+            language: language.to_string(),
+            volume: r.get(0)?,
+            number: r.get(1)?,
+            ..Chapter::default()
+        })
+    })?;
+    Ok(rows.collect::<rusqlite::Result<_>>()?)
 }
 
 #[cfg(test)]

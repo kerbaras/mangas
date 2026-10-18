@@ -3,7 +3,7 @@ use std::collections::{BTreeSet, HashSet};
 use serde::{Deserialize, Serialize};
 
 use super::UpdateReport;
-use crate::domain::{parse_number, Chapter, Manga};
+use crate::domain::{parse_number, same_slot, Chapter, Manga};
 use crate::library::{is_local, LibraryEntry, ReadingStatus};
 
 /// Which followed titles a check refreshes.
@@ -55,13 +55,13 @@ pub struct Known {
     pub chapter_ids: HashSet<String>,
     /// Languages synced before: in a language never synced every chapter is the baseline.
     pub languages: HashSet<String>,
-    /// `(language, number)` already stored, of the title's group when it has one: another
-    /// group's release of a chapter the reader has is not news.
-    pub numbers: HashSet<(String, String)>,
+    /// Releases stored, of the title's group when it has one: another release of a chapter
+    /// the reader has is not news, unless it is the first downloadable one.
+    pub releases: Vec<Chapter>,
 }
 
 /// Chapters of the fetched lists that are new: not stored yet, in a language synced before,
-/// with a number not stored yet.
+/// and not a release of a chapter already stored.
 pub fn new_chapters(known: &Known, lists: &[(String, Vec<Chapter>)]) -> Vec<Chapter> {
     lists
         .iter()
@@ -69,8 +69,10 @@ pub fn new_chapters(known: &Known, lists: &[(String, Vec<Chapter>)]) -> Vec<Chap
         .flat_map(|(_, chapters)| chapters)
         .filter(|c| !known.chapter_ids.contains(&c.id.0))
         .filter(|c| {
-            let number = c.number.trim();
-            number.is_empty() || !known.numbers.contains(&(c.language.clone(), number.into()))
+            !known
+                .releases
+                .iter()
+                .any(|k| same_slot(k, c) && (k.is_available() || !c.is_available()))
         })
         .cloned()
         .collect()
