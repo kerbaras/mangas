@@ -170,7 +170,7 @@ export const mockBackend: Backend = {
     chapterCache.set(`${report.manga.source}:${report.manga.id}`, chapters);
     return report;
   },
-  async exportKindle(request) {
+  async exportChapters(request) {
     await simulateExport(exportListeners, Math.max(1, request.chapter_dirs.length * 6));
     markExported(chapterCache.values(), request.chapter_dirs);
     return mockExportResult(request.output, request.chapter_dirs.length);

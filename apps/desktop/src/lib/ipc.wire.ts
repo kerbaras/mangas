@@ -12,15 +12,15 @@ import type {
 } from "./ipc";
 
 /** Mirrors `mangas_core::export::kindle::Progress` (serde tag = "kind"). */
-export type KindleProgress =
+export type ExportStage =
   | { kind: "chapter"; index: number; total: number; path: string }
   | { kind: "pages"; done: number }
   | { kind: "writing"; pages: number };
 
-/** Payload of the `kindle-progress` event (outer tag = "event"). */
-export type KindleEvent =
+/** Payload of the `export-progress` event (outer tag = "event"). */
+export type ExportEvent =
   | { event: "model_download"; id: string; done: number; total: number | null }
-  | ({ event: "export" } & KindleProgress)
+  | ({ event: "export" } & ExportStage)
   | { event: "volume"; index: number; total: number; title: string };
 
 /** Mirrors `mangas_core::export::kindle::ExportStats`. */
@@ -50,8 +50,8 @@ export type MlStatus = {
   execution_provider: string | null;
 };
 
-/** Arguments of the `export_kindle` command (camelCase on the wire, Tauri's default). */
-export type ExportKindleArgs = {
+/** Arguments of the `export_chapters` command (camelCase on the wire, Tauri's default). */
+export type ExportChaptersArgs = {
   chapterDirs: string[];
   device: string;
   format: ExportFormat;
@@ -61,7 +61,7 @@ export type ExportKindleArgs = {
   title?: string;
 };
 
-export const toExportProgress = (e: KindleEvent): ExportProgress => {
+export const toExportProgress = (e: ExportEvent): ExportProgress => {
   if (e.event === "model_download") {
     return { stage: `Downloading detector ${e.id}`, current: e.done, total: e.total };
   }
@@ -84,7 +84,7 @@ export const toDetectorsStatus = (s: MlStatus): DetectorsStatus => ({
   provider: s.execution_provider ?? "cpu",
 });
 
-export const toExportArgs = (r: ExportRequest): ExportKindleArgs => ({
+export const toExportArgs = (r: ExportRequest): ExportChaptersArgs => ({
   chapterDirs: r.chapter_dirs,
   device: r.device,
   format: r.format,

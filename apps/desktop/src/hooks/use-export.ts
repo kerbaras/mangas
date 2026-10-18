@@ -5,7 +5,7 @@ import {
   type ExportProgress,
   type ExportRequest,
   type ExportResult,
-  exportKindle,
+  exportChapters,
   onExportProgress,
 } from "@/lib/ipc";
 import { notifyError } from "@/lib/notify";
@@ -39,7 +39,7 @@ export function useExport() {
     running.current = true;
     setState({ kind: "running", progress: null });
     try {
-      const result = await exportKindle(request);
+      const result = await exportChapters(request);
       setState({ kind: "done", result });
       notifyExported(result);
     } catch (e) {

@@ -53,7 +53,7 @@ export function NavRail({ downloads }: Props) {
       badge: downloads.pending,
       muted: downloads.held,
     },
-    { icon: <Send />, label: "Export", route: { screen: "kindle" } },
+    { icon: <Send />, label: "Export", route: { screen: "export" } },
   ];
   const settings: Item = { icon: <Settings />, label: "Settings", route: { screen: "settings" } };
   return (

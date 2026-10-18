@@ -10,7 +10,7 @@ import { mangaKey } from "@/lib/format";
 import { type Navigation, NavigationContext, type Route } from "@/lib/navigation";
 import { loadSettings } from "@/lib/settings";
 import { DownloadsScreen } from "@/screens/downloads";
-import { KindleScreen } from "@/screens/kindle";
+import { ExportScreen } from "@/screens/export";
 import { LibraryScreen } from "@/screens/library";
 import { MangaDetailsScreen } from "@/screens/manga-details";
 import { SearchScreen } from "@/screens/search";
@@ -26,8 +26,8 @@ function Screen({ route }: { route: Route }) {
       return <DownloadsScreen />;
     case "manga":
       return <MangaDetailsScreen key={mangaKey(route.manga)} manga={route.manga} />;
-    case "kindle":
-      return <KindleScreen key={route.chapterIds?.join(",") ?? ""} chapterIds={route.chapterIds} />;
+    case "export":
+      return <ExportScreen key={route.chapterIds?.join(",") ?? ""} chapterIds={route.chapterIds} />;
     case "settings":
       return <SettingsScreen />;
   }

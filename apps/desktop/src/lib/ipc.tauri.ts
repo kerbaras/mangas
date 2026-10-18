@@ -24,7 +24,7 @@ import { tauriUpdates } from "./ipc.tauri-updates";
 import { tauriVolumes } from "./ipc.tauri-volumes";
 import {
   type ExportStats,
-  type KindleEvent,
+  type ExportEvent,
   type MlStatus,
   toDetectorsStatus,
   toExportArgs,
@@ -34,7 +34,7 @@ import {
 import { languagesFor } from "./provider-prefs";
 import { readSettings } from "./settings";
 
-export const KINDLE_EVENT = "kindle-progress";
+export const EXPORT_EVENT = "export-progress";
 const SEARCH_LIMIT = 20;
 
 /** Chapters are fetched and stored per language: one call per language preferred for `source`. */
@@ -97,8 +97,8 @@ export const tauriBackend: Backend = {
       title: title ?? null,
       language: DEFAULT_LANGUAGE,
     }),
-  exportKindle: async (request) =>
-    toExportResult(await invoke<ExportStats>("export_kindle", toExportArgs(request))),
+  exportChapters: async (request) =>
+    toExportResult(await invoke<ExportStats>("export_chapters", toExportArgs(request))),
   detectorsStatus: async () => toDetectorsStatus(await invoke<MlStatus>("detectors_status")),
   listEntries: () => invoke<LibraryEntry[]>("list_entries"),
   listCategories: () => invoke<Category[]>("list_categories"),
@@ -118,5 +118,5 @@ export const tauriBackend: Backend = {
   ...tauriFolders,
   ...tauriVolumes,
   onExportProgress: (cb) =>
-    listen<KindleEvent>(KINDLE_EVENT, (e) => cb(toExportProgress(e.payload))),
+    listen<ExportEvent>(EXPORT_EVENT, (e) => cb(toExportProgress(e.payload))),
 };

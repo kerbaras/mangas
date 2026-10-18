@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { toDetectorsStatus, toExportArgs, toExportProgress } from "@/lib/ipc.wire";
 
-describe("kindle events", () => {
+describe("export events", () => {
   it("counts chapters from one and leaves page totals open", () => {
     expect(
       toExportProgress({ event: "export", kind: "chapter", index: 0, total: 3, path: "/a" }),

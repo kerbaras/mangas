@@ -27,7 +27,7 @@ import { useSettings } from "@/lib/settings";
 
 type Props = { chapterIds?: string[] };
 
-export function KindleScreen({ chapterIds }: Props) {
+export function ExportScreen({ chapterIds }: Props) {
   const nav = useNavigation();
   const [settings, update] = useSettings();
   const groups = useDownloadedChapters();

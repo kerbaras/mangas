@@ -6,7 +6,7 @@ export type Route =
   | { screen: "search" }
   | { screen: "downloads" }
   | { screen: "manga"; manga: Manga }
-  | { screen: "kindle"; chapterIds?: string[] }
+  | { screen: "export"; chapterIds?: string[] }
   | { screen: "settings" };
 
 export type Navigation = {
