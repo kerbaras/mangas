@@ -30,6 +30,59 @@ describe("settings changed by another process", () => {
     expect(readSettings().defaultDevice).toBe("kindle-scribe");
   });
 
+  it("sends only the changed field and one write at a time", async () => {
+    const loaded: Settings = {
+      ...(await mockBackend.getSettings()),
+      update_check_hours: null,
+    };
+    let release = () => {};
+    const first = new Promise<void>((r) => {
+      release = r;
+    });
+    const firstAnswer: Settings = { ...loaded, default_device: "kindle-scribe" };
+    const setSettings = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        await first;
+        return firstAnswer;
+      })
+      .mockImplementationOnce(async (edited: Settings) => edited);
+    const getSettings = async () => loaded;
+    const defaultDataDir = async () => "/home/me/.local/share/mangas";
+    setBackend({ getSettings, setSettings, defaultDataDir } as unknown as Backend);
+    await loadSettings();
+    writeSettings({ defaultDevice: "kindle-scribe" });
+    writeSettings({ updateNotifications: false });
+    await waitFor(() => expect(setSettings).toHaveBeenCalledTimes(1));
+    expect(setSettings.mock.calls[0][0].update_check_hours).toBeNull();
+    release();
+    await waitFor(() => expect(setSettings).toHaveBeenCalledTimes(2));
+    const [edited, base] = setSettings.mock.calls[1];
+    expect(base).toBe(firstAnswer);
+    expect(edited).toEqual({ ...firstAnswer, update_notifications: false });
+    await waitFor(() => expect(readSettings().updateNotifications).toBe(false));
+  });
+
+  it("a save after a CLI storage move keeps the new data folder", async () => {
+    const loaded: Settings = { ...(await mockBackend.getSettings()), data_dir: "/old" };
+    const afterMove: Settings = { ...loaded, data_dir: "/mnt/big-disk" };
+    const setSettings = vi.fn(async (edited: Settings, base?: Settings) => ({
+      ...afterMove,
+      ...(edited.default_device !== base?.default_device && {
+        default_device: edited.default_device,
+      }),
+    }));
+    const getSettings = async () => loaded;
+    const defaultDataDir = async () => "/home/me/.local/share/mangas";
+    setBackend({ getSettings, setSettings, defaultDataDir } as unknown as Backend);
+    await loadSettings();
+    writeSettings({ defaultDevice: "kindle-oasis" });
+    await waitFor(() => expect(readSettings().dataDir).toBe("/mnt/big-disk"));
+    const [edited, base] = setSettings.mock.calls[0];
+    expect(edited.data_dir).toBe(base?.data_dir);
+    expect(readSettings().defaultDevice).toBe("kindle-oasis");
+  });
+
   it("tells listeners once when the window comes back to the front", () => {
     const stop = watchAppFocus();
     const listener = vi.fn();
@@ -77,6 +130,11 @@ describe("restore dialog", () => {
     const importBackup = backend(2);
     const keep = await open();
     await waitFor(() => expect(keep.checked).toBe(true));
+    await waitFor(() =>
+      expect((screen.getByRole("button", { name: "Import" }) as HTMLButtonElement).disabled).toBe(
+        false,
+      ),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Import" }));
     await waitFor(() => expect(importBackup).toHaveBeenCalledWith("~/mangas-backup.json", "keep"));
     expect(await screen.findByText(/your preferences were kept/i)).toBeTruthy();
@@ -88,6 +146,11 @@ describe("restore dialog", () => {
     await waitFor(() => expect(keep.checked).toBe(false));
     fireEvent.click(keep);
     fireEvent.click(keep);
+    await waitFor(() =>
+      expect((screen.getByRole("button", { name: "Import" }) as HTMLButtonElement).disabled).toBe(
+        false,
+      ),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Import" }));
     await waitFor(() =>
       expect(importBackup).toHaveBeenCalledWith("~/mangas-backup.json", "backup"),

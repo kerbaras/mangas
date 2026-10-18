@@ -25,12 +25,16 @@ type Props = {
  */
 export function RestoreDialog({ path, onImport, onCancel }: Props) {
   const [keep, setKeep] = useState(true);
+  /** Import waits for the library check that picks the default. */
+  const [ready, setReady] = useState(false);
   useEffect(() => {
     if (!path) return;
     let alive = true;
+    setReady(false);
     listLibrary()
       .then((titles) => alive && setKeep(titles.length > 0))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => alive && setReady(true));
     return () => {
       alive = false;
     };
@@ -63,7 +67,7 @@ export function RestoreDialog({ path, onImport, onCancel }: Props) {
           <DialogClose asChild>
             <Button>Cancel</Button>
           </DialogClose>
-          <Button variant="primary" onClick={() => onImport(keep)}>
+          <Button variant="primary" disabled={!ready} onClick={() => onImport(keep)}>
             Import
           </Button>
         </DialogFooter>

@@ -8,25 +8,41 @@ use crate::domain::{Error, Result};
 /// Three-way merge. The fields `edited` changed relative to `base` (the copy the edit started
 /// from) are applied to `current` (what is stored now); every other field keeps the stored
 /// value, so saving an edit never reverts what the CLI or a restore wrote in the meantime.
-/// Provider sessions always come from `current`: they are connected and disconnected
-/// elsewhere, never edited on a copy.
+/// Maps keyed by provider id merge entry by entry, so editing one provider keeps another
+/// provider's entry changed elsewhere. Provider sessions always come from `current`: they are
+/// connected and disconnected elsewhere, never edited on a copy.
 pub fn merge_edit(base: &Settings, current: &Settings, edited: &Settings) -> Result<Settings> {
-    let (base, edited) = (fields(base)?, fields(edited)?);
-    let mut merged = fields(current)?;
-    let keys = base
-        .keys()
-        .chain(edited.keys())
-        .filter(|k| *k != "provider_sessions");
+    let (mut base, mut edited) = (fields(base)?, fields(edited)?);
+    base.remove("provider_sessions");
+    edited.remove("provider_sessions");
+    let merged = merge_map(&base, fields(current)?, &edited, true);
+    serde_json::from_value(Value::Object(merged)).map_err(json_error)
+}
+
+/// `current` with the keys `edited` changed relative to `base`; `nested` merges one level of
+/// object values (the per-provider maps) the same way.
+fn merge_map(
+    base: &Map<String, Value>,
+    mut current: Map<String, Value>,
+    edited: &Map<String, Value>,
+    nested: bool,
+) -> Map<String, Value> {
+    let keys: Vec<String> = base.keys().chain(edited.keys()).cloned().collect();
     for key in keys {
-        if base.get(key) == edited.get(key) {
+        let (was, now) = (base.get(&key), edited.get(&key));
+        if was == now {
             continue;
         }
-        match edited.get(key) {
-            Some(value) => merged.insert(key.clone(), value.clone()),
-            None => merged.remove(key),
+        match (was, now, current.get(&key)) {
+            (Some(Value::Object(b)), Some(Value::Object(e)), Some(Value::Object(c))) if nested => {
+                let inner = merge_map(b, c.clone(), e, false);
+                current.insert(key, Value::Object(inner))
+            }
+            (_, Some(value), _) => current.insert(key, value.clone()),
+            (_, None, _) => current.remove(&key),
         };
     }
-    serde_json::from_value(Value::Object(merged)).map_err(json_error)
+    current
 }
 
 fn fields(settings: &Settings) -> Result<Map<String, Value>> {
@@ -92,6 +108,32 @@ mod tests {
         let merged = merge_edit(&base(), &current, &edited).unwrap();
         assert_eq!(merged.default_device.as_deref(), Some("kindle-scribe"));
         assert_eq!(merged.update_check_hours, None);
+    }
+
+    #[test]
+    fn editing_one_provider_keeps_another_providers_change() {
+        let base = Settings {
+            providers_enabled: BTreeMap::from([("tapas".to_string(), false)]),
+            ..base()
+        };
+        let current = Settings {
+            providers_enabled: BTreeMap::from([
+                ("tapas".to_string(), false),
+                ("comick".to_string(), false),
+            ]),
+            provider_languages: BTreeMap::from([("mangadex".to_string(), vec!["es".into()])]),
+            ..base.clone()
+        };
+        let edited = Settings {
+            providers_enabled: BTreeMap::new(),
+            ..base.clone()
+        };
+        let merged = merge_edit(&base, &current, &edited).unwrap();
+        assert_eq!(
+            merged.providers_enabled,
+            BTreeMap::from([("comick".to_string(), false)])
+        );
+        assert_eq!(merged.provider_languages, current.provider_languages);
     }
 
     #[test]

@@ -78,6 +78,26 @@ const toStored = (s: Settings): Stored => ({
   update_notifications: s.updateNotifications,
 });
 
+/** The stored field behind each app setting, so a write sends only the fields it changed. */
+const STORED_KEY: { [K in keyof Settings]: keyof Stored } = {
+  dataDir: "data_dir",
+  defaultDevice: "default_device",
+  defaultPreset: "default_preset",
+  preferredLanguages: "preferred_languages",
+  providerOptions: "provider_options",
+  providersEnabled: "providers_enabled",
+  providerLanguages: "provider_languages",
+  updateCheckHours: "update_check_hours",
+  updateNotifications: "update_notifications",
+};
+
+/** `base` with only the patched fields taken from `cached`: unset defaults stay unset. */
+const edit = (base: Stored, patch: Partial<Settings>): Stored => {
+  const next = toStored(cached);
+  const keys = Object.keys(patch) as (keyof Settings)[];
+  return keys.reduce((s, k) => ({ ...s, [STORED_KEY[k]]: next[STORED_KEY[k]] }), base);
+};
+
 const notify = () => {
   for (const l of listeners) l();
 };
@@ -94,6 +114,8 @@ let load: SettingsLoad = { kind: "loading" };
 let version = 0;
 /** What the backend last said is stored: the base of the next write. */
 let stored: Stored | undefined;
+/** Writes go one at a time, each based on what the previous one stored. */
+let writes: Promise<void> = Promise.resolve();
 export const readSettingsLoad = (): SettingsLoad => load;
 
 /**
@@ -131,8 +153,10 @@ export function writeSettings(patch: Partial<Settings>) {
   notify();
   if (load.kind !== "ready") return;
   const gen = ++version;
-  setSettings(toStored(cached), stored)
-    .then((saved) => {
+  writes = writes
+    .then(async () => {
+      const base = stored ?? toStored(cached);
+      const saved = await setSettings(edit(base, patch), base);
       stored = saved;
       if (gen !== version) return;
       cached = fromStored(saved, platformDataDir);
