@@ -61,7 +61,9 @@ pub fn failed_note(jobs: &[Job], noun: &str) -> Option<String> {
     }
     match total - stuck {
         0 => {}
-        n if stuck > 0 => note += &format!("; `mangas queue retry <id>` tries the other {n} again"),
+        n if stuck > 0 => {
+            note += &format!("; retry the other {n} one at a time with `mangas queue retry <id>`")
+        }
         _ => note += "; `mangas queue retry --all` tries them again",
     }
     Some(note)
@@ -163,7 +165,7 @@ mod tests {
         let jobs = [failed(refused()), failed("network: timed out".into())];
         let note = failed_note(&jobs, "download").unwrap();
         assert!(note.starts_with("2 download(s) failed"), "{note}");
-        assert!(note.ends_with("`mangas queue retry <id>` tries the other 1 again"));
+        assert!(note.ends_with("retry the other 1 one at a time with `mangas queue retry <id>`"));
         assert!(!note.contains("--all"), "{note}");
         let note = failed_note(&jobs[1..], "chapter").unwrap();
         assert_eq!(
