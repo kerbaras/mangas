@@ -28,6 +28,7 @@ pub async fn search_all(
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub async fn follow_manga(source: String, id: String, language: String) -> Result<Manga, String> {
+    let language = mangas_providers::language_for(&source, &language);
     let source = source_by_name(&source)?;
     let id = MangaId(id);
     let manga = source.manga(&id).await.map_err(to_ipc)?;
@@ -67,6 +68,7 @@ pub async fn list_chapters(
     refresh: bool,
 ) -> Result<Vec<Chapter>, String> {
     let id = MangaId(manga_id);
+    let language = mangas_providers::language_for(&source, &language);
     let lib = open_library()?;
     // Imported manga have no provider to refresh from; the library is the only list.
     if refresh && !library::is_local(&source) {
@@ -99,6 +101,7 @@ pub async fn download_chapters(
     let src = source_by_name(&source)?;
     let lib = open_library()?;
     let id = MangaId(manga_id);
+    let language = mangas_providers::language_for(&source, &language);
     ensure_followed(&lib, src.as_ref(), &id, &language).await?;
     let known = library::list_chapters(&lib, &source, &id, None).map_err(to_ipc)?;
     let wanted: Vec<ChapterId> = chapter_ids.into_iter().map(ChapterId).collect();

@@ -184,6 +184,11 @@ fn helpers_normalise_urls_text_and_languages() {
         unescape(" Tom &amp; Jerry&#39;s &#x2014; &bogus; & "),
         "Tom & Jerry's — &bogus; &"
     );
+    assert_eq!(
+        supported(&["es-la".to_string(), "en".to_string()]),
+        ["es", "en"],
+        "a regional code reads its base edition"
+    );
     let preferred = ["ja", "zh-hant", "en"].map(String::from);
     assert_eq!(supported(&preferred), ["zh-hant", "en"]);
     assert_eq!(
@@ -191,4 +196,13 @@ fn helpers_normalise_urls_text_and_languages() {
         ["en"],
         "falls back to English"
     );
+}
+
+#[test]
+fn spanish_title_pages_decode_named_entities() {
+    let id = MangaId("es-webtoon-1386".into());
+    let page = r#"<meta property="og:title" content="La Torre de Dios" />
+<meta property="og:description" content="&iquest;Qu&eacute; desear&iacute;as? Bam &aacute;rbol &mdash; fin" />"#;
+    let manga = parse_title_page(&id, page).unwrap();
+    assert_eq!(manga.description, "¿Qué desearías? Bam árbol — fin");
 }

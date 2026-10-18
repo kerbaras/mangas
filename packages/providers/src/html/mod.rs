@@ -1,6 +1,7 @@
 //! Selector-based extraction for providers that scrape HTML. Pure functions over a parsed
 //! body: parse once with [`parse`], then [`select`] / [`first`] from [`root`] or any element and
-//! read values with [`text`], [`attr`], [`meta`] and [`absolute`].
+//! read values with [`text`], [`attr`], [`meta`] and [`absolute`]. String scrapers decode
+//! entities in what they cut out with [`decode_entities`].
 
 use mangas_core::domain::{Error, Result};
 use scraper::{Html, Selector};
@@ -69,6 +70,12 @@ pub fn meta(doc: &Document, key: &str) -> Result<Option<String>> {
 pub fn absolute(base: &str, href: &str) -> Option<String> {
     let url = Url::parse(base).ok()?.join(href.trim()).ok()?;
     matches!(url.scheme(), "http" | "https").then(|| url.to_string())
+}
+
+/// Decodes HTML character references: every HTML5 named entity (`&iquest;`, `&rsquo;`) and
+/// numeric ones (`&#39;`, `&#x27;`). Anything that is not a reference stays as written.
+pub fn decode_entities(raw: &str) -> String {
+    html_escape::decode_html_entities(raw).into_owned()
 }
 
 fn collapse(raw: &str) -> String {

@@ -30,7 +30,10 @@ export function ProviderLanguages({ provider: p }: { provider: ProviderInfo }) {
           <Languages /> {label} <ChevronDown className="text-ink-3" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent
+        align="end"
+        className="max-h-[min(24rem,var(--radix-dropdown-menu-content-available-height))] overflow-y-auto"
+      >
         <DropdownMenuLabel>Chapter languages on {p.name}</DropdownMenuLabel>
         <DropdownMenuCheckboxItem
           checked={own.length === 0}

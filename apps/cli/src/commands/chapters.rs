@@ -24,7 +24,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let id = MangaId(args.id);
     let lib = library::open(&paths::library_db()?)?;
     let followed = library::get_manga(&lib, &args.source, &id)?.is_some();
-    let languages = library::requested_languages(args.lang.as_deref(), &stored_settings());
+    let requested = library::requested_languages(args.lang.as_deref(), &stored_settings());
+    let languages = mangas_providers::languages_for(&args.source, &requested);
     let stored = || library::list_chapters(&lib, &args.source, &id, None);
     // Imported manga have no provider: their chapters only live in the library.
     let chapters = if args.offline || library::is_local(&args.source) {

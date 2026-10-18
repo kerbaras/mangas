@@ -30,7 +30,7 @@ fn chapter_list_keeps_label_numbers_oldest_first() {
     assert_eq!(first.id, ChapterId("01J76XYXYZGGRVGEGATYQWFTD8".into()));
     assert_eq!(
         (first.title.as_deref(), first.language.as_str()),
-        (None, "en")
+        (Some("Chapter 0"), "en")
     );
     assert!(chapters
         .iter()
@@ -44,9 +44,9 @@ fn prologues_come_first_numbered_before_chapter_one() {
     let expected = [
         ("0.3", Some("Prologue 1")),
         ("0.7", Some("Prologue 16")),
-        ("1", None),
-        ("2", None),
-        ("350.5", None),
+        ("1", Some("Chapter 1")),
+        ("2", Some("Chapter 2")),
+        ("350.5", Some("Chapter 350.5")),
     ];
     let expected: Vec<_> = expected
         .iter()

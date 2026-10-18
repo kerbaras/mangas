@@ -3,6 +3,8 @@
 
 use url::Url;
 
+use crate::html::decode_entities;
+
 /// One canvas title card of `/{lang}/search/canvas`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Card {
@@ -128,55 +130,7 @@ fn between<'a>(text: &'a str, open: &str, close: &str) -> Option<&'a str> {
     Some(&text[start..start + text[start..].find(close)?])
 }
 
-/// Decodes the entities the site emits (named ones it uses, and numeric ones) and trims.
+/// Decodes HTML entities (see [`decode_entities`]) and trims.
 pub fn unescape(raw: &str) -> String {
-    let mut out = String::with_capacity(raw.len());
-    let mut rest = raw;
-    while let Some(amp) = rest.find('&') {
-        out.push_str(&rest[..amp]);
-        rest = &rest[amp..];
-        let decoded = rest.find(';').filter(|&end| end <= 10).and_then(|end| {
-            let c = entity(&rest[1..end])?;
-            Some((c, end))
-        });
-        match decoded {
-            Some((c, end)) => {
-                out.push(c);
-                rest = &rest[end + 1..];
-            }
-            None => {
-                out.push('&');
-                rest = &rest[1..];
-            }
-        }
-    }
-    out.push_str(rest);
-    out.trim().to_string()
-}
-
-fn entity(name: &str) -> Option<char> {
-    if let Some(num) = name.strip_prefix('#') {
-        let code = match num.strip_prefix(['x', 'X']) {
-            Some(hex) => u32::from_str_radix(hex, 16).ok()?,
-            None => num.parse().ok()?,
-        };
-        return char::from_u32(code);
-    }
-    Some(match name {
-        "amp" => '&',
-        "quot" => '"',
-        "apos" => '\'',
-        "lt" => '<',
-        "gt" => '>',
-        "nbsp" => ' ',
-        "mdash" => '—',
-        "ndash" => '–',
-        "hellip" => '…',
-        "middot" => '·',
-        "lsquo" => '‘',
-        "rsquo" => '’',
-        "ldquo" => '“',
-        "rdquo" => '”',
-        _ => return None,
-    })
+    decode_entities(raw).trim().to_string()
 }

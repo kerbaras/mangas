@@ -183,3 +183,17 @@ fn episode_list_past_the_cap_is_an_error_not_a_truncated_list() {
         None
     );
 }
+
+#[test]
+fn search_titles_and_descriptions_decode_entities() {
+    let html = r#"<li class="search-item-wrap"><a href="/series/x" data-series-id="42"><img src="https://c.tapas.io/c.jpg"></a>
+<div class="title-section"><a href="/series/x">Kat&rsquo;s Diary</a></div>
+<p class="desc">A cat&rsquo;s life &mdash; told daily &amp; &#39;honestly&#39;.</p></li>"#;
+    let found = parse_search(html);
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].title, "Kat’s Diary");
+    assert_eq!(
+        found[0].description,
+        "A cat’s life — told daily & 'honestly'."
+    );
+}

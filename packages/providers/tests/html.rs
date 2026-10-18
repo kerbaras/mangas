@@ -1,7 +1,7 @@
 //! The shared HTML helper: selection, text, attributes, meta tags and URL resolution.
 
 use mangas_providers::html::{
-    absolute, attr, first, meta, parse, root, select, selector, text, text_lines,
+    absolute, attr, decode_entities, first, meta, parse, root, select, selector, text, text_lines,
 };
 
 const PAGE: &str = r#"<!DOCTYPE html><html><head>
@@ -82,4 +82,19 @@ fn invalid_selectors_are_errors_not_panics() {
     assert!(selector("a[").is_err());
     let doc = parse(PAGE);
     assert!(select(root(&doc), "::nope").is_err());
+}
+
+#[test]
+fn entities_decode_named_and_numeric_references() {
+    let cases = [
+        ("Ca&aacute;n", "Caán"),
+        ("&iquest;Por qu&eacute;?", "¿Por qué?"),
+        ("It&rsquo;s here &mdash; finally", "It’s here — finally"),
+        ("Tom &amp; Jerry", "Tom & Jerry"),
+        ("Don&#39;t / Don&#x27;t", "Don't / Don't"),
+        ("&bogus; & plain", "&bogus; & plain"),
+    ];
+    for (raw, decoded) in cases {
+        assert_eq!(decode_entities(raw), decoded, "{raw}");
+    }
 }
