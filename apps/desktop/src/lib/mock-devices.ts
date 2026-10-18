@@ -1,45 +1,39 @@
-import type { Device } from "./ipc";
+import type { Device, ExportFormat } from "./ipc";
 
-/** Same list as `mangas_core::export::kindle::DEVICES`. */
-export const sampleDevices: Device[] = [
-  {
-    id: "kindle-paperwhite12",
-    name: "Kindle Paperwhite (12th gen) / Signature",
-    width: 1264,
-    height: 1680,
-    dpi: 300,
-    grayscale: true,
-  },
-  {
-    id: "kindle-paperwhite5",
-    name: "Kindle Paperwhite (11th gen) / Signature",
-    width: 1236,
-    height: 1648,
-    dpi: 300,
-    grayscale: true,
-  },
-  {
-    id: "kindle-paperwhite3",
-    name: "Kindle Paperwhite 3/4",
-    width: 1072,
-    height: 1448,
-    dpi: 300,
-    grayscale: true,
-  },
-  {
-    id: "kindle-scribe",
-    name: "Kindle Scribe",
-    width: 1860,
-    height: 2480,
-    dpi: 300,
-    grayscale: true,
-  },
-  {
-    id: "kindle-oasis3",
-    name: "Kindle Oasis 3",
-    width: 1264,
-    height: 1680,
-    dpi: 300,
-    grayscale: true,
-  },
+type Row = [string, string, number, number, number, boolean, ExportFormat];
+
+/** Same table as `mangas_core::export::PROFILES`. */
+const rows: Row[] = [
+  [
+    "kindle-paperwhite12",
+    "Kindle Paperwhite (12th gen) / Signature",
+    1264,
+    1680,
+    300,
+    true,
+    "epub",
+  ],
+  ["kindle-paperwhite5", "Kindle Paperwhite (11th gen) / Signature", 1236, 1648, 300, true, "epub"],
+  ["kindle-paperwhite3", "Kindle Paperwhite 3/4", 1072, 1448, 300, true, "epub"],
+  ["kindle-scribe", "Kindle Scribe", 1860, 2480, 300, true, "epub"],
+  ["kindle-oasis3", "Kindle Oasis 3", 1264, 1680, 300, true, "epub"],
+  ["kobo-clara", "Kobo Clara BW / 2E / HD", 1072, 1448, 300, true, "cbz"],
+  ["kobo-clara-colour", "Kobo Clara Colour", 1072, 1448, 300, false, "cbz"],
+  ["kobo-libra", "Kobo Libra 2 / H2O", 1264, 1680, 300, true, "cbz"],
+  ["kobo-libra-colour", "Kobo Libra Colour", 1264, 1680, 300, false, "cbz"],
+  ["kobo-elipsa", "Kobo Elipsa 2E", 1404, 1872, 227, true, "cbz"],
+  ["remarkable2", "reMarkable 2", 1404, 1872, 226, true, "pdf"],
+  ["tablet", "Generic tablet (colour)", 1536, 2048, 264, false, "cbz"],
 ];
+
+export const sampleDevices: Device[] = rows.map(
+  ([id, name, width, height, dpi, grayscale, format]) => ({
+    id,
+    name,
+    width,
+    height,
+    dpi,
+    grayscale,
+    format,
+  }),
+);

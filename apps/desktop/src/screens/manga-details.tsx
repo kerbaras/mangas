@@ -145,7 +145,7 @@ export function MangaDetailsScreen({ manga: card }: Props) {
             disabled={toExport.length === 0}
             onClick={() => nav.go({ screen: "kindle", chapterIds: toExport.map((c) => c.id) })}
           >
-            <Send /> Send to Kindle
+            <Send /> Export
           </Button>
           <VolumeExportButton
             manga={{ source, id, title: manga.title }}

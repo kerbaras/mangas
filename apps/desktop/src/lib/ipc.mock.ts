@@ -27,6 +27,7 @@ let settings: Settings = {
   data_dir: null,
   default_device: null,
   default_preset: null,
+  default_format: null,
   provider_sessions: {},
   preferred_languages: [],
   provider_options: {},

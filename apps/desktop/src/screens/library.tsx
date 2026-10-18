@@ -117,7 +117,7 @@ export function LibraryScreen() {
             }
           >
             Search a source and follow a title, or import chapter folders and CBZ files you already
-            have. Chapters show up here, ready to send to your Kindle.
+            have. Chapters show up here, ready to export to your e-reader.
           </EmptyState>
         )}
         {entries.length > 0 && items.length === 0 && filtered && (

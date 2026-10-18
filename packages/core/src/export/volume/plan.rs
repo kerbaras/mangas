@@ -7,6 +7,7 @@ use serde::Serialize;
 use super::{book_meta, file_name, group, render, Grouping, Volume, DEFAULT_TEMPLATE};
 use crate::domain::{parse_number, Chapter, Manga};
 use crate::export::kindle::{Device, ExportRequest};
+use crate::export::Format;
 use crate::smartcut::Options;
 
 /// One EPUB to write: its title, file name and downloaded chapters in reading order.
@@ -71,7 +72,8 @@ fn label(p: &VolumePlan) -> Option<&str> {
     p.number.as_deref().map(str::trim)
 }
 
-/// The export of `plan` into `output_dir`, with `cover` (the series cover file) when known.
+/// The EPUB export of `plan` into `output_dir`, with `cover` (the series cover file) when
+/// known; [`ExportRequest::with_format`] picks another format.
 pub fn request(
     manga: &Manga,
     plan: &VolumePlan,
@@ -91,9 +93,12 @@ pub fn request(
             .filter_map(|c| c.local_path.as_ref().map(PathBuf::from))
             .collect(),
         device,
+        format: Format::Epub,
         cut,
         title: plan.title.clone(),
+        title_explicit: false,
         output: output_dir.join(&plan.file_name),
         meta: book_meta(manga, &volume, cover),
+        labels: Default::default(),
     }
 }

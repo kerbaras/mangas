@@ -5,12 +5,12 @@ const stages = [
   "Detecting cut points",
   "Cutting strips",
   "Filtering for e-ink",
-  "Writing EPUB",
+  "Writing file",
 ];
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-/** Walks the Kindle export stages the Rust side reports, `total` steps each. */
+/** Walks the export stages the Rust side reports, `total` steps each. */
 export async function simulateExport(listeners: Set<(p: ExportProgress) => void>, total: number) {
   for (const stage of stages) {
     for (let current = 1; current <= total; current++) {

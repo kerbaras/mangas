@@ -7,12 +7,14 @@ use mangas_core::domain::{Chapter, Manga};
 use mangas_core::download;
 use mangas_core::export::kindle::export;
 use mangas_core::export::volume::{self, find_volume, plan, Grouping, VolumePlan};
+use mangas_core::export::Format;
 use mangas_core::library;
 use mangas_providers::covers::CoverFetcher;
 
-use super::cut_args::{print_progress, CutArgs};
+use super::cut_args::{print_progress, CutArgs, DEFAULT_PROFILE};
+use super::export_args::FormatArg;
 use super::kindle::mark_exported;
-use super::source_by_name;
+use super::{source_by_name, stored_settings};
 use crate::output::outln;
 use crate::paths;
 
@@ -41,7 +43,10 @@ pub struct Args {
     /// Title template: {series}, {volume}, {first}, {last}
     #[arg(long, default_value = volume::DEFAULT_TEMPLATE)]
     pub name: String,
-    /// Folder the EPUB files are written to
+    /// File format [default: the stored default, else what the profile recommends]
+    #[arg(long, value_enum)]
+    pub format: Option<FormatArg>,
+    /// Folder the files are written to
     #[arg(long, short, default_value = ".")]
     pub output_dir: PathBuf,
     /// Print the files that would be written and exit
@@ -130,6 +135,11 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             args.manga_id
         );
     }
+    let stored = stored_settings();
+    let saved = stored.default_device.as_deref().unwrap_or(DEFAULT_PROFILE);
+    let device = args.cut.device_or(saved)?;
+    let explicit = args.format.map(Format::from);
+    let format = Format::resolve(explicit, None, stored.default_format, &device)?;
     for p in &plans {
         let (first, last) = (
             &p.chapters[0].number,
@@ -137,14 +147,16 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         );
         outln!(
             "{}  ({} chapters, {first}–{last})",
-            args.output_dir.join(&p.file_name).display(),
+            args.output_dir
+                .join(&p.file_name)
+                .with_extension(format.id())
+                .display(),
             p.chapters.len()
         )?;
     }
     if args.dry_run {
         return Ok(());
     }
-    let device = args.cut.device()?;
     let penalizer = args.cut.penalizer().await?;
     let cover = cover_file(&src.manga).await;
     for p in &plans {
@@ -155,7 +167,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             args.cut.options(),
             &args.output_dir,
             cover.clone(),
-        );
+        )
+        .with_format(format);
         let stats = export(&req, penalizer.clone(), &mut print_progress)?;
         outln!("{}: {} pages", stats.output.display(), stats.pages)?;
         if stats.skipped > 0 {

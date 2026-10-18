@@ -111,6 +111,7 @@ fn imports_a_series_folder_and_exports_it() {
 
     let out = tmp.path().join("berserk.epub");
     let req = ExportRequest {
+        format: mangas_core::export::Format::Epub,
         chapter_dirs: stored
             .iter()
             .map(|c| PathBuf::from(c.local_path.clone().unwrap()))
@@ -120,6 +121,8 @@ fn imports_a_series_folder_and_exports_it() {
         title: report.manga.title.clone(),
         output: out.clone(),
         meta: Default::default(),
+        labels: Default::default(),
+        title_explicit: false,
     };
     let stats = export(&req, None, &mut |_| {}).unwrap();
     assert_eq!(stats.pages, 6);

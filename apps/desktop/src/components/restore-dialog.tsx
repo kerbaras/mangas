@@ -58,7 +58,7 @@ export function RestoreDialog({ path, onImport, onCancel }: Props) {
           <span className="flex flex-col gap-0.5">
             <span className="font-medium">Keep my current preferences</span>
             <span className="text-caption text-ink-3">
-              Off: languages, providers, Kindle and update settings come from the backup. Provider
+              Off: languages, providers, export and update settings come from the backup. Provider
               sessions and the data folder are never replaced.
             </span>
           </span>

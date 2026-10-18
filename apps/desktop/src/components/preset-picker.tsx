@@ -18,7 +18,7 @@ export function PresetPicker({ value, onChange, compact }: Props) {
           <label
             key={p.id}
             className={cn(
-              "flex cursor-default gap-3 rounded-md border p-3 text-left transition-colors",
+              "relative flex cursor-default gap-3 rounded-md border p-3 text-left transition-colors",
               "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent",
               active
                 ? "border-accent bg-accent-soft/40"

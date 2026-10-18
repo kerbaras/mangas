@@ -90,7 +90,7 @@ export const pickSelected = (chapters: Chapter[], selected: Selection) =>
 export const downloadable = (chapters: Chapter[], selected: Selection) =>
   pickSelected(chapters, selected).filter((c) => !isDownloaded(c));
 
-/** What "Send to Kindle" acts on: selected chapters that are already on disk. */
+/** What "Export" acts on: selected chapters that are already on disk. */
 export const exportable = (chapters: Chapter[], selected: Selection) =>
   pickSelected(chapters, selected).filter(isDownloaded);
 

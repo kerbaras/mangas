@@ -25,12 +25,15 @@ fn exports_chapters_and_skips_empty_directories() {
     write_png(&ch3, "001.png", 800, 1200);
     let out = root.path().join("book.epub");
     let req = ExportRequest {
+        format: mangas_core::export::Format::Epub,
         chapter_dirs: vec![ch1, empty, ch3],
         device: device("kindle-paperwhite12").unwrap(),
         cut: Preset::Balanced.options(),
         title: "Book".into(),
         output: out.clone(),
         meta: Default::default(),
+        labels: Default::default(),
+        title_explicit: false,
     };
     let mut events = Vec::new();
     let stats = export(&req, None, &mut |p: Progress| events.push(p)).unwrap();
@@ -71,12 +74,15 @@ fn exports_chapters_and_skips_empty_directories() {
 fn missing_directory_is_an_error() {
     let root = tempfile::tempdir().unwrap();
     let req = ExportRequest {
+        format: mangas_core::export::Format::Epub,
         chapter_dirs: vec![root.path().join("nope")],
         device: device("kindle-paperwhite12").unwrap(),
         cut: Preset::Balanced.options(),
         title: "Book".into(),
         output: root.path().join("book.epub"),
         meta: Default::default(),
+        labels: Default::default(),
+        title_explicit: false,
     };
     assert!(export(&req, None, &mut |_| {}).is_err());
 }

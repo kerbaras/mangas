@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/empty-state";
 import { ErrorAlert } from "@/components/error-alert";
 import { ExportProgressPanel } from "@/components/export-progress";
 import { Field } from "@/components/field";
+import { FormatPicker } from "@/components/format-picker";
 import { PresetPicker } from "@/components/preset-picker";
 import { ScreenHeader } from "@/components/screen-header";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,9 @@ import { Switch } from "@/components/ui/switch";
 import { useAsync } from "@/hooks/use-async";
 import { useDownloadedChapters } from "@/hooks/use-downloaded-chapters";
 import { useExport } from "@/hooks/use-export";
+import { detectorHint } from "@/lib/detector-hint";
 import { pickFolder } from "@/lib/dialogs";
+import { effectiveFormat, formatLabel } from "@/lib/export-formats";
 import { exportFileName, exportTitle, joinPath } from "@/lib/export-name";
 import { detectorsStatus, listDevices, type Preset } from "@/lib/ipc";
 import { useNavigation } from "@/lib/navigation";
@@ -25,14 +28,18 @@ type Props = { chapterIds?: string[] };
 
 export function KindleScreen({ chapterIds }: Props) {
   const nav = useNavigation();
-  const [settings] = useSettings();
+  const [settings, update] = useSettings();
   const groups = useDownloadedChapters();
   const devices = useAsync(listDevices, []);
   const detectors = useAsync(detectorsStatus, []);
   const exportJob = useExport();
 
   const [selected, setSelected] = useState<Set<string>>(new Set(chapterIds ?? []));
-  const [device, setDevice] = useState(settings.defaultDevice);
+  // Device and format are the stored defaults: picking one here keeps it for next time.
+  const device = settings.defaultDevice;
+  const deviceList = devices.state.kind === "ready" ? devices.state.data : [];
+  const format = effectiveFormat(settings.defaultFormat, deviceList, device);
+  const recommended = deviceList.find((d) => d.id === device);
   const [preset, setPreset] = useState<Preset>(settings.defaultPreset);
   const [useDetectors, setUseDetectors] = useState(true);
   const [output, setOutput] = useState(`${settings.dataDir}/kindle`);
@@ -66,7 +73,7 @@ export function KindleScreen({ chapterIds }: Props) {
 
   const chooseOutput = async () => {
     const dir = await pickFolder(
-      "Choose where to write the EPUB files",
+      "Choose where to write the exported files",
       `${settings.dataDir}/kindle`,
     );
     if (dir) editOutput(dir);
@@ -77,33 +84,21 @@ export function KindleScreen({ chapterIds }: Props) {
     exportJob.run({
       chapter_dirs: picked.flatMap((c) => (c.local_path ? [c.local_path] : [])),
       device,
+      format,
       preset,
       detectors: useDetectors,
-      output: joinPath(output, exportFileName(title)),
+      output: joinPath(output, exportFileName(title, format)),
       title,
     });
   };
 
-  const detectorHint =
-    detectors.state.kind === "error"
-      ? `Couldn't check detector support: ${detectors.state.message}`
-      : detectors.state.kind !== "ready"
-        ? "Checking detector support…"
-        : detectors.state.data.available
-          ? `Speech-bubble and face detectors (${detectors.state.data.provider}) keep cuts away from dialogue and faces. ${
-              detectors.state.data.downloaded
-                ? "Models are ready."
-                : "Models download on first use."
-            }`
-          : "This build has no detector support; cuts follow gutters and panel edges only.";
-
   return (
     <section className="flex h-full flex-col">
-      <ScreenHeader title="Send to Kindle" subtitle={`${picked.length} chapters picked`}>
+      <ScreenHeader title="Export" subtitle={`${picked.length} chapters picked`}>
         <Button
           variant="primary"
           size="sm"
-          disabled={busy || picked.length === 0 || !output}
+          disabled={busy || picked.length === 0 || !output || devices.state.kind !== "ready"}
           onClick={run}
         >
           <Send /> Export{" "}
@@ -147,11 +142,21 @@ export function KindleScreen({ chapterIds }: Props) {
                 id="device"
                 devices={devices.state.data}
                 value={device}
-                onChange={setDevice}
+                onChange={(id) => update({ defaultDevice: id })}
               />
             ) : (
               <DevicesPending state={devices.state} />
             )}
+          </Field>
+          <Field
+            label="Format"
+            hint={
+              recommended
+                ? `${recommended.name} reads ${formatLabel(recommended.format)} best.`
+                : undefined
+            }
+          >
+            <FormatPicker value={format} onChange={(f) => update({ defaultFormat: f })} />
           </Field>
           <Field
             label="Cut preset"
@@ -164,7 +169,7 @@ export function KindleScreen({ chapterIds }: Props) {
               <label htmlFor="detectors" className="text-body font-medium">
                 Use detectors
               </label>
-              <p className="mt-0.5 text-caption text-ink-3">{detectorHint}</p>
+              <p className="mt-0.5 text-caption text-ink-3">{detectorHint(detectors.state)}</p>
             </div>
             <Switch
               id="detectors"
