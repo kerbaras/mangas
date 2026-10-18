@@ -3,6 +3,7 @@ use clap::Args as ClapArgs;
 use mangas_core::domain::MangaId;
 use mangas_core::library;
 
+use crate::output::outln;
 use crate::paths;
 
 #[derive(ClapArgs)]
@@ -18,6 +19,6 @@ pub fn run(args: Args) -> anyhow::Result<()> {
     if !library::remove_manga(&lib, &args.source, &MangaId(args.id.clone()))? {
         bail!("{} is not in your library", args.id);
     }
-    println!("Removed {} (downloaded files were kept)", args.id);
+    outln!("Removed {} (downloaded files were kept)", args.id)?;
     Ok(())
 }

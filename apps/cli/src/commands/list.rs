@@ -2,6 +2,7 @@ use clap::Args as ClapArgs;
 use mangas_core::domain::Manga;
 use mangas_core::library::{self, Library};
 
+use crate::output::outln;
 use crate::paths;
 
 #[derive(ClapArgs)]
@@ -15,20 +16,20 @@ pub fn run(args: Args) -> anyhow::Result<()> {
     let lib = library::open(&paths::library_db()?)?;
     let all = library::list_manga(&lib)?;
     if all.is_empty() {
-        println!("Your library is empty. Try: mangas search <title>");
+        outln!("Your library is empty. Try: mangas search <title>")?;
         return Ok(());
     }
     for m in all {
         if args.plain {
-            println!("{} {} {}", m.source, m.id, m.title);
+            outln!("{} {} {}", m.source, m.id, m.title)?;
         } else {
-            println!(
+            outln!(
                 "{:<40} {:<10} {:<36} {}",
                 truncate(&m.title, 40),
                 m.source,
                 m.id,
                 progress(&lib, &m)?
-            );
+            )?;
         }
     }
     Ok(())

@@ -3,6 +3,7 @@ use mangas_core::domain::{Chapter, MangaId};
 use mangas_core::library;
 
 use super::source_by_name;
+use crate::output::outln;
 use crate::paths;
 
 #[derive(ClapArgs)]
@@ -37,21 +38,25 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         }
     };
     if chapters.is_empty() {
-        println!(
+        outln!(
             "No {} chapters hosted on {} for {id}",
-            args.lang, args.source
-        );
+            args.lang,
+            args.source
+        )?;
         return Ok(());
     }
-    println!(
+    outln!(
         "{:<8} {:<5} {:<3} {:<36}  title",
-        "chapter", "vol", "dl", "id"
-    );
+        "chapter",
+        "vol",
+        "dl",
+        "id"
+    )?;
     for c in &chapters {
-        println!("{}", format_row(c));
+        outln!("{}", format_row(c))?;
     }
     if !followed {
-        println!("\n(not in your library; `mangas add {id}` to follow it)");
+        outln!("\n(not in your library; `mangas add {id}` to follow it)")?;
     }
     Ok(())
 }
