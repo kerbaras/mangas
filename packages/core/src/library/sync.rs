@@ -37,8 +37,18 @@ pub async fn sync_chapters(
     languages: &[String],
 ) -> Result<Vec<Chapter>> {
     let lists = fetch_chapters(source, id, languages).await?;
+    store_chapters(lib, source.name(), id, lists)
+}
+
+/// Stores per-language lists from [`fetch_chapters`]; returns all their chapters.
+pub fn store_chapters(
+    lib: &Library,
+    source: &str,
+    id: &MangaId,
+    lists: Vec<(String, Vec<Chapter>)>,
+) -> Result<Vec<Chapter>> {
     for (lang, chapters) in &lists {
-        upsert_chapters(lib, source.name(), id, lang, chapters)?;
+        upsert_chapters(lib, source, id, lang, chapters)?;
     }
     Ok(lists.into_iter().flat_map(|(_, c)| c).collect())
 }

@@ -51,6 +51,18 @@ fn rejects_unknown_keys_bad_values_and_malformed_assignments() {
 }
 
 #[test]
+fn values_the_provider_would_ignore_are_rejected() {
+    let base = Settings::default();
+    let err = set(&base, &["content_ratings=nsfw"])
+        .unwrap_err()
+        .to_string();
+    assert!(err.contains("would read as 'safe,suggestive'"), "{err}");
+    let ok = set(&base, &["content_ratings=safe,erotica"]).unwrap();
+    let shown = options("mangadex", &ok).unwrap();
+    assert_eq!(display_value(&shown["content_ratings"]), "safe,erotica");
+}
+
+#[test]
 fn providers_without_options_say_so() {
     let base = Settings::default();
     assert!(options("tapas", &base).unwrap().is_empty());

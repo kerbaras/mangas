@@ -20,6 +20,7 @@ pub fn options(id: &str, settings: &Settings) -> Result<Map<String, Value>> {
 /// `settings` with `key=value` assignments applied to provider `id`'s options.
 pub fn set_options(id: &str, settings: &Settings, assignments: &[String]) -> Result<Settings> {
     let mut current = options(id, settings)?;
+    let mut assigned = Vec::new();
     for assignment in assignments {
         let (key, raw) = split_assignment(assignment)?;
         let old = current
@@ -27,12 +28,20 @@ pub fn set_options(id: &str, settings: &Settings, assignments: &[String]) -> Res
             .ok_or_else(|| unknown_key(id, key, &current))?;
         let new = coerce(old, raw).ok_or_else(|| invalid(key, raw, old))?;
         current.insert(key.to_string(), new);
+        assigned.push((key, raw));
     }
     let mut next = settings.clone();
     next.provider_options
         .insert(id.to_string(), Value::Object(current.clone()));
-    if options(id, &next)? != current {
-        return Err(Error::Other(format!("{id} rejected these option values")));
+    // The provider reads values back normalised; anything it changed was not accepted as given.
+    let read = options(id, &next)?;
+    for (key, raw) in assigned {
+        if read.get(key) != current.get(key) {
+            let shown = read.get(key).map(display_value).unwrap_or_default();
+            return Err(Error::Other(format!(
+                "{id} does not accept {key}={raw} (it would read as '{shown}')"
+            )));
+        }
     }
     Ok(next)
 }

@@ -22,9 +22,11 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let id = MangaId(args.id);
     let manga = source.manga(&id).await?;
     let languages = library::requested_languages(args.lang.as_deref(), &stored_settings());
+    // Fetched before anything is saved: a failed add must not leave the manga followed.
+    let lists = library::fetch_chapters(source.as_ref(), &id, &languages).await?;
     let lib = library::open(&paths::library_db()?)?;
     library::upsert_manga(&lib, &manga)?;
-    let chapters = library::sync_chapters(&lib, source.as_ref(), &id, &languages).await?;
+    let chapters = library::store_chapters(&lib, source.name(), &id, lists)?;
     let unavailable = chapters.iter().filter(|c| !c.is_available()).count();
     let note = match unavailable {
         0 => String::new(),

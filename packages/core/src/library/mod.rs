@@ -14,4 +14,4 @@ pub use import::{import_paths, is_local, ImportReport, ImportRequest, LOCAL_SOUR
 pub use languages::{in_languages, parse_languages, prefer_languages, requested_languages};
 pub use manga_repo::{get_manga, list_manga, remove_manga, upsert_manga};
 pub use settings_repo::{get_settings, set_settings, ProviderSession, Settings, DEFAULT_LANGUAGE};
-pub use sync::{fetch_chapters, sync_chapters};
+pub use sync::{fetch_chapters, store_chapters, sync_chapters};

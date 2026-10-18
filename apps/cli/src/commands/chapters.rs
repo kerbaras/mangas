@@ -1,5 +1,5 @@
 use clap::Args as ClapArgs;
-use mangas_core::domain::{Availability, Chapter, MangaId};
+use mangas_core::domain::{sort_by_number, Availability, Chapter, MangaId};
 use mangas_core::library;
 
 use super::{source_by_name, stored_settings};
@@ -36,7 +36,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             library::in_languages(stored()?, &languages)
         } else {
             let lists = library::fetch_chapters(source.as_ref(), &id, &languages).await?;
-            lists.into_iter().flat_map(|(_, c)| c).collect()
+            sort_by_number(lists.into_iter().flat_map(|(_, c)| c).collect())
         }
     };
     if chapters.is_empty() {

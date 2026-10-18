@@ -76,6 +76,22 @@ fn prefers_the_first_language_that_has_each_chapter() {
     assert_eq!(ids(&picked), ["es1", "es2a", "es2b", "en-x", "es-x"]);
 }
 
+#[test]
+fn translations_only_match_within_a_volume() {
+    let in_volume = |id: &str, volume: Option<&str>, lang: &str| Chapter {
+        volume: volume.map(String::from),
+        ..chapter(id, "1", lang)
+    };
+    let all = vec![
+        in_volume("es-v1", Some("1"), "es"),
+        in_volume("en-v1", Some("1"), "en"),
+        in_volume("en-v2", Some("2"), "en"),
+        in_volume("en-none", None, "en"),
+    ];
+    let picked = prefer_languages(&all, &langs(&["es", "en"]));
+    assert_eq!(ids(&picked), ["es-v1", "en-v2"]);
+}
+
 /// Has `es` and `en` chapters; any other language is an error.
 struct TwoLanguages;
 

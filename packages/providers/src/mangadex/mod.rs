@@ -69,7 +69,12 @@ impl Provider for MangaDexProvider {
     }
 
     fn options(&self, settings: &Settings) -> Option<serde_json::Value> {
-        serde_json::to_value(MangaDexOptions::from_settings(settings)).ok()
+        let stored = MangaDexOptions::from_settings(settings);
+        let effective = MangaDexOptions {
+            content_ratings: stored.ratings().into_iter().map(String::from).collect(),
+            ..stored
+        };
+        serde_json::to_value(effective).ok()
     }
 }
 

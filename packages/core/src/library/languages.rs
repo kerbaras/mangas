@@ -36,7 +36,8 @@ pub fn in_languages(chapters: Vec<Chapter>, languages: &[String]) -> Vec<Chapter
         .collect()
 }
 
-/// One translation per chapter number: the most preferred language that has it. Chapters
+/// One translation per chapter: the most preferred language that has it. Translations match on
+/// number and volume (a missing volume matches any, since sources omit it unevenly). Chapters
 /// without a numeric number cannot be matched across languages and are all kept.
 pub fn prefer_languages(chapters: &[Chapter], languages: &[String]) -> Vec<Chapter> {
     let rank = |c: &Chapter| {
@@ -53,8 +54,15 @@ pub fn prefer_languages(chapters: &[Chapter], languages: &[String]) -> Vec<Chapt
             };
             !chapters
                 .iter()
-                .any(|o| o.number_value() == Some(n) && rank(o) < rank(c))
+                .any(|o| o.number_value() == Some(n) && same_volume(o, c) && rank(o) < rank(c))
         })
         .cloned()
         .collect()
+}
+
+fn same_volume(a: &Chapter, b: &Chapter) -> bool {
+    match (a.volume.as_deref(), b.volume.as_deref()) {
+        (Some(x), Some(y)) => x.trim() == y.trim(),
+        _ => true,
+    }
 }
