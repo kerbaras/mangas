@@ -78,4 +78,13 @@ describe("export dialog: what it shows before and after writing", () => {
     fireEvent.click(screen.getByLabelText("PDF"));
     await waitFor(() => expect(screen.queryByText("Wrote 2 books")).toBeNull());
   });
+
+  it("clears the last result when the cut preset changes", async () => {
+    exportBackend();
+    render(dialog());
+    fireEvent.click(await exportButton());
+    expect(await screen.findByText("Wrote 2 books")).toBeTruthy();
+    fireEvent.click(screen.getByText("Fewest cuts"));
+    await waitFor(() => expect(screen.queryByText("Wrote 2 books")).toBeNull());
+  });
 });

@@ -99,7 +99,17 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
     resetJob();
     resetSend();
   }, [resetJob, resetSend]);
-  const choice = [mode, size, title, target.device, target.format, via, folder.output].join("|");
+  const choice = [
+    mode,
+    size,
+    title,
+    target.device,
+    target.format,
+    preset,
+    useDetectors,
+    via,
+    folder.output,
+  ].join("|");
   useClearOnChange(choice, busy, clearResult);
 
   const run = async () => {

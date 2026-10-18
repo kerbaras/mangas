@@ -43,3 +43,12 @@ fn folder_listing_matches_what_the_writer_claims() {
         names(&["S v1 (2).epub"])
     );
 }
+
+#[test]
+fn names_differing_only_in_case_count_as_taken() {
+    let existing = names(&["Book.epub"]);
+    assert_eq!(
+        resolve_free_names(&existing, &names(&["book.epub"])),
+        names(&["book (2).epub"])
+    );
+}

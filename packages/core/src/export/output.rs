@@ -37,13 +37,17 @@ fn part_file(target: &Path) -> PathBuf {
     target.with_file_name(name)
 }
 
-/// Atomically creates `path`, or the first `stem (n).ext` that does not exist yet.
+/// Atomically creates `path`, or the first `stem (n).ext` that is free. Names already in the
+/// folder in another case count as taken, so case-insensitive disks match the preview.
 fn claim_free_file(path: &Path) -> std::io::Result<(PathBuf, File)> {
     let name = path
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_default();
-    for candidate in candidate_names(&name).map(|n| path.with_file_name(n)) {
+    let dir = path.parent().filter(|d| !d.as_os_str().is_empty());
+    let taken = folded(&file_names(dir.unwrap_or(Path::new(".")))?);
+    let free = candidate_names(&name).filter(|c| !taken.contains(&c.to_lowercase()));
+    for candidate in free.map(|n| path.with_file_name(n)) {
         match OpenOptions::new()
             .write(true)
             .create_new(true)
@@ -55,6 +59,22 @@ fn claim_free_file(path: &Path) -> std::io::Result<(PathBuf, File)> {
         }
     }
     unreachable!("candidate_names is infinite")
+}
+
+/// The file names in `dir`; a folder not created yet is empty.
+fn file_names(dir: &Path) -> std::io::Result<Vec<String>> {
+    match std::fs::read_dir(dir) {
+        Ok(entries) => Ok(entries
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(e) => Err(e),
+    }
+}
+
+fn folded(names: &[String]) -> HashSet<String> {
+    names.iter().map(|n| n.to_lowercase()).collect()
 }
 
 /// `name`, then `stem (2).ext`, `stem (3).ext`, ...: the order every export tries names in.
@@ -72,32 +92,24 @@ fn candidate_names(name: &str) -> impl Iterator<Item = String> + '_ {
 }
 
 /// The names `wanted` get when written, in order, into a folder that holds `existing`: each
-/// takes its first free candidate, as [`write_new`] does, so the preview and the files agree.
+/// takes its first free candidate (ignoring case), as [`write_new`] does, so preview and files agree.
 pub fn resolve_free_names(existing: &[String], wanted: &[String]) -> Vec<String> {
-    let mut taken: HashSet<String> = existing.iter().cloned().collect();
+    let mut taken = folded(existing);
     wanted
         .iter()
         .map(|name| {
             let free = candidate_names(name)
-                .find(|c| !taken.contains(c))
+                .find(|c| !taken.contains(&c.to_lowercase()))
                 .unwrap_or_else(|| name.clone());
-            taken.insert(free.clone());
+            taken.insert(free.to_lowercase());
             free
         })
         .collect()
 }
 
-/// [`resolve_free_names`] against the files in `dir` now; a folder not created yet is empty.
+/// [`resolve_free_names`] against the files in `dir` now.
 pub fn free_names_in(dir: &Path, wanted: &[String]) -> Result<Vec<String>> {
-    let existing = match std::fs::read_dir(dir) {
-        Ok(entries) => entries
-            .filter_map(|e| e.ok())
-            .map(|e| e.file_name().to_string_lossy().into_owned())
-            .collect(),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Vec::new(),
-        Err(e) => return Err(e.into()),
-    };
-    Ok(resolve_free_names(&existing, wanted))
+    Ok(resolve_free_names(&file_names(dir)?, wanted))
 }
 
 /// XML text/attribute escaping shared by the EPUB, ComicInfo and other XML writers.
