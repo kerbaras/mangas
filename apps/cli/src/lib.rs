@@ -67,6 +67,9 @@ where
     let cli = Cli::parse_from(args);
     // Already initialised when embedded in a host that set up its own logging; keep that one.
     let _ = mangas_core::logging::init_stderr(cli.verbose);
+    if let Ok(dir) = paths::rate_limits() {
+        mangas_providers::HostLimiters::shared().share_across_processes(dir);
+    }
     output::ignore_broken_pipe(dispatch(cli.command).await)
 }
 

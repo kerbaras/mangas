@@ -5,6 +5,10 @@ mod paths;
 
 pub fn run() {
     init_logging();
+    match paths::rate_limits() {
+        Ok(dir) => mangas_providers::HostLimiters::shared().share_across_processes(dir),
+        Err(e) => tracing::warn!("rate limits stay per process: {e}"),
+    }
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
