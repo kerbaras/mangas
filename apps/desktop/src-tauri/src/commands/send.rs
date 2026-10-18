@@ -3,10 +3,11 @@
 use std::path::PathBuf;
 
 use mangas_core::library::{self, ExportRecord};
+use mangas_core::send::password::{self, Storage};
 use mangas_core::send::{email, usb, EmailSettings, KindleVolume, SendVia};
 use tauri::{AppHandle, Emitter};
 
-use super::{open_library, settings_of, to_ipc};
+use super::{blocking, open_library, to_ipc};
 
 /// Event name for USB copy progress; payload is [`CopyProgress`].
 pub const SEND_EVENT: &str = "send-progress";
@@ -61,7 +62,11 @@ pub async fn send_usb(
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub async fn send_email(file: PathBuf, title: String) -> Result<email::Sent, String> {
-    let settings = settings_of(&open_library()?)?.kindle_email;
+    let settings = blocking(|| {
+        let store = password::system_store();
+        password::email_settings(&open_library()?, &*store).map_err(to_ipc)
+    })
+    .await?;
     let sent = email::send_book(&settings, &file, &title)
         .await
         .map_err(to_ipc)?;
@@ -69,12 +74,27 @@ pub async fn send_email(file: PathBuf, title: String) -> Result<email::Sent, Str
     Ok(sent)
 }
 
-/// Sends a test message with `settings` (the form as edited, saved or not); returns the address
-/// it went to.
+/// Sends a test message with `settings` (the form as edited, saved or not; an empty password
+/// is the keychain's); returns the address it went to.
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub async fn send_test_email(settings: EmailSettings) -> Result<String, String> {
+    let settings = blocking(move || {
+        password::with_password(&*password::system_store(), &settings).map_err(to_ipc)
+    })
+    .await?;
     email::send_test(&settings).await.map_err(to_ipc)
+}
+
+/// Where the SMTP password is kept: the system keychain, or the settings file without one.
+#[tauri::command]
+#[tracing::instrument(level = "error", skip_all)]
+pub async fn email_password_storage() -> Result<Storage, String> {
+    blocking(|| {
+        let store = password::system_store();
+        password::storage(&open_library()?, &*store).map_err(to_ipc)
+    })
+    .await
 }
 
 /// The `limit` most recent exports, newest first.

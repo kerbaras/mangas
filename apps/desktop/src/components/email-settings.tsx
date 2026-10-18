@@ -12,7 +12,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { errorMessage } from "@/lib/format";
-import { DEFAULT_PORT, type EmailSettings, type Security, sendTestEmail } from "@/lib/ipc.send";
+import {
+  DEFAULT_PORT,
+  type EmailSettings,
+  emailPasswordStorage,
+  type PasswordStorage,
+  type Security,
+  sendTestEmail,
+} from "@/lib/ipc.send";
 import { useSettings } from "@/lib/settings";
 
 const SECURITY: { value: Security; label: string }[] = [
@@ -22,6 +29,22 @@ const SECURITY: { value: Security; label: string }[] = [
 ];
 
 type Note = { ok: boolean; text: string } | null;
+
+/** Where the saved password is kept; asked again after each save. */
+function usePasswordStorage(saved: string): PasswordStorage | null {
+  const [storage, setStorage] = useState<PasswordStorage | null>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a save can move the password
+  useEffect(() => {
+    let live = true;
+    emailPasswordStorage()
+      .then((s) => live && setStorage(s))
+      .catch(() => live && setStorage("file"));
+    return () => {
+      live = false;
+    };
+  }, [saved]);
+  return storage;
+}
 
 /** Send to Kindle email: edited as a draft, saved with "Save", testable before saving. */
 export function EmailSettingsForm() {
@@ -33,6 +56,7 @@ export function EmailSettingsForm() {
   useEffect(() => setDraft(JSON.parse(saved) as EmailSettings), [saved]);
   const set = (patch: Partial<EmailSettings>) => setDraft((d) => ({ ...d, ...patch }));
   const dirty = JSON.stringify(draft) !== saved;
+  const storage = usePasswordStorage(saved);
 
   const test = async () => {
     setTesting(true);
@@ -105,19 +129,25 @@ export function EmailSettingsForm() {
         <Field label="User name" htmlFor="smtp-user">
           {text("username", "smtp-user", { autoComplete: "off" })}
         </Field>
-        <Field label="Password" htmlFor="smtp-password">
+        <Field
+          label="Password"
+          htmlFor="smtp-password"
+          hint={storage === "keychain" ? "Kept in your system keychain." : undefined}
+        >
           {text("password", "smtp-password", { type: "password", autoComplete: "off" })}
         </Field>
       </div>
-      <Alert>
-        <TriangleAlert />
-        <AlertTitle>The password is stored unencrypted</AlertTitle>
-        <AlertDescription>
-          It sits in the app's settings on this computer, readable by anyone with access to your
-          account. Use an app password from your mail provider, not your main one. Backups never
-          include it.
-        </AlertDescription>
-      </Alert>
+      {storage === "file" && (
+        <Alert>
+          <TriangleAlert />
+          <AlertTitle>No system keychain: the password is stored unencrypted</AlertTitle>
+          <AlertDescription>
+            It sits in the app's settings on this computer, readable by anyone with access to your
+            account. Use an app password from your mail provider, not your main one. Backups never
+            include it.
+          </AlertDescription>
+        </Alert>
+      )}
       <div className="flex items-center gap-2">
         <Button variant="primary" disabled={!dirty} onClick={() => update({ kindleEmail: draft })}>
           Save

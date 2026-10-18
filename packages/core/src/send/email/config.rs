@@ -43,8 +43,9 @@ pub struct EmailSettings {
     pub port: Option<u16>,
     pub security: Security,
     pub username: String,
-    /// Kept as plain text in the app settings (there is no keychain integration); never part
-    /// of a backup.
+    /// Empty in the stored settings: the password lives in the system keychain (see
+    /// [`crate::send::password`]), or here only on a computer without one. Never part of a
+    /// backup.
     pub password: String,
 }
 

@@ -14,10 +14,23 @@ const type = (label: string, value: string) =>
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
 describe("email settings", () => {
-  it("warns that the password is stored unencrypted", () => {
+  it("says the password is in the keychain when there is one", async () => {
+    const emailPasswordStorage = vi.fn(async () => "keychain");
+    setBackend({ emailPasswordStorage } as unknown as Backend);
     render(<EmailSettingsForm />);
-    expect(screen.getByText("The password is stored unencrypted")).toBeTruthy();
+    expect(await screen.findByText("Kept in your system keychain.")).toBeTruthy();
+    expect(screen.queryByText(/stored unencrypted/)).toBeNull();
     expect((screen.getByLabelText("Password") as HTMLInputElement).type).toBe("password");
+  });
+
+  it("warns that the password is stored unencrypted without a keychain", async () => {
+    const emailPasswordStorage = vi.fn(async () => "file");
+    setBackend({ emailPasswordStorage } as unknown as Backend);
+    render(<EmailSettingsForm />);
+    expect(
+      await screen.findByText("No system keychain: the password is stored unencrypted"),
+    ).toBeTruthy();
+    expect(screen.queryByText("Kept in your system keychain.")).toBeNull();
   });
 
   it("tests the unsaved draft and saves it on Save", async () => {

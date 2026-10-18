@@ -12,5 +12,6 @@ export const tauriSend: SendBackend = {
   onCopyProgress: (cb) => listen<CopyProgress>(SEND_EVENT, (e) => cb(e.payload)),
   sendEmail: (file, title) => invoke("send_email", { file, title }),
   sendTestEmail: (settings) => invoke("send_test_email", { settings }),
+  emailPasswordStorage: () => invoke("email_password_storage"),
   listExports: (limit) => invoke("list_exports", { limit }),
 };

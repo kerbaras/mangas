@@ -38,7 +38,7 @@ export type Settings = {
   app_update_channel?: "stable" | "rc" | null;
   /** Whether the app looks for a new version at launch; null = on. */
   app_update_checks?: boolean | null;
-  /** Send to Kindle by email; the password is stored unencrypted. */
+  /** Send to Kindle by email; the password comes from the system keychain when there is one. */
   kindle_email?: EmailSettings;
   /** null = system. */
   theme?: Theme | null;

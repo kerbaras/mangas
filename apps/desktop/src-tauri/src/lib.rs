@@ -87,6 +87,7 @@ pub fn run() {
             commands::send::send_usb,
             commands::send::send_email,
             commands::send::send_test_email,
+            commands::send::email_password_storage,
             commands::send::list_exports,
             commands::diagnostics::diagnostics,
             commands::diagnostics::log_ui_error,

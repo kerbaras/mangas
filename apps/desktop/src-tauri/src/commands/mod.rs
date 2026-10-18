@@ -25,6 +25,7 @@ pub mod volumes;
 use mangas_core::domain::Manga;
 use mangas_core::export::{Profile, PROFILES};
 use mangas_core::library::{self, Library, Settings};
+use mangas_core::send::password;
 use std::sync::Arc;
 
 use mangas_providers::Source;
@@ -86,19 +87,40 @@ pub fn default_data_dir() -> Result<String, String> {
         .into_owned())
 }
 
+/// The settings, SMTP password filled in from the keychain (`send::password`). Async so a
+/// keychain that asks to be unlocked never blocks the window.
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
-pub fn get_settings() -> Result<Settings, String> {
-    settings_of(&open_library()?)
+pub async fn get_settings() -> Result<Settings, String> {
+    blocking(|| {
+        let store = password::system_store();
+        password::load_settings(&open_library()?, &*store).map_err(to_ipc)
+    })
+    .await
 }
 
 /// Preferences edited in the UI on a copy loaded as `base`, saved over whatever another
 /// process stored since (`library::edit_settings`); returns what is stored now. Provider
 /// sessions are owned by `connect_provider` / `disconnect_provider` and never replaced here.
+/// A changed SMTP password goes to the keychain (`password::save_settings`).
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
-pub fn set_settings(settings: Settings, base: Option<Settings>) -> Result<Settings, String> {
-    library::edit_settings(&open_library()?, base.as_ref(), &settings).map_err(to_ipc)
+pub async fn set_settings(settings: Settings, base: Option<Settings>) -> Result<Settings, String> {
+    blocking(move || {
+        let store = password::system_store();
+        password::save_settings(&open_library()?, &*store, base.as_ref(), &settings)
+            .map(|saved| saved.settings)
+            .map_err(to_ipc)
+    })
+    .await
+}
+
+pub(super) async fn blocking<T: Send + 'static>(
+    work: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(work)
+        .await
+        .map_err(to_ipc)?
 }
 
 /// Links this executable as `mangas` on the user's PATH (macOS/Linux). Returns the link path,

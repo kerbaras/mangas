@@ -27,6 +27,9 @@ export const EMPTY_EMAIL: EmailSettings = {
   password: "",
 };
 
+/** Mirrors `mangas_core::send::password::Storage`: where the SMTP password is kept. */
+export type PasswordStorage = "keychain" | "file";
+
 export const DEFAULT_PORT: Record<Security, number> = { starttls: 587, tls: 465, none: 25 };
 
 /** Mirrors `mangas_core::send::KindleVolume`. */
@@ -62,6 +65,8 @@ export type SendBackend = {
   sendEmail(file: string, title: string): Promise<SentEmail>;
   /** Sends a test message with `settings` (saved or not); resolves to the address it went to. */
   sendTestEmail(settings: EmailSettings): Promise<string>;
+  /** The system keychain, or the settings file on a computer without one. */
+  emailPasswordStorage(): Promise<PasswordStorage>;
   listExports(limit: number): Promise<ExportRecord[]>;
 };
 
@@ -73,4 +78,5 @@ export const onCopyProgress = async (cb: (p: CopyProgress) => void) =>
 export const sendEmail = async (file: string, title: string) =>
   (await backend()).sendEmail(file, title);
 export const sendTestEmail = async (s: EmailSettings) => (await backend()).sendTestEmail(s);
+export const emailPasswordStorage = async () => (await backend()).emailPasswordStorage();
 export const listExports = async (limit: number) => (await backend()).listExports(limit);

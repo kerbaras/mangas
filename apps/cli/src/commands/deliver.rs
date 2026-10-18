@@ -5,7 +5,7 @@ use std::io::Write;
 use std::path::Path;
 
 use mangas_core::library::{self, Library};
-use mangas_core::send::{email, usb, SendVia};
+use mangas_core::send::{email, password, usb, SendVia};
 
 use crate::output::outln;
 use crate::Exit;
@@ -39,7 +39,7 @@ pub async fn deliver(
 ) -> anyhow::Result<()> {
     let to = match via {
         SendArg::Email => {
-            let settings = library::get_settings(lib)?.kindle_email;
+            let settings = password::email_settings(lib, &*password::system_store())?;
             let sent = email::send_book(&settings, file, title).await?;
             outln!(
                 "emailed {} ({:.1} MB) to {}",

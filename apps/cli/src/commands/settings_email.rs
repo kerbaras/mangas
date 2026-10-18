@@ -2,6 +2,7 @@
 
 use clap::Args as ClapArgs;
 use mangas_core::library;
+use mangas_core::send::password::{self, Storage};
 use mangas_core::send::{EmailSettings, Security};
 
 use crate::output::outln;
@@ -25,8 +26,8 @@ pub struct EmailArgs {
     security: Option<SecurityArg>,
     #[arg(long)]
     username: Option<String>,
-    /// Read the SMTP password from the first line of stdin (stored unencrypted in the app
-    /// settings)
+    /// Read the SMTP password from the first line of stdin (kept in the system keychain, or
+    /// unencrypted in the app settings when there is none)
     #[arg(long)]
     password_stdin: bool,
 }
@@ -50,23 +51,28 @@ impl From<SecurityArg> for Security {
 
 pub fn run(args: EmailArgs) -> anyhow::Result<()> {
     let lib = library::open(&paths::library_db()?)?;
-    let mut settings = library::get_settings(&lib)?;
+    let store = password::system_store();
+    let mut settings = password::load_settings(&lib, &*store)?;
     let before = settings.clone();
-    let password = if args.password_stdin {
+    let typed = if args.password_stdin {
         let mut line = String::new();
         std::io::stdin().read_line(&mut line)?;
         Some(line.trim_end_matches(['\r', '\n']).to_string())
     } else {
         None
     };
-    apply(&mut settings.kindle_email, args, password);
+    apply(&mut settings.kindle_email, args, typed);
     if settings != before {
-        settings = library::edit_settings(&lib, Some(&before), &settings)?;
-        if !settings.kindle_email.password.is_empty() {
-            eprintln!("note: the SMTP password is stored unencrypted in the app settings");
+        let saved = password::save_settings(&lib, &*store, Some(&before), &settings)?;
+        if let Some(why) = saved.fallback {
+            eprintln!(
+                "warning: no system keychain ({why}); the SMTP password is stored unencrypted in \
+                 the app settings"
+            );
         }
+        settings = saved.settings;
     }
-    print(&settings.kindle_email)
+    print(&settings.kindle_email, password::storage(&lib, &*store)?)
 }
 
 fn apply(e: &mut EmailSettings, args: EmailArgs, password: Option<String>) {
@@ -90,7 +96,7 @@ fn apply(e: &mut EmailSettings, args: EmailArgs, password: Option<String>) {
     }
 }
 
-fn print(e: &EmailSettings) -> anyhow::Result<()> {
+fn print(e: &EmailSettings, storage: Storage) -> anyhow::Result<()> {
     let port = e.port.unwrap_or(e.security.default_port());
     let security = serde_json::to_value(e.security)?;
     outln!("to        {}", e.to)?;
@@ -110,10 +116,10 @@ fn print(e: &EmailSettings) -> anyhow::Result<()> {
     outln!("username  {}", e.username)?;
     outln!(
         "password  {}",
-        if e.password.is_empty() {
-            "(not set)"
-        } else {
-            "(set)"
+        match (e.password.is_empty(), storage) {
+            (true, _) => "(not set)",
+            (false, Storage::Keychain) => "(set, in the system keychain)",
+            (false, Storage::File) => "(set, unencrypted in the app settings)",
         }
     )?;
     Ok(())

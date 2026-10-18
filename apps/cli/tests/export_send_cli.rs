@@ -14,6 +14,7 @@ fn mangas(home: &Path, args: &[&str]) -> Output {
         .args(args)
         .env("HOME", home)
         .env("XDG_DATA_HOME", home.join("data"))
+        .env("MANGAS_KEYCHAIN", "off")
         .env_remove("MANGAS_LOG")
         .output()
         .unwrap()

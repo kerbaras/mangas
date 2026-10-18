@@ -42,6 +42,9 @@ tar = { version = "0.4", default-features = false }
 pdf-writer = "0.15"
 lettre = { version = "0.11", default-features = false, features = ["builder", "hostname", "smtp-transport", "tokio1", "tokio1-rustls", "aws-lc-rs", "rustls-platform-verifier"] }
 tempfile = "3"
+# OS keychain for the SMTP password: macOS Keychain, Windows Credential Manager, Secret Service
+# over zbus on Linux (pure Rust, no libdbus).
+keyring = "4.2"
 
 [features]
 default = []
