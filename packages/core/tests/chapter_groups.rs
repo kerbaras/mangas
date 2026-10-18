@@ -147,3 +147,24 @@ fn a_release_without_volume_never_bridges_two_volumes() {
         .collect();
     assert_eq!(ids, ["none-b", "v2"]);
 }
+
+#[test]
+fn collapse_keeps_the_release_already_on_disk() {
+    use mangas_core::domain::collapse_groups;
+    let release = |id: &str, group: &str| Chapter {
+        id: ChapterId(id.into()),
+        number: "157".into(),
+        language: "en".into(),
+        group: Some(group.into()),
+        ..Default::default()
+    };
+    let mut koi = release("koi", "The Koi pond.");
+    koi.local_path = Some("/dl/157".into());
+    let list = vec![release("r", "r/OnePunchMan"), koi];
+    let kept = collapse_groups(list, &["r/OnePunchMan".into()]);
+    assert_eq!(kept.len(), 1);
+    assert_eq!(
+        kept[0].id.0, "koi",
+        "a downloaded release beats preferred groups"
+    );
+}

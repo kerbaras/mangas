@@ -46,9 +46,10 @@ pub fn normalize_group(name: Option<&str>) -> Option<String> {
         .map(String::from)
 }
 
-/// One release per chapter for when no group is picked (see [`same_slot`]): a downloadable
-/// release beats an external one, then the earliest of `preferred` groups (case-insensitive),
-/// then whichever came first. Keeps the list order; chapters without a number are all kept.
+/// One release per chapter for when no group is picked (see [`same_slot`]): one already on
+/// disk wins, then a downloadable one over an external one, then the earliest of `preferred`
+/// groups (case-insensitive), then whichever came first. Keeps the list order; chapters
+/// without a number are all kept.
 pub fn collapse_groups(chapters: Vec<Chapter>, preferred: &[String]) -> Vec<Chapter> {
     // Each slot remembers the first volume any of its releases named, so a release without a
     // volume never bridges two volumes.
@@ -107,7 +108,7 @@ pub fn same_slot(a: &Chapter, b: &Chapter) -> bool {
     a.language == b.language && compatible && number(a).is_some_and(|n| Some(n) == number(b))
 }
 
-fn rank(chapter: &Chapter, preferred: &[String]) -> (u8, usize) {
+fn rank(chapter: &Chapter, preferred: &[String]) -> (bool, u8, usize) {
     let tier = match &chapter.availability {
         Availability::Available => 0,
         Availability::External { url: Some(_) } => 1,
@@ -121,7 +122,7 @@ fn rank(chapter: &Chapter, preferred: &[String]) -> (u8, usize) {
         .iter()
         .position(|p| names.iter().any(|n| n.eq_ignore_ascii_case(p.trim())))
         .unwrap_or(usize::MAX);
-    (tier, group)
+    (!chapter.is_downloaded(), tier, group)
 }
 
 fn volume_of(c: &Chapter) -> Option<&str> {
