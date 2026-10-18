@@ -59,7 +59,7 @@ export function MangaDetailsScreen({ manga: card }: Props) {
     [source, id],
   );
   // Refreshing a followed title's chapters also saves its source record; show what that filled.
-  const refreshed = chapters.state.kind === "ready";
+  const refreshed = chapters.state.kind === "ready" ? chapters.state.data : null;
   useEffect(() => {
     if (refreshed) reloadManga();
   }, [refreshed, reloadManga]);

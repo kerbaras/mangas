@@ -47,6 +47,7 @@ fn credited() -> Manga {
 /// Serves a fixed record and chapter list, counting record requests.
 struct FakeSource {
     manga_calls: Mutex<usize>,
+    manga_fails: bool,
 }
 
 #[async_trait]
@@ -59,6 +60,9 @@ impl Source for FakeSource {
     }
     async fn manga(&self, _: &MangaId) -> Result<Manga, Error> {
         *self.manga_calls.lock().unwrap() += 1;
+        if self.manga_fails {
+            return Err(Error::Other("details down".into()));
+        }
         Ok(credited())
     }
     async fn chapters(&self, _: &MangaId, _: &str) -> Result<Vec<Chapter>, Error> {
@@ -72,6 +76,7 @@ impl Source for FakeSource {
 fn source() -> FakeSource {
     FakeSource {
         manga_calls: Mutex::new(0),
+        manga_fails: false,
     }
 }
 
@@ -103,4 +108,61 @@ async fn refreshing_an_unfollowed_title_stores_nothing() {
     );
     assert_eq!(get_manga(&lib, "fake", &id()).unwrap(), None);
     assert_eq!(*src.manga_calls.lock().unwrap(), 0);
+}
+
+#[tokio::test]
+async fn a_failed_record_fetch_still_saves_the_fresh_chapters() {
+    let lib = open_in_memory().unwrap();
+    upsert_manga(&lib, &bare()).unwrap();
+    let src = FakeSource {
+        manga_fails: true,
+        ..source()
+    };
+
+    let result = refresh_from_source(&lib, &src, &id(), "en").await.unwrap();
+
+    assert_eq!(result, Refreshed::Saved);
+    assert_eq!(get_manga(&lib, "fake", &id()).unwrap(), Some(bare()));
+    assert_eq!(
+        list_chapters(&lib, "fake", &id(), Some("en"))
+            .unwrap()
+            .len(),
+        2
+    );
+}
+
+/// Unfollows the title while its record is being fetched, like the user clicking Unfollow.
+struct UnfollowsMidway<'a>(&'a mangas_core::library::Library);
+
+#[async_trait]
+impl Source for UnfollowsMidway<'_> {
+    fn name(&self) -> &'static str {
+        "fake"
+    }
+    async fn search(&self, _: &str, _: usize) -> Result<Vec<Manga>, Error> {
+        Ok(vec![])
+    }
+    async fn manga(&self, id: &MangaId) -> Result<Manga, Error> {
+        mangas_core::library::remove_manga(self.0, "fake", id)?;
+        Ok(credited())
+    }
+    async fn chapters(&self, _: &MangaId, _: &str) -> Result<Vec<Chapter>, Error> {
+        Ok(vec![chapter("1")])
+    }
+    async fn pages(&self, _: &ChapterId) -> Result<PageUrls, Error> {
+        Ok(PageUrls(vec![]))
+    }
+}
+
+#[tokio::test]
+async fn an_unfollow_during_the_refresh_is_not_undone() {
+    let lib = open_in_memory().unwrap();
+    upsert_manga(&lib, &bare()).unwrap();
+
+    let result = refresh_from_source(&lib, &UnfollowsMidway(&lib), &id(), "en")
+        .await
+        .unwrap();
+
+    assert_eq!(result, Refreshed::NotFollowed(vec![chapter("1")]));
+    assert_eq!(get_manga(&lib, "fake", &id()).unwrap(), None);
 }
