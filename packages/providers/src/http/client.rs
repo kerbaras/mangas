@@ -10,8 +10,8 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use super::{
-    header_map, probe_status, session_gate, ClientConfig, HostPolicy, Reply, RetryPolicy,
-    USER_AGENT,
+    header_map, probe_status, redact_query, session_gate, ClientConfig, HostPolicy, Reply,
+    RetryPolicy, USER_AGENT,
 };
 use crate::rate_limit::{HostLimiters, TokenBucket};
 use crate::session::Session;
@@ -52,7 +52,9 @@ impl SiteClient {
     /// response is returned for the provider to interpret.
     pub async fn get_raw(&self, path: &str, query: &[(&str, String)]) -> Result<Reply> {
         let url = self.url(path);
-        log::debug!("{}: GET {url} {query:?}", self.config.info.id);
+        let id = self.config.info.id;
+        log::debug!("{id}: GET {url} {}", redact_query(query));
+        log::trace!("{id}: GET {url} {query:?}");
         let retry = self.config.retry;
         self.send(path, || self.http.get(&url).query(query), true, retry)
             .await

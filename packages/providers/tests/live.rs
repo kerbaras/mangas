@@ -7,13 +7,24 @@
 
 mod contract;
 
+use std::io::Write;
+
 use contract::{headers, manifest, walk};
 use mangas_core::domain::{Error, MangaId};
 use mangas_core::library::{ProviderSession, Settings};
 use mangas_providers::{doctor, info, source, ProviderStatus};
 
-fn live() -> bool {
-    std::env::var("MANGAS_LIVE").is_ok_and(|v| v == "1")
+/// Whether live tests run. When they don't, says so on the real stderr (libtest captures
+/// `eprintln!`), so `cargo test -- --ignored` printing `ok` is not mistaken for a pass.
+fn live(test: &str) -> bool {
+    let on = std::env::var("MANGAS_LIVE").is_ok_and(|v| v == "1");
+    if !on {
+        let _ = writeln!(
+            std::io::stderr(),
+            "skipped {test}: set MANGAS_LIVE=1 to run it against the real site"
+        );
+    }
+    on
 }
 
 /// The fixture contract, against the real site (same query and language as the fixtures).
@@ -40,7 +51,7 @@ async fn live_doctor(id: &str) {
 #[tokio::test]
 #[ignore = "hits api.mangadex.org; run with MANGAS_LIVE=1"]
 async fn mangadex_live_contract() {
-    if live() {
+    if live("mangadex_live_contract") {
         live_contract("mangadex").await;
     }
 }
@@ -48,7 +59,7 @@ async fn mangadex_live_contract() {
 #[tokio::test]
 #[ignore = "hits api.mangadex.org; run with MANGAS_LIVE=1"]
 async fn mangadex_live_check() {
-    if live() {
+    if live("mangadex_live_check") {
         live_doctor("mangadex").await;
     }
 }
@@ -56,7 +67,7 @@ async fn mangadex_live_check() {
 #[tokio::test]
 #[ignore = "hits weebcentral.com; run with MANGAS_LIVE=1"]
 async fn weebcentral_live_contract() {
-    if live() {
+    if live("weebcentral_live_contract") {
         live_contract("weebcentral").await;
     }
 }
@@ -64,7 +75,7 @@ async fn weebcentral_live_contract() {
 #[tokio::test]
 #[ignore = "hits weebcentral.com; run with MANGAS_LIVE=1"]
 async fn weebcentral_live_check() {
-    if live() {
+    if live("weebcentral_live_check") {
         live_doctor("weebcentral").await;
     }
 }
@@ -72,7 +83,7 @@ async fn weebcentral_live_check() {
 #[tokio::test]
 #[ignore = "hits tapas.io; run with MANGAS_LIVE=1"]
 async fn tapas_live_contract() {
-    if live() {
+    if live("tapas_live_contract") {
         live_contract("tapas").await;
     }
 }
@@ -80,7 +91,7 @@ async fn tapas_live_contract() {
 #[tokio::test]
 #[ignore = "hits tapas.io; run with MANGAS_LIVE=1"]
 async fn tapas_live_check() {
-    if live() {
+    if live("tapas_live_check") {
         live_doctor("tapas").await;
     }
 }
@@ -91,7 +102,7 @@ const COMICK_SLUG: &str = "00-solo-leveling";
 #[tokio::test]
 #[ignore = "hits comick.live; run with MANGAS_LIVE=1"]
 async fn comick_live_open_endpoints() {
-    if !live() {
+    if !live("comick_live_open_endpoints") {
         return;
     }
     let info = info("comick").unwrap();
@@ -111,7 +122,7 @@ async fn comick_live_open_endpoints() {
 #[tokio::test]
 #[ignore = "hits comick.live; run with MANGAS_LIVE=1"]
 async fn comick_live_check_reports_needs_session() {
-    if !live() {
+    if !live("comick_live_check_reports_needs_session") {
         return;
     }
     let manifest = manifest::load("comick").unwrap();
@@ -126,7 +137,7 @@ async fn comick_live_check_reports_needs_session() {
 #[tokio::test]
 #[ignore = "hits comick.live; run with MANGAS_LIVE=1"]
 async fn comick_live_stale_session_search_is_a_challenge() {
-    if !live() {
+    if !live("comick_live_stale_session_search_is_a_challenge") {
         return;
     }
     let mut settings = Settings::default();
@@ -145,7 +156,7 @@ async fn comick_live_stale_session_search_is_a_challenge() {
 #[tokio::test]
 #[ignore = "hits webtoons.com; run with MANGAS_LIVE=1"]
 async fn webtoons_live_contract() {
-    if live() {
+    if live("webtoons_live_contract") {
         live_contract("webtoons").await;
     }
 }
@@ -153,7 +164,7 @@ async fn webtoons_live_contract() {
 #[tokio::test]
 #[ignore = "hits webtoons.com; run with MANGAS_LIVE=1"]
 async fn webtoons_live_check() {
-    if live() {
+    if live("webtoons_live_check") {
         live_doctor("webtoons").await;
     }
 }

@@ -112,7 +112,16 @@ async fn results_without_chapters_are_skipped() {
     let (report, _) = run(&fake(vec!["none", "b"], &[("b", 1)]), 200).await;
     assert!(report.passed(), "{report:?}");
     let chapters = &report.steps[3];
-    assert_eq!(chapters.outcome, Ok("1 (en) in \"Title b\"".into()));
+    let expected = "1 (en) in \"Title b\"; skipped \"Title none\": no en chapters";
+    assert_eq!(chapters.outcome, Ok(expected.into()));
+    assert_eq!(report.steps[2].outcome, Ok("Title none (none)".into()));
+}
+
+#[tokio::test]
+async fn every_skipped_result_is_named() {
+    let (report, _) = run(&fake(vec!["x", "y", "c"], &[("c", 2)]), 200).await;
+    let expected = "2 (en) in \"Title c\"; skipped \"Title x\", \"Title y\": no en chapters";
+    assert_eq!(report.steps[3].outcome, Ok(expected.into()));
 }
 
 #[tokio::test]
