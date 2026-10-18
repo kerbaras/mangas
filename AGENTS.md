@@ -40,7 +40,8 @@ app, small CLI. The original Go/TUI implementation was removed once the Rust por
 - Tauri commands and CLI subcommands only parse input, call core, and format output.
 - Folders open only through the `open_folder` command (`openFolder` in `ipc.folders.ts`): it
   requires a real directory inside the app's folders or an export folder. Never grant the webview
-  `opener:allow-open-path`; other plugin calls need a permission in `capabilities/default.json`.
+  `opener:allow-open-path`. Every other plugin the UI uses (imports or init scripts) needs a
+  permission in `capabilities/default.json`; the `plugin_capability` test checks this.
 - UI: shadcn/ui components on Tailwind, Fluent 2 spacing/type scale tokens in `src/styles`.
   Desktop feel: native window chrome, no app name in the content area, sentence-case labels.
 - Models are downloaded at runtime (see `ml::models`), never committed or bundled.
