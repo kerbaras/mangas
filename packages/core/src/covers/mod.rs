@@ -3,12 +3,14 @@
 //! the least recently shown covers go first.
 
 mod cache;
+mod check;
 mod evict;
 mod key;
 
 pub use cache::{CoverCache, Limits};
+pub use check::{decoded_extension, image_extension, looks_intact};
 pub use evict::{to_evict, Entry};
-pub use key::{file_stem, image_extension};
+pub use key::{file_name, file_stem, stored_len};
 
 use std::path::PathBuf;
 
@@ -16,8 +18,9 @@ use crate::domain::Result;
 use crate::download::PageFetcher;
 
 /// Local file of the cover at `url` for manga `source`/`manga_id`: the cached copy, or one
-/// fetched with `fetcher` and stored. Fetch errors and non-image bodies are errors; nothing is
-/// cached for them, so the next call tries again.
+/// fetched with `fetcher` and stored. Fetch errors and bodies that are not complete images are
+/// errors; nothing is cached for them, so the next call tries again. A cached file that no
+/// longer looks intact is dropped and fetched again.
 pub async fn cover(
     cache: &CoverCache,
     fetcher: &dyn PageFetcher,

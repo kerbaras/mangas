@@ -5,8 +5,9 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::SystemTime;
 
+use super::check::{decoded_extension, looks_intact};
 use super::evict::{to_evict, Entry};
-use super::key::{file_stem, image_extension, manga_prefix, EXTENSIONS};
+use super::key::{file_name, file_stem, manga_prefix, stored_len};
 use crate::domain::{Error, Result};
 
 /// How much the cache may hold before the least recently used covers are deleted.
@@ -44,24 +45,30 @@ impl CoverCache {
         &self.dir
     }
 
-    /// The cached cover for this manga and URL, marked as just used.
+    /// The cached cover for this manga and URL, marked as just used. A file that was cut short or
+    /// overwritten is deleted and reported as a miss, so the caller fetches it again.
     pub fn lookup(&self, source: &str, manga_id: &str, url: &str) -> Option<PathBuf> {
-        let stem = file_stem(source, manga_id, url);
-        let path = EXTENSIONS
-            .iter()
-            .map(|ext| self.dir.join(format!("{stem}.{ext}")))
-            .find(|p| p.is_file())?;
+        let prefix = format!("{}-", file_stem(source, manga_id, url));
+        let name = self.names().into_iter().find(|n| n.starts_with(&prefix))?;
+        let path = self.dir.join(&name);
+        let intact = stored_len(&name)
+            .zip(fs::read(&path).ok())
+            .is_some_and(|(len, bytes)| looks_intact(&bytes, len));
+        if !intact {
+            let _ = fs::remove_file(&path);
+            return None;
+        }
         touch(&path);
         Some(path)
     }
 
     /// Writes an image body as this manga's cover, replacing older covers of the same manga,
-    /// then trims the cache to its limits. Bodies that are not images are refused.
+    /// then trims the cache to its limits. Bodies that do not decode completely are refused.
     pub fn store(&self, source: &str, manga_id: &str, url: &str, bytes: &[u8]) -> Result<PathBuf> {
-        let ext = image_extension(bytes)
-            .ok_or_else(|| Error::Other(format!("cover {url}: not an image")))?;
+        let ext = decoded_extension(bytes)
+            .ok_or_else(|| Error::Other(format!("cover {url}: not a complete image")))?;
         fs::create_dir_all(&self.dir)?;
-        let name = format!("{}.{ext}", file_stem(source, manga_id, url));
+        let name = file_name(&file_stem(source, manga_id, url), bytes.len(), ext);
         let path = self.dir.join(&name);
         let tmp = self.dir.join(format!(".{name}.{}.tmp", unique()));
         if let Err(e) = fs::write(&tmp, bytes).and_then(|()| fs::rename(&tmp, &path)) {

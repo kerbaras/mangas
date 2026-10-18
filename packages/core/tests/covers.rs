@@ -1,13 +1,31 @@
+use std::io::Cursor;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use async_trait::async_trait;
+use image::ImageFormat;
 use mangas_core::covers::{cover, image_extension, CoverCache, Limits};
 use mangas_core::domain::{Error, Result};
 use mangas_core::download::PageFetcher;
 
-/// Smallest valid bodies of each kind, by magic bytes.
-const PNG: &[u8] = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR";
-const JPEG: &[u8] = b"\xff\xd8\xff\xe0\0\x10JFIF\0";
+/// A real, decodable cover in `format`, with enough noise that its scan data is not trivial.
+fn encoded(format: ImageFormat) -> Vec<u8> {
+    let img = image::RgbImage::from_fn(48, 72, |x, y| {
+        image::Rgb([(x * 5) as u8, (y * 3) as u8, (x ^ y) as u8])
+    });
+    let mut out = Cursor::new(Vec::new());
+    image::DynamicImage::ImageRgb8(img)
+        .write_to(&mut out, format)
+        .unwrap();
+    out.into_inner()
+}
+
+fn png() -> Vec<u8> {
+    encoded(ImageFormat::Png)
+}
+
+fn jpeg() -> Vec<u8> {
+    encoded(ImageFormat::Jpeg)
+}
 
 struct Fixed {
     body: Vec<u8>,
@@ -49,15 +67,15 @@ fn files(dir: &std::path::Path) -> Vec<String> {
 
 #[test]
 fn image_extension_comes_from_the_bytes() {
-    assert_eq!(image_extension(PNG), Some("png"));
-    assert_eq!(image_extension(JPEG), Some("jpg"));
+    assert_eq!(image_extension(&png()), Some("png"));
+    assert_eq!(image_extension(&jpeg()), Some("jpg"));
     assert_eq!(image_extension(b"<!DOCTYPE html><title>403</title>"), None);
 }
 
 #[tokio::test]
 async fn fetches_once_then_serves_the_cached_file() {
     let dir = tempfile::tempdir().unwrap();
-    let fetcher = Fixed::new(PNG);
+    let fetcher = Fixed::new(&png());
     let first = cover(
         &cache(dir.path()),
         &fetcher,
@@ -78,7 +96,7 @@ async fn fetches_once_then_serves_the_cached_file() {
     .unwrap();
     assert_eq!(first, again);
     assert_eq!(first.extension().unwrap(), "png");
-    assert_eq!(std::fs::read(&first).unwrap(), PNG);
+    assert_eq!(std::fs::read(&first).unwrap(), png());
     assert_eq!(fetcher.calls.load(Ordering::SeqCst), 1);
 }
 
@@ -87,9 +105,9 @@ async fn a_new_cache_on_the_same_dir_reuses_covers() {
     // What an app restart does: a fresh CoverCache over the same folder.
     let dir = tempfile::tempdir().unwrap();
     cache(dir.path())
-        .store("mangadex", "m1", "https://u/c.jpg", JPEG)
+        .store("mangadex", "m1", "https://u/c.jpg", &jpeg())
         .unwrap();
-    let fetcher = Fixed::new(PNG);
+    let fetcher = Fixed::new(&png());
     let path = cover(
         &cache(dir.path()),
         &fetcher,
@@ -99,7 +117,7 @@ async fn a_new_cache_on_the_same_dir_reuses_covers() {
     )
     .await
     .unwrap();
-    assert_eq!(std::fs::read(path).unwrap(), JPEG);
+    assert_eq!(std::fs::read(path).unwrap(), jpeg());
     assert_eq!(fetcher.calls.load(Ordering::SeqCst), 0);
 }
 
@@ -116,7 +134,7 @@ async fn failures_and_non_images_are_not_cached() {
     let err = cover(&cache(dir.path()), &html, "comick", "m", "https://c/x")
         .await
         .unwrap_err();
-    assert!(err.to_string().contains("not an image"), "{err}");
+    assert!(err.to_string().contains("not a complete image"), "{err}");
     assert!(cache(dir.path())
         .lookup("comick", "m", "https://c/x")
         .is_none());
@@ -127,11 +145,13 @@ async fn failures_and_non_images_are_not_cached() {
 fn a_changed_cover_url_replaces_the_old_file() {
     let dir = tempfile::tempdir().unwrap();
     let c = cache(dir.path());
-    c.store("webtoons", "t1", "https://p/old.jpg", JPEG)
+    c.store("webtoons", "t1", "https://p/old.jpg", &jpeg())
         .unwrap();
-    c.store("webtoons", "t2", "https://p/other.jpg", JPEG)
+    c.store("webtoons", "t2", "https://p/other.jpg", &jpeg())
         .unwrap();
-    let new = c.store("webtoons", "t1", "https://p/new.png", PNG).unwrap();
+    let new = c
+        .store("webtoons", "t1", "https://p/new.png", &png())
+        .unwrap();
     assert!(c.lookup("webtoons", "t1", "https://p/old.jpg").is_none());
     assert_eq!(c.lookup("webtoons", "t1", "https://p/new.png"), Some(new));
     assert!(c.lookup("webtoons", "t2", "https://p/other.jpg").is_some());
@@ -153,13 +173,13 @@ fn the_cache_is_bounded_and_drops_the_least_recently_used() {
         let f = std::fs::File::options().write(true).open(p).unwrap();
         f.set_modified(t).unwrap();
     };
-    let a = c.store("s", "a", "u", PNG).unwrap();
-    let b = c.store("s", "b", "u", PNG).unwrap();
+    let a = c.store("s", "a", "u", &png()).unwrap();
+    let b = c.store("s", "b", "u", &png()).unwrap();
     set_used(&a, old);
     set_used(&b, old - std::time::Duration::from_secs(60));
     // Showing "b" makes it the most recent, so storing "c" evicts "a".
     assert!(c.lookup("s", "b", "u").is_some());
-    c.store("s", "c", "u", PNG).unwrap();
+    c.store("s", "c", "u", &png()).unwrap();
     assert!(c.lookup("s", "a", "u").is_none());
     assert!(c.lookup("s", "b", "u").is_some());
     assert!(c.lookup("s", "c", "u").is_some());
