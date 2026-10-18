@@ -24,7 +24,7 @@ import {
   selectionSummary,
   sortChapters,
 } from "@/lib/chapters";
-import { rememberLabels } from "@/lib/download-labels";
+import { rememberDownloads } from "@/lib/download-labels";
 import { languageLabel } from "@/lib/format";
 import { DEFAULT_LANGUAGE, downloadChapters, isChallenge, type Manga } from "@/lib/ipc";
 import { loadChapters } from "@/lib/load-chapters";
@@ -84,7 +84,12 @@ export function MangaDetailsScreen({ manga: card }: Props) {
   const toExport = exportable(all, selected);
 
   const download = async () => {
-    rememberLabels(toDownload.map((c) => [c.id, `Chapter ${c.number} of ${manga.title}`]));
+    rememberDownloads(
+      toDownload.map((c) => [
+        c.id,
+        { label: `Chapter ${c.number} of ${manga.title}`, source, mangaId: id },
+      ]),
+    );
     try {
       // Per-chapter failures, missing chapters included, arrive as progress errors.
       await downloadChapters(

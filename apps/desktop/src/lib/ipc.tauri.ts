@@ -95,7 +95,7 @@ export const tauriBackend: Backend = {
   detectorsStatus: async () => toDetectorsStatus(await invoke<MlStatus>("detectors_status")),
   diagnostics: () => invoke<Diagnostics>("diagnostics"),
   openLogs: () => invoke<void>("open_logs"),
-  reportError: (message) => invoke<void>("log_ui_error", { message }),
+  reportError: (message, level = "error") => invoke<void>("log_ui_error", { message, level }),
   onDownloadProgress: (cb) =>
     listen<DownloadEvent>(DOWNLOAD_EVENT, (e) => cb(toDownloadProgress(e.payload))),
   onExportProgress: (cb) =>

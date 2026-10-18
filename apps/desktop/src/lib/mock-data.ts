@@ -123,12 +123,20 @@ const toManga = ([id, title, status, hue, description]: Seed): Manga => ({
   status,
 });
 
-export const sampleLibrary: Manga[] = seeds.map(toManga);
+/** One followed MangaDot series: downloading it without a session hits the browser check. */
+const walled = seeds
+  .slice(1, 2)
+  .map((s) => ({ ...toManga(s), source: "mangadot", id: `md-${s[0]}` }));
+export const sampleLibrary: Manga[] = [...seeds.map(toManga), ...walled];
 /** WeebCentral lists a few of the same series under its own ids. */
 const mirrors = seeds
   .slice(0, 4)
   .map((s) => ({ ...toManga(s), source: "weebcentral", id: `wc-${s[0]}` }));
-export const sampleCatalog: Manga[] = [...[...seeds, ...extras].map(toManga), ...mirrors];
+export const sampleCatalog: Manga[] = [
+  ...[...seeds, ...extras].map(toManga),
+  ...mirrors,
+  ...walled,
+];
 
 const titles = [
   "The Black Swordsman",

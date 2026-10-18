@@ -3,6 +3,7 @@ import { useState } from "react";
 import { DeviceSelect } from "@/components/device-select";
 import { DevicesPending } from "@/components/devices-pending";
 import { DiagnosticsPanel } from "@/components/diagnostics-panel";
+import { ErrorAlert } from "@/components/error-alert";
 import { Field } from "@/components/field";
 import { LanguagesPicker } from "@/components/languages-picker";
 import { MangaDexOptionsForm } from "@/components/mangadex-options";
@@ -15,9 +16,30 @@ import { useAsync } from "@/hooks/use-async";
 import { pickFolder } from "@/lib/dialogs";
 import { errorMessage } from "@/lib/format";
 import { installCli, listDevices } from "@/lib/ipc";
-import { useSettings } from "@/lib/settings";
+import { loadSettings, useSettings, useSettingsLoad } from "@/lib/settings";
 
+/** The form only once the stored settings are in; a failed load shows why, with a retry. */
 export function SettingsScreen() {
+  const load = useSettingsLoad();
+  if (load.kind === "ready") return <SettingsForm />;
+  return (
+    <section className="flex h-full flex-col">
+      <ScreenHeader title="Settings" />
+      <div className="p-4">
+        {load.kind === "failed" && (
+          <ErrorAlert
+            title="Couldn't load your settings"
+            message={load.error}
+            onRetry={() => void loadSettings()}
+            className="mx-auto max-w-2xl"
+          />
+        )}
+      </div>
+    </section>
+  );
+}
+
+function SettingsForm() {
   const [settings, update] = useSettings();
   const devices = useAsync(listDevices, []);
 

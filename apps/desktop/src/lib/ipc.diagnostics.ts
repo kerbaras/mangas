@@ -4,13 +4,17 @@ import { backend } from "./ipc";
 /** Settings → Diagnostics: the log folder and the plain-text report. */
 export type Diagnostics = { log_dir: string; report: string };
 
+/** Log level for UI messages: crashes are errors, recoverable failures warnings. */
+export type UiLogLevel = "error" | "warn";
+
 export type DiagnosticsBackend = {
   diagnostics(): Promise<Diagnostics>;
   openLogs(): Promise<void>;
-  /** Writes a UI error (crash, unhandled rejection) to the app log. */
-  reportError(message: string): Promise<void>;
+  /** Writes a UI error (crash, unhandled rejection) or warning to the app log; error by default. */
+  reportError(message: string, level?: UiLogLevel): Promise<void>;
 };
 
 export const diagnostics = async () => (await backend()).diagnostics();
 export const openLogs = async () => (await backend()).openLogs();
-export const reportError = async (message: string) => (await backend()).reportError(message);
+export const reportError = async (message: string, level?: UiLogLevel) =>
+  (await backend()).reportError(message, level);

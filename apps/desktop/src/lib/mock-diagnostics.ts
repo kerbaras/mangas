@@ -18,7 +18,8 @@ export const mockDiagnostics = (
     return { log_dir: `${dataDir}/logs`, report };
   },
   async openLogs() {},
-  async reportError(message) {
-    console.error(message);
+  async reportError(message, level) {
+    if (level === "warn") console.warn(message);
+    else console.error(message);
   },
 });

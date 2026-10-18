@@ -3,6 +3,7 @@ import { errorMessage } from "@/lib/format";
 import { type SearchGroup, searchAll } from "@/lib/ipc";
 import { recordStatus } from "@/lib/provider-status";
 import type { GroupState } from "@/lib/search-groups";
+import { cachedResults, rememberResults } from "@/lib/search-session";
 
 const failed = (provider: string, reason: string): SearchGroup => ({
   provider,
@@ -13,13 +14,16 @@ const failed = (provider: string, reason: string): SearchGroup => ({
 /**
  * Searches each provider in its own call so groups show up as they answer instead of waiting
  * for the slowest; `retry(id)` reruns one. Only the latest call per provider lands, and every
- * answer is recorded as that provider's status.
+ * answer is recorded as that provider's status. The last query's groups are kept in
+ * `search-session`, so coming back to the same query shows them again; only providers still
+ * searching when the screen was left are asked again.
  */
 export function useMultiSearch(query: string, ids: string[]) {
   const [groups, setGroups] = useState<Record<string, GroupState>>({});
   const generation = useRef(0);
   const latest = useRef<Record<string, number>>({});
   const key = ids.join(",");
+  const current = useRef({ query: "", key: "" });
 
   const searchOne = useCallback((q: string, id: string, gen: number) => {
     const token = (latest.current[id] ?? 0) + 1;
@@ -37,11 +41,19 @@ export function useMultiSearch(query: string, ids: string[]) {
 
   useEffect(() => {
     const gen = ++generation.current;
-    setGroups({});
     const q = query.trim();
+    current.current = { query: q, key };
+    const cached = cachedResults(q, key);
+    const ids = key.split(",").filter(Boolean);
+    setGroups(cached ?? {});
     if (!q) return;
-    for (const id of key.split(",").filter(Boolean)) searchOne(q, id, gen);
+    for (const id of ids) if (cached?.[id]?.kind !== "done") searchOne(q, id, gen);
   }, [query, key, searchOne]);
+
+  // Every groups change past the reset above belongs to `current`: stale answers are dropped.
+  useEffect(() => {
+    rememberResults(current.current.query, current.current.key, groups);
+  }, [groups]);
 
   const retry = useCallback(
     (id: string) => {
