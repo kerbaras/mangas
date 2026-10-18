@@ -2,6 +2,9 @@
 //! original comick.io/.dev stopped in 2025). Comic pages, chapter lists and reader pages are
 //! open; search sits behind a Cloudflare verification, so it uses the browser [`Session`]
 //! captured by the desktop app.
+//!
+//! Search reads only the first page of results (its `next_cursor` is not followed): the
+//! endpoint could not be observed without a session, so its paging is unverified.
 
 mod api;
 mod mapping;
