@@ -1,0 +1,79 @@
+{
+  "format": "mangas-backup",
+  "version": 1,
+  "exported_at": "2026-10-18T08:19:08Z",
+  "app_version": "0.2.0",
+  "bookmarks": [
+    {
+      "Created": 1792311548000,
+      "Updated": 1792311548000,
+      "Title": "Chainsaw Man",
+      "Media": {
+        "ProviderID": "mangadex",
+        "EntryID": "a77742b1-befd-49a4-bff5-1ad4e6b0ef7b"
+      },
+      "Info": {
+        "ProviderID": null,
+        "EntryID": null
+      }
+    },
+    {
+      "Created": 1792311548000,
+      "Updated": 1792311548000,
+      "Title": "Tapas one",
+      "Media": {
+        "ProviderID": "tapas",
+        "EntryID": "12345"
+      },
+      "Info": {
+        "ProviderID": null,
+        "EntryID": null
+      }
+    }
+  ],
+  "library": [
+    {
+      "id": "a77742b1-befd-49a4-bff5-1ad4e6b0ef7b",
+      "source": "mangadex",
+      "title": "Chainsaw Man",
+      "description": "Denji has a debt.",
+      "cover_url": "https://uploads.mangadex.org/covers/a7/cover.jpg",
+      "status": "ongoing",
+      "authors": [
+        "Fujimoto Tatsuki"
+      ],
+      "artists": [],
+      "year": 2018,
+      "tags": [
+        "Action"
+      ]
+    },
+    {
+      "id": "12345",
+      "source": "tapas",
+      "title": "Tapas one",
+      "description": "",
+      "cover_url": null,
+      "status": "unknown",
+      "authors": [],
+      "artists": [],
+      "year": null,
+      "tags": []
+    }
+  ],
+  "settings": {
+    "data_dir": null,
+    "default_device": "kindle-scribe",
+    "default_preset": null,
+    "provider_sessions": {},
+    "preferred_languages": [
+      "en",
+      "es-la"
+    ],
+    "provider_options": {},
+    "providers_enabled": {},
+    "provider_languages": {},
+    "update_check_hours": 12,
+    "update_notifications": null
+  }
+}
