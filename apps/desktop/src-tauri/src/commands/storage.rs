@@ -58,10 +58,12 @@ pub async fn clear_cache(cache: Cache) -> Result<Cleared, String> {
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub async fn move_data_dir(app: AppHandle, to: String) -> Result<Moved, String> {
-    if !super::detectors::claim() {
+    let Some(busy) = super::detectors::claim() else {
         return Err("detector support is downloading; wait for it or cancel it, then move".into());
-    }
-    let moved = blocking(move || {
+    };
+    blocking(move || {
+        // Held until the copy ends, even if this command is dropped first.
+        let _busy = busy;
         let lib = open_library()?;
         let from = folders()?.data_dir;
         let mut last = Instant::now() - Duration::from_secs(1);
@@ -75,9 +77,7 @@ pub async fn move_data_dir(app: AppHandle, to: String) -> Result<Moved, String> 
         };
         storage::move_data_dir(&lib, &from, &PathBuf::from(to), &mut report).map_err(to_ipc)
     })
-    .await;
-    super::detectors::release();
-    moved
+    .await
 }
 
 #[tauri::command]

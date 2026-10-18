@@ -32,25 +32,29 @@ pub fn detectors_status() -> Result<ml::Status, String> {
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub async fn download_detectors(app: AppHandle) -> Result<ml::Status, String> {
-    if DOWNLOADING.swap(true, Ordering::SeqCst) {
+    let Some(_busy) = claim() else {
         return Err("detector support is already downloading, or the data folder is moving".into());
-    }
-    let result = download(&app).await;
-    // Cleared after, not before: a Cancel sent while the call was on its way still counts.
-    CANCEL.store(false, Ordering::SeqCst);
-    DOWNLOADING.store(false, Ordering::SeqCst);
-    result
+    };
+    download(&app).await
 }
 
-/// Keeps downloads out of the data folder while it moves; false if one is already running.
-pub fn claim() -> bool {
+/// Held while a detector download or a data-folder move uses the folder; dropping it frees the
+/// folder and clears a Cancel sent meanwhile (cleared after, not before, so an early Cancel counts).
+pub struct Busy;
+
+impl Drop for Busy {
+    fn drop(&mut self) {
+        CANCEL.store(false, Ordering::SeqCst);
+        DOWNLOADING.store(false, Ordering::SeqCst);
+    }
+}
+
+/// None while a download or a move already holds the folder.
+pub fn claim() -> Option<Busy> {
     DOWNLOADING
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-        .is_ok()
-}
-
-pub fn release() {
-    DOWNLOADING.store(false, Ordering::SeqCst);
+        .ok()
+        .map(|_| Busy)
 }
 
 async fn download(app: &AppHandle) -> Result<ml::Status, String> {
@@ -87,4 +91,23 @@ pub fn cancel_detectors_download() {
 #[tracing::instrument(level = "error", skip_all)]
 pub fn remove_detectors() -> Result<u64, String> {
     ml::remove(&models_dir()?).map_err(to_ipc)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_claim_excludes_others_and_its_drop_clears_a_cancel() {
+        let busy = claim().expect("free at start");
+        assert!(claim().is_none(), "a move and a download never overlap");
+        cancel_detectors_download();
+        assert!(CANCEL.load(Ordering::SeqCst));
+        drop(busy);
+        assert!(
+            !CANCEL.load(Ordering::SeqCst),
+            "the next download is not pre-cancelled"
+        );
+        assert!(claim().is_some(), "freed when dropped");
+    }
 }
