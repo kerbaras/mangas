@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { Toaster } from "sonner";
 import { describe, expect, it } from "vitest";
 import { notifyImported } from "@/lib/import-toast";
@@ -18,7 +18,7 @@ const report = (skipped: ImportReport["skipped"]) =>
   }) as unknown as ImportReport;
 
 describe("import toast", () => {
-  it("lists why entries and pages were skipped behind a toggle", async () => {
+  it("lists why entries and pages were skipped in a scroll box", async () => {
     render(<Toaster />);
     act(() =>
       notifyImported(
@@ -33,9 +33,8 @@ describe("import toast", () => {
     expect(
       await screen.findByText("Imported 1 chapter (2 pages) of Berserk v01 · 2 skipped"),
     ).toBeInTheDocument();
-    const toggle = screen.getByText("Why 2 items were skipped");
-    fireEvent.click(toggle);
-    expect(toggle.closest("details")).toHaveAttribute("open");
+    expect(screen.getByText("2 items were skipped:")).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Skipped items" })).toHaveClass("overflow-y-auto");
     expect(screen.getByText("Berserk v01.cbz/02.jpg")).toBeInTheDocument();
     expect(screen.getByText("— not an image")).toBeInTheDocument();
   });
@@ -43,7 +42,7 @@ describe("import toast", () => {
   it("drops the list when a clean import replaces the toast", async () => {
     render(<Toaster />);
     act(() => notifyImported(report([{ name: "a.jpg", reason: "not an image" }]), "import"));
-    expect(await screen.findByText("Why 1 item was skipped")).toBeInTheDocument();
+    expect(await screen.findByText("1 item was skipped:")).toBeInTheDocument();
 
     act(() => notifyImported(report([]), "import"));
     expect(
