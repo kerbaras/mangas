@@ -38,7 +38,7 @@ impl Task {
                     if let Ok(mut p) = self.progress.lock() {
                         p.insert(job.id, (count.min(total), total));
                     }
-                    //NOFIX
+                    self.wake.notify_one();
                 }
             };
             let outcome = self.runner.run(&self.lib, &job, &on_event).await.err();
