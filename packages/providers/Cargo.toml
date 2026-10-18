@@ -1,6 +1,6 @@
 [package]
 name = "mangas-providers"
-description = "Mangas providers: MangaDex, MangaDot and the common harness (SiteClient, HostPolicy, registry) behind the core Source trait"
+description = "Mangas providers: MangaDex, MangaDot, WeebCentral and the common harness (SiteClient, HostPolicy, registry) behind the core Source trait"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -21,6 +21,7 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "que
 url = "2"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 futures = "0.3"
+scraper = "0.27"
 
 [dev-dependencies]
 tempfile = "3"
