@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use image::{Rgba, RgbaImage};
-use mangas_core::domain::MangaId;
+use mangas_core::domain::{Error, MangaId};
 use mangas_core::library::{
     import_paths, list_manga, open_in_memory, remove_manga, ImportRequest, LOCAL_SOURCE,
 };
@@ -34,7 +34,10 @@ fn a_folder_already_in_the_library_layout_is_left_alone() {
 
     let err = import_paths(&lib, &root, &request(vec![inside.clone()], Some("foo"))).unwrap_err();
 
-    assert!(err.to_string().contains("no chapters"), "{err}");
+    assert!(
+        err.to_string().starts_with("No chapters with images"),
+        "{err}"
+    );
     assert!(inside.join("a.png").is_file() && inside.join("b.png").is_file());
     assert!(list_manga(&lib).unwrap().is_empty());
 }
@@ -95,4 +98,81 @@ fn imported_pages_are_copies_not_links_to_the_source() {
     std::fs::remove_dir_all(&source).unwrap();
 
     assert_eq!(std::fs::read(&page).unwrap(), before);
+}
+
+#[test]
+fn a_failed_import_leaves_no_series_folder_and_reads_plainly() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("data");
+    let series = tmp.path().join("Berserk");
+    std::fs::create_dir_all(series.join("Chapter 1")).unwrap();
+    std::fs::write(series.join("Chapter 1").join("notes.txt"), b"no pages").unwrap();
+    let lib = open_in_memory().unwrap();
+
+    let err = import_paths(&lib, &root, &request(vec![series.clone()], None)).unwrap_err();
+
+    assert!(matches!(err, Error::Import(_)), "{err:?}");
+    let expected = format!("No chapters with images in {}", series.display());
+    assert_eq!(err.to_string(), expected);
+    let left: Vec<_> = std::fs::read_dir(root.join(LOCAL_SOURCE))
+        .map(|dir| dir.flatten().map(|e| e.path()).collect())
+        .unwrap_or_default();
+    assert!(left.is_empty(), "left behind: {left:?}");
+}
+
+#[cfg(unix)]
+#[test]
+fn a_read_only_data_folder_is_named_in_the_error() {
+    use std::os::unix::fs::PermissionsExt;
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("data");
+    let series = tmp.path().join("Berserk");
+    png(&series.join("Chapter 1"), "001.png");
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o555)).unwrap();
+    if std::fs::create_dir(root.join("probe")).is_ok() {
+        return; // root ignores permissions
+    }
+    let lib = open_in_memory().unwrap();
+
+    let err = import_paths(&lib, &root, &request(vec![series], None)).unwrap_err();
+
+    std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let message = err.to_string();
+    assert!(
+        message.starts_with(&format!("Couldn't write to {}", root.display())),
+        "{message}"
+    );
+    assert!(message.ends_with(": permission denied"), "{message}");
+}
+
+#[test]
+fn a_corrupt_cbz_says_so() {
+    let tmp = tempfile::tempdir().unwrap();
+    let cbz = tmp.path().join("Corrupt.cbz");
+    std::fs::write(&cbz, b"not a zip").unwrap();
+    let lib = open_in_memory().unwrap();
+
+    let err = import_paths(&lib, &tmp.path().join("data"), &request(vec![cbz], None)).unwrap_err();
+
+    assert_eq!(err.to_string(), "Corrupt.cbz isn't a valid CBZ file");
+}
+
+#[test]
+fn a_truncated_cbz_says_so() {
+    use std::io::Write;
+    let tmp = tempfile::tempdir().unwrap();
+    let cbz = tmp.path().join("Cut.cbz");
+    let mut zip = zip::ZipWriter::new(std::fs::File::create(&cbz).unwrap());
+    zip.start_file("001.png", zip::write::SimpleFileOptions::default())
+        .unwrap();
+    zip.write_all(&[7; 4096]).unwrap();
+    zip.finish().unwrap();
+    let bytes = std::fs::read(&cbz).unwrap();
+    std::fs::write(&cbz, &bytes[..bytes.len() - 30]).unwrap();
+    let lib = open_in_memory().unwrap();
+
+    let err = import_paths(&lib, &tmp.path().join("data"), &request(vec![cbz], None)).unwrap_err();
+
+    assert_eq!(err.to_string(), "Cut.cbz isn't a valid CBZ file");
 }
