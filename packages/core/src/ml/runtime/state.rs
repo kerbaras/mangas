@@ -34,7 +34,10 @@ mod tests {
     #[test]
     fn a_failure_applies_only_to_its_own_folder() {
         record(Path::new("/a/models"), "bad archive".into());
-        assert_eq!(failure(Path::new("/a/models")).as_deref(), Some("bad archive"));
+        assert_eq!(
+            failure(Path::new("/a/models")).as_deref(),
+            Some("bad archive")
+        );
         assert_eq!(failure(Path::new("/b/models")), None);
         clear();
         assert_eq!(failure(Path::new("/a/models")), None);

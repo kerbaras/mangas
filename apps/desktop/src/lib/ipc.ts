@@ -176,9 +176,11 @@ let current: Backend | null = null;
 /** Resolves lazily so only the bridge that applies gets pulled in. */
 export async function backend(): Promise<Backend> {
   if (current) return current;
-  current = isTauri()
+  const loaded = isTauri()
     ? (await import("./ipc.tauri")).tauriBackend
     : (await import("./ipc.mock")).mockBackend;
+  // A backend pinned with `setBackend` while the import was pending wins.
+  current ??= loaded;
   return current;
 }
 
