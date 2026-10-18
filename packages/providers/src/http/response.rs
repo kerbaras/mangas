@@ -9,7 +9,7 @@ use reqwest::Response;
 use super::{edge_error, parse_retry_after, retryable_status, Reply};
 
 /// The outcome of one attempt and, when it is to be retried, how long to wait first.
-pub type Attempt = (Result<Reply>, Option<Duration>);
+pub type Attempt<T = Reply> = (Result<T>, Option<Duration>);
 
 pub fn mitigated(response: &Response) -> String {
     response

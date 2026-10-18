@@ -1,3 +1,4 @@
+mod hop;
 mod transport;
 
 use std::sync::Arc;
@@ -5,20 +6,23 @@ use std::sync::Arc;
 use chrono::Utc;
 use mangas_core::domain::{Error, Result};
 use mangas_core::sources::{Header, ProviderStatus};
-use reqwest::header::HeaderMap;
-use reqwest::Client;
+use reqwest::redirect::Policy;
+use reqwest::{Client, Method};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use super::{
-    header_map, probe_status, redact_query, session_gate, ClientConfig, HostPolicy, Reply,
-    RetryPolicy, USER_AGENT,
+    probe_status, redact_query, session_gate, ClientConfig, HostPolicy, Reply, RetryPolicy,
+    USER_AGENT,
 };
 use crate::rate_limit::{HostLimiters, TokenBucket};
 use crate::session::Session;
+use hop::Outgoing;
 
 /// HTTP client for one site: the host's shared token bucket ([`HostLimiters`]), timeouts, retries with backoff, browser
-/// session headers, challenge detection and the page-header policy.
+/// session headers, challenge detection and the page-header policy. Redirects are followed by
+/// hand ([`super::redirect`]): each hop draws from its own host's bucket and gets that host's
+/// headers, so the session never leaves the site.
 pub struct SiteClient {
     config: ClientConfig,
     http: Client,
@@ -28,10 +32,9 @@ pub struct SiteClient {
 
 impl SiteClient {
     pub fn new(config: ClientConfig, session: Option<Session>) -> Result<Self> {
-        let headers = session.as_ref().map(Session::headers).unwrap_or_default();
         let http = Client::builder()
             .user_agent(USER_AGENT)
-            .default_headers(header_map(&headers)?)
+            .redirect(Policy::none())
             .timeout(config.timeout)
             .connect_timeout(config.connect_timeout)
             .build()?;
@@ -58,9 +61,8 @@ impl SiteClient {
         let id = self.config.info.id;
         log::debug!("{id}: GET {url} {}", redact_query(query));
         log::trace!("{id}: GET {url} {query:?}");
-        let headers = self.request_headers(&url)?;
-        let request = || self.http.get(&url).headers(headers.clone()).query(query);
-        self.send(path, request, true, self.config.retry).await
+        let request = Outgoing::new(Method::GET, self.parse(&url, query)?, None);
+        self.send(path, request, self.config.retry).await
     }
 
     /// GET returning the body of a 2xx response; other statuses become errors ([`status_error`]).
@@ -98,9 +100,9 @@ impl SiteClient {
     {
         let url = self.url(path);
         log::debug!("{}: POST {url}", self.config.info.id);
-        let headers = self.request_headers(&url)?;
-        let request = || self.http.post(&url).headers(headers.clone()).json(body);
-        let reply = self.send(path, request, false, self.config.retry).await?;
+        let json = serde_json::to_vec(body).map_err(|e| self.error(format!("{path}: {e}")))?;
+        let request = Outgoing::new(Method::POST, self.parse(&url, &[])?, Some(json));
+        let reply = self.send(path, request, self.config.retry).await?;
         let text = self.ok_body(path, reply)?;
         self.decode(path, &text)
     }
@@ -113,11 +115,10 @@ impl SiteClient {
         if let Some(status) = session_gate(info.needs_browser_session, session, ttl, Utc::now()) {
             return status;
         }
-        let url = self.url(probe);
-        let reply = match self.request_headers(&url) {
-            Ok(headers) => {
-                let request = || self.http.get(&url).headers(headers.clone());
-                self.send(probe, request, true, RetryPolicy::NONE).await
+        let reply = match self.parse(&self.url(probe), &[]) {
+            Ok(url) => {
+                let request = Outgoing::new(Method::GET, url, None);
+                self.send(probe, request, RetryPolicy::NONE).await
             }
             Err(e) => Err(e),
         };
@@ -129,10 +130,6 @@ impl SiteClient {
             name: self.config.info.id.to_string(),
             site: self.config.info.site.to_string(),
         }
-    }
-
-    fn request_headers(&self, url: &str) -> Result<HeaderMap> {
-        header_map(&self.policy.request_headers(url))
     }
 
     fn url(&self, path: &str) -> String {

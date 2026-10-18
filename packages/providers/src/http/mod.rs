@@ -7,6 +7,7 @@ mod config;
 mod host_policy;
 mod pages;
 mod redact;
+mod redirect;
 mod response;
 mod retry;
 mod status;

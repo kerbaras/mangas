@@ -131,3 +131,15 @@ fn api_paths_are_the_api_segment_and_below() {
     assert!(!is_api_path("https://api.example.com/manga"));
     assert!(!is_api_path("not a url"));
 }
+
+#[test]
+fn another_port_on_the_site_host_is_another_service() {
+    let policy = HostPolicy::new("https://example.com", &[], Some(session()));
+    assert!(policy
+        .headers_for("https://example.com:8443/1.webp")
+        .is_empty());
+    assert_eq!(
+        names(policy.headers_for("https://example.com:443/1.webp")),
+        ["referer", "cookie", "user-agent"]
+    );
+}
