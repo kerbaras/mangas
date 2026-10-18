@@ -6,8 +6,8 @@ use super::{Report, Step};
 
 /// Runs `walk(language)` for each language in order and keeps the first report that found
 /// chapters, noting the languages skipped before it. A status failure is the same in every
-/// language, so it stops at once. When no language has chapters, the last report is returned
-/// with every language's reason.
+/// language, so it stops at once. When every language fails, the last report is returned with
+/// every language's reason.
 pub async fn first_language<W, Fut, E>(languages: &[String], walk: W) -> Result<Report, E>
 where
     W: Fn(String) -> Fut,
@@ -69,7 +69,11 @@ fn with_skipped(mut report: Report, skipped: &[String]) -> Report {
 
 fn all_failed(mut report: Report, skipped: &[String]) -> Report {
     if let Some(step) = report.steps.iter_mut().find(|s| s.outcome.is_err()) {
-        step.outcome = Err(format!("no language had chapters ({})", skipped.join("; ")));
+        let what = match step.step {
+            Step::Chapters => "no language had chapters",
+            _ => "every language failed",
+        };
+        step.outcome = Err(format!("{what} ({})", skipped.join("; ")));
     }
     report
 }

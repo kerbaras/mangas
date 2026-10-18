@@ -5,7 +5,7 @@ use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId, MangaStatus, Resul
 use mangas_providers::doctor::{check_with, first_language, Report, Step};
 use mangas_providers::{Header, PageUrls, ProviderStatus, Source};
 
-/// A provider that hosts chapters in one language only.
+/// A provider that hosts chapters in one language only; `"none"` makes search fail instead.
 struct OnlyIn(&'static str, ProviderStatus);
 
 #[async_trait]
@@ -14,6 +14,9 @@ impl Source for OnlyIn {
         "fake"
     }
     async fn search(&self, _query: &str, _limit: usize) -> Result<Vec<Manga>> {
+        if self.0 == "none" {
+            return Err(mangas_core::domain::Error::Other("HTTP 503".into()));
+        }
         Ok(vec![Manga {
             id: MangaId("a".into()),
             source: "fake".into(),
@@ -53,11 +56,19 @@ impl Source for OnlyIn {
 }
 
 async fn check(saved: &[&str], status: ProviderStatus) -> (Report, Vec<String>) {
+    check_in("en", saved, status).await
+}
+
+async fn check_in(
+    hosted: &'static str,
+    saved: &[&str],
+    status: ProviderStatus,
+) -> (Report, Vec<String>) {
     let languages: Vec<String> = saved.iter().map(|l| l.to_string()).collect();
     let walked = std::sync::Mutex::new(Vec::new());
     let report = first_language(&languages, |lang| {
         walked.lock().unwrap().push(lang.clone());
-        let source = OnlyIn("en", status.clone());
+        let source = OnlyIn(hosted, status.clone());
         async move {
             let ok = |_: String, _: Vec<Header>| async { Ok(200) };
             Ok::<_, String>(check_with(&source, "q", &lang, ok).await)
@@ -114,4 +125,15 @@ async fn a_status_failure_is_not_retried_per_language() {
     let (report, walked) = check(&["es-la", "en"], ProviderStatus::NeedsSession).await;
     assert!(!report.passed());
     assert_eq!(walked, ["es-la"]);
+}
+
+#[tokio::test]
+async fn a_search_failure_is_not_reported_as_missing_chapters() {
+    let (report, _) = check_in("none", &["es-la", "en"], ProviderStatus::Ready).await;
+    let reason = outcome(&report, Step::Search).unwrap_err();
+    assert!(
+        reason.starts_with("every language failed (es-la: "),
+        "{reason}"
+    );
+    assert!(reason.contains("HTTP 503"), "{reason}");
 }
