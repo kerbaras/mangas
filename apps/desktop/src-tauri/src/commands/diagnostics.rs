@@ -17,6 +17,7 @@ pub struct Diagnostics {
 }
 
 #[tauri::command]
+#[tracing::instrument(skip_all)]
 pub fn diagnostics() -> Result<Diagnostics, String> {
     let settings = settings_of(&open_library()?)?;
     let log_dir = paths::log_dir()
@@ -52,6 +53,7 @@ pub fn diagnostics() -> Result<Diagnostics, String> {
 
 /// Opens the log folder in the system file manager, creating it if logging never could.
 #[tauri::command]
+#[tracing::instrument(skip_all)]
 pub fn open_logs(app: AppHandle) -> Result<(), String> {
     let dir = paths::log_dir().map_err(to_ipc)?;
     std::fs::create_dir_all(&dir).map_err(to_ipc)?;

@@ -26,6 +26,7 @@ pub fn list_providers() -> Vec<ProviderInfo> {
 
 /// Probes `provider` once with the stored session: ready, needs a session, or unreachable.
 #[tauri::command]
+#[tracing::instrument(skip_all)]
 pub async fn provider_status(provider: String) -> Result<ProviderStatus, String> {
     let settings = settings_of(&open_library()?)?;
     Ok(mangas_providers::status(&provider, &settings).await)
@@ -34,9 +35,10 @@ pub async fn provider_status(provider: String) -> Result<ProviderStatus, String>
 /// Opens `provider`'s site in a private window, so only a clearance earned there is seen. Once
 /// the verification cookie appears the session is saved and the window closes itself.
 #[tauri::command]
+#[tracing::instrument(skip_all)]
 pub fn connect_provider(app: AppHandle, provider: String) -> Result<(), String> {
     let info = mangas_providers::info(&provider)
-        .ok_or_else(|| format!("unknown provider '{provider}'"))?;
+        .ok_or_else(|| to_ipc(format!("unknown provider '{provider}'")))?;
     let site = Url::parse(info.site).map_err(to_ipc)?;
     let label = format!("connect-{}", info.id);
     if let Some(existing) = app.get_webview_window(&label) {
@@ -61,6 +63,7 @@ pub fn connect_provider(app: AppHandle, provider: String) -> Result<(), String> 
 }
 
 #[tauri::command]
+#[tracing::instrument(skip_all)]
 pub fn disconnect_provider(provider: String) -> Result<(), String> {
     let lib = open_library()?;
     let mut settings = settings_of(&lib)?;
