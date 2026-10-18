@@ -59,5 +59,6 @@ fn to_manga(article: Element<'_>) -> Result<Option<Manga>> {
         title,
         description: String::new(),
         status,
+        ..Default::default()
     }))
 }

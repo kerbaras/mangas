@@ -103,6 +103,7 @@ fn report(imported: &[(&str, usize)], skipped: usize) -> ImportReport {
             description: String::new(),
             cover_url: None,
             status: MangaStatus::Unknown,
+            ..Default::default()
         },
         imported: imported
             .iter()

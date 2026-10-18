@@ -54,6 +54,16 @@ fn manga_by_id_builds_cover_from_relationship() {
 }
 
 #[test]
+fn manga_by_id_maps_credits_year_and_tags() {
+    let manga = parse_manga_response(&fixture("contract/manga.json")).unwrap();
+    assert_eq!(manga.authors, ["Aizawa Daisuke"]);
+    assert_eq!(manga.artists, ["kanco"]);
+    assert_eq!(manga.year, Some(2024));
+    assert_eq!(manga.tags.len(), 10);
+    assert_eq!(manga.tags[..3], ["Action", "Demons", "Martial Arts"]);
+}
+
+#[test]
 fn feed_lists_externally_hosted_chapters_as_external() {
     let id = MangaId(SOLO_LEVELING.into());
     let page = parse_feed_response(&fixture("feed.json"), &id, "en").unwrap();

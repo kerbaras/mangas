@@ -47,6 +47,7 @@ pub fn parse_search(body: &str) -> Result<Vec<Manga>> {
             description: String::new(),
             cover_url: item.default_thumbnail.filter(|u| !u.is_empty()),
             status: MangaStatus::Unknown,
+            ..Default::default()
         })
         .collect())
 }
@@ -63,7 +64,18 @@ pub fn parse_comic_page(id: &MangaId, html: &str) -> Result<Manga> {
         description: comic.desc.as_deref().map(plain_text).unwrap_or_default(),
         cover_url: comic.default_thumbnail.filter(|u| !u.is_empty()),
         status: parse_status(comic.status),
+        authors: names(comic.authors.into_iter().map(|p| p.name)),
+        artists: names(comic.artists.into_iter().map(|p| p.name)),
+        year: comic.year.filter(|y| *y > 0),
+        tags: names(comic.md_comic_md_genres.into_iter().map(|g| g.md_genres.name)),
     })
+}
+
+/// Trimmed, non-empty names in order.
+fn names(raw: impl Iterator<Item = String>) -> Vec<String> {
+    raw.map(|n| n.trim().to_string())
+        .filter(|n| !n.is_empty())
+        .collect()
 }
 
 /// One page of the chapter list: the chapters in `language` (unsorted) and the last page

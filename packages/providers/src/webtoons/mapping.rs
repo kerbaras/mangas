@@ -4,7 +4,7 @@ use mangas_core::domain::{sort_by_number, Chapter, Error, Manga, MangaId, MangaS
 use mangas_core::sources::PageUrls;
 
 use super::api::{EpisodePage, EpisodesReply, SearchReply};
-use super::html::{canvas_cards, is_motion_toon, og, unescape, viewer_images};
+use super::html::{canvas_cards, creators, genre, is_motion_toon, og, unescape, viewer_images};
 use super::ids::{Episode, Title};
 use super::{INFO, SOURCE_NAME};
 
@@ -39,7 +39,7 @@ fn manga(title: &Title, name: String, cover: Option<String>, description: String
         title: name,
         description,
         cover_url: cover.as_deref().map(cover_url),
-        status: MangaStatus::Unknown,
+        ..Default::default()
     }
 }
 
@@ -59,7 +59,11 @@ pub fn parse_search(body: &str, language: &str) -> Result<Vec<Manga>> {
                 format!("By {by}")
             };
             let title = Title::original(language, number);
-            Some(manga(&title, name, e.thumbnail_mobile, description))
+            let authors = e.author_name_list.iter().map(|a| unescape(a)).collect();
+            Some(Manga {
+                authors,
+                ..manga(&title, name, e.thumbnail_mobile, description)
+            })
         })
         .filter(|m| !m.title.is_empty())
         .collect())
@@ -80,7 +84,8 @@ pub fn parse_canvas_search(html: &str, language: &str) -> Vec<Manga> {
         .collect()
 }
 
-/// Title page (`og:*` tags and the update badge). Keeps the id it was asked for.
+/// Title page (`og:*` tags, the update badge, the creators line and the genre). Keeps the id
+/// it was asked for.
 pub fn parse_title_page(id: &MangaId, html: &str) -> Result<Manga> {
     let name = og(html, "og:title").ok_or_else(|| Error::NotFound(format!("webtoon {id}")))?;
     Ok(Manga {
@@ -90,6 +95,9 @@ pub fn parse_title_page(id: &MangaId, html: &str) -> Result<Manga> {
         description: og(html, "og:description").unwrap_or_default(),
         cover_url: og(html, "og:image").as_deref().map(cover_url),
         status: title_status(html),
+        authors: creators(html),
+        tags: genre(html).into_iter().collect(),
+        ..Default::default()
     })
 }
 

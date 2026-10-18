@@ -48,6 +48,7 @@ pub fn to_manga(entry: MangaEntry) -> Manga {
         description: entry.description.unwrap_or_default(),
         cover_url: entry.photo.as_deref().map(site_url),
         status: parse_status(entry.status.as_deref()),
+        ..Default::default()
     }
 }
 
@@ -67,6 +68,7 @@ pub fn parse_manga_page(id: &MangaId, html: &str) -> Result<Manga> {
         description: og(html, "og:description").unwrap_or_default(),
         cover_url: og(html, "og:image"),
         status: parse_status(loader_status(html).as_deref()),
+        ..Default::default()
     })
 }
 

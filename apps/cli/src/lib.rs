@@ -30,6 +30,8 @@ enum Command {
     Add(commands::add::Args),
     /// Unfollow a manga (remove it from the library)
     Remove(commands::remove::Args),
+    /// Show a manga's details: credits, year, tags and description
+    Info(commands::info::Args),
     /// List the chapters of a manga
     Chapters(commands::chapters::Args),
     /// Download chapters of a followed manga
@@ -61,6 +63,7 @@ async fn dispatch(command: Command) -> anyhow::Result<()> {
         Command::Search(args) => commands::search::run(args).await,
         Command::Add(args) => commands::add::run(args).await,
         Command::Remove(args) => commands::remove::run(args),
+        Command::Info(args) => commands::info::run(args).await,
         Command::Chapters(args) => commands::chapters::run(args).await,
         Command::Download(args) => commands::download::run(args).await,
         Command::Import(args) => commands::import::run(args),

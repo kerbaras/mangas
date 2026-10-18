@@ -19,6 +19,41 @@ pub fn og(html: &str, property: &str) -> Option<String> {
     Some(unescape(attr(tag, "content")?)).filter(|v| !v.is_empty())
 }
 
+/// Names on the title page's `.author_area` ("Sangyoung Seong , Sang-A"), before the
+/// "author info" button.
+pub fn creators(html: &str) -> Vec<String> {
+    let Some(area) = between(html, "class=\"author_area\">", "</div>") else {
+        return Vec::new();
+    };
+    let names = area.split("<button").next().unwrap_or_default();
+    strip_tags(names)
+        .split([',', '/'])
+        .map(unescape)
+        .filter(|n| !n.is_empty())
+        .collect()
+}
+
+/// The genre heading of the title page (`<h2 class="genre g_fantasy">Fantasy</h2>`).
+pub fn genre(html: &str) -> Option<String> {
+    let heading = between(html, "<h2 class=\"genre", "</h2>")?;
+    let (_, name) = heading.split_once('>')?;
+    Some(unescape(name)).filter(|n| !n.is_empty())
+}
+
+fn strip_tags(fragment: &str) -> String {
+    let mut text = String::with_capacity(fragment.len());
+    let mut in_tag = false;
+    for c in fragment.chars() {
+        match c {
+            '<' => in_tag = true,
+            '>' => in_tag = false,
+            _ if !in_tag => text.push(c),
+            _ => {}
+        }
+    }
+    text
+}
+
 /// Canvas cards: links tagged `data-webtoon-type="CHALLENGE"` with their title and thumbnail.
 pub fn canvas_cards(html: &str) -> Vec<Card> {
     html.split("data-title-no=\"")

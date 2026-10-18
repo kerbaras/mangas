@@ -42,6 +42,9 @@ fn series_page_maps_to_manga() {
     assert_eq!(m.description, "News-themed cartoons twice a week.");
     assert_eq!(m.status, MangaStatus::Unknown);
     assert!(m.cover_url.unwrap().ends_with(".jpg"));
+    assert_eq!(m.authors, ["babylonsticks"]);
+    assert_eq!(m.tags, ["Slice of life"]);
+    assert!(m.artists.is_empty() && m.year.is_none());
 }
 
 #[test]

@@ -27,6 +27,7 @@ fn search_filters_by_rating_and_language_and_includes_covers() {
     let has = |k: &str, v: &str| q.iter().any(|(qk, qv)| *qk == k && qv == v);
     assert!(has("limit", "100"), "clamped to the API max");
     assert!(has("includes[]", "cover_art"));
+    assert!(has("includes[]", "author") && has("includes[]", "artist"));
     assert!(has("contentRating[]", "safe") && has("contentRating[]", "suggestive"));
     assert!(!has("contentRating[]", "erotica"));
     assert!(has("availableTranslatedLanguage[]", "en"));

@@ -40,6 +40,10 @@ fn comic_page_maps_title_status_cover_and_plain_description() {
     assert!(manga.description.starts_with("10 years ago"));
     assert!(!manga.description.contains('<'));
     assert!(manga.cover_url.unwrap().ends_with("/covers/48810d64.webp"));
+    assert_eq!(manga.year, Some(2018));
+    assert!(manga.authors[0].ends_with("(Chugong)"));
+    assert!(manga.artists[0].starts_with("Jang Sung-Rak"));
+    assert_eq!(manga.tags, ["Fantasy", "Adventure", "Others", "Action"]);
 }
 
 #[test]

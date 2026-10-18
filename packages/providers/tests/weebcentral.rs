@@ -49,6 +49,12 @@ fn series_page_maps_title_status_description_and_cover() {
     assert!(manga.description.starts_with("E-class hunter Jinwoo Sung"));
     // The series page and the search derive the same cover.
     assert_eq!(manga.cover_url, Some(cover_url(&id.0)));
+    assert_eq!(
+        manga.authors,
+        ["GEE So-Lyung", "JANG Sung-Lak", "Redice Studio"]
+    );
+    assert_eq!(manga.tags, ["Action", "Adventure", "Fantasy", "Shounen"]);
+    assert_eq!(manga.year, Some(2018));
 }
 
 #[test]

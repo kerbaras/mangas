@@ -3,7 +3,7 @@
 /// Max page size of `/manga/{id}/feed`.
 pub const FEED_PAGE_SIZE: u32 = 500;
 /// What `/manga` and `/manga/{id}` expand inline.
-const MANGA_INCLUDES: [&str; 1] = ["cover_art"];
+const MANGA_INCLUDES: [&str; 3] = ["cover_art", "author", "artist"];
 
 pub type Query = Vec<(&'static str, String)>;
 

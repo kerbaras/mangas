@@ -23,6 +23,7 @@ pub fn manga_for(title: &str) -> Manga {
         description: String::new(),
         cover_url: None,
         status: MangaStatus::Unknown,
+        ..Default::default()
     }
 }
 

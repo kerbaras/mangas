@@ -62,6 +62,7 @@ fn search_maps_originals_with_referer_free_covers() {
     assert_eq!(found[0].id, MangaId("en-webtoon-8136".into()));
     assert_eq!(found[0].title, "Tower of God: Urek Mazino");
     assert_eq!(found[0].description, "By SIU");
+    assert_eq!(found[0].authors, ["SIU"]);
     let cover = found[0].cover_url.as_deref().unwrap();
     assert!(
         cover.starts_with("https://swebtoon-phinf.pstatic.net/2025"),
@@ -101,6 +102,8 @@ fn title_page_gives_metadata_and_status() {
     assert_eq!(manga.title, "Tower of God: Urek Mazino");
     assert!(manga.description.contains("Ranker, Urek Mazino—but once"));
     assert_eq!(manga.status, MangaStatus::Ongoing);
+    assert_eq!(manga.authors, ["SIU"]);
+    assert_eq!(manga.tags, ["Fantasy"]);
     assert!(manga
         .cover_url
         .unwrap()
@@ -112,6 +115,11 @@ fn title_page_gives_metadata_and_status() {
         (manga.title.as_str(), manga.status),
         ("A & B", MangaStatus::Completed)
     );
+    let pair = r#"<meta property="og:title" content="The Gamer" />
+        <div class="author_area"> Sangyoung Seong , Sang-A <button>author info</button> </div>"#;
+    let manga = parse_title_page(&id, pair).unwrap();
+    assert_eq!(manga.authors, ["Sangyoung Seong", "Sang-A"]);
+    assert!(manga.tags.is_empty());
     assert!(parse_title_page(&id, "<html></html>").is_err());
 }
 

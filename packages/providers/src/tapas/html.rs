@@ -34,6 +34,26 @@ pub fn text_after(html: &str, marker: &str, close: &str) -> Option<String> {
     Some(clean_text(&html[body_start..body_end])).filter(|t| !t.is_empty())
 }
 
+/// Text of every link carrying class `class` (that exact class, not a prefix of another), in
+/// document order, without duplicates.
+pub fn texts_of_class(html: &str, class: &str) -> Vec<String> {
+    let mut found: Vec<String> = Vec::new();
+    for chunk in html.split("<a ").skip(1) {
+        let Some((head, rest)) = chunk.split_once('>') else {
+            continue;
+        };
+        let tag = format!(" {head}");
+        if !attr(&tag, "class").is_some_and(|c| c.split(' ').any(|c| c == class)) {
+            continue;
+        }
+        let text = clean_text(rest.split("</a>").next().unwrap_or_default());
+        if !text.is_empty() && !found.contains(&text) {
+            found.push(text);
+        }
+    }
+    found
+}
+
 /// `content` of `<meta property="{property}">`.
 pub fn meta(html: &str, property: &str) -> Option<String> {
     let needle = format!("property=\"{property}\"");
