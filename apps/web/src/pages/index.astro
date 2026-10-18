@@ -1,0 +1,24 @@
+---
+import Downloads from "../components/Downloads.astro";
+import Features from "../components/Features.astro";
+import Footer from "../components/Footer.astro";
+import Hero from "../components/Hero.astro";
+import Screenshot from "../components/Screenshot.astro";
+import Base from "../layouts/Base.astro";
+---
+
+<Base
+  title="Mangas: a manga library that exports to Kindle"
+  description="Desktop app for macOS, Windows and Linux. Follow manga and webtoons, download new chapters, cut long strips into pages and send EPUBs to your Kindle."
+>
+  <main class="mx-auto flex max-w-[1088px] flex-col gap-16 px-6 pt-16 pb-10 sm:gap-20 sm:pt-24">
+    <Hero />
+    <Screenshot />
+    <Features />
+    <Downloads />
+    <Footer />
+  </main>
+  <script>
+    import "../lib/download";
+  </script>
+</Base>

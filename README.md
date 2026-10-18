@@ -6,6 +6,8 @@ gutters instead of at fixed heights, so panels, speech bubbles and faces stay wh
 
 Rust core, Tauri 2 + React desktop app, and a small CLI that exposes the same operations.
 
+Website and downloads: https://kerbaras.github.io/mangas
+
 ## Layout
 
 | Path | Crate / package | What it does |
@@ -13,6 +15,7 @@ Rust core, Tauri 2 + React desktop app, and a small CLI that exposes the same op
 | `packages/core` | `mangas-core` | the `Source` contract, SQLite library, downloads, smart cut, Kindle filters, EPUB writer, optional ONNX detectors |
 | `packages/providers` | `mangas-providers` | site adapters (MangaDex, MangaDot, WeebCentral, Tapas) on a shared rate-limited client, provider registry, browser-session support for Cloudflare-protected sites |
 | `apps/cli` | `mangas-cli` | the command line as a library (+ a dev binary): `search`, `add`, `remove`, `chapters`, `download`, `list`, `kindle`, `export` |
+| `apps/web` | `@mangas/web` | the landing page (Astro + Tailwind, static), deployed to GitHub Pages by `.github/workflows/pages.yml` |
 | `apps/desktop` | `@mangas/desktop` | Tauri shell (`src-tauri`, IPC only) and the React UI (`src`); builds the shipped `mangas` executable, which runs the CLI when given arguments and opens the app otherwise |
 
 Design notes and decisions: [`docs/rewrite-design.md`](docs/rewrite-design.md). Rules for
