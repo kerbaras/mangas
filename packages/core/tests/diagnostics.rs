@@ -1,6 +1,8 @@
 use mangas_core::diagnostics::{render, session_status, ProviderStatus, Report};
 use mangas_core::library::ProviderSession;
-use mangas_core::logging::{cli_level, default_directives, file_appender, filter, log_dir};
+use mangas_core::logging::{
+    cli_level, default_directives, file_appender, filter, log_dir, use_ansi,
+};
 use std::io::Write;
 
 #[test]
@@ -78,4 +80,13 @@ fn appender_creates_a_dated_log_file() {
         .collect();
     assert_eq!(names.len(), 1);
     assert!(names[0].starts_with("mangas.") && names[0].ends_with(".log"));
+}
+
+#[test]
+fn colours_only_on_a_terminal_without_no_color() {
+    use std::ffi::OsStr;
+    assert!(use_ansi(true, None));
+    assert!(use_ansi(true, Some(OsStr::new(""))));
+    assert!(!use_ansi(true, Some(OsStr::new("1"))));
+    assert!(!use_ansi(false, None));
 }
