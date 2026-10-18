@@ -58,7 +58,7 @@ pub async fn clear_cache(cache: Cache) -> Result<Cleared, String> {
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub async fn move_data_dir(app: AppHandle, to: String) -> Result<Moved, String> {
-    let Some(busy) = super::detectors::claim() else {
+    let Some(busy) = super::detectors::claim_for_move() else {
         return Err("detector support is downloading; wait for it or cancel it, then move".into());
     };
     blocking(move || {
