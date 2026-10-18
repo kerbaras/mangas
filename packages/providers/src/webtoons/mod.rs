@@ -86,7 +86,7 @@ impl Webtoons {
             site: SiteClient::new(config(site), session)?,
             // The API needs no session; host-only `www` cookies must not reach `m.`.
             mobile: SiteClient::new(config(mobile), None)?,
-            languages: supported(&settings.languages()),
+            languages: supported(&settings.languages_for(INFO.id)),
         })
     }
 
