@@ -157,3 +157,22 @@ fn a_corrupt_cbz_says_so() {
 
     assert_eq!(err.to_string(), "Corrupt.cbz isn't a valid CBZ file");
 }
+
+#[test]
+fn a_truncated_cbz_says_so() {
+    use std::io::Write;
+    let tmp = tempfile::tempdir().unwrap();
+    let cbz = tmp.path().join("Cut.cbz");
+    let mut zip = zip::ZipWriter::new(std::fs::File::create(&cbz).unwrap());
+    zip.start_file("001.png", zip::write::SimpleFileOptions::default())
+        .unwrap();
+    zip.write_all(&[7; 4096]).unwrap();
+    zip.finish().unwrap();
+    let bytes = std::fs::read(&cbz).unwrap();
+    std::fs::write(&cbz, &bytes[..bytes.len() - 30]).unwrap();
+    let lib = open_in_memory().unwrap();
+
+    let err = import_paths(&lib, &tmp.path().join("data"), &request(vec![cbz], None)).unwrap_err();
+
+    assert_eq!(err.to_string(), "Cut.cbz isn't a valid CBZ file");
+}
