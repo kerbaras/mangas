@@ -40,6 +40,8 @@ enum Command {
     Kindle(commands::kindle::Args),
     /// List the providers and whether they are ready to use
     Providers(commands::providers::Args),
+    /// Show or change app settings shared with the desktop app
+    Settings(commands::settings::Args),
 }
 
 /// Parses `args` (including the program name) and runs the command. Exits on `--help`,
@@ -66,5 +68,6 @@ async fn dispatch(command: Command) -> anyhow::Result<()> {
         Command::Import(args) => commands::import::run(args),
         Command::Kindle(args) => commands::kindle::run(args).await,
         Command::Providers(args) => commands::providers::run(args).await,
+        Command::Settings(args) => commands::settings::run(args),
     }
 }

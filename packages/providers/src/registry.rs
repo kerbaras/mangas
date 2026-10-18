@@ -58,11 +58,11 @@ pub async fn statuses(settings: &Settings) -> Vec<(ProviderInfo, ProviderStatus)
     infos.iter().copied().zip(join_all(probes).await).collect()
 }
 
-fn find(id: &str) -> Option<&'static dyn Provider> {
+pub(crate) fn find(id: &str) -> Option<&'static dyn Provider> {
     PROVIDERS.iter().copied().find(|p| p.info().id == id)
 }
 
-fn unknown(id: &str) -> Error {
+pub(crate) fn unknown(id: &str) -> Error {
     let ids: Vec<_> = PROVIDERS.iter().map(|p| p.info().id).collect();
     Error::NotFound(format!("source '{id}' (try: {})", ids.join(", ")))
 }

@@ -2,7 +2,7 @@ use clap::Args as ClapArgs;
 use mangas_core::domain::MangaId;
 use mangas_core::library;
 
-use super::source_by_name;
+use super::{source_by_name, stored_settings};
 use crate::output::outln;
 use crate::paths;
 
@@ -12,19 +12,21 @@ pub struct Args {
     pub id: String,
     #[arg(long, default_value = "mangadex")]
     pub source: String,
-    /// Chapter language to track
-    #[arg(long, default_value = "en")]
-    pub lang: String,
+    /// Chapter languages to track, e.g. "es,en" [default: your preferred languages]
+    #[arg(long)]
+    pub lang: Option<String>,
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
     let source = source_by_name(&args.source)?;
     let id = MangaId(args.id);
     let manga = source.manga(&id).await?;
-    let chapters = source.chapters(&id, &args.lang).await?;
+    let languages = library::requested_languages(args.lang.as_deref(), &stored_settings());
+    // Fetched before anything is saved: a failed add must not leave the manga followed.
+    let lists = library::fetch_chapters(source.as_ref(), &id, &languages).await?;
     let lib = library::open(&paths::library_db()?)?;
     library::upsert_manga(&lib, &manga)?;
-    library::upsert_chapters(&lib, source.name(), &id, &args.lang, &chapters)?;
+    let chapters = library::store_chapters(&lib, source.name(), &id, lists)?;
     let unavailable = chapters.iter().filter(|c| !c.is_available()).count();
     let note = match unavailable {
         0 => String::new(),
@@ -34,7 +36,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         "Following {} ({} {} chapters{note})",
         manga.title,
         chapters.len(),
-        args.lang
+        languages.join("/")
     )?;
     Ok(())
 }

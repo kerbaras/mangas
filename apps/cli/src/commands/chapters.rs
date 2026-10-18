@@ -1,8 +1,8 @@
 use clap::Args as ClapArgs;
-use mangas_core::domain::{Availability, Chapter, MangaId};
+use mangas_core::domain::{sort_by_number, Availability, Chapter, MangaId};
 use mangas_core::library;
 
-use super::source_by_name;
+use super::{source_by_name, stored_settings};
 use crate::output::outln;
 use crate::paths;
 
@@ -12,9 +12,9 @@ pub struct Args {
     pub id: String,
     #[arg(long, default_value = "mangadex")]
     pub source: String,
-    /// Chapter language
-    #[arg(long, default_value = "en")]
-    pub lang: String,
+    /// Chapter languages, e.g. "es,en" [default: your preferred languages]
+    #[arg(long)]
+    pub lang: Option<String>,
     /// Read from the library instead of asking the source
     #[arg(long)]
     pub offline: bool,
@@ -24,32 +24,32 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let id = MangaId(args.id);
     let lib = library::open(&paths::library_db()?)?;
     let followed = library::get_manga(&lib, &args.source, &id)?.is_some();
+    let languages = library::requested_languages(args.lang.as_deref(), &stored_settings());
+    let stored = || library::list_chapters(&lib, &args.source, &id, None);
     // Imported manga have no provider: their chapters only live in the library.
     let chapters = if args.offline || library::is_local(&args.source) {
-        library::list_chapters(&lib, &args.source, &id, Some(&args.lang))?
+        library::in_languages(stored()?, &languages)
     } else {
         let source = source_by_name(&args.source)?;
-        let fresh = source.chapters(&id, &args.lang).await?;
         if followed {
-            library::upsert_chapters(&lib, source.name(), &id, &args.lang, &fresh)?;
-            library::list_chapters(&lib, &args.source, &id, Some(&args.lang))?
+            library::sync_chapters(&lib, source.as_ref(), &id, &languages).await?;
+            library::in_languages(stored()?, &languages)
         } else {
-            fresh
+            let lists = library::fetch_chapters(source.as_ref(), &id, &languages).await?;
+            sort_by_number(lists.into_iter().flat_map(|(_, c)| c).collect())
         }
     };
     if chapters.is_empty() {
-        outln!(
-            "No {} chapters hosted on {} for {id}",
-            args.lang,
-            args.source
-        )?;
+        let langs = languages.join("/");
+        outln!("No {langs} chapters hosted on {} for {id}", args.source)?;
         return Ok(());
     }
     outln!(
-        "{:<8} {:<5} {:<8} {:<36}  title",
+        "{:<8} {:<5} {:<8} {:<6} {:<36}  title",
         "chapter",
         "vol",
         "status",
+        "lang",
         "id"
     )?;
     for c in &chapters {
@@ -70,10 +70,11 @@ fn format_row(c: &Chapter) -> String {
         _ => title.to_string(),
     };
     format!(
-        "{:<8} {:<5} {:<8} {:<36}  {title}",
+        "{:<8} {:<5} {:<8} {:<6} {:<36}  {title}",
         c.number,
         c.volume.as_deref().unwrap_or("-"),
         status(c),
+        c.language,
         c.id,
     )
 }

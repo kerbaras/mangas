@@ -1,8 +1,10 @@
 use clap::{Args as ClapArgs, Subcommand};
-use mangas_providers::{doctor, ProviderInfo, ProviderStatus};
+use mangas_core::library::{self, Settings};
+use mangas_providers::{doctor, options, ProviderInfo, ProviderStatus};
 
-use super::{source_by_name, stored_settings};
+use super::stored_settings;
 use crate::output::outln;
+use crate::paths;
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -14,6 +16,8 @@ pub struct Args {
 enum Action {
     /// Walk one provider end to end: search, manga, chapters, pages and the first page image
     Check(CheckArgs),
+    /// Show a provider's options, or change them with --set (shared with the desktop app)
+    Options(OptionsArgs),
 }
 
 #[derive(ClapArgs)]
@@ -23,15 +27,29 @@ struct CheckArgs {
     /// Search text; the first results with chapters are used
     #[arg(long, default_value = "love")]
     query: String,
-    /// Chapter language
-    #[arg(long, default_value = "en")]
-    lang: String,
+    /// Languages to try in order, e.g. "es,en"; the first with chapters is walked [default: your
+    /// preferred ones]
+    #[arg(long)]
+    lang: Option<String>,
+}
+
+#[derive(ClapArgs)]
+struct OptionsArgs {
+    /// Provider id (see `mangas providers`)
+    id: String,
+    /// Change one option, e.g. `--set data_saver=true --set preferred_groups="A,B"`
+    #[arg(long = "set", value_name = "KEY=VALUE")]
+    set: Vec<String>,
+    /// Forget the stored options and go back to the provider's defaults
+    #[arg(long, conflicts_with = "set")]
+    reset: bool,
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
     match args.action {
         None => list().await,
         Some(Action::Check(args)) => check(args).await,
+        Some(Action::Options(args)) => options(args),
     }
 }
 
@@ -46,12 +64,46 @@ async fn list() -> anyhow::Result<()> {
 
 /// Prints one line per step and fails (non-zero exit) unless every step passed.
 async fn check(args: CheckArgs) -> anyhow::Result<()> {
-    let source = source_by_name(&args.id)?;
-    let report = doctor::check(&*source, &args.query, &args.lang).await;
+    let settings = stored_settings();
+    let languages = library::requested_languages(args.lang.as_deref(), &settings);
+    let report = doctor::first_language(&languages, |lang| {
+        // Search filters by the preferred languages too, so each walk looks for `lang` alone.
+        let settings = Settings {
+            preferred_languages: vec![lang.clone()],
+            ..settings.clone()
+        };
+        let (id, query) = (args.id.clone(), args.query.clone());
+        async move {
+            let source = mangas_providers::source(&id, &settings)?;
+            anyhow::Ok(doctor::check(&*source, &query, &lang).await)
+        }
+    })
+    .await?;
     for line in doctor::lines(&report) {
         outln!("{line}")?;
     }
     anyhow::ensure!(report.passed(), "{} check failed", args.id);
+    Ok(())
+}
+
+/// Prints the effective options as `key = value`, after applying `--set` / `--reset`.
+fn options(args: OptionsArgs) -> anyhow::Result<()> {
+    let lib = library::open(&paths::library_db()?)?;
+    let mut settings = library::get_settings(&lib)?;
+    if args.reset {
+        settings = options::reset_options(&args.id, &settings)?;
+        library::set_settings(&lib, &settings)?;
+    } else if !args.set.is_empty() {
+        settings = options::set_options(&args.id, &settings, &args.set)?;
+        library::set_settings(&lib, &settings)?;
+    }
+    let current = options::options(&args.id, &settings)?;
+    if current.is_empty() {
+        outln!("{} has no options", args.id)?;
+    }
+    for (key, value) in &current {
+        outln!("{key} = {}", options::display_value(value))?;
+    }
     Ok(())
 }
 

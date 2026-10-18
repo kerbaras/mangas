@@ -39,4 +39,9 @@ pub trait Provider: Send + Sync {
     /// (contract tests against a mock server, mirrors). `base` replaces the root the provider
     /// derives its URLs from (its API root, or its site when the API lives under it).
     fn build_at(&self, settings: &Settings, base: &str) -> Result<Arc<dyn Source>>;
+    /// The provider's effective options (stored entry over its defaults) as a JSON object;
+    /// `None` when it has no options.
+    fn options(&self, _settings: &Settings) -> Option<serde_json::Value> {
+        None
+    }
 }

@@ -7,6 +7,7 @@ pub mod list;
 pub mod providers;
 pub mod remove;
 pub mod search;
+pub mod settings;
 
 use std::sync::Arc;
 

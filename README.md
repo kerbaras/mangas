@@ -50,10 +50,16 @@ mangas search "solo leveling"
 mangas add <manga-id>
 mangas chapters <manga-id>
 mangas download <manga-id> --chapters 1-5
+mangas settings languages es-la,en  # preferred chapter languages, shared with the app
+mangas providers options mangadex --set data_saver=true --set preferred_groups="A,B"
 mangas kindle ~/.local/share/mangas/chapters/<manga>/<chapter>... -o out.epub \
     --device kindle-paperwhite12 --cut-preset balanced
 mangas kindle --list-devices
 ```
+
+`add`, `chapters` and `download` default `--lang` to the preferred languages (English when none
+are saved) and sync every one of them; `download` takes each chapter in the first preferred
+language that has it. `--lang es,en` overrides the list for one command.
 
 Data lives in the platform data directory (`~/.local/share/mangas` on Linux): `mangas.db`,
 `chapters/`, `models/`.

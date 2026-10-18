@@ -156,10 +156,14 @@ Every registered provider goes through the same contract suite
    `live-smoke` workflow runs them (MangaDex, WeebCentral, Tapas and Webtoons; MangaDot and Comick's
    search are Cloudflare-gated from CI, so Comick's live tests walk its open endpoints and check
    the missing-session report instead).
-5. By hand: `mangas providers check <id> [--query q] [--lang en]` walks status → search → manga
+5. By hand: `mangas providers check <id> [--query q] [--lang es]` walks status → search → manga
    → chapters → pages → a one-byte GET of the first page with the provider's headers. It
    prints one line per step with timings and exits non-zero on failure. The walk is
-   `doctor::check` in the providers crate.
+   `doctor::check` in the providers crate. `--lang` (default: the first preferred language)
+   drives the search filter as well as the chapter list.
+6. Options: a provider with settings implements `Provider::options` (its effective options as a
+   JSON object, stored under `Settings.provider_options[id]`). `mangas providers options <id>
+   --set key=value` then edits them with no CLI code per provider.
 
 ## Coding rules (also in AGENTS.md)
 

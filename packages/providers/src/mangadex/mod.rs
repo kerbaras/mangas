@@ -67,6 +67,15 @@ impl Provider for MangaDexProvider {
     fn build_at(&self, _settings: &Settings, base: &str) -> Result<Arc<dyn Source>> {
         Ok(Arc::new(MangaDex::with_base(base)?))
     }
+
+    fn options(&self, settings: &Settings) -> Option<serde_json::Value> {
+        let stored = MangaDexOptions::from_settings(settings);
+        let effective = MangaDexOptions {
+            content_ratings: stored.ratings().into_iter().map(String::from).collect(),
+            ..stored
+        };
+        serde_json::to_value(effective).ok()
+    }
 }
 
 pub struct MangaDex {
