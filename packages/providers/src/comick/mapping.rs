@@ -67,7 +67,12 @@ pub fn parse_comic_page(id: &MangaId, html: &str) -> Result<Manga> {
         authors: names(comic.authors.into_iter().map(|p| p.name)),
         artists: names(comic.artists.into_iter().map(|p| p.name)),
         year: comic.year.filter(|y| *y > 0),
-        tags: names(comic.md_comic_md_genres.into_iter().map(|g| g.md_genres.name)),
+        tags: names(
+            comic
+                .md_comic_md_genres
+                .into_iter()
+                .map(|g| g.md_genres.name),
+        ),
     })
 }
 

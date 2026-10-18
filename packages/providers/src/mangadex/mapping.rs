@@ -137,7 +137,11 @@ fn manga_from_data(m: &MangaData) -> Manga {
         authors: names(&m.relationships, "author"),
         artists: names(&m.relationships, "artist"),
         year: attrs.year,
-        tags: attrs.tags.iter().filter_map(|t| pick_text(&t.attributes.name)).collect(),
+        tags: attrs
+            .tags
+            .iter()
+            .filter_map(|t| pick_text(&t.attributes.name))
+            .collect(),
     }
 }
 

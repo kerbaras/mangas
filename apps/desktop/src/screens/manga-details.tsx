@@ -6,6 +6,7 @@ import { ChaptersTable } from "@/components/chapters-table";
 import { Cover } from "@/components/cover";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorAlert } from "@/components/error-alert";
+import { MangaMeta } from "@/components/manga-meta";
 import { ScreenHeader } from "@/components/screen-header";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -102,6 +103,7 @@ export function MangaDetailsScreen({ manga: card }: Props) {
             <h2 className="text-subtitle font-semibold">{manga.title}</h2>
             {!loading && <StatusBadge status={manga.status} />}
           </div>
+          {!loading && <MangaMeta manga={manga} />}
           {loading ? (
             <DescriptionSkeleton />
           ) : (
