@@ -33,6 +33,9 @@
   --color-accent: #b3261e;
   --color-accent-hover: #9a1f18;
   --color-accent-soft: #fbe9e7;
+  --color-ok: #107c10;
+  --color-warn: #b17d00;
+  --color-bad: #c50f1f;
 }
 
 /* Plain :root overrides, not a nested @theme: Tailwind hoists @theme blocks out of media
@@ -49,5 +52,8 @@
     --color-accent: #e0584f;
     --color-accent-hover: #ec7169;
     --color-accent-soft: #3a2422;
+    --color-ok: #6ccb5f;
+    --color-warn: #f2c94c;
+    --color-bad: #f1707b;
   }
 }

@@ -9,6 +9,7 @@ import type {
   Manga,
   ProviderInfo,
   ProviderStatus,
+  SearchGroup,
   Settings,
 } from "./ipc";
 import { DEFAULT_LANGUAGE } from "./ipc";
@@ -24,14 +25,15 @@ import {
   toExportProgress,
   toExportResult,
 } from "./ipc.wire";
+import { languagesFor } from "./provider-prefs";
 import { readSettings } from "./settings";
 
 export const DOWNLOAD_EVENT = "download://progress";
 export const KINDLE_EVENT = "kindle-progress";
 const SEARCH_LIMIT = 20;
 
-/** Chapters are fetched and stored per language: one call per preferred language. */
-const languages = () => readSettings().preferredLanguages;
+/** Chapters are fetched and stored per language: one call per language preferred for `source`. */
+const languages = (source: string) => languagesFor(readSettings(), source);
 const uniqueById = (lists: Chapter[][]) => [
   ...new Map(lists.flat().map((c) => [c.id, c])).values(),
 ];
@@ -47,10 +49,10 @@ export const tauriBackend: Backend = {
   connectProvider: (provider) => invoke<void>("connect_provider", { provider }),
   disconnectProvider: (provider) => invoke<void>("disconnect_provider", { provider }),
   providerStatus: (provider) => invoke<ProviderStatus>("provider_status", { provider }),
-  searchManga: (query, source) =>
-    invoke<Manga[]>("search_manga", { source, query, limit: SEARCH_LIMIT }),
+  searchAll: (query, providers) =>
+    invoke<SearchGroup[]>("search_all", { query, providers, limit: SEARCH_LIMIT }),
   followManga: async (source, id) => {
-    const [first, ...rest] = languages();
+    const [first, ...rest] = languages(source);
     const manga = await invoke<Manga>("follow_manga", { source, id, language: first });
     // Extra languages are best effort: the manga is followed once the first one succeeds.
     for (const language of rest)
@@ -65,7 +67,7 @@ export const tauriBackend: Backend = {
   listChapters: async (source, mangaId, refresh = false) =>
     uniqueById(
       await Promise.all(
-        languages().map((language) =>
+        languages(source).map((language) =>
           invoke<Chapter[]>("list_chapters", { source, mangaId, language, refresh }),
         ),
       ),
@@ -74,7 +76,7 @@ export const tauriBackend: Backend = {
     invoke<string[]>("download_chapters", {
       source,
       mangaId,
-      language: languages()[0],
+      language: languages(source)[0],
       chapterIds,
     }),
   importLocal: (paths, title) =>

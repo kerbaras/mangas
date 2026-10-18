@@ -19,8 +19,9 @@ import {
   sampleLibrary,
 } from "./mock-data";
 import { mockDiagnostics } from "./mock-diagnostics";
-import { failIfOffline, mockExportResult, mockFlags } from "./mock-flags";
+import { mockExportResult, mockFlags } from "./mock-flags";
 import { mockImport } from "./mock-import";
+import { mockSearch } from "./mock-search";
 
 const DATA_DIR = "~/.local/share/mangas";
 
@@ -141,19 +142,9 @@ export const mockBackend: Backend = {
       return { state: "needs_session" };
     return { state: "ready" };
   },
-  async searchManga(query, source) {
-    await wait(450);
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    failIfOffline(source, q);
-    const info = providers.find((p) => p.id === source);
-    if (info?.needs_browser_session && !settings.provider_sessions[source])
-      throw new Error(`challenge: ${source} needs a browser session for ${info.site}`);
-    return sampleCatalog.filter(
-      (m) =>
-        m.source === source &&
-        (m.title.toLowerCase().includes(q) || m.description.toLowerCase().includes(q)),
-    );
+  async searchAll(query, only) {
+    await wait(300 + Math.random() * 600);
+    return mockSearch(query, only, settings);
   },
   async followManga(source, id) {
     await wait(200);

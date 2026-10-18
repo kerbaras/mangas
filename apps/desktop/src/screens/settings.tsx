@@ -62,13 +62,13 @@ export function SettingsScreen() {
           <Group title="Providers">
             <Field
               label="Sources"
-              hint="Sites behind a verification wall open in their own window once; the session is reused by the app and the `mangas` command until it expires."
+              hint="Search runs on the providers switched on. Sites behind a verification wall open in their own window once; the session is reused by the app and the `mangas` command until it expires."
             >
               <ProvidersList />
             </Field>
             <Field
               label="Chapter languages"
-              hint="Chapters are listed in these languages, numbered by preference; search only shows titles translated into one of them."
+              hint="Chapters are listed in these languages, numbered by preference; search only shows titles translated into one of them. A provider can use its own from its row above."
             >
               <LanguagesPicker />
             </Field>

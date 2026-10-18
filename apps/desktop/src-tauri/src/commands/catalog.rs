@@ -1,6 +1,7 @@
 use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId};
 use mangas_core::download::{self, Event};
 use mangas_core::library;
+use mangas_core::sources::SearchGroup;
 use tauri::{AppHandle, Emitter};
 
 use super::{open_library, settings_of, source_by_name, to_ipc};
@@ -9,14 +10,17 @@ use crate::paths;
 /// Event name the UI listens to for download progress; payload is `download::Event`.
 pub const DOWNLOAD_EVENT: &str = "download://progress";
 
+/// Searches the enabled providers (narrowed to `providers` when not empty), one group each. A
+/// provider that fails or needs a session reports it in its group; the call itself only fails
+/// when the settings cannot be read.
 #[tauri::command]
-pub async fn search_manga(
-    source: String,
+pub async fn search_all(
     query: String,
     limit: usize,
-) -> Result<Vec<Manga>, String> {
-    let source = source_by_name(&source)?;
-    source.search(&query, limit).await.map_err(to_ipc)
+    providers: Vec<String>,
+) -> Result<Vec<SearchGroup>, String> {
+    let settings = settings_of(&open_library()?)?;
+    Ok(mangas_providers::search_enabled(&settings, &query, limit, &providers).await)
 }
 
 #[tauri::command]

@@ -1,29 +1,35 @@
 import { describe, expect, it } from "vitest";
-import { providerStatusText } from "@/lib/providers";
+import { providerDetail } from "@/lib/providers";
 
-describe("providerStatusText", () => {
+const base = {
+  site: "https://mangadot.net",
+  needsSession: true,
+  savedAt: undefined,
+  status: undefined,
+  checkedAt: undefined,
+  ago: () => "2 min ago",
+};
+
+describe("providerDetail", () => {
   it("shows checking while the probe runs", () => {
-    expect(providerStatusText(false, undefined, undefined)).toBe("checking…");
-    expect(providerStatusText(true, undefined, null)).toBe("connected · checking…");
-  });
-
-  it("reads ready, or connected for session sites", () => {
-    expect(providerStatusText(false, { state: "ready" }, undefined)).toBe("ready");
-    expect(providerStatusText(true, { state: "ready" }, null)).toBe("connected");
+    expect(providerDetail({ ...base, needsSession: false })).toBe("mangadot.net · checking…");
+    expect(providerDetail(base)).toBe("mangadot.net · not connected · checking…");
   });
 
   it("tells a missing session from an expired one", () => {
-    expect(providerStatusText(true, { state: "needs_session" }, undefined)).toBe(
-      "needs a browser session",
+    const status = { state: "needs_session" } as const;
+    expect(providerDetail({ ...base, status, checkedAt: 1 })).toBe(
+      "mangadot.net · not connected · checked 2 min ago",
     );
-    expect(providerStatusText(true, { state: "needs_session" }, "2026-10-16T10:00:00Z")).toBe(
-      "session expired, connect again",
+    expect(providerDetail({ ...base, status, checkedAt: 1, savedAt: null })).toBe(
+      "mangadot.net · connected · session expired · checked 2 min ago",
     );
   });
 
   it("includes the reason when unreachable", () => {
-    expect(providerStatusText(false, { state: "unreachable", reason: "HTTP 503" }, undefined)).toBe(
-      "unreachable (HTTP 503)",
+    const status = { state: "unreachable", reason: "HTTP 503" } as const;
+    expect(providerDetail({ ...base, needsSession: false, status, checkedAt: 1 })).toBe(
+      "mangadot.net · HTTP 503 · checked 2 min ago",
     );
   });
 });

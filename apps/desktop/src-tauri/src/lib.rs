@@ -20,7 +20,7 @@ pub fn run() {
             commands::providers::provider_status,
             commands::providers::connect_provider,
             commands::providers::disconnect_provider,
-            commands::catalog::search_manga,
+            commands::catalog::search_all,
             commands::catalog::follow_manga,
             commands::catalog::unfollow_manga,
             commands::catalog::list_chapters,

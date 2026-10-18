@@ -20,6 +20,10 @@ export type Settings = {
   /** Chapter languages in order of preference, never empty. */
   preferredLanguages: string[];
   providerOptions: Record<string, unknown>;
+  /** Only providers switched off are listed (`false`); see `lib/provider-prefs.ts`. */
+  providersEnabled: Record<string, boolean>;
+  /** Chapter languages per provider, overriding `preferredLanguages` when not empty. */
+  providerLanguages: Record<string, string[]>;
 };
 
 const DEFAULTS: Settings = {
@@ -28,6 +32,8 @@ const DEFAULTS: Settings = {
   defaultPreset: DEFAULT_PRESET,
   preferredLanguages: [DEFAULT_LANGUAGE],
   providerOptions: {},
+  providersEnabled: {},
+  providerLanguages: {},
 };
 
 const listeners = new Set<() => void>();
@@ -41,6 +47,8 @@ const fromStored = (s: Stored, platformDataDir: string): Settings => ({
     ? s.preferred_languages
     : DEFAULTS.preferredLanguages,
   providerOptions: s.provider_options ?? {},
+  providersEnabled: s.providers_enabled ?? {},
+  providerLanguages: s.provider_languages ?? {},
 });
 
 /** Platform default; a `dataDir` equal to it is stored as `null` so the default can move. */
@@ -54,6 +62,8 @@ const toStored = (s: Settings): Stored => ({
   default_preset: s.defaultPreset,
   preferred_languages: s.preferredLanguages,
   provider_options: s.providerOptions,
+  providers_enabled: s.providersEnabled,
+  provider_languages: s.providerLanguages,
 });
 
 const notify = () => {

@@ -33,23 +33,43 @@ export async function connectAndWait(id: string): Promise<boolean> {
   return waitForSession(id, previous);
 }
 
-/** Status line shown next to a provider's site; `status` is undefined while the probe runs. */
-export function providerStatusText(
-  needsSession: boolean,
-  status: ProviderStatus | undefined,
-  savedAt: string | null | undefined,
-): string {
-  const connected =
-    savedAt !== undefined
-      ? `connected${savedAt ? ` ${new Date(savedAt).toLocaleDateString()}` : ""}`
-      : null;
-  if (!status) return connected ? `${connected} · checking…` : "checking…";
+type Detail = {
+  site: string;
+  needsSession: boolean;
+  /** `saved_at` of the stored session; undefined when there is none. */
+  savedAt: string | null | undefined;
+  status: ProviderStatus | undefined;
+  checkedAt: number | undefined;
+  /** Formats `checkedAt` ("2 min ago"). */
+  ago: (at: number) => string;
+};
+
+/** Second line of a provider row: host, session, when it was checked and why it failed. */
+export function providerDetail(d: Detail): string {
+  const parts = [d.site.replace(/^https?:\/\//, "")];
+  if (d.needsSession)
+    parts.push(
+      d.savedAt === undefined
+        ? "not connected"
+        : `connected${d.savedAt ? ` ${new Date(d.savedAt).toLocaleDateString()}` : ""}`,
+    );
+  if (d.status?.state === "needs_session" && d.savedAt !== undefined) parts.push("session expired");
+  if (d.status?.state === "unreachable") parts.push(d.status.reason);
+  parts.push(d.checkedAt === undefined ? "checking…" : `checked ${d.ago(d.checkedAt)}`);
+  return parts.join(" · ");
+}
+
+export type Tone = "ok" | "warn" | "bad" | "pending";
+
+/** Badge for a provider: `undefined` while a check runs. */
+export function statusBadge(status: ProviderStatus | undefined): { label: string; tone: Tone } {
+  if (!status) return { label: "Checking", tone: "pending" };
   switch (status.state) {
     case "ready":
-      return needsSession && connected ? connected : "ready";
+      return { label: "Ready", tone: "ok" };
     case "needs_session":
-      return connected ? "session expired, connect again" : "needs a browser session";
+      return { label: "Needs connection", tone: "warn" };
     case "unreachable":
-      return `unreachable (${status.reason})`;
+      return { label: "Unreachable", tone: "bad" };
   }
 }

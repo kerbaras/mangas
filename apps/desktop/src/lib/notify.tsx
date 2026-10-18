@@ -30,25 +30,25 @@ function Description({ hint, detail }: { hint: string | null; detail: string }) 
   );
 }
 
-/** Opens the Connect window for `source`, reporting the outcome, then calls `then`. */
-export async function connectThen(source: string, then?: () => void) {
+/** Opens the Connect window for `source` (a provider id), reporting the outcome under `name`. */
+export async function connectThen(source: string, then?: () => void, name = source) {
   const id = `connect-${source}`;
-  toast.loading(`Pass the check in the ${source} window`, {
+  toast.loading(`Pass the check in the ${name} window`, {
     id,
     description: "It closes by itself when done.",
   });
   try {
     if (await connectAndWait(source)) {
-      toast.success(`Connected to ${source}`, { id, description: null });
+      toast.success(`Connected to ${name}`, { id, description: null });
       then?.();
     } else {
-      toast.error(`No session captured for ${source}`, {
+      toast.error(`No session captured for ${name}`, {
         id,
         description: "Close its window and try again.",
       });
     }
   } catch (e: unknown) {
-    toast.error(`Couldn't connect to ${source}`, { id, description: errorMessage(e) });
+    toast.error(`Couldn't connect to ${name}`, { id, description: errorMessage(e) });
   }
 }
 

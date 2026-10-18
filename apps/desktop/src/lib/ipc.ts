@@ -74,6 +74,9 @@ export type ProviderStatus =
   | { state: "needs_session" }
   | { state: "unreachable"; reason: string };
 
+/** One provider's share of a search (`mangas_core::sources::SearchGroup`): results when ready. */
+export type SearchGroup = { provider: string; status: ProviderStatus; items: Manga[] };
+
 /** Errors from a provider that needs a browser session start with this marker. */
 export const CHALLENGE_PREFIX = "challenge:";
 export const isChallenge = (message: string) => message.includes(CHALLENGE_PREFIX);
@@ -124,7 +127,8 @@ export type Backend = DiagnosticsBackend & {
   disconnectProvider(id: string): Promise<void>;
   /** One cheap request with the stored session: ready, needs a session, or unreachable. */
   providerStatus(id: string): Promise<ProviderStatus>;
-  searchManga(query: string, source: string): Promise<Manga[]>;
+  /** Searches the enabled providers (only `providers` when not empty), one group each. */
+  searchAll(query: string, providers: string[]): Promise<SearchGroup[]>;
   followManga(source: string, id: string): Promise<Manga>;
   unfollowManga(source: string, id: string): Promise<void>;
   listChapters(source: string, mangaId: string, refresh?: boolean): Promise<Chapter[]>;
@@ -139,7 +143,6 @@ export type Backend = DiagnosticsBackend & {
   onExportProgress(cb: (p: ExportProgress) => void): Promise<Unlisten>;
 };
 
-export const DEFAULT_SOURCE = "mangadex";
 /** Fallback chapter language: imports and an empty `preferred_languages`. */
 export const DEFAULT_LANGUAGE = "en";
 
@@ -171,7 +174,8 @@ export const listProviders = async () => (await backend()).listProviders();
 export const connectProvider = async (id: string) => (await backend()).connectProvider(id);
 export const disconnectProvider = async (id: string) => (await backend()).disconnectProvider(id);
 export const providerStatus = async (id: string) => (await backend()).providerStatus(id);
-export const searchManga = async (q: string, s: string) => (await backend()).searchManga(q, s);
+export const searchAll = async (q: string, providers: string[]) =>
+  (await backend()).searchAll(q, providers);
 export const followManga = async (s: string, id: string) => (await backend()).followManga(s, id);
 export const unfollowManga = async (s: string, id: string) =>
   (await backend()).unfollowManga(s, id);
