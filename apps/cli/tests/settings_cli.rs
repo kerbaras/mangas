@@ -25,7 +25,7 @@ fn preferred_languages_round_trip() {
         stdout(&mangas(home.path(), &["settings", "languages"])),
         "en\n"
     );
-    let saved = mangas(home.path(), &["settings", "languages", "ES-LA, en"]);
+    let saved = mangas(home.path(), &["settings", "languages", "es-la, en"]);
     assert_eq!(stdout(&saved), "es-la,en\n");
     assert_eq!(
         stdout(&mangas(home.path(), &["settings", "languages"])),

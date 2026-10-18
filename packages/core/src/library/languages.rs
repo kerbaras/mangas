@@ -18,15 +18,16 @@ pub fn parse_languages(input: &str) -> Vec<String> {
     out
 }
 
-/// [`parse_languages`] for a list to save: every code must look like `en`, `es-la` or `pt-br`
-/// (`^[a-z]{2,3}(-[a-z]{2,4})?$` once lowercased), and at least one is required.
+/// [`parse_languages`] for a list to save: every code must look like `en`, `es-la`, `pt-br` or
+/// `es-419` (`^[a-z]{2,3}(-([a-z]{2,4}|[0-9]{3}))?$`, lowercase), and at least one is required.
 pub fn validate_languages(input: &str) -> Result<Vec<String>> {
-    let parsed = parse_languages(input);
-    if let Some(bad) = parsed.iter().find(|code| !well_formed(code)) {
+    let codes = input.split(|c: char| c == ',' || c.is_whitespace());
+    if let Some(bad) = codes.filter(|c| !c.is_empty()).find(|c| !well_formed(c)) {
         return Err(Error::Other(format!(
             "'{bad}' is not a language code; use forms like en, es-la or pt-br"
         )));
     }
+    let parsed = parse_languages(input);
     match parsed.is_empty() {
         true => Err(Error::Other(format!("no language in '{input}'"))),
         false => Ok(parsed),
@@ -37,8 +38,9 @@ fn well_formed(code: &str) -> bool {
     let letters = |s: &str, min: usize, max: usize| {
         (min..=max).contains(&s.len()) && s.bytes().all(|b| b.is_ascii_lowercase())
     };
+    let digits = |s: &str| s.len() == 3 && s.bytes().all(|b| b.is_ascii_digit());
     match code.split_once('-') {
-        Some((base, region)) => letters(base, 2, 3) && letters(region, 2, 4),
+        Some((base, region)) => letters(base, 2, 3) && (letters(region, 2, 4) || digits(region)),
         None => letters(code, 2, 3),
     }
 }

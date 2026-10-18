@@ -161,10 +161,10 @@ async fn sync_stores_every_language() {
 fn saved_language_codes_must_be_well_formed() {
     use mangas_core::library::validate_languages;
     assert_eq!(
-        validate_languages("en, es-la PT-BR fil zh-hant").unwrap(),
-        ["en", "es-la", "pt-br", "fil", "zh-hant"]
+        validate_languages("en, es-la pt-br fil zh-hans es-419").unwrap(),
+        ["en", "es-la", "pt-br", "fil", "zh-hans", "es-419"]
     );
-    for bad in [
+    let bad = [
         "english",
         "e",
         "en_us",
@@ -174,7 +174,13 @@ fn saved_language_codes_must_be_well_formed() {
         "-la",
         "e1",
         "es-la-x",
-    ] {
+        "xx-klingon",
+        "EN",
+        "es-LA",
+        "es-41",
+        "es-4190",
+    ];
+    for bad in bad {
         let err = validate_languages(bad).unwrap_err().to_string();
         assert!(err.contains("is not a language code"), "{bad}: {err}");
     }
