@@ -41,5 +41,11 @@ export function useSeriesTarget(picks: ExportPick[]) {
     setOwnPreset(p);
   };
   const cut = { series: info, saved: series.preset, onSaved: series.reload };
-  return { target, preset: series.shown("cut_preset", ownPreset), setPreset, cut };
+  return {
+    target,
+    preset: series.shown("cut_preset", ownPreset),
+    setPreset,
+    cut,
+    settled: series.settled,
+  };
 }

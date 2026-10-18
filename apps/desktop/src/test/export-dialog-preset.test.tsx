@@ -96,4 +96,11 @@ describe("export dialog: series export preset", () => {
       true,
     );
   });
+  it("waits for the series preset before it exports", async () => {
+    exportBackend({ getExportPreset: () => new Promise(() => {}) });
+    render(dialog());
+    expect(await screen.findByText("Solo v1.epub")).toBeTruthy();
+    const button = await screen.findByRole("button", { name: /Export 2 books/ });
+    expect(button).toHaveProperty("disabled", true);
+  });
 });

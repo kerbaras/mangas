@@ -13,19 +13,23 @@ export type PresetField = "profile" | "format" | "cut_preset";
 export function useSeriesPreset(series: Series | null) {
   const key = series ? `${series.source}\u0000${series.id}` : null;
   const [preset, setPreset] = useState<ExportPreset | null>(null);
+  const [loaded, setLoaded] = useState<string | null>(null);
   const [touched, setTouched] = useState<ReadonlySet<PresetField>>(new Set());
 
   const latest = useRef(0);
   const reload = useCallback(() => {
     const request = ++latest.current;
+    setLoaded(null);
     if (!key) return setPreset(null);
     const [source, id] = key.split("\u0000");
     // Only the newest lookup may set the preset (a series change or a reload after saving).
     const current = () => latest.current === request;
-    getExportPreset(source, id).then(
-      (p) => current() && setPreset(p && !isEmptyPreset(p) ? compact(p) : null),
-      () => current() && setPreset(null),
-    );
+    const settle = (p: ExportPreset | null) => {
+      if (!current()) return;
+      setPreset(p && !isEmptyPreset(p) ? compact(p) : null);
+      setLoaded(key);
+    };
+    getExportPreset(source, id).then(settle, () => settle(null));
   }, [key]);
 
   // A newly picked series starts from the defaults until its own preset has loaded.
@@ -38,6 +42,8 @@ export function useSeriesPreset(series: Series | null) {
   const decides = (f: PresetField) => !touched.has(f) && preset?.[f] != null;
   return {
     preset,
+    /** The lookup for this series has finished: the shown fields are the ones export sends. */
+    settled: key === null || loaded === key,
     reload,
     shown: <T>(f: PresetField, own: T): T => (decides(f) ? (preset?.[f] as T) : own),
     touch: (f: PresetField) => setTouched((t) => new Set(t).add(f)),

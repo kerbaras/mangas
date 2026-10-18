@@ -64,7 +64,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const [written, setWritten] = useState<Book[]>([]);
   const [runs, setRuns] = useState(0);
   const folder = useOutputFolder();
-  const { target, preset, setPreset, cut } = useSeriesTarget(picks);
+  const { target, preset, setPreset, cut, settled } = useSeriesTarget(picks);
   const detectors = useAsync(detectorsStatus, []);
   const job = useExport();
   const send = useSend(onSent);
@@ -93,7 +93,8 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
     books > 0 &&
     folder.output.trim() !== "" &&
     target.devices.kind === "ready" &&
-    detectors.state.kind !== "loading";
+    detectors.state.kind !== "loading" &&
+    settled;
 
   const { reset: resetJob } = job;
   const { reset: resetSend } = send;
