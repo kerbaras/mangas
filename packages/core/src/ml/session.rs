@@ -1,4 +1,5 @@
 //! ONNX Runtime session setup: execution provider choice per platform, CPU fallback always.
+//! Windows runs on CPU: the official runtime archive has no DirectML provider.
 
 use std::path::Path;
 
@@ -18,8 +19,6 @@ pub fn provider_name() -> &'static str {
         "cuda"
     } else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
         "coreml"
-    } else if cfg!(windows) {
-        "directml"
     } else {
         "cpu"
     }
@@ -27,10 +26,7 @@ pub fn provider_name() -> &'static str {
 
 /// Platform accelerators in preference order; ort skips any that is unavailable at runtime.
 fn accelerators() -> Vec<ExecutionProviderDispatch> {
-    [cuda(), coreml(), directml()]
-        .into_iter()
-        .flatten()
-        .collect()
+    [cuda(), coreml()].into_iter().flatten().collect()
 }
 
 #[cfg(feature = "cuda")]
@@ -48,15 +44,6 @@ fn coreml() -> Option<ExecutionProviderDispatch> {
 }
 #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
 fn coreml() -> Option<ExecutionProviderDispatch> {
-    None
-}
-
-#[cfg(windows)]
-fn directml() -> Option<ExecutionProviderDispatch> {
-    Some(ort::ep::DirectML::default().build())
-}
-#[cfg(not(windows))]
-fn directml() -> Option<ExecutionProviderDispatch> {
     None
 }
 

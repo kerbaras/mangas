@@ -64,6 +64,8 @@ enum Command {
     Storage(commands::storage::Args),
     /// Export or import a library backup (followed titles and preferences)
     Backup(commands::backup::Args),
+    /// Show, download or remove detector support (ONNX Runtime and models) for smart cutting
+    Ml(commands::ml::Args),
 }
 
 /// Parses `args` (including the program name) and runs the command. Exits on `--help`,
@@ -104,5 +106,6 @@ async fn dispatch(command: Command) -> anyhow::Result<()> {
         Command::Settings(args) => commands::settings::run(args),
         Command::Storage(args) => commands::storage::run(args),
         Command::Backup(args) => commands::backup::run(args),
+        Command::Ml(args) => commands::ml::run(args).await,
     }
 }

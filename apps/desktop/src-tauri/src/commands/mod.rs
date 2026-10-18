@@ -3,6 +3,7 @@
 pub mod catalog;
 pub mod covers;
 pub mod cut_preview;
+pub mod detectors;
 pub mod diagnostics;
 pub mod downloads;
 mod errors;

@@ -20,7 +20,7 @@ export type Segment = { key: string; label: string; bytes: number; color: string
 /** The usage bar's parts, in a fixed order; their colours match the legend. */
 export const usageSegments = (u: StorageUsage): Segment[] => [
   { key: "chapters", label: "Chapters", bytes: u.chapters, color: "bg-accent" },
-  { key: "models", label: "Detector models", bytes: u.models, color: "bg-warn" },
+  { key: "models", label: "Detector support", bytes: u.models, color: "bg-warn" },
   { key: "covers", label: "Cover cache", bytes: u.covers, color: "bg-ok" },
   { key: "library", label: "Library and logs", bytes: u.library + u.logs, color: "bg-ink-3" },
 ];

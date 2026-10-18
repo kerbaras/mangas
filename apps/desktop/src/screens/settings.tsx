@@ -1,6 +1,7 @@
 import { Terminal } from "lucide-react";
 import { useState } from "react";
 import { BackupPanel } from "@/components/backup-panel";
+import { DetectorSupportSettings } from "@/components/detector-support-settings";
 import { DeviceSelect } from "@/components/device-select";
 import { DevicesPending } from "@/components/devices-pending";
 import { DiagnosticsPanel } from "@/components/diagnostics-panel";
@@ -146,6 +147,7 @@ function SettingsForm() {
             >
               <EmailSettingsForm />
             </Field>
+            <DetectorSupportSettings />
           </Group>
           <Group title="Command line">
             <Field

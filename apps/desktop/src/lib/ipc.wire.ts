@@ -10,6 +10,7 @@ import type {
   ExportResult,
   Preset,
 } from "./ipc";
+import type { RuntimeState } from "./ipc.detectors";
 
 /** Mirrors `mangas_core::export::kindle::Progress` (serde tag = "kind"). */
 export type ExportStage =
@@ -46,8 +47,11 @@ export const toExportResult = ({ output, pages, skipped }: ExportStats): ExportR
 export type MlStatus = {
   enabled: boolean;
   downloaded: boolean;
+  runtime: RuntimeState;
   models: { id: string; downloaded: boolean; licence: string }[];
   execution_provider: string | null;
+  download_bytes: number;
+  disk_bytes: number;
 };
 
 /** Arguments of the `export_chapters` command (camelCase on the wire, Tauri's default). */
@@ -82,6 +86,9 @@ export const toDetectorsStatus = (s: MlStatus): DetectorsStatus => ({
   available: s.enabled,
   downloaded: s.downloaded,
   provider: s.execution_provider ?? "cpu",
+  runtime: s.runtime,
+  downloadBytes: s.download_bytes,
+  diskBytes: s.disk_bytes,
 });
 
 export const toExportArgs = (r: ExportRequest): ExportChaptersArgs => ({

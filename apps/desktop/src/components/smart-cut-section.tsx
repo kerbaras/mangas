@@ -1,16 +1,17 @@
 import type { ReactNode } from "react";
+import { DetectorSupportActions } from "@/components/detector-support";
 import { Field } from "@/components/field";
 import { PresetPicker } from "@/components/preset-picker";
 import { Switch } from "@/components/ui/switch";
-import type { Async } from "@/hooks/use-async";
+import type { DetectorSupport } from "@/hooks/use-detector-support";
 import { detectorHint } from "@/lib/detector-hint";
 import { detectorsUsable } from "@/lib/export-plan";
-import type { DetectorsStatus, Preset } from "@/lib/ipc";
+import type { Preset } from "@/lib/ipc";
 
 type Props = {
   preset: Preset;
   onPreset: (p: Preset) => void;
-  status: Async<DetectorsStatus>;
+  support: DetectorSupport;
   detectors: boolean;
   onDetectors: (on: boolean) => void;
   /** The series' smart-cut options entry. */
@@ -19,17 +20,17 @@ type Props = {
 
 /**
  * Smart cut in the export dialog: the cut preset, the series' smart-cut options and the detectors
- * switch.
+ * switch with its download block.
  */
 export function SmartCutSection({
   preset,
   onPreset,
-  status,
+  support,
   detectors,
   onDetectors,
   children,
 }: Props) {
-  const usable = detectorsUsable(status);
+  const usable = detectorsUsable(support.status);
   return (
     <section aria-label="Smart cut" className="flex flex-col gap-3">
       <Field
@@ -44,7 +45,7 @@ export function SmartCutSection({
           <label htmlFor="detectors" className="text-body font-medium">
             Use detectors
           </label>
-          <p className="mt-0.5 text-caption text-ink-3">{detectorHint(status)}</p>
+          <p className="mt-0.5 text-caption text-ink-3">{detectorHint(support.status)}</p>
         </div>
         <Switch
           id="detectors"
@@ -53,6 +54,7 @@ export function SmartCutSection({
           disabled={!usable}
         />
       </div>
+      <DetectorSupportActions support={support} />
     </section>
   );
 }

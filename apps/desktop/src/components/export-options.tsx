@@ -6,19 +6,19 @@ import { FormatPicker } from "@/components/format-picker";
 import { OutputFolder } from "@/components/output-folder";
 import { SmartCutButton } from "@/components/smart-cut-preview";
 import { SmartCutSection } from "@/components/smart-cut-section";
-import type { Async } from "@/hooks/use-async";
+import type { DetectorSupport } from "@/hooks/use-detector-support";
 import type { ExportTarget } from "@/hooks/use-export-target";
 import type { Series } from "@/hooks/use-series-preset";
 import { chapterLabel } from "@/lib/chapters";
 import { formatLabel } from "@/lib/export-formats";
-import type { Chapter, DetectorsStatus, Preset } from "@/lib/ipc";
+import type { Chapter, Preset } from "@/lib/ipc";
 import type { ExportPreset } from "@/lib/ipc.cut-preview";
 
 type Props = {
   target: ExportTarget;
   preset: Preset;
   onPreset: (p: Preset) => void;
-  detectorsStatus: Async<DetectorsStatus>;
+  detectorSupport: DetectorSupport;
   detectors: boolean;
   onDetectors: (on: boolean) => void;
   output: { value: string; fallback: string; onChange: (dir: string) => void };
@@ -62,7 +62,7 @@ export function ExportOptions(p: Props) {
       <SmartCutSection
         preset={p.preset}
         onPreset={p.onPreset}
-        status={p.detectorsStatus}
+        support={p.detectorSupport}
         detectors={p.detectors}
         onDetectors={p.onDetectors}
       >

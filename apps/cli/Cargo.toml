@@ -31,6 +31,6 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 
 [features]
 default = []
-# ONNX detectors for smart cutting (downloads ONNX Runtime at build time).
+# ONNX detectors for smart cutting (ONNX Runtime is downloaded on demand by `mangas ml download`).
 ml = ["mangas-core/ml"]
 cuda = ["mangas-core/cuda"]

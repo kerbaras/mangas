@@ -43,10 +43,20 @@ Rules: the Tauri layer and the CLI contain no business logic. Everything testabl
   chrome per OS (Tauri `decorations: true`), no in-app titlebar branding.
 - **Models**: `ogkalu/comic-text-and-bubble-detector` (RT-DETR, Apache-2.0, ONNX + int8 variant)
   for bubbles and text, `deepghs/anime_face_detection` (MIT) for faces. The YOLOv8 bubble model
-  (`kitsumed`) is GPL-3.0 and is not shipped. Models are downloaded on first use into the app
-  data dir (`~/.local/share/mangas/models`), verified by SHA-256, never bundled in the installer.
-- **Inference**: `ort` with execution providers chosen at runtime: CUDA (Linux/Windows with NVIDIA),
-  DirectML (Windows), CoreML (macOS), CPU fallback. Detection is optional; smart cut works without
+  (`kitsumed`) is GPL-3.0 and is not shipped. Models are downloaded on demand into the data
+  folder (`~/.local/share/mangas/models`), verified by SHA-256, never bundled in the installer.
+- **ONNX Runtime**: every release is built with `ml` in `ort`'s `load-dynamic` mode, so neither the
+  build machine nor the installer carries the runtime. `ml::runtime` pins one official
+  microsoft/onnxruntime archive per release target (1.28.3; Intel macOS 1.23.2, the last Intel
+  build), downloads it with the models ("Download detector support" in the export dialog or
+  Settings → Export, `mangas ml download`), checks the archive and library SHA-256, keeps only
+  the library in `models/runtime/<version>/` and calls `ort::init_from` once before the first
+  session. Living under `models/`, it moves with the data folder, counts as detector support in
+  storage usage, is deleted with the models and stays out of backups. A failed download or load
+  leaves export working without detectors.
+- **Inference**: `ort` with execution providers chosen at runtime: CoreML (Apple silicon), CUDA
+  (opt-in `cuda` feature), CPU everywhere else. Windows runs on CPU: the official runtime archive
+  has no DirectML provider. Detection is optional; smart cut works without
   models using the classical features alone.
 - **Smart cut defaults**: preset `balanced` (shrink <= 10%, overlap 7.5%), as agreed on the Go PR.
 
@@ -209,8 +219,9 @@ The desktop app has one export flow: the export dialog (`components/export-dialo
 - **How.** Device profile and format (EPUB/CBZ/PDF), stored as the defaults. `export_volumes`
   resolves the format like the CLI: explicit, else the stored default, else the profile's.
   Smart cut (`SmartCutSection`): the cut preset and the detectors switch. Per-series smart-cut
-  options go in the same section. The switch is enabled only when the build has detector
-  support (`detectors_status().available`); when it is on, the models are downloaded on first use.
+  options go in the same section. The switch is enabled once the build has detector
+  support (`detectors_status().available`) and it is downloaded; until then the section offers
+  "Download detector support (~N MB)" with progress, Cancel and Retry.
 - **Where.** Output folder (default `<data dir>/kindle`), then delivery: save to folder, copy to
   the Kindle over USB, or email to Kindle (EPUB/PDF only, needs the mail settings). Delivery runs
   after the files are written, one book at a time. A copy that finds the file already on the

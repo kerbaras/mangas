@@ -10,7 +10,7 @@ use ort::value::Tensor;
 use super::nms::{nms, Class, Detection};
 use super::penalty::row_penalties;
 use super::preprocess::{chw, prepare, Prepared, INPUT_SIZE};
-use super::runtime::{load_session, ort_err};
+use super::session::{load_session, ort_err};
 use super::tiles::windows;
 use crate::domain::{Error, Result};
 use crate::smartcut::raster::crop_rows;

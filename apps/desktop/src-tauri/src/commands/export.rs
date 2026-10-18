@@ -114,7 +114,7 @@ fn series_preset(dirs: &[PathBuf]) -> Option<ExportPreset> {
         })
 }
 
-/// The detector row penalizer when `detectors` is on, reporting model downloads as events.
+/// The detector row penalizer when `detectors` is on, reporting runtime/model downloads as events.
 pub(super) async fn penalizer(
     app: &AppHandle,
     detectors: bool,
@@ -167,7 +167,7 @@ fn titles_of(dirs: &[PathBuf]) -> Vec<String> {
         })
 }
 
-fn models_dir() -> Result<PathBuf, String> {
+pub(super) fn models_dir() -> Result<PathBuf, String> {
     let lib = open_library()?;
     paths::models(&settings_of(&lib)?).map_err(to_ipc)
 }
@@ -178,10 +178,4 @@ fn default_title(chapter_dirs: &[PathBuf]) -> String {
         .and_then(|c| c.parent().and_then(|p| p.file_name()))
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| "Manga".to_string())
-}
-
-#[tauri::command]
-#[tracing::instrument(level = "error", skip_all)]
-pub fn detectors_status() -> Result<ml::Status, String> {
-    Ok(ml::status(&models_dir()?))
 }

@@ -27,6 +27,9 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
+      # Release builds ship with `ml` (ort load-dynamic, no ONNX Runtime needed to build).
+      - run: cargo clippy -p mangas-desktop --all-targets --features ml -- -D warnings
+      - run: cargo test -p mangas-core -p mangas-cli --features mangas-core/ml,mangas-cli/ml
   web:
     runs-on: ubuntu-24.04
     steps:

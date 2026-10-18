@@ -17,6 +17,7 @@ import type { Diagnostics } from "./ipc.diagnostics";
 import type { Enqueued } from "./ipc.downloads";
 import type { Category, LibraryEntry } from "./ipc.library";
 import { tauriCutPreview } from "./ipc.tauri-cut-preview";
+import { tauriDetectors } from "./ipc.tauri-detectors";
 import { tauriDownloads } from "./ipc.tauri-downloads";
 import { tauriFolders } from "./ipc.tauri-folders";
 import { tauriSend } from "./ipc.tauri-send";
@@ -26,8 +27,6 @@ import { tauriVolumes } from "./ipc.tauri-volumes";
 import {
   type ExportEvent,
   type ExportStats,
-  type MlStatus,
-  toDetectorsStatus,
   toExportArgs,
   toExportProgress,
   toExportResult,
@@ -100,7 +99,6 @@ export const tauriBackend: Backend = {
     }),
   exportChapters: async (request) =>
     toExportResult(await invoke<ExportStats>("export_chapters", toExportArgs(request))),
-  detectorsStatus: async () => toDetectorsStatus(await invoke<MlStatus>("detectors_status")),
   listEntries: () => invoke<LibraryEntry[]>("list_entries"),
   listCategories: () => invoke<Category[]>("list_categories"),
   createCategory: (name) => invoke<Category>("create_category", { name }),
@@ -113,6 +111,7 @@ export const tauriBackend: Backend = {
   diagnostics: () => invoke<Diagnostics>("diagnostics"),
   reportError: (message, level = "error") => invoke<void>("log_ui_error", { message, level }),
   ...tauriStorage,
+  ...tauriDetectors,
   ...tauriSend,
   ...tauriUpdates,
   ...tauriDownloads,

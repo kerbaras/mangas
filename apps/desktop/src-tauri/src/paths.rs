@@ -34,7 +34,7 @@ pub fn downloads(settings: &Settings) -> Result<PathBuf, String> {
     Ok(data_dir(settings)?.join("chapters"))
 }
 
-/// Cache directory for downloaded ONNX detector models.
+/// Cache directory for downloaded ONNX detector models and the ONNX Runtime library.
 pub fn models(settings: &Settings) -> Result<PathBuf, String> {
     Ok(data_dir(settings)?.join("models"))
 }

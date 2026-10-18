@@ -2,9 +2,10 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ExportDialog } from "@/components/export-dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { setBackend } from "@/lib/ipc";
+import { type DetectorsStatus, setBackend } from "@/lib/ipc";
+import type { DetectorsProgress } from "@/lib/ipc.detectors";
 import { writeSettings } from "@/lib/settings";
-import { chapters, enabledButton, exportBackend, solo } from "./export-backend";
+import { chapters, detectorState, enabledButton, exportBackend, solo } from "./export-backend";
 
 afterEach(() => {
   setBackend(null);
@@ -44,13 +45,72 @@ describe("export dialog: format, smart cut and delivery", () => {
   it("disables the detectors when the build has no detector support, models or not", async () => {
     const { exportVolumes } = exportBackend(
       {},
-      { available: false, downloaded: true, provider: "cpu" },
+      detectorState({ available: false, runtime: { state: "unavailable" } }),
     );
     render(dialog());
     expect(await screen.findByText(/This build has no detector support/)).toBeTruthy();
     const toggle = screen.getByRole("switch", { name: "Use detectors" });
     expect(toggle.hasAttribute("disabled")).toBe(true);
     expect(toggle.getAttribute("data-state")).toBe("unchecked");
+    fireEvent.click(await exportButton());
+    await waitFor(() => expect(exportVolumes).toHaveBeenCalledOnce());
+    expect(exportVolumes.mock.calls[0][0].detectors).toBe(false);
+  });
+
+  it("downloads detector support from the dialog and turns the switch on without a restart", async () => {
+    const missing = detectorState({
+      downloaded: false,
+      runtime: { state: "not_downloaded", version: "1.28.3" },
+      downloadBytes: 189_714_187,
+      diskBytes: 0,
+    });
+    const events: { progress?: (p: DetectorsProgress) => void } = {};
+    let finish: () => void = () => {};
+    const downloadDetectors = vi.fn(
+      () =>
+        new Promise<DetectorsStatus>((resolve) => {
+          finish = () => resolve(detectorState());
+        }),
+    );
+    exportBackend(
+      {
+        downloadDetectors,
+        onDetectorsProgress: async (cb) => {
+          events.progress = cb;
+          return () => {};
+        },
+      },
+      missing,
+    );
+    render(dialog());
+    expect(await screen.findByText(/Download them to turn this on/)).toBeTruthy();
+    const toggle = screen.getByRole("switch", { name: "Use detectors" });
+    expect(toggle.hasAttribute("disabled")).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: /Download detector support \(~190 MB\)/ }));
+    await waitFor(() => expect(downloadDetectors).toHaveBeenCalledOnce());
+    events.progress?.({ item: "onnxruntime", done: 4_000_000, total: 9_130_098 });
+    expect(await screen.findByText("ONNX Runtime: 4.00 MB of 9.13 MB")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: /Cancel/ }).length).toBeGreaterThan(1);
+    finish();
+    await waitFor(() => expect(toggle.getAttribute("data-state")).toBe("checked"));
+    expect(toggle.hasAttribute("disabled")).toBe(false);
+  });
+
+  it("keeps exporting without detectors when the download fails, with Retry", async () => {
+    const missing = detectorState({
+      downloaded: false,
+      runtime: { state: "not_downloaded", version: "1.28.3" },
+      downloadBytes: 1000,
+    });
+    const downloadDetectors = vi.fn(async () => {
+      throw new Error("network: connection reset");
+    });
+    const { exportVolumes } = exportBackend({ downloadDetectors }, missing);
+    render(dialog());
+    fireEvent.click(await screen.findByRole("button", { name: /Download detector support/ }));
+    expect(await screen.findByText(/network: connection reset/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Try again/ }));
+    await waitFor(() => expect(downloadDetectors).toHaveBeenCalledTimes(2));
     fireEvent.click(await exportButton());
     await waitFor(() => expect(exportVolumes).toHaveBeenCalledOnce());
     expect(exportVolumes.mock.calls[0][0].detectors).toBe(false);

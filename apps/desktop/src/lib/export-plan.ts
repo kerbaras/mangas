@@ -22,13 +22,12 @@ export const initialMode = (chapters: Chapter[]): BundleMode =>
 export const withExtension = (name: string, format: ExportFormat): string =>
   `${name.replace(/\.(epub|cbz|pdf)$/i, "")}.${format}`;
 
-/** The switch only works when the build was compiled with detector support (#130). */
+/** The switch works once the build has detector support (#130) and it is downloaded (#159). */
 export const detectorsUsable = (state: Async<DetectorsStatus>): boolean =>
-  state.kind === "ready" && state.data.available;
+  state.kind === "ready" && state.data.available && state.data.downloaded;
 
-/** On by default once the models are on disk; first use would otherwise start a download. */
-export const detectorsDefault = (state: Async<DetectorsStatus>): boolean =>
-  detectorsUsable(state) && state.kind === "ready" && state.data.downloaded;
+/** On by default whenever it can be used. */
+export const detectorsDefault = detectorsUsable;
 
 /** "Export 3 books and copy": the dialog's main button. */
 export function exportAction(books: number, delivery: "save" | "usb" | "email"): string {

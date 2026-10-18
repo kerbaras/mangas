@@ -47,7 +47,22 @@ describe("export request", () => {
 describe("detector status", () => {
   it("falls back to cpu when no provider is reported", () => {
     expect(
-      toDetectorsStatus({ enabled: true, downloaded: false, models: [], execution_provider: null }),
-    ).toEqual({ available: true, downloaded: false, provider: "cpu" });
+      toDetectorsStatus({
+        enabled: true,
+        downloaded: false,
+        runtime: { state: "not_downloaded", version: "1.28.3" },
+        models: [],
+        execution_provider: null,
+        download_bytes: 5,
+        disk_bytes: 1,
+      }),
+    ).toEqual({
+      available: true,
+      downloaded: false,
+      provider: "cpu",
+      runtime: { state: "not_downloaded", version: "1.28.3" },
+      downloadBytes: 5,
+      diskBytes: 1,
+    });
   });
 });
