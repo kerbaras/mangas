@@ -35,6 +35,8 @@ let settings: Settings = {
   provider_options: {},
 };
 
+const failSettingsUntil = mockFlags.settingsFail ? Date.now() + 1500 : 0;
+
 const library = new Map(
   (mockFlags.emptyLibrary ? [] : sampleLibrary).map((m) => [`${m.source}:${m.id}`, m]),
 );
@@ -95,6 +97,7 @@ export const mockBackend: Backend = {
   },
   async getSettings() {
     await wait(50);
+    if (Date.now() < failSettingsUntil) throw new Error("library: database is locked");
     return settings;
   },
   async setSettings(next) {

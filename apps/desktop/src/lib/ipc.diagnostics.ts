@@ -16,5 +16,7 @@ export type DiagnosticsBackend = {
 
 export const diagnostics = async () => (await backend()).diagnostics();
 export const openLogs = async () => (await backend()).openLogs();
-export const reportError = async (message: string, level?: UiLogLevel) =>
-  (await backend()).reportError(message, level);
+export const reportError = async (message: string, level?: UiLogLevel) => {
+  const b = await backend();
+  return level ? b.reportError(message, level) : b.reportError(message);
+};
