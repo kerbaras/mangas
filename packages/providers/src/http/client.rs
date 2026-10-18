@@ -1,28 +1,27 @@
-use std::time::Duration;
+mod transport;
+
+use std::sync::Arc;
 
 use chrono::Utc;
 use mangas_core::domain::{Error, Result};
 use mangas_core::sources::{Header, ProviderStatus};
-use reqwest::{Client, RequestBuilder};
+use reqwest::Client;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use super::response::{
-    edge_rejected, mitigated, retry_after, retryable_transport, should_retry, Attempt,
-};
 use super::{
-    header_map, is_challenge, probe_status, session_gate, ClientConfig, HostPolicy, Reply,
-    RetryPolicy, USER_AGENT,
+    header_map, probe_status, session_gate, ClientConfig, HostPolicy, Reply, RetryPolicy,
+    USER_AGENT,
 };
-use crate::rate_limit::TokenBucket;
+use crate::rate_limit::{HostLimiters, TokenBucket};
 use crate::session::Session;
 
-/// HTTP client for one site: per-client token bucket, timeouts, retries with backoff, browser
+/// HTTP client for one site: the host's shared token bucket ([`HostLimiters`]), timeouts, retries with backoff, browser
 /// session headers, challenge detection and the page-header policy.
 pub struct SiteClient {
     config: ClientConfig,
     http: Client,
-    bucket: TokenBucket,
+    bucket: Arc<TokenBucket>,
     policy: HostPolicy,
 }
 
@@ -35,10 +34,10 @@ impl SiteClient {
             .timeout(config.timeout)
             .connect_timeout(config.connect_timeout)
             .build()?;
-        let rate = config.requests_per_second.max(1);
+        let bucket = HostLimiters::shared().bucket(&config.base, config.requests_per_second);
         Ok(Self {
             policy: HostPolicy::new(config.info.site, config.image_hosts, session),
-            bucket: TokenBucket::new(rate, rate),
+            bucket,
             http,
             config,
         })
@@ -55,7 +54,7 @@ impl SiteClient {
         let url = self.url(path);
         log::debug!("{}: GET {url} {query:?}", self.config.info.id);
         let retry = self.config.retry;
-        self.send(|| self.http.get(&url).query(query), true, retry)
+        self.send(path, || self.http.get(&url).query(query), true, retry)
             .await
     }
 
@@ -84,7 +83,7 @@ impl SiteClient {
         log::debug!("{}: POST {url}", self.config.info.id);
         let retry = self.config.retry;
         let reply = self
-            .send(|| self.http.post(&url).json(body), false, retry)
+            .send(path, || self.http.post(&url).json(body), false, retry)
             .await?;
         let text = self.ok_body(path, reply)?;
         self.decode(path, &text)
@@ -100,70 +99,9 @@ impl SiteClient {
         }
         let url = self.url(probe);
         let reply = self
-            .send(|| self.http.get(&url), true, RetryPolicy::NONE)
+            .send(probe, || self.http.get(&url), true, RetryPolicy::NONE)
             .await;
         probe_status(&reply.and_then(|r| self.ok_body(probe, r)))
-    }
-
-    async fn send(
-        &self,
-        request: impl Fn() -> RequestBuilder,
-        idempotent: bool,
-        retry: RetryPolicy,
-    ) -> Result<Reply> {
-        let mut attempt = 0;
-        loop {
-            self.bucket.acquire().await;
-            let wait = |after| retry.delay(attempt, after);
-            match self.attempt(request(), idempotent, wait).await {
-                (_, Some(wait)) => {
-                    log::debug!("{}: retry {} in {wait:?}", self.config.info.id, attempt + 1);
-                    tokio::time::sleep(wait).await;
-                    attempt += 1;
-                }
-                (result, None) => return result,
-            }
-        }
-    }
-
-    /// One request including its body, so a connection dropped mid-body is retried too. A
-    /// response that will be retried is not read, so its `Retry-After` always applies.
-    async fn attempt(
-        &self,
-        request: RequestBuilder,
-        idempotent: bool,
-        wait: impl Fn(Option<Duration>) -> Option<Duration>,
-    ) -> Attempt {
-        let response = match request.send().await {
-            Ok(response) => response,
-            Err(e) => {
-                let retry = retryable_transport(&e, idempotent).then(|| wait(None));
-                return (Err(e.into()), retry.flatten());
-            }
-        };
-        let status = response.status().as_u16();
-        let after = retry_after(&response);
-        let json_api = self.config.json_api;
-        if should_retry(&response, idempotent, json_api) {
-            if let Some(after) = wait(after) {
-                if edge_rejected(&response, json_api) {
-                    log::warn!("{}: HTTP {status} edge error page", self.config.info.id);
-                }
-                return (
-                    Ok(Reply {
-                        status,
-                        body: String::new(),
-                    }),
-                    Some(after),
-                );
-            }
-        }
-        let mitigated = mitigated(&response);
-        match response.text().await {
-            Err(e) => (Err(e.into()), idempotent.then(|| wait(after)).flatten()),
-            Ok(body) if is_challenge(status, &mitigated, &body) => (Err(self.challenge()), None),
-            Ok(body) => (Ok(Reply { status, body }), None),
-        }
     }
 
     fn challenge(&self) -> Error {

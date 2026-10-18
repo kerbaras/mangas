@@ -13,6 +13,6 @@ mod session;
 
 pub use mangas_core::sources::{Header, PageUrls, ProviderStatus, Source};
 pub use provider::{Capability, Provider, ProviderInfo};
-pub use rate_limit::TokenBucket;
+pub use rate_limit::{host_key, HostLimiters, TokenBucket};
 pub use registry::{info, providers, source, source_at, status, statuses};
 pub use session::Session;

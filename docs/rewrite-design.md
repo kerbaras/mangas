@@ -58,7 +58,9 @@ Rules: the Tauri layer and the CLI contain no business logic. Everything testabl
   tests point it at a mock server).
   `registry.rs` lists the descriptors; `providers()`, `source(id, settings)` and
   `status(id, settings)` are what the CLI and the Tauri commands call.
-- **`SiteClient`** (`http/client.rs`): timeouts (30 s, 10 s connect), per-client token bucket,
+- **`SiteClient`** (`http/client.rs`): timeouts (30 s, 10 s connect), a token bucket per host
+  shared by every client and call in the process (`rate_limit::HostLimiters`, keyed by
+  `host:port`; the strictest declared `requests_per_second` wins),
   retries with exponential backoff (3 retries, 0.5 s doubling, capped at 30 s) that honour
   `Retry-After`. GETs retry on 429/5xx and transport errors; POSTs only on 429 and failed
   connections. A Cloudflare page becomes `Error::Challenge` (never retried) so the UI offers
