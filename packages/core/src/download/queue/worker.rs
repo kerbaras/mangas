@@ -25,7 +25,7 @@ type Progress = Arc<Mutex<HashMap<JobId, (usize, usize)>>>;
 /// A task's result, tagged with the run it belongs to: a job paused and resumed between two
 /// ticks is claimed again while its old task is still winding down.
 type Outcome = (JobId, u64, Option<Failure>);
-type Tasks = HashMap<JobId, (u64, JoinHandle<()>)>;
+type Tasks = HashMap<JobId, (u64, bool, JoinHandle<()>)>;
 
 /// Sink for queue events; called from the worker loop only.
 pub type OnQueueEvent<'a> = &'a (dyn Fn(QueueEvent) + Send + Sync);
@@ -81,7 +81,7 @@ impl Queue {
                 arrived.push(outcome);
             }
             for (id, run, outcome) in arrived.drain(..) {
-                if tasks.get(&id).is_some_and(|(current, _)| *current == run) {
+                if tasks.get(&id).is_some_and(|(current, ..)| *current == run) {
                     tasks.remove(&id);
                     finished.push((id, outcome));
                 }
@@ -97,13 +97,13 @@ impl Queue {
                     for job in plan.claimed {
                         // Paused and resumed since the last step: the old run must be gone
                         // before the new one writes the same pages.
-                        if let Some((_, old)) = tasks.remove(&job.id) {
+                        if let Some((.., old)) = tasks.remove(&job.id) {
                             old.abort();
                             let _ = old.await;
                         }
                         runs += 1;
                         let handle = self.spawn(job.clone(), runs, tx.clone(), progress.clone());
-                        tasks.insert(job.id, (runs, handle));
+                        tasks.insert(job.id, (runs, job.force, handle));
                     }
                     self.stop_lost(&plan.jobs, &mut tasks, &progress);
                     diff(&prev, &plan.jobs).into_iter().for_each(on_event);
@@ -155,13 +155,13 @@ impl Queue {
         })
     }
 
-    /// Aborts tasks whose job is no longer running under this worker (paused or cancelled).
-    /// Pages already written stay on disk for a resume.
+    /// Aborts tasks whose job is no longer running under this worker (paused or cancelled), or
+    /// was forced since it started: the next step queues it again for a full re-download.
     fn stop_lost(&self, jobs: &[Job], tasks: &mut Tasks, progress: &Progress) {
-        tasks.retain(|id, (_, handle)| {
+        tasks.retain(|id, (_, forced, handle)| {
             let ours = jobs
                 .iter()
-                .any(|j| j.id == *id && is_run_by(j, &self.owner));
+                .any(|j| j.id == *id && is_run_by(j, &self.owner) && (*forced || !j.force));
             if !ours {
                 handle.abort();
                 let _ = progress.lock().map(|mut p| p.remove(id));

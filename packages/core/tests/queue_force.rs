@@ -2,11 +2,13 @@
 
 mod queue_support;
 
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::time::Duration;
 
 use mangas_core::download::queue::{self, JobState, Queue, Scope};
 use mangas_core::library;
-use queue_support::pages::{Fetcher, Runner};
+use queue_support::pages::{pages_on_disk, Fetcher, Runner};
 use queue_support::{fast_config, follow};
 
 async fn run(lib: &Arc<library::Library>, fetcher: &Arc<Fetcher>, root: &std::path::Path) {
@@ -87,7 +89,7 @@ async fn without_force_a_chapter_on_disk_is_left_alone() {
 }
 
 #[test]
-fn a_forced_request_restarts_a_running_job_in_place_with_force() {
+fn a_forced_request_on_a_running_job_stays_with_its_owner() {
     let run = queue::Job {
         id: 1,
         state: JobState::Running,
@@ -102,8 +104,42 @@ fn a_forced_request_restarts_a_running_job_in_place_with_force() {
     let again = queue::enqueue_job(Some(&run), fresh.clone(), 1_000).unwrap();
     assert_eq!(
         (again.state, again.force, again.owner, again.created_at),
-        (JobState::Queued, true, None, 5)
+        (JobState::Running, true, Some("me".into()), 5)
     );
     let forced = queue::Job { force: true, ..run };
     assert!(queue::enqueue_job(Some(&forced), fresh, 1_000).is_none());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn forcing_a_running_chapter_restarts_it_as_a_full_download() {
+    let lib = Arc::new(library::open_in_memory().unwrap());
+    let root = tempfile::tempdir().unwrap();
+    let chapters = follow(&lib, "a", 1);
+    let fetcher = Arc::new(Fetcher::default());
+    fetcher.hang.store(true, Ordering::SeqCst);
+    queue::enqueue(&lib, "a", chapters.clone(), false).unwrap();
+    let worker = {
+        let (lib, fetcher, root) = (lib.clone(), fetcher.clone(), root.path().to_path_buf());
+        tokio::spawn(async move { run(&lib, &fetcher, &root).await })
+    };
+    for _ in 0..500 {
+        if pages_on_disk(root.path()).len() == 2 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+
+    // The run in flight hangs on page 3 for good: only its owner dropping it lets this finish.
+    queue::enqueue(&lib, "a", chapters, true).unwrap();
+    fetcher.hang.store(false, Ordering::SeqCst);
+    tokio::time::timeout(Duration::from_secs(10), worker)
+        .await
+        .expect("the forced run replaced the hung one")
+        .unwrap();
+
+    let job = queue::list(&lib).unwrap().remove(0);
+    assert_eq!((job.state, job.force), (JobState::Done, true));
+    let fetched = fetcher.fetched.lock().unwrap().clone();
+    let first = fetched.iter().filter(|u| *u == "https://cdn/1").count();
+    assert_eq!((first, fetched.len()), (2, 8), "{fetched:?}");
 }
