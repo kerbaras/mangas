@@ -2,7 +2,7 @@ use serde::Serialize;
 
 use super::format::{Backup, Bookmark, EntryRef, TrackerRef, FORMAT, VERSION};
 use crate::domain::Manga;
-use crate::library::{is_local, Settings};
+use crate::library::{is_local, LibrarySnapshot, Settings};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 pub struct ExportSummary {
@@ -28,9 +28,11 @@ pub fn sanitize(settings: &Settings) -> Settings {
     }
 }
 
-/// The backup of `entries` (each title with when it was followed, in ms).
+/// The backup of `entries` (each title with when it was followed, in ms) and their `state`.
+/// Imported titles are left out of both.
 pub fn build(
     entries: &[(Manga, i64)],
+    state: LibrarySnapshot,
     settings: &Settings,
     exported_at: &str,
     app_version: &str,
@@ -57,6 +59,7 @@ pub fn build(
         bookmarks,
         library: remote.iter().map(|(m, _)| m.clone()).collect(),
         settings: Some(sanitize(settings)),
+        state: state.only(|source| !is_local(source)),
     };
     let summary = ExportSummary {
         titles: remote.len(),

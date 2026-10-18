@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::domain::{Error, Manga, Result};
-use crate::library::Settings;
+use crate::library::{LibrarySnapshot, Settings};
 
 pub const FORMAT: &str = "mangas-backup";
 /// Bumped when a field changes meaning; new optional fields don't need a bump.
@@ -21,6 +21,10 @@ pub struct Backup {
     /// Preferences without provider sessions or the data folder.
     #[serde(default)]
     pub settings: Option<Settings>,
+    /// Categories, reading status, flags and chapter marks (top-level `categories`, `titles`,
+    /// `chapters`). Backups from before 0.3.0 have none and restore with defaults.
+    #[serde(flatten)]
+    pub state: LibrarySnapshot,
 }
 
 /// HaruNeko's `BookmarkSerialized`: times are Unix milliseconds.
@@ -70,6 +74,7 @@ pub fn parse(text: &str) -> Result<Backup> {
             bookmarks,
             library: Vec::new(),
             settings: None,
+            state: LibrarySnapshot::default(),
         });
     }
     if value.get("format").and_then(|f| f.as_str()) != Some(FORMAT) {

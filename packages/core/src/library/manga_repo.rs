@@ -1,4 +1,4 @@
-use rusqlite::{params, OptionalExtension, Row};
+use rusqlite::{params, Connection, OptionalExtension, Row};
 
 use super::Library;
 use crate::domain::{Manga, MangaId, MangaStatus, Result};
@@ -8,7 +8,11 @@ pub(super) const COLUMNS: &str =
 
 /// Inserts the manga or refreshes its metadata if it is already followed.
 pub fn upsert_manga(lib: &Library, manga: &Manga) -> Result<()> {
-    lib.conn()?.execute(
+    upsert_on(&*lib.conn()?, manga)
+}
+
+pub(super) fn upsert_on(conn: &Connection, manga: &Manga) -> Result<()> {
+    conn.execute(
         "INSERT INTO manga
             (id, source, title, description, cover_url, status, authors, artists, year, tags)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)

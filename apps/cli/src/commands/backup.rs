@@ -14,7 +14,7 @@ pub struct Args {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Write followed titles and preferences (no provider sessions) to a JSON file
+    /// Write followed titles, categories, reading status, read marks and preferences to a JSON file
     Export { file: PathBuf },
     /// Follow the titles in a backup or a HaruNeko bookmarks export and apply its preferences
     Import { file: PathBuf },

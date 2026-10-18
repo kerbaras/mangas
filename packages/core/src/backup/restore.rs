@@ -3,8 +3,9 @@ use std::collections::HashSet;
 use serde::Serialize;
 
 use super::format::Backup;
+use super::titles::title_state;
 use crate::domain::{Manga, MangaId, Result};
-use crate::library::{get_settings, is_local, list_manga, set_settings, upsert_manga};
+use crate::library::{get_settings, is_local, list_manga, restore_snapshot, set_settings};
 use crate::library::{Library, Settings};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
@@ -69,16 +70,22 @@ pub fn merge_settings(current: &Settings, restored: &Settings) -> Settings {
     }
 }
 
-/// Follows the backup's new titles and applies its preferences.
+/// Follows the backup's new titles with their state, adds categories, assignments and chapter
+/// marks to the titles followed afterwards, and applies the backup's preferences.
 pub fn restore(lib: &Library, backup: &Backup, known_sources: &[&str]) -> Result<Restored> {
     let followed = list_manga(lib)?
         .into_iter()
         .map(|m| (m.source, m.id.0))
         .collect();
     let (add, mut report) = plan(backup, &followed, known_sources);
-    for manga in &add {
-        upsert_manga(lib, manga)?;
-    }
+    let add: Vec<_> = add
+        .into_iter()
+        .map(|m| {
+            let state = title_state(backup, &m);
+            (m, state)
+        })
+        .collect();
+    restore_snapshot(lib, &add, &backup.state)?;
     if let Some(restored) = &backup.settings {
         set_settings(lib, &merge_settings(&get_settings(lib)?, restored))?;
         report.settings = true;

@@ -16,6 +16,7 @@ mod manga_repo;
 mod reading_status;
 mod refresh;
 mod settings_repo;
+mod snapshot;
 mod sync;
 mod title_flags;
 pub mod updates;
@@ -45,6 +46,9 @@ pub use reading_status::{set_reading_status, ReadingStatus};
 pub use refresh::{refresh_from_source, Refreshed};
 pub use settings_repo::{
     get_settings, set_settings, ProviderSession, Settings, DEFAULT_LANGUAGE, DEFAULT_UPDATE_HOURS,
+};
+pub use snapshot::{
+    read_snapshot, restore_snapshot, CategoryState, ChapterState, LibrarySnapshot, TitleState,
 };
 pub use sync::{fetch_chapters, store_chapters, sync_chapters};
 pub use title_flags::{mark_viewed, set_auto_download};

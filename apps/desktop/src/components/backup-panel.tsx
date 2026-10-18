@@ -41,7 +41,7 @@ export function BackupPanel() {
   return (
     <Field
       label="Library backup"
-      hint="Followed titles and preferences in one JSON file. Provider sessions and the data folder aren't included. Import adds titles you don't follow yet and also reads HaruNeko bookmark exports."
+      hint="Followed titles with their categories, reading status and read marks, plus preferences, in one JSON file. Downloaded files, provider sessions and the data folder aren't included. Import adds the titles you don't follow yet and the categories and read marks you're missing, without changing what's already here. It also reads HaruNeko bookmark exports."
     >
       <div className="flex flex-wrap gap-2">
         <Button onClick={() => void save()}>
