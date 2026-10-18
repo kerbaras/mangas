@@ -37,16 +37,17 @@ export function useDetectorSupport(): DetectorSupport {
     cancelled.current = false;
     setFailure(null);
     setProgress(null);
-    setDownloading(true);
-    const unlisten = await onDetectorsProgress(setProgress);
+    let unlisten: (() => void) | undefined;
     try {
+      unlisten = await onDetectorsProgress(setProgress);
+      setDownloading(true);
       const next = await downloadDetectors();
       patch(() => next);
     } catch (e: unknown) {
       if (!cancelled.current) setFailure(errorMessage(e));
       reload();
     } finally {
-      unlisten();
+      unlisten?.();
       setDownloading(false);
       setProgress(null);
     }

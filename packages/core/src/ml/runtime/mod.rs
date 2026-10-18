@@ -97,7 +97,7 @@ pub(crate) fn unsupported() -> Error {
 pub fn status(models_dir: &Path) -> RuntimeStatus {
     match current().filter(|_| super::ENABLED) {
         None => RuntimeStatus::Unavailable,
-        Some(spec) => status_of(models_dir, &spec, state::failure()),
+        Some(spec) => status_of(models_dir, &spec, state::failure(models_dir)),
     }
 }
 

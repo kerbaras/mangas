@@ -65,11 +65,6 @@ pub fn missing_bytes(models_dir: &Path, spec: Option<&runtime::RuntimeSpec>) -> 
 /// in use until the app quits.
 pub fn remove(models_dir: &Path) -> Result<u64> {
     let mut freed = 0;
-    let root = runtime::root(models_dir);
-    if root.exists() {
-        freed += crate::storage::dir_size(&root);
-        std::fs::remove_dir_all(&root)?;
-    }
     for model in &MODELS {
         let path = model_path(models_dir, model);
         for file in [part_path(&path), path] {
@@ -78,6 +73,17 @@ pub fn remove(models_dir: &Path) -> Result<u64> {
                 std::fs::remove_file(&file)?;
             }
         }
+    }
+    let root = runtime::root(models_dir);
+    if root.exists() {
+        let size = crate::storage::dir_size(&root);
+        // Windows keeps a loaded onnxruntime.dll locked until the process exits.
+        std::fs::remove_dir_all(&root).map_err(|e| {
+            Error::Other(format!(
+                "removed the models, but ONNX Runtime is in use ({e}); restart Mangas and remove again"
+            ))
+        })?;
+        freed += size;
     }
     runtime::forget_failure();
     Ok(freed)

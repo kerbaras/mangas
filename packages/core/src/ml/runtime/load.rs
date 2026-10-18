@@ -23,7 +23,7 @@ pub fn ensure_loaded(models_dir: &Path) -> Result<()> {
             *loaded = true;
             state::clear();
         }
-        Err(e) => state::record(e.to_string()),
+        Err(e) => state::record(models_dir, e.to_string()),
     }
     result
 }

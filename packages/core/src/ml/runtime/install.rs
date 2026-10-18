@@ -30,7 +30,7 @@ pub async fn ensure(
     let result = install(models_dir, spec, on_progress, cancel).await;
     match &result {
         Ok(_) => state::clear(),
-        Err(e) if !is_cancelled(e) => state::record(e.to_string()),
+        Err(e) if !is_cancelled(e) => state::record(models_dir, e.to_string()),
         Err(_) => {}
     }
     result

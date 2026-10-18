@@ -35,10 +35,16 @@ pub async fn download_detectors(app: AppHandle) -> Result<ml::Status, String> {
     if DOWNLOADING.swap(true, Ordering::SeqCst) {
         return Err("detector support is already downloading".into());
     }
-    CANCEL.store(false, Ordering::SeqCst);
     let result = download(&app).await;
+    // Cleared after, not before: a Cancel sent while the call was on its way still counts.
+    CANCEL.store(false, Ordering::SeqCst);
     DOWNLOADING.store(false, Ordering::SeqCst);
     result
+}
+
+/// True while [`download_detectors`] writes into the data folder.
+pub fn downloading() -> bool {
+    DOWNLOADING.load(Ordering::SeqCst)
 }
 
 async fn download(app: &AppHandle) -> Result<ml::Status, String> {
