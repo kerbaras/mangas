@@ -124,7 +124,7 @@ fn saving_without_a_keychain_writes_the_file_and_says_why() {
 }
 
 #[test]
-fn a_draft_password_wins_and_a_missing_one_comes_from_the_keychain() {
+fn a_carried_password_wins_and_a_missing_one_comes_from_the_keychain() {
     let store = MemoryStore::with("kept");
     assert_eq!(
         with_password(&store, &email("typed")).unwrap().password,
@@ -137,9 +137,6 @@ fn a_draft_password_wins_and_a_missing_one_comes_from_the_keychain() {
     };
     let broken = MemoryStore::unavailable("locked");
     assert_eq!(with_password(&broken, &anonymous).unwrap().password, "");
-    let err = with_password(&broken, &email("")).unwrap_err().to_string();
-    assert!(
-        err.contains("Couldn't read the SMTP password") && err.contains("locked"),
-        "{err}"
-    );
+    // A blank-password account still reaches the server, as it did before the keychain.
+    assert_eq!(with_password(&broken, &email("")).unwrap().password, "");
 }

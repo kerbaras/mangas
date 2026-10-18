@@ -74,15 +74,11 @@ pub async fn send_email(file: PathBuf, title: String) -> Result<email::Sent, Str
     Ok(sent)
 }
 
-/// Sends a test message with `settings` (the form as edited, saved or not; an empty password
-/// is the keychain's); returns the address it went to.
+/// Sends a test message with `settings` (the form as edited, saved or not: it loads with the
+/// keychain's password, so an empty one was cleared); returns the address it went to.
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub async fn send_test_email(settings: EmailSettings) -> Result<String, String> {
-    let settings = blocking(move || {
-        password::with_password(&*password::system_store(), &settings).map_err(to_ipc)
-    })
-    .await?;
     email::send_test(&settings).await.map_err(to_ipc)
 }
 

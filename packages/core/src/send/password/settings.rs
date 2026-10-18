@@ -4,7 +4,7 @@
 use serde::Serialize;
 
 use super::store::SecretStore;
-use crate::domain::{Error, Result};
+use crate::domain::Result;
 use crate::library::{edit_settings, get_settings, Library, Settings};
 use crate::send::EmailSettings;
 
@@ -35,26 +35,20 @@ pub fn load_settings(lib: &Library, store: &dyn SecretStore) -> Result<Settings>
     Ok(settings)
 }
 
-/// The email settings for a send, with the password. Unlike [`load_settings`], a keychain
-/// that fails is an error rather than an empty password the server would refuse.
+/// The email settings for a send, with the password.
 pub fn email_settings(lib: &Library, store: &dyn SecretStore) -> Result<EmailSettings> {
     with_password(store, &migrate(lib, store)?.kindle_email)
 }
 
-/// `email` with its password: the one it carries (a draft from the form, or one still in the
-/// settings file), else the keychain's. Without a user name no password is needed.
+/// `email` with its password: the one it carries (one still in the settings file), else the
+/// keychain's. Without a user name no password is needed; a keychain that can't be read gives
+/// an empty one, as before the keychain, and the server says whether it takes that.
 pub fn with_password(store: &dyn SecretStore, email: &EmailSettings) -> Result<EmailSettings> {
     if !email.password.is_empty() || email.username.trim().is_empty() {
         return Ok(email.clone());
     }
-    let password = store.get().map_err(|e| {
-        Error::Send(format!(
-            "Couldn't read the SMTP password from the system keychain ({e}). Save it again in \
-             Settings, or with `mangas settings email --password-stdin`."
-        ))
-    })?;
     Ok(EmailSettings {
-        password: password.unwrap_or_default(),
+        password: reveal(store),
         ..email.clone()
     })
 }
@@ -84,6 +78,7 @@ pub fn save_settings(
     let changed = base.is_none_or(|b| b.kindle_email.password != password);
     let (mut base, mut edited) = (base.cloned(), edited.clone());
     let mut fallback = None;
+    let before = changed.then(|| store.get().ok().flatten()).flatten();
     if changed {
         let kept = if password.is_empty() {
             store.delete()
@@ -109,7 +104,15 @@ pub fn save_settings(
         }
         edited.kindle_email.password.clear();
     }
-    let mut settings = edit_settings(lib, base.as_ref(), &edited)?;
+    let mut settings = match edit_settings(lib, base.as_ref(), &edited) {
+        Ok(settings) => settings,
+        Err(e) => {
+            if changed && fallback.is_none() {
+                restore(store, before.as_deref());
+            }
+            return Err(e);
+        }
+    };
     if settings.kindle_email.password.is_empty() {
         settings.kindle_email.password = password;
     }
@@ -134,6 +137,17 @@ fn migrate(lib: &Library, store: &dyn SecretStore) -> Result<Settings> {
     edit_settings(lib, Some(&settings), &blank)?;
     tracing::info!("moved the SMTP password from the settings file to the system keychain");
     Ok(settings)
+}
+
+/// Puts back the keychain's password from before a save that didn't reach the settings.
+fn restore(store: &dyn SecretStore, before: Option<&str>) {
+    let undone = match before {
+        Some(secret) => store.set(secret),
+        None => store.delete(),
+    };
+    if let Err(e) = undone {
+        tracing::warn!("couldn't put the previous SMTP password back in the keychain: {e}");
+    }
 }
 
 fn reveal(store: &dyn SecretStore) -> String {
