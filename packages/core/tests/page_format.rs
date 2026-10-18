@@ -177,3 +177,20 @@ impl PageFetcher for Missing {
         Err(Error::NotFound(url.into()))
     }
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_part_file_with_a_non_utf8_name_is_removed_too() {
+    use std::os::unix::ffi::OsStrExt;
+    let dir = tempfile::tempdir().unwrap();
+    let odd = dir
+        .path()
+        .join(std::ffi::OsStr::from_bytes(b"page\xff.part"));
+    std::fs::write(&odd, b"stray").unwrap();
+    let fetcher = JpegEverywhere::default();
+    let chapter = ChapterId("c".into());
+    download_pages(&fetcher, &chapter, &png_urls(1), dir.path(), &ignore)
+        .await
+        .unwrap();
+    assert!(!odd.exists());
+}

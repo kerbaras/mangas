@@ -113,10 +113,12 @@ pub async fn download_pages_with(
 }
 
 /// Removes the files in `dest` whose name matches `drop`.
+/// A name that is not valid UTF-8 is matched on its lossy spelling but removed by its real one.
 fn remove_files(dest: &Path, drop: impl Fn(&str) -> bool) -> Result<()> {
-    for name in existing_files(dest)? {
-        if drop(&name) {
-            std::fs::remove_file(dest.join(name))?;
+    for entry in std::fs::read_dir(dest)? {
+        let entry = entry?;
+        if entry.file_type()?.is_file() && drop(&entry.file_name().to_string_lossy()) {
+            std::fs::remove_file(entry.path())?;
         }
     }
     Ok(())
