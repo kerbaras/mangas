@@ -7,55 +7,12 @@ use super::cbz::is_image;
 use super::event::{Event, OnEvent};
 use super::fetcher::PageFetcher;
 use super::incomplete::{incomplete, missing_on_disk};
+use super::plan::{page_file_name_for, plan, PageJob};
 use crate::domain::{ChapterId, Result};
 use crate::sources::PageUrls;
 
 /// Pages fetched at the same time within one chapter.
 pub const CONCURRENCY: usize = 4;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PageJob {
-    /// 1-based page index.
-    pub index: usize,
-    pub url: String,
-    pub file_name: String,
-}
-
-/// `0001.png` style file name for page `index` (1-based), keeping the source's extension.
-pub fn page_file_name(index: usize, url: &str) -> String {
-    format!("{index:04}.{}", extension_of(url))
-}
-
-/// Pages still to fetch given the files already in the chapter directory (resume). A page
-/// counts as present by its index, whatever its extension: `0003.png` from a full-quality run
-/// is page 3 even when the URL now ends in `.jpg` (data saver), so no duplicate gets written.
-pub fn plan(urls: &PageUrls, existing: &HashSet<String>) -> Vec<PageJob> {
-    let present = present_indexes(existing);
-    urls.0
-        .iter()
-        .enumerate()
-        .map(|(i, url)| PageJob {
-            index: i + 1,
-            url: url.clone(),
-            file_name: page_file_name(i + 1, url),
-        })
-        .filter(|job| !present.contains(&job.index))
-        .collect()
-}
-
-/// Indexes of the finished page images among `names` (`0003.png`, not `0003.png.part` or
-/// `0003.txt`).
-fn present_indexes(names: &HashSet<String>) -> HashSet<usize> {
-    names
-        .iter()
-        .filter(|name| is_image(name))
-        .filter_map(|name| {
-            let (stem, _) = name.rsplit_once('.')?;
-            let numbered = !stem.is_empty() && stem.chars().all(|c| c.is_ascii_digit());
-            numbered.then(|| stem.parse().ok()).flatten()
-        })
-        .collect()
-}
 
 /// What to do with the page files already in the chapter directory.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -93,6 +50,7 @@ pub async fn download_pages_with(
     on_event: OnEvent<'_>,
 ) -> Result<usize> {
     tokio::fs::create_dir_all(dest).await?;
+    remove_partials(dest)?;
     let existing = match on_disk {
         OnDisk::Keep => existing_files(dest)?,
         OnDisk::Replace => HashSet::new(),
@@ -106,7 +64,7 @@ pub async fn download_pages_with(
             total,
         });
     }
-    let failed: Vec<_> = stream::iter(jobs)
+    let results: Vec<_> = stream::iter(jobs)
         .map(|job| async move {
             let result = fetch_page(fetcher, &job, dest).await;
             if result.is_ok() {
@@ -119,9 +77,18 @@ pub async fn download_pages_with(
             (job.index, result)
         })
         .buffer_unordered(CONCURRENCY)
-        .filter_map(|(index, result)| async move { result.err().map(|e| (index, e)) })
         .collect()
         .await;
+    let mut written = HashSet::new();
+    let mut failed = Vec::new();
+    for (index, result) in results {
+        match result {
+            Ok(name) => {
+                written.insert(name);
+            }
+            Err(e) => failed.push((index, e)),
+        }
+    }
     if !failed.is_empty() {
         return Err(incomplete(failed, total));
     }
@@ -130,35 +97,52 @@ pub async fn download_pages_with(
         return Err(missing_on_disk(missing, total));
     }
     if on_disk == OnDisk::Replace {
-        remove_stale_pages(dest, urls)?;
+        remove_stale_pages(dest, &written)?;
     }
     Ok(total)
 }
 
 /// After a full re-download, drops the page images it did not write (another extension, a
 /// page the source no longer has) so an export never picks up an old or duplicate page.
-fn remove_stale_pages(dest: &Path, urls: &PageUrls) -> Result<()> {
-    let wanted: HashSet<String> = plan(urls, &HashSet::new())
-        .into_iter()
-        .map(|job| job.file_name)
-        .collect();
+fn remove_stale_pages(dest: &Path, written: &HashSet<String>) -> Result<()> {
     for name in existing_files(dest)? {
-        if is_image(&name) && !wanted.contains(&name) {
+        if is_image(&name) && !written.contains(&name) {
             std::fs::remove_file(dest.join(name))?;
         }
     }
     Ok(())
 }
 
+/// Drops page `.part` files (`0007.png.part`) left by an interrupted run. Their name came from
+/// that run's bytes (or the URL, before pages were named by format), so this run may never
+/// overwrite them.
+fn remove_partials(dest: &Path) -> Result<()> {
+    for name in existing_files(dest)? {
+        if name.strip_suffix(".part").is_some_and(is_page_name) {
+            std::fs::remove_file(dest.join(name))?;
+        }
+    }
+    Ok(())
+}
+
+/// A page file name: digits, a dot, any extension (an unknown body keeps the URL's).
+fn is_page_name(name: &str) -> bool {
+    let numbered = |stem: &str| !stem.is_empty() && stem.chars().all(|c| c.is_ascii_digit());
+    name.rsplit_once('.')
+        .is_some_and(|(stem, _)| numbered(stem))
+}
+
 /// Writes to `<name>.part` first so an interrupted download never leaves a truncated page
-/// that a later resume would skip.
-async fn fetch_page(fetcher: &dyn PageFetcher, job: &PageJob, dest: &Path) -> Result<()> {
+/// that a later resume would skip. The file is named by the image's real format; returns that
+/// name.
+async fn fetch_page(fetcher: &dyn PageFetcher, job: &PageJob, dest: &Path) -> Result<String> {
     let bytes = fetcher.fetch(&job.url).await?;
-    let final_path = dest.join(&job.file_name);
-    let part_path = dest.join(format!("{}.part", job.file_name));
+    let name = page_file_name_for(job.index, &job.url, &bytes);
+    let final_path = dest.join(&name);
+    let part_path = dest.join(format!("{name}.part"));
     tokio::fs::write(&part_path, bytes).await?;
     tokio::fs::rename(&part_path, &final_path).await?;
-    Ok(())
+    Ok(name)
 }
 
 fn existing_files(dest: &Path) -> Result<HashSet<String>> {
@@ -170,15 +154,4 @@ fn existing_files(dest: &Path) -> Result<HashSet<String>> {
         }
     }
     Ok(names)
-}
-
-fn extension_of(url: &str) -> String {
-    let path = url.split(['?', '#']).next().unwrap_or(url);
-    let file = path.rsplit('/').next().unwrap_or(path);
-    file.rsplit_once('.')
-        .map(|(_, ext)| ext.to_ascii_lowercase())
-        .filter(|ext| {
-            !ext.is_empty() && ext.len() <= 5 && ext.chars().all(|c| c.is_ascii_alphanumeric())
-        })
-        .unwrap_or_else(|| "jpg".to_string())
 }

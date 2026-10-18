@@ -9,6 +9,7 @@ mod fetcher;
 mod incomplete;
 mod mirror;
 mod pages;
+mod plan;
 pub mod queue;
 mod selection;
 
@@ -22,7 +23,6 @@ pub use chapter::{
 pub use event::{Event, OnEvent};
 pub use fetcher::{is_public_http_url, PageFetcher};
 pub use mirror::{MirrorFor, WithMirror};
-pub use pages::{
-    download_pages, download_pages_with, page_file_name, plan, OnDisk, PageJob, CONCURRENCY,
-};
+pub use pages::{download_pages, download_pages_with, OnDisk, CONCURRENCY};
+pub use plan::{page_file_name, page_file_name_for, plan, PageJob};
 pub use selection::{parse_selection, select_chapters};
