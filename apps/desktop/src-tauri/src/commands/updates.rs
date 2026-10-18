@@ -80,3 +80,15 @@ pub fn mark_viewed(source: String, manga_id: String) -> Result<bool, String> {
 pub fn set_auto_download(source: String, manga_id: String, on: bool) -> Result<bool, String> {
     library::set_auto_download(&open_library()?, &source, &MangaId(manga_id), on).map_err(to_ipc)
 }
+
+/// Narrows a followed title to one scanlation group; `None` shows every group again.
+#[tauri::command]
+#[tracing::instrument(level = "error")]
+pub fn set_chapter_group(
+    source: String,
+    manga_id: String,
+    group: Option<String>,
+) -> Result<bool, String> {
+    let lib = open_library()?;
+    library::set_chapter_group(&lib, &source, &MangaId(manga_id), group.as_deref()).map_err(to_ipc)
+}

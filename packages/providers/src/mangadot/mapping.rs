@@ -97,6 +97,28 @@ pub fn chapter_id(entry: &ChapterEntry) -> ChapterId {
     ChapterId(format!("{kind}:{}", entry.id))
 }
 
+/// Label of the chapters the site mirrors itself (`source: "scraper"`, no group). Not
+/// "Official": MangaDot has a real group of that name.
+pub const MIRROR_GROUP: &str = "MangaDot mirror";
+
+/// Who released `entry`: the credited groups ("A, B"), else the group record, else the
+/// uploader's free-text scanlator name; mirrored chapters get [`MIRROR_GROUP`].
+pub fn group(entry: &ChapterEntry) -> String {
+    let clean = |s: Option<&str>| s.map(str::trim).filter(|s| !s.is_empty()).map(String::from);
+    let mut names: Vec<String> = Vec::new();
+    for name in entry.groups.iter().filter_map(|g| clean(g.name.as_deref())) {
+        if !names.contains(&name) {
+            names.push(name);
+        }
+    }
+    if !names.is_empty() {
+        return names.join(", ");
+    }
+    clean(entry.group_name.as_deref())
+        .or_else(|| clean(entry.scanlator_name.as_deref()))
+        .unwrap_or_else(|| MIRROR_GROUP.to_string())
+}
+
 /// API path serving the images of `chapter`, from the id produced by [`chapter_id`].
 pub fn images_path(chapter: &ChapterId) -> Result<String> {
     match chapter.0.split_once(':') {
@@ -120,7 +142,7 @@ pub fn parse_chapters(body: &str, manga: &MangaId, language: &str) -> Result<Vec
             number: number_text(e.chapter_number.as_ref()),
             local_path: None,
             exported_at: None,
-            group: None,
+            group: Some(group(e)),
             availability: Default::default(),
         })
         .collect();

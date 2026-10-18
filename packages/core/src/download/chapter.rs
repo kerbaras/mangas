@@ -24,7 +24,9 @@ pub fn chapter_dir(root: &Path, source: &str, chapter: &Chapter) -> PathBuf {
 }
 
 /// Keeps the directory for `chapter` apart from a same-numbered chapter (another group's
-/// release) already stored at the same path by suffixing part of the chapter id.
+/// release) already stored at the same path by suffixing the whole chapter id: ids of one
+/// source can share a prefix (MangaDot uploads are sequential). Downloads made under an older
+/// name keep working, since the library stores each chapter's own directory.
 pub fn unique_chapter_dir(dir: PathBuf, chapter: &Chapter, known: &[Chapter]) -> PathBuf {
     let dir_str = dir.to_string_lossy();
     let taken = known
@@ -33,11 +35,10 @@ pub fn unique_chapter_dir(dir: PathBuf, chapter: &Chapter, known: &[Chapter]) ->
     if !taken {
         return dir;
     }
-    let suffix: String = chapter.id.0.chars().take(8).collect();
     let name = format!(
         "{}-{}",
         safe_component(&chapter.number),
-        safe_component(&suffix)
+        safe_component(&chapter.id.0)
     );
     dir.with_file_name(name)
 }

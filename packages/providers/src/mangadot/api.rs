@@ -53,6 +53,20 @@ pub struct ChapterEntry {
     /// "scraper" for mirrored chapters, "user" for uploads (served from another endpoint).
     #[serde(default)]
     pub source: Option<String>,
+    /// Groups credited for an upload; empty for mirrored chapters.
+    #[serde(default)]
+    pub groups: Vec<GroupRef>,
+    #[serde(default)]
+    pub group_name: Option<String>,
+    /// Free text typed by the uploader (`No-group` next to the `No Group` record).
+    #[serde(default)]
+    pub scanlator_name: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GroupRef {
+    #[serde(default)]
+    pub name: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

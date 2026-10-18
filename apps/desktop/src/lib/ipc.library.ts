@@ -39,6 +39,8 @@ export type LibraryEntry = Manga & {
   chapters: ChapterCounts;
   /** Update checks queue this title's new chapters for download. */
   auto_download: boolean;
+  /** The scanlation group Details and downloads are narrowed to; null for every group. */
+  chapter_group?: string | null;
 };
 
 export type LibraryBackend = {

@@ -4,10 +4,12 @@ pub mod chapters;
 mod cut_args;
 mod deliver;
 pub mod download;
+mod download_releases;
 pub mod export;
 mod export_args;
 mod export_cover;
 mod export_preset;
+pub mod group;
 pub mod import;
 pub mod info;
 pub mod kindle;
@@ -51,4 +53,15 @@ pub fn stored_settings() -> Settings {
 /// `1 title`, `2 titles`; `many` covers irregular plurals.
 pub(crate) fn plural(n: usize, one: &str, many: &str) -> String {
     format!("{n} {}", if n == 1 { one } else { many })
+}
+
+/// A command to suggest, with `--source` so it reaches the same provider.
+pub fn hint(args: &str, source: &str) -> String {
+    format!("`mangas {args} --source {source}`")
+}
+
+/// The error `chapters`, `download` and `group` give for a group the title has no chapters of.
+pub fn unknown_group(group: &str, id: &impl std::fmt::Display, source: &str) -> anyhow::Error {
+    let list = hint(&format!("group {id}"), source);
+    anyhow::anyhow!("{id} has no chapters of group \"{group}\"; {list} lists its groups")
 }

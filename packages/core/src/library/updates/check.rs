@@ -8,6 +8,7 @@ use rusqlite::params;
 use super::UpdateReport;
 use super::{new_chapters, select, CheckFailure, Known, Target, TitleUpdate, UpdatePolicy};
 use crate::domain::{Chapter, Error, MangaId, Result};
+use crate::library::stored_releases::stored_releases;
 use crate::library::{fetch_chapters, get_manga, list_entries, store_chapters, Library};
 use crate::sources::Source;
 
@@ -92,6 +93,7 @@ async fn check_title(lib: &Library, source: &SourceFor, target: Target) -> Outco
             manga_id: target.manga.id,
             title: target.manga.title,
             auto_download: target.auto_download,
+            chapter_group: target.chapter_group,
             chapters,
         }),
         Err(e) => failed(&target, &e),
@@ -101,7 +103,7 @@ async fn check_title(lib: &Library, source: &SourceFor, target: Target) -> Outco
 /// Fetches and stores the title's chapter lists; returns the new ones.
 async fn refresh(lib: &Library, source: &SourceFor, target: &Target) -> Result<Vec<Chapter>> {
     let (name, id) = (target.manga.source.as_str(), &target.manga.id);
-    let known = known(lib, name, id)?;
+    let known = known(lib, name, id, target.chapter_group.as_deref())?;
     let lists = fetch_chapters(source.source.as_ref(), id, &source.languages).await?;
     // Unfollowed while the request ran: storing now would bring the chapters back.
     if get_manga(lib, name, id)?.is_none() {
@@ -112,7 +114,7 @@ async fn refresh(lib: &Library, source: &SourceFor, target: &Target) -> Result<V
     Ok(new)
 }
 
-fn known(lib: &Library, source: &str, id: &MangaId) -> Result<Known> {
+fn known(lib: &Library, source: &str, id: &MangaId, group: Option<&str>) -> Result<Known> {
     let conn = lib.conn()?;
     let column = |sql: &str| -> Result<HashSet<String>> {
         let mut stmt = conn.prepare(sql)?;
@@ -124,6 +126,7 @@ fn known(lib: &Library, source: &str, id: &MangaId) -> Result<Known> {
         languages: column(
             "SELECT language FROM manga_language_sync WHERE source = ?1 AND manga_id = ?2",
         )?,
+        releases: stored_releases(&conn, source, id, None, group)?,
     })
 }
 

@@ -39,6 +39,8 @@ export type UpdatesBackend = {
   /** Clears the title's "new" badge; false when it isn't followed. */
   markViewed(source: string, mangaId: string): Promise<boolean>;
   setAutoDownload(source: string, mangaId: string, on: boolean): Promise<boolean>;
+  /** Narrows the title to one scanlation group, `null` for every group. */
+  setChapterGroup(source: string, mangaId: string, group: string | null): Promise<boolean>;
 };
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -77,3 +79,6 @@ export const markViewed = async (source: string, mangaId: string) =>
   (await backend()).markViewed(source, mangaId);
 export const setAutoDownload = async (source: string, mangaId: string, on: boolean) =>
   (await backend()).setAutoDownload(source, mangaId, on);
+
+export const setChapterGroup = async (source: string, mangaId: string, group: string | null) =>
+  (await backend()).setChapterGroup(source, mangaId, group);

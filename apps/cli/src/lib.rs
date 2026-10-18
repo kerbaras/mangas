@@ -41,6 +41,8 @@ enum Command {
     Chapters(commands::chapters::Args),
     /// Download chapters of a followed manga
     Download(commands::download::Args),
+    /// Show a followed manga's scanlation groups or narrow it to one
+    Group(commands::group::Args),
     /// Show and control the download queue shared with the desktop app
     Queue(commands::queue::Args),
     /// Check followed manga for new chapters
@@ -91,6 +93,7 @@ async fn dispatch(command: Command) -> anyhow::Result<()> {
         Command::Info(args) => commands::info::run(args).await,
         Command::Chapters(args) => commands::chapters::run(args).await,
         Command::Download(args) => commands::download::run(args).await,
+        Command::Group(args) => commands::group::run(args),
         Command::Queue(args) => commands::queue::run(args).await,
         Command::Update(args) => commands::update::run(args).await,
         Command::Import(args) => commands::import::run(args),

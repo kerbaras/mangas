@@ -3,7 +3,7 @@ use std::collections::{BTreeSet, HashSet};
 use serde::{Deserialize, Serialize};
 
 use super::UpdateReport;
-use crate::domain::{parse_number, Chapter, Manga};
+use crate::domain::{already_have, parse_number, Chapter, Manga};
 use crate::library::{is_local, LibraryEntry, ReadingStatus};
 
 /// Which followed titles a check refreshes.
@@ -21,6 +21,7 @@ pub struct UpdatePolicy {
 pub struct Target {
     pub manga: Manga,
     pub auto_download: bool,
+    pub chapter_group: Option<String>,
 }
 
 /// Splits the library into the titles to check and the number left out: local imports have
@@ -41,6 +42,7 @@ pub fn select(entries: &[LibraryEntry], policy: &UpdatePolicy) -> (Vec<Target>, 
         .map(|e| Target {
             manga: e.manga.clone(),
             auto_download: e.auto_download,
+            chapter_group: e.chapter_group.clone(),
         })
         .collect();
     let skipped = entries.len() - targets.len();
@@ -53,15 +55,20 @@ pub struct Known {
     pub chapter_ids: HashSet<String>,
     /// Languages synced before: in a language never synced every chapter is the baseline.
     pub languages: HashSet<String>,
+    /// Releases stored, of the title's group when it has one: another release of a chapter
+    /// the reader has is not news, unless it is the first downloadable one.
+    pub releases: Vec<Chapter>,
 }
 
-/// Chapters of the fetched lists that are new: not stored yet, in a language synced before.
+/// Chapters of the fetched lists that are new: not stored yet, in a language synced before,
+/// and not a release of a chapter already stored.
 pub fn new_chapters(known: &Known, lists: &[(String, Vec<Chapter>)]) -> Vec<Chapter> {
     lists
         .iter()
         .filter(|(lang, _)| known.languages.contains(lang))
         .flat_map(|(_, chapters)| chapters)
         .filter(|c| !known.chapter_ids.contains(&c.id.0))
+        .filter(|c| !already_have(&known.releases, c))
         .cloned()
         .collect()
 }

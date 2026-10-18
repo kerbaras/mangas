@@ -1,7 +1,7 @@
 use rusqlite::{params, Connection};
 
 use super::{CategoryState, ChapterState, LibrarySnapshot, TitleState};
-use crate::domain::{Manga, Result};
+use crate::domain::{normalize_group, Manga, Result};
 use crate::library::manga_repo::upsert_on;
 use crate::library::Library;
 
@@ -50,7 +50,7 @@ fn set_title_state(conn: &Connection, t: &TitleState) -> Result<()> {
     conn.execute(
         "UPDATE manga SET added_at = COALESCE(?3, added_at), updated_at = COALESCE(?4, updated_at),
                 reading_status = ?5, auto_download = ?6,
-                last_viewed_at = COALESCE(?7, last_viewed_at)
+                last_viewed_at = COALESCE(?7, last_viewed_at), chapter_group = ?8
          WHERE source = ?1 AND id = ?2",
         params![
             t.source,
@@ -60,6 +60,7 @@ fn set_title_state(conn: &Connection, t: &TitleState) -> Result<()> {
             t.reading_status.as_str(),
             t.auto_download,
             t.last_viewed_at,
+            normalize_group(t.chapter_group.as_deref()),
         ],
     )?;
     Ok(())

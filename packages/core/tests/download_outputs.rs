@@ -1,5 +1,5 @@
 use mangas_core::domain::{Chapter, ChapterId, MangaId};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use mangas_core::download::{cbz_path, chapter_dir, parse_selection, select_chapters, write_cbz};
 
@@ -122,7 +122,7 @@ fn same_number_chapters_get_distinct_dirs() {
     );
     assert_eq!(
         unique_chapter_dir(dir.clone(), &second, &[stored]),
-        Path::new("/dl/mangadex/m/12-abcdef01")
+        Path::new("/dl/mangadex/m/12-abcdef0123456789")
     );
     assert_eq!(unique_chapter_dir(dir.clone(), &second, &[]), dir);
 
@@ -178,4 +178,22 @@ fn ipv4_compatible_ipv6_is_judged_by_its_ipv4() {
         assert!(!is_public_ip(bad.parse().unwrap()), "{bad}");
     }
     assert!(is_public_ip("2606:4700::1111".parse().unwrap()));
+}
+
+#[test]
+fn releases_with_sequential_ids_get_their_own_dirs() {
+    use mangas_core::download::unique_chapter_dir;
+    let base = chapter_dir(Path::new("/dl"), "mangadot", &chapter("4"));
+    let release = |id: &str| Chapter {
+        id: ChapterId(id.into()),
+        ..chapter("4")
+    };
+    // An earlier download under the old 8-character name keeps its stored path.
+    let old = PathBuf::from("/dl/mangadot/m/4-u_183386");
+    let mut legacy = release("u:1833866");
+    legacy.local_path = Some(old.to_string_lossy().into_owned());
+    let known = [stored_at(&base), legacy];
+    let next = unique_chapter_dir(base.clone(), &release("u:1833868"), &known);
+    assert_eq!(next, Path::new("/dl/mangadot/m/4-u_1833868"));
+    assert_ne!(next, old);
 }

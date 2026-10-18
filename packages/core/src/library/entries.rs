@@ -23,6 +23,9 @@ pub struct LibraryEntry {
     pub chapters: ChapterCounts,
     /// New chapters of this title are queued for download by update checks.
     pub auto_download: bool,
+    /// The scanlation group the title is narrowed to; `None` for every group.
+    #[serde(default)]
+    pub chapter_group: Option<String>,
 }
 
 type Key = (String, String);
@@ -36,7 +39,8 @@ pub fn list_entries(lib: &Library) -> Result<Vec<LibraryEntry>> {
     let mut stmt = conn.prepare(&format!(
         "SELECT {COLUMNS}, reading_status,
                 strftime('%Y-%m-%dT%H:%M:%SZ', added_at),
-                strftime('%Y-%m-%dT%H:%M:%SZ', COALESCE(updated_at, added_at)), auto_download
+                strftime('%Y-%m-%dT%H:%M:%SZ', COALESCE(updated_at, added_at)), auto_download,
+                chapter_group
          FROM manga ORDER BY rowid DESC"
     ))?;
     let rows = stmt.query_map([], |r| {
@@ -46,11 +50,12 @@ pub fn list_entries(lib: &Library) -> Result<Vec<LibraryEntry>> {
             r.get::<_, Option<String>>(11)?.unwrap_or_default(),
             r.get::<_, Option<String>>(12)?.unwrap_or_default(),
             r.get::<_, bool>(13)?,
+            r.get::<_, Option<String>>(14)?,
         ))
     })?;
     let mut entries = Vec::new();
     for row in rows {
-        let (manga, reading_status, added_at, updated_at, auto_download) = row?;
+        let (manga, reading_status, added_at, updated_at, auto_download, chapter_group) = row?;
         let key = (manga.source.clone(), manga.id.0.clone());
         let chapters = marks
             .get(&key)
@@ -64,6 +69,7 @@ pub fn list_entries(lib: &Library) -> Result<Vec<LibraryEntry>> {
             updated_at,
             chapters,
             auto_download,
+            chapter_group,
         });
     }
     Ok(entries)

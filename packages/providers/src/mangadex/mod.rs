@@ -21,7 +21,7 @@ pub const API_BASE: &str = "https://api.mangadex.org";
 const REQUESTS_PER_SECOND: u32 = 5;
 /// Cheap health endpoint (`pong`).
 const PROBE: &str = "/ping";
-pub use dedupe::{dedupe_chapters, FeedChapter};
+pub use dedupe::{dedupe_chapters, releases, FeedChapter};
 pub use external::secure_link;
 pub use mapping::{
     cover_url, error_detail, parse_error_response, parse_feed_response, parse_manga_response,
@@ -150,7 +150,7 @@ impl Source for MangaDex {
             all.extend(page.chapters);
             offset = page.next_offset;
         }
-        Ok(dedupe_chapters(all, &self.options.preferred_groups))
+        Ok(releases(all))
     }
 
     async fn pages(&self, chapter: &ChapterId) -> Result<PageUrls> {

@@ -14,8 +14,8 @@ use mangas_core::library::Settings;
 use mangas_core::sources::{Header, PageUrls, ProviderStatus, Source};
 
 pub use mapping::{
-    chapter_id, images_path, parse_chapters, parse_images, parse_manga_detail, parse_manga_list,
-    site_url, SITE, SOURCE_NAME,
+    chapter_id, group, images_path, parse_chapters, parse_images, parse_manga_detail,
+    parse_manga_list, site_url, MIRROR_GROUP, SITE, SOURCE_NAME,
 };
 
 use crate::http::{ClientConfig, SiteClient};

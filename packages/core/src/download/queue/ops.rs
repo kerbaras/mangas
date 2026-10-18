@@ -53,7 +53,11 @@ pub fn enqueue(
     })
 }
 
-fn with_stored_paths(lib: &Library, source: &str, chapters: Vec<Chapter>) -> Result<Vec<Chapter>> {
+pub(super) fn with_stored_paths(
+    lib: &Library,
+    source: &str,
+    chapters: Vec<Chapter>,
+) -> Result<Vec<Chapter>> {
     let mut stored: Vec<Chapter> = Vec::new();
     for manga in chapters.iter().map(|c| &c.manga_id) {
         if !stored.iter().any(|c| &c.manga_id == manga) {
@@ -75,7 +79,7 @@ fn with_stored_paths(lib: &Library, source: &str, chapters: Vec<Chapter>) -> Res
 /// Forgets the path of a chapter whose folder is missing pages (deleted or emptied outside the
 /// app, or a re-download that never finished), so it is downloaded again instead of skipped;
 /// the pages still there are kept.
-fn still_on_disk(chapters: Vec<Chapter>) -> Vec<Chapter> {
+pub(super) fn still_on_disk(chapters: Vec<Chapter>) -> Vec<Chapter> {
     chapters
         .into_iter()
         .map(|c| match c.local_path.as_deref() {

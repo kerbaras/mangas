@@ -39,6 +39,8 @@ pub struct TitleState {
     pub updated_at: Option<String>,
     pub reading_status: ReadingStatus,
     pub auto_download: bool,
+    /// The scanlation group the title is narrowed to.
+    pub chapter_group: Option<String>,
     pub last_viewed_at: Option<String>,
     pub categories: Vec<String>,
     pub synced_languages: Vec<String>,

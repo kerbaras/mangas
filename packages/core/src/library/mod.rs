@@ -22,6 +22,7 @@ mod refresh;
 mod settings_merge;
 mod settings_repo;
 mod snapshot;
+mod stored_releases;
 mod sync;
 mod title_flags;
 pub mod updates;
@@ -67,4 +68,4 @@ pub use snapshot::{
     read_snapshot, restore_snapshot, CategoryState, ChapterState, LibrarySnapshot, TitleState,
 };
 pub use sync::{fetch_chapters, store_chapters, sync_chapters};
-pub use title_flags::{mark_viewed, set_auto_download};
+pub use title_flags::{chapter_group, mark_viewed, set_auto_download, set_chapter_group};

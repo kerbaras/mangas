@@ -8,9 +8,10 @@ use mangas_core::download;
 use mangas_core::download::queue::{self, JobState, Scope};
 use mangas_core::library;
 
+use super::download_releases::{pick, pick_group, report_left_out};
 use super::settled::paused_report;
 use super::watch::{count, run_until_settled};
-use super::{source_by_name, stored_settings};
+use super::{hint, source_by_name, stored_settings, unknown_group};
 use crate::output::outln;
 use crate::paths;
 
@@ -33,6 +34,14 @@ pub struct Args {
     /// Also queue chapters already on disk and download every page again, overwriting the files
     #[arg(long)]
     pub force: bool,
+    /// Only chapters of this scanlation group, instead of the one saved for the title
+    /// (`mangas group`)
+    #[arg(long, conflicts_with = "all_groups")]
+    pub group: Option<String>,
+    /// Every group's release of each chapter, ignoring the group saved for the title (without
+    /// a group, one release per chapter is taken, preferring the provider's preferred groups)
+    #[arg(long)]
+    pub all_groups: bool,
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
@@ -43,22 +52,39 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let id = MangaId(args.manga_id.clone());
     let lib = Arc::new(library::open(&paths::library_db()?)?);
     if library::get_manga(&lib, &args.source, &id)?.is_none() {
-        bail!(
-            "{} is not in your library; run `mangas add {}` first",
-            id,
-            id
-        );
+        let add = hint(&format!("add {id}"), &args.source);
+        bail!("{id} is not in your library; run {add} first");
     }
-    let requested = library::requested_languages(args.lang.as_deref(), &stored_settings());
+    let settings = stored_settings();
+    let requested = library::requested_languages(args.lang.as_deref(), &settings);
     let languages = mangas_providers::languages_for(&args.source, &requested);
     let synced = library::sync_chapters(&lib, source.as_ref(), &id, &languages).await?;
-    let all = library::prefer_languages(&synced, &languages);
+    let saved = library::chapter_group(&lib, &args.source, &id)?;
+    let group = pick_group(args.group.as_deref(), args.all_groups, saved);
+    let picked = pick(
+        &lib,
+        &args.source,
+        &synced,
+        group.as_deref(),
+        args.all_groups,
+        &settings,
+    )?;
+    if let (Some(group), true) = (&group, picked.is_empty()) {
+        return Err(unknown_group(group, &id, &args.source));
+    }
+    if let Some(group) = &group {
+        outln!("Group: {group}")?;
+    }
+    let all = library::prefer_languages(&picked, &languages);
     let selected = match &args.chapters {
         Some(spec) => download::select_chapters(&all, spec)?,
         None => all,
     };
     if selected.is_empty() {
         bail!("no chapters match the selection");
+    }
+    if group.is_none() && !args.all_groups {
+        report_left_out(&synced, &selected, &id, &args.source, &settings)?;
     }
     let selected = without_unavailable(selected, args.chapters.is_some())?;
     let queued = queue::enqueue(&lib, &args.source, selected, args.force)?;

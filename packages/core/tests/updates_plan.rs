@@ -21,6 +21,7 @@ fn entry(source: &str, id: &str, status: ReadingStatus) -> LibraryEntry {
         updated_at: String::new(),
         chapters: ChapterCounts::default(),
         auto_download: id == "auto",
+        chapter_group: None,
     }
 }
 
@@ -72,6 +73,7 @@ fn new_means_unseen_id_in_a_language_synced_before() {
     let known = Known {
         chapter_ids: ["a", "b"].map(String::from).into(),
         languages: ["en".to_string()].into(),
+        ..Known::default()
     };
     let lists = vec![
         (
@@ -95,6 +97,7 @@ fn update(title: &str, chapters: Vec<Chapter>) -> TitleUpdate {
         manga_id: MangaId(title.into()),
         title: title.into(),
         auto_download: false,
+        chapter_group: None,
         chapters,
     }
 }

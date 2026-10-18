@@ -7,19 +7,22 @@ import { Cover } from "@/components/cover";
 import { DescriptionSkeleton } from "@/components/description-skeleton";
 import { ErrorAlert } from "@/components/error-alert";
 import { ExportButton } from "@/components/export-button";
+import { GroupSelect } from "@/components/group-select";
+import { LanguageTabs } from "@/components/language-tabs";
 import { LibraryControls } from "@/components/library-controls";
 import { MangaMeta } from "@/components/manga-meta";
 import { NoChapters } from "@/components/no-chapters";
 import { ScreenHeader } from "@/components/screen-header";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAsync } from "@/hooks/use-async";
 import { useChapterDownload } from "@/hooks/use-chapter-download";
+import { useChapterGroup } from "@/hooks/use-chapter-group";
 import { useChapterSelection } from "@/hooks/use-chapter-selection";
 import { useDownloads } from "@/hooks/use-downloads";
 import { useLibraryEntry } from "@/hooks/use-library-entry";
 import { useMangaDetails } from "@/hooks/use-manga-details";
+import { filterByGroup, groupsOf } from "@/lib/chapter-groups";
 import {
   chapterSummary,
   exportable,
@@ -32,7 +35,6 @@ import {
   selectionSummary,
   sortChapters,
 } from "@/lib/chapters";
-import { languageLabel } from "@/lib/format";
 import { isChallenge, type Manga } from "@/lib/ipc";
 import { loadChapters } from "@/lib/load-chapters";
 import { notifyError } from "@/lib/notify";
@@ -85,13 +87,19 @@ export function MangaDetailsScreen({ manga: card }: Props) {
   useEffect(() => {
     if (landed > 0) chapters.reload();
   }, [landed, chapters.reload]);
-  const languages = useMemo(() => languagesOf(all), [all]);
-  const visible = useMemo(() => sortChapters(filterByLanguage(all, language)), [all, language]);
+  const groups = useMemo(() => groupsOf(all), [all]);
+  const { group, setGroup } = useChapterGroup(shelf.entry, reloadShelf);
+  // Other groups' rows are out of the picture: no selection, download or export reaches them.
+  const pool = useMemo(() => filterByGroup(all, group), [all, group]);
+  const languages = useMemo(() => languagesOf(pool), [pool]);
+  // A tab the new group doesn't have would hide every row (and its tabs may be gone).
+  const lang = language && languages.includes(language) ? language : null;
+  const visible = useMemo(() => sortChapters(filterByLanguage(pool, lang)), [pool, lang]);
   const visibleIds = useMemo(() => selectableIds(visible), [visible]);
   const { selected, onToggle, onToggleAll, clear } = useChapterSelection(visibleIds);
 
-  const toDownload = pickSelected(all, selected).filter((c) => !isUnavailable(c));
-  const toExport = exportable(all, selected);
+  const toDownload = pickSelected(pool, selected).filter((c) => !isUnavailable(c));
+  const toExport = exportable(pool, selected);
 
   const download = useChapterDownload({ source, mangaId: id, title: manga.title }, clear);
   return (
@@ -122,26 +130,25 @@ export function MangaDetailsScreen({ manga: card }: Props) {
         </div>
       </div>
       <div className="flex h-11 shrink-0 items-center gap-3 border-b border-stroke px-4">
-        {languages.length > 1 && (
-          <Tabs
-            value={language ?? "all"}
-            onValueChange={(v) => setLanguage(v === "all" ? null : v)}
-          >
-            <TabsList>
-              <TabsTrigger value="all">All</TabsTrigger>
-              {languages.map((l) => (
-                <TabsTrigger key={l} value={l}>
-                  {languageLabel(l)}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+        {(groups.length > 1 || group) && (
+          <GroupSelect
+            groups={groups}
+            value={group}
+            onChange={(g) => {
+              clear();
+              setLanguage(null);
+              setGroup(g);
+            }}
+          />
         )}
-        <span className="text-caption text-ink-3">{selectionSummary(all, selected, visible)}</span>
+        {languages.length > 1 && (
+          <LanguageTabs languages={languages} value={lang} onChange={setLanguage} />
+        )}
+        <span className="text-caption text-ink-3">{selectionSummary(pool, selected, visible)}</span>
         <div className="ml-auto flex gap-2">
           <ExportButton
             manga={manga}
-            chapters={exportTargets(all, visible, selected)}
+            chapters={exportTargets(pool, visible, selected)}
             onExported={chapters.reload}
           />
           {toExport.length > 0 && (
