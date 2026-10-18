@@ -18,11 +18,14 @@ const ratingLabel = (r: string) => r[0].toUpperCase() + r.slice(1);
 /** Settings > Providers > MangaDex: search filters, image quality and group preference. */
 export function MangaDexOptionsForm() {
   const [settings, update] = useSettings();
-  const options = parseMangaDexOptions(settings.providerOptions[MANGADEX]);
-  const save = (patch: Partial<MangaDexOptions>) =>
-    update({
-      providerOptions: { ...settings.providerOptions, [MANGADEX]: { ...options, ...patch } },
-    });
+  const stored = settings.providerOptions[MANGADEX];
+  const options = parseMangaDexOptions(stored);
+  /** Only the changed option on top of what is stored: defaults filled in by the parser are
+   * not edits, so they can't overwrite an option the CLI set meanwhile. */
+  const save = (patch: Partial<MangaDexOptions>) => {
+    const raw = stored && typeof stored === "object" && !Array.isArray(stored) ? stored : {};
+    update({ providerOptions: { ...settings.providerOptions, [MANGADEX]: { ...raw, ...patch } } });
+  };
 
   const joined = options.preferred_groups.join(", ");
   const [groups, setGroups] = useState(joined);

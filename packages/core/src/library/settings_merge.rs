@@ -8,25 +8,25 @@ use crate::domain::{Error, Result};
 /// Three-way merge. The fields `edited` changed relative to `base` (the copy the edit started
 /// from) are applied to `current` (what is stored now); every other field keeps the stored
 /// value, so saving an edit never reverts what the CLI or a restore wrote in the meantime.
-/// Maps keyed by provider id merge entry by entry, so editing one provider keeps another
-/// provider's entry changed elsewhere. Provider sessions always come from `current`: they are
+/// Objects merge key by key at every depth, so editing one provider option keeps another
+/// option (or provider) changed elsewhere. Provider sessions always come from `current`: they are
 /// connected and disconnected elsewhere, never edited on a copy.
 pub fn merge_edit(base: &Settings, current: &Settings, edited: &Settings) -> Result<Settings> {
     let (mut base, mut edited) = (fields(base)?, fields(edited)?);
     base.remove("provider_sessions");
     edited.remove("provider_sessions");
-    let merged = merge_map(&base, fields(current)?, &edited, true);
+    let merged = merge_map(&base, fields(current)?, &edited);
     serde_json::from_value(Value::Object(merged)).map_err(json_error)
 }
 
-/// `current` with the keys `edited` changed relative to `base`; `nested` merges one level of
-/// object values (the per-provider maps) the same way.
+/// `current` with the keys `edited` changed relative to `base`; where both sides hold objects
+/// (an entry the copy didn't have counts as empty), they merge the same way.
 fn merge_map(
     base: &Map<String, Value>,
     mut current: Map<String, Value>,
     edited: &Map<String, Value>,
-    nested: bool,
 ) -> Map<String, Value> {
+    let empty = Map::new();
     let keys: Vec<String> = base.keys().chain(edited.keys()).cloned().collect();
     for key in keys {
         let (was, now) = (base.get(&key), edited.get(&key));
@@ -34,8 +34,11 @@ fn merge_map(
             continue;
         }
         match (was, now, current.get(&key)) {
-            (Some(Value::Object(b)), Some(Value::Object(e)), Some(Value::Object(c))) if nested => {
-                let inner = merge_map(b, c.clone(), e, false);
+            (b, Some(Value::Object(e)), Some(Value::Object(c)))
+                if matches!(b, None | Some(Value::Object(_))) =>
+            {
+                let b = b.and_then(Value::as_object).unwrap_or(&empty);
+                let inner = merge_map(b, c.clone(), e);
                 current.insert(key, Value::Object(inner))
             }
             (_, Some(value), _) => current.insert(key, value.clone()),
@@ -134,6 +137,38 @@ mod tests {
             BTreeMap::from([("comick".to_string(), false)])
         );
         assert_eq!(merged.provider_languages, current.provider_languages);
+    }
+
+    #[test]
+    fn editing_one_provider_option_keeps_another_option_set_meanwhile() {
+        let options = |v: serde_json::Value| BTreeMap::from([("mangadex".to_string(), v)]);
+        let base = Settings {
+            provider_options: options(serde_json::json!({"data_saver": true})),
+            ..base()
+        };
+        let current = Settings {
+            provider_options: options(
+                serde_json::json!({"data_saver": true, "preferred_groups": ["CLI Group"]}),
+            ),
+            ..base.clone()
+        };
+        let edited = Settings {
+            provider_options: options(
+                serde_json::json!({"data_saver": true, "content_ratings": ["safe", "erotica"]}),
+            ),
+            ..base.clone()
+        };
+        let merged = merge_edit(&base, &current, &edited).unwrap();
+        assert_eq!(
+            merged.provider_options["mangadex"],
+            serde_json::json!({
+                "data_saver": true,
+                "preferred_groups": ["CLI Group"],
+                "content_ratings": ["safe", "erotica"],
+            })
+        );
+        let fresh = merge_edit(&Settings::default(), &current, &edited).unwrap();
+        assert_eq!(fresh.provider_options, merged.provider_options);
     }
 
     #[test]
