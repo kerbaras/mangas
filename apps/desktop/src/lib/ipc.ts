@@ -145,7 +145,11 @@ export type Backend = DiagnosticsBackend &
     getSettings(): Promise<Settings>;
     /** Platform data folder used when no `data_dir` setting is stored. */
     defaultDataDir(): Promise<string>;
-    setSettings(settings: Settings): Promise<void>;
+    /**
+     * Saves `settings`, edited on the copy `base` loaded, over what is stored now: only the
+     * fields that differ from `base` change. Resolves to the stored settings afterwards.
+     */
+    setSettings(settings: Settings, base?: Settings): Promise<Settings>;
     /** Links the executable as `mangas` on PATH; resolves to the link path. */
     installCli(): Promise<string>;
     listProviders(): Promise<ProviderInfo[]>;
@@ -198,7 +202,8 @@ export const listLibrary = async () => (await backend()).listLibrary();
 export const listDevices = async () => (await backend()).listDevices();
 export const getSettings = async () => (await backend()).getSettings();
 export const defaultDataDir = async () => (await backend()).defaultDataDir();
-export const setSettings = async (s: Settings) => (await backend()).setSettings(s);
+export const setSettings = async (s: Settings, base?: Settings) =>
+  (await backend()).setSettings(s, base);
 export const installCli = async () => (await backend()).installCli();
 export const listProviders = async () => (await backend()).listProviders();
 export const connectProvider = async (id: string) => (await backend()).connectProvider(id);

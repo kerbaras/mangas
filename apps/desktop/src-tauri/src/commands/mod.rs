@@ -63,17 +63,13 @@ pub fn get_settings() -> Result<Settings, String> {
     settings_of(&open_library()?)
 }
 
-/// Preferences from the UI; provider sessions are owned by `connect_provider` /
-/// `disconnect_provider` and never replaced from here.
+/// Preferences edited in the UI on a copy loaded as `base`, saved over whatever another
+/// process stored since (`library::edit_settings`); returns what is stored now. Provider
+/// sessions are owned by `connect_provider` / `disconnect_provider` and never replaced here.
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
-pub fn set_settings(settings: Settings) -> Result<(), String> {
-    let lib = open_library()?;
-    let settings = Settings {
-        provider_sessions: settings_of(&lib)?.provider_sessions,
-        ..settings
-    };
-    library::set_settings(&lib, &settings).map_err(to_ipc)
+pub fn set_settings(settings: Settings, base: Option<Settings>) -> Result<Settings, String> {
+    library::edit_settings(&open_library()?, base.as_ref(), &settings).map_err(to_ipc)
 }
 
 /// Links this executable as `mangas` on the user's PATH (macOS/Linux). Returns the link path,

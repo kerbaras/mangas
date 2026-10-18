@@ -33,6 +33,30 @@ export function parseMangaDexOptions(raw: unknown): MangaDexOptions {
   };
 }
 
+const isStrings = (v: unknown) => Array.isArray(v) && v.every((x) => typeof x === "string");
+const VALID: Record<keyof MangaDexOptions, (v: unknown) => boolean> = {
+  content_ratings: isStrings,
+  data_saver: (v) => typeof v === "boolean",
+  preferred_groups: isStrings,
+};
+
+/** The stored entry with `patch` on top. Only the edited options (plus any stored option of the
+ * wrong type, which would make the core reject the whole entry) differ from what is stored, so
+ * an option changed elsewhere meanwhile survives the save. */
+export function editMangaDexOptions(
+  raw: unknown,
+  patch: Partial<MangaDexOptions>,
+): Record<string, unknown> {
+  const o =
+    typeof raw === "object" && raw !== null && !Array.isArray(raw)
+      ? (raw as Record<string, unknown>)
+      : {};
+  const parsed = parseMangaDexOptions(o);
+  const keys = Object.keys(VALID) as (keyof MangaDexOptions)[];
+  const fixed = keys.filter((k) => k in o && !VALID[k](o[k])).map((k) => [k, parsed[k]]);
+  return { ...o, ...Object.fromEntries(fixed), ...patch };
+}
+
 /** Toggles a rating, keeping MangaDex's order and at least one rating selected. */
 export function toggleRating(current: ContentRating[], rating: ContentRating): ContentRating[] {
   const next = current.includes(rating)

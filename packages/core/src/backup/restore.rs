@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use super::format::Backup;
 use super::titles::title_state;
@@ -14,7 +14,31 @@ pub struct Restored {
     /// Titles already followed; kept as they are.
     pub already: usize,
     pub skipped: Vec<Skipped>,
+    /// The backup's preferences were applied.
     pub settings: bool,
+    /// The backup had preferences, and yours were kept instead.
+    pub kept_settings: bool,
+}
+
+/// Whose preferences a restore ends up with. `Auto` keeps yours when the library already has
+/// titles (merging a backup in) and takes the backup's into an empty one (a new machine).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Preferences {
+    #[default]
+    Auto,
+    Keep,
+    Backup,
+}
+
+impl Preferences {
+    pub fn keeps_current(self, library_empty: bool) -> bool {
+        match self {
+            Preferences::Auto => !library_empty,
+            Preferences::Keep => true,
+            Preferences::Backup => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -71,12 +95,24 @@ pub fn merge_settings(current: &Settings, restored: &Settings) -> Settings {
 }
 
 /// Follows the backup's new titles with their state, adds categories, assignments and chapter
-/// marks to the titles followed afterwards, and applies the backup's preferences.
+/// marks to the titles followed afterwards, and, unless the library already has titles, applies
+/// the backup's preferences; see [`restore_with`].
 pub fn restore(lib: &Library, backup: &Backup, known_sources: &[&str]) -> Result<Restored> {
-    let followed = list_manga(lib)?
+    restore_with(lib, backup, known_sources, Preferences::Auto)
+}
+
+/// Follows the backup's new titles, then applies its preferences or keeps the current ones.
+pub fn restore_with(
+    lib: &Library,
+    backup: &Backup,
+    known_sources: &[&str],
+    preferences: Preferences,
+) -> Result<Restored> {
+    let followed: HashSet<_> = list_manga(lib)?
         .into_iter()
         .map(|m| (m.source, m.id.0))
         .collect();
+    let keep = preferences.keeps_current(followed.is_empty());
     let (add, mut report) = plan(backup, &followed, known_sources);
     let add: Vec<_> = add
         .into_iter()
@@ -86,9 +122,13 @@ pub fn restore(lib: &Library, backup: &Backup, known_sources: &[&str]) -> Result
         })
         .collect();
     restore_snapshot(lib, &add, &backup.state)?;
-    if let Some(restored) = &backup.settings {
-        set_settings(lib, &merge_settings(&get_settings(lib)?, restored))?;
-        report.settings = true;
+    match &backup.settings {
+        Some(_) if keep => report.kept_settings = true,
+        Some(restored) => {
+            set_settings(lib, &merge_settings(&get_settings(lib)?, restored))?;
+            report.settings = true;
+        }
+        None => {}
     }
     Ok(report)
 }

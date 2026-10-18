@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
   CONTENT_RATINGS,
+  editMangaDexOptions,
   MANGADEX,
   type MangaDexOptions,
   parseGroups,
@@ -18,10 +19,14 @@ const ratingLabel = (r: string) => r[0].toUpperCase() + r.slice(1);
 /** Settings > Providers > MangaDex: search filters, image quality and group preference. */
 export function MangaDexOptionsForm() {
   const [settings, update] = useSettings();
-  const options = parseMangaDexOptions(settings.providerOptions[MANGADEX]);
+  const stored = settings.providerOptions[MANGADEX];
+  const options = parseMangaDexOptions(stored);
   const save = (patch: Partial<MangaDexOptions>) =>
     update({
-      providerOptions: { ...settings.providerOptions, [MANGADEX]: { ...options, ...patch } },
+      providerOptions: {
+        ...settings.providerOptions,
+        [MANGADEX]: editMangaDexOptions(stored, patch),
+      },
     });
 
   const joined = options.preferred_groups.join(", ");

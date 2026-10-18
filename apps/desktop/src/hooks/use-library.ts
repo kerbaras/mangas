@@ -1,9 +1,11 @@
 import { useCallback } from "react";
+import { useAppFocus } from "@/lib/app-focus";
 import { followManga, listLibrary, type Manga, unfollowManga } from "@/lib/ipc";
 import { useAsync } from "./use-async";
 
 export function useLibrary() {
   const { state, reload, patch } = useAsync(listLibrary, []);
+  useAppFocus(reload);
 
   const unfollow = useCallback(
     async (m: Manga) => {

@@ -96,6 +96,7 @@ export const mockBackend: Backend = {
   },
   async setSettings(next) {
     settings = { ...next, provider_sessions: settings.provider_sessions };
+    return settings;
   },
   async installCli() {
     await wait(200);

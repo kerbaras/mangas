@@ -1,6 +1,8 @@
 /**
- * User preferences. Held in memory for synchronous reads from screens, hydrated once from the
- * backend at startup (`loadSettings`) and written through on every change.
+ * User preferences. Held in memory for synchronous reads from screens, loaded from the backend
+ * at startup and whenever the window comes back to the front (`loadSettings`: the CLI or a
+ * restore may have changed them), and written through on every change. A write sends the copy
+ * it was edited from, so the backend only saves the fields this window changed.
  */
 import { useCallback, useSyncExternalStore } from "react";
 import { errorMessage } from "./format";
@@ -76,6 +78,26 @@ const toStored = (s: Settings): Stored => ({
   update_notifications: s.updateNotifications,
 });
 
+/** The stored field behind each app setting, so a write sends only the fields it changed. */
+const STORED_KEY: { [K in keyof Settings]: keyof Stored } = {
+  dataDir: "data_dir",
+  defaultDevice: "default_device",
+  defaultPreset: "default_preset",
+  preferredLanguages: "preferred_languages",
+  providerOptions: "provider_options",
+  providersEnabled: "providers_enabled",
+  providerLanguages: "provider_languages",
+  updateCheckHours: "update_check_hours",
+  updateNotifications: "update_notifications",
+};
+
+/** `base` with only the patched fields taken from `cached`: unset defaults stay unset. */
+const edit = (base: Stored, patch: Partial<Settings>): Stored => {
+  const next = toStored(cached);
+  const keys = Object.keys(patch) as (keyof Settings)[];
+  return { ...base, ...Object.fromEntries(keys.map((k) => [STORED_KEY[k], next[STORED_KEY[k]]])) };
+};
+
 const notify = () => {
   for (const l of listeners) l();
 };
@@ -88,7 +110,12 @@ export type SettingsLoad =
   | { kind: "ready" }
   | { kind: "failed"; error: string };
 let load: SettingsLoad = { kind: "loading" };
-let loads = 0;
+/** Bumped by every load and write: only the latest one's answer replaces `cached`. */
+let version = 0;
+/** What the backend last said is stored: the base of the next write. */
+let stored: Stored | undefined;
+/** Writes go one at a time, each based on what the previous one stored. */
+let writes: Promise<void> = Promise.resolve();
 export const readSettingsLoad = (): SettingsLoad => load;
 
 /**
@@ -98,30 +125,44 @@ export const readSettingsLoad = (): SettingsLoad => load;
  * reload doesn't hide loaded settings.
  */
 export async function loadSettings(): Promise<void> {
-  const gen = ++loads;
+  const gen = ++version;
   if (load.kind !== "ready") {
     load = { kind: "loading" };
     notify();
   }
   try {
-    const [stored, platform] = await Promise.all([getSettings(), defaultDataDir()]);
-    if (gen !== loads && load.kind === "ready") return;
+    const [loaded, platform] = await Promise.all([getSettings(), defaultDataDir()]);
+    if (gen !== version && load.kind === "ready") return;
     platformDataDir = platform || DEFAULTS.dataDir;
-    cached = fromStored(stored, platformDataDir);
+    stored = loaded;
+    cached = fromStored(loaded, platformDataDir);
     load = { kind: "ready" };
   } catch (e: unknown) {
-    if (gen !== loads || load.kind === "ready") return;
+    if (gen !== version || load.kind === "ready") return;
     load = { kind: "failed", error: errorMessage(e) };
   }
   notify();
 }
 
-/** Writes through only once loaded, so placeholder defaults never overwrite what is stored. */
+/**
+ * Writes through only once loaded, so placeholder defaults never overwrite what is stored.
+ * The answer (this edit over what another process stored meanwhile) becomes the new copy.
+ */
 export function writeSettings(patch: Partial<Settings>) {
   cached = { ...cached, ...patch };
   notify();
   if (load.kind !== "ready") return;
-  void setSettings(toStored(cached)).catch((e: unknown) => console.warn("settings not saved", e));
+  const gen = ++version;
+  writes = writes
+    .then(async () => {
+      const base = stored ?? toStored(cached);
+      const saved = await setSettings(edit(base, patch), base);
+      stored = saved;
+      if (gen !== version) return;
+      cached = fromStored(saved, platformDataDir);
+      notify();
+    })
+    .catch((e: unknown) => console.warn("settings not saved", e));
 }
 
 const subscribe = (l: () => void) => {

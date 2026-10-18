@@ -45,12 +45,13 @@ describe("storage helpers", () => {
         already: 3,
         skipped: [{ title: "Elsewhere", reason: "x" }],
         settings: true,
+        kept_settings: false,
       }),
     ).toBe(
       "Followed 1 new title. 3 titles already in your library. Skipped Elsewhere: provider not supported. Preferences restored.",
     );
-    expect(restoreSummary({ added: 0, already: 0, skipped: [], settings: false })).toBe(
-      "Followed 0 new titles.",
-    );
+    expect(
+      restoreSummary({ added: 0, already: 0, skipped: [], settings: false, kept_settings: false }),
+    ).toBe("Followed 0 new titles.");
   });
 });

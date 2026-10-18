@@ -1,4 +1,5 @@
 import { useCallback, useRef } from "react";
+import { useAppFocus } from "@/lib/app-focus";
 import { mangaKey } from "@/lib/format";
 import { unfollowManga } from "@/lib/ipc";
 import {
@@ -25,6 +26,7 @@ const loadShelf = async (): Promise<Shelf> => {
 /** Followed titles with their user state, the categories, and the actions that change them. */
 export function useShelf() {
   const { state, reload, patch } = useAsync(loadShelf, []);
+  useAppFocus(reload);
 
   const patchEntry = useCallback(
     (e: LibraryEntry, fn: (e: LibraryEntry) => LibraryEntry) =>

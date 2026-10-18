@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
 
-use rusqlite::OptionalExtension;
+use rusqlite::{Connection, OptionalExtension, TransactionBehavior};
 use serde::{Deserialize, Serialize};
 
 use crate::domain::{Error, Result};
+use crate::library::settings_merge::merge_edit;
 use crate::library::Library;
 use crate::smartcut::Preset;
 
@@ -110,8 +111,11 @@ fn json_error(e: serde_json::Error) -> Error {
 }
 
 pub fn get_settings(lib: &Library) -> Result<Settings> {
-    let raw: Option<String> = lib
-        .conn()?
+    read(&*lib.conn()?)
+}
+
+fn read(conn: &Connection) -> Result<Settings> {
+    let raw: Option<String> = conn
         .query_row("SELECT value FROM setting WHERE key = ?1", [KEY], |r| {
             r.get(0)
         })
@@ -126,11 +130,37 @@ pub(crate) fn encode(settings: &Settings) -> Result<String> {
 }
 
 pub fn set_settings(lib: &Library, settings: &Settings) -> Result<()> {
-    let json = encode(settings)?;
-    lib.conn()?.execute(
+    write(&*lib.conn()?, settings)
+}
+
+fn write(conn: &Connection, settings: &Settings) -> Result<()> {
+    conn.execute(
         "INSERT INTO setting (key, value) VALUES (?1, ?2)
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-        (KEY, json),
+        (KEY, encode(settings)?),
     )?;
     Ok(())
+}
+
+/// Saves an edit made on a copy of the settings (`base`, `None` = replace everything) over
+/// whatever is stored now, in one write transaction so another process can't slip in
+/// between; see [`merge_edit`]. Returns what is stored afterwards.
+pub fn edit_settings(
+    lib: &Library,
+    base: Option<&Settings>,
+    edited: &Settings,
+) -> Result<Settings> {
+    let mut conn = lib.conn()?;
+    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    let current = read(&tx)?;
+    let merged = match base {
+        Some(base) => merge_edit(base, &current, edited)?,
+        None => Settings {
+            provider_sessions: current.provider_sessions,
+            ..edited.clone()
+        },
+    };
+    write(&tx, &merged)?;
+    tx.commit()?;
+    Ok(merged)
 }
