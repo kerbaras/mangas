@@ -65,7 +65,8 @@ async fn list() -> anyhow::Result<()> {
 /// Prints one line per step and fails (non-zero exit) unless every step passed.
 async fn check(args: CheckArgs) -> anyhow::Result<()> {
     let settings = stored_settings();
-    let languages = library::requested_languages(args.lang.as_deref(), &settings);
+    let requested = library::requested_languages(args.lang.as_deref(), &settings);
+    let languages = mangas_providers::languages_for(&args.id, &requested);
     let report = doctor::first_language(&languages, |lang| {
         // Search filters by the preferred languages too, so each walk looks for `lang` alone.
         let settings = Settings {

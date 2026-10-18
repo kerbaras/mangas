@@ -184,6 +184,11 @@ fn helpers_normalise_urls_text_and_languages() {
         unescape(" Tom &amp; Jerry&#39;s &#x2014; &bogus; & "),
         "Tom & Jerry's — &bogus; &"
     );
+    assert_eq!(
+        supported(&["es-la".to_string(), "en".to_string()]),
+        ["es", "en"],
+        "a regional code reads its base edition"
+    );
     let preferred = ["ja", "zh-hant", "en"].map(String::from);
     assert_eq!(supported(&preferred), ["zh-hant", "en"]);
     assert_eq!(

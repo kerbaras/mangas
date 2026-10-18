@@ -41,7 +41,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             id
         );
     }
-    let languages = library::requested_languages(args.lang.as_deref(), &stored_settings());
+    let requested = library::requested_languages(args.lang.as_deref(), &stored_settings());
+    let languages = mangas_providers::languages_for(&args.source, &requested);
     let synced = library::sync_chapters(&lib, source.as_ref(), &id, &languages).await?;
     let all = library::prefer_languages(&synced, &languages);
     let selected = match &args.chapters {

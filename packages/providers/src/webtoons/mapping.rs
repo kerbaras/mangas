@@ -7,6 +7,7 @@ use super::api::{EpisodePage, EpisodesReply, SearchReply};
 use super::html::{canvas_cards, creators, genre, is_motion_toon, og, unescape, viewer_images};
 use super::ids::{Episode, Title};
 use super::{INFO, SOURCE_NAME};
+use crate::resolve_languages;
 
 /// Thumbnail host that serves covers without a referer (`webtoon-phinf` answers 403).
 const COVER_HOST: &str = "swebtoon-phinf.pstatic.net";
@@ -164,14 +165,10 @@ pub fn parse_viewer(html: &str) -> Result<PageUrls> {
     Ok(PageUrls(pages))
 }
 
-/// `preferred` filtered to the editions Webtoons has, keeping the preference order; English
-/// when none of them is published.
+/// `preferred` matched to the editions Webtoons has (a regional code reads its base edition,
+/// `es-la` -> `es`), keeping the preference order; English when none of them is published.
 pub fn supported(preferred: &[String]) -> Vec<String> {
-    let editions: Vec<String> = preferred
-        .iter()
-        .filter(|l| INFO.languages.contains(&l.as_str()))
-        .cloned()
-        .collect();
+    let editions = resolve_languages(preferred, INFO.languages);
     if editions.is_empty() {
         vec![INFO.languages[0].to_string()]
     } else {

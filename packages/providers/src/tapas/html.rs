@@ -1,11 +1,13 @@
 //! Minimal string helpers over Tapas' server-rendered HTML. Pure functions; no DOM.
 
+use crate::html::decode_entities;
+
 /// The value of `name="..."` in `tag` (a slice holding one start tag), entity-decoded.
 pub fn attr(tag: &str, name: &str) -> Option<String> {
     let needle = format!(" {name}=\"");
     let start = tag.find(&needle)? + needle.len();
     let end = tag[start..].find('"')? + start;
-    Some(unescape(&tag[start..end]))
+    Some(decode_entities(&tag[start..end]))
 }
 
 /// Every start tag `<name ...>` in `html`, in document order.
@@ -75,18 +77,8 @@ pub fn clean_text(fragment: &str) -> String {
             _ => {}
         }
     }
-    unescape(&text)
+    decode_entities(&text)
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
-}
-
-pub fn unescape(value: &str) -> String {
-    value
-        .replace("&quot;", "\"")
-        .replace("&#39;", "'")
-        .replace("&#039;", "'")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&amp;", "&")
 }

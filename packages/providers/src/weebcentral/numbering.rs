@@ -8,7 +8,8 @@ use mangas_core::domain::{parse_number, sort_by_number, Chapter, ChapterId, Mang
 use super::chapters::{parse_label, Label};
 
 /// Chapters from `(id, label)` pairs in the site's order (newest first), sorted by number.
-/// "Chapter N" keeps N. Once seasons appear the label numbers repeat, so every chapter is
+/// "Chapter N" keeps N, and its title (the label itself when it names none, as the site
+/// shows it). Once seasons appear the label numbers repeat, so every chapter is
 /// numbered by its position in reading order (oldest = 1) and keeps its label as the title.
 /// Unnumbered labels ("Prologue 4") keep the label as the title and get a number between
 /// their neighbours (see [`fill_gaps`]).
@@ -27,7 +28,9 @@ pub fn number_chapters(listed: Vec<(ChapterId, String)>, manga: &MangaId) -> Vec
         .enumerate()
         .map(|(i, ((_, raw), label))| match label {
             _ if seasonal => (Some((i + 1).to_string()), Some(raw.clone())),
-            Label::Numbered { number, title } => (Some(number), title),
+            Label::Numbered { number, title } => {
+                (Some(number), title.or_else(|| Some(raw.clone())))
+            }
             Label::Season { .. } | Label::Other => (None, Some(raw.clone())),
         })
         .unzip();

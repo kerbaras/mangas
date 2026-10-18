@@ -7,6 +7,7 @@ pub mod covers;
 pub mod doctor;
 pub mod html;
 pub mod http;
+mod languages;
 pub mod mangadex;
 pub mod mangadot;
 pub mod options;
@@ -19,6 +20,7 @@ pub mod tapas;
 pub mod webtoons;
 pub mod weebcentral;
 
+pub use languages::{language_for, languages_for, offered_language, resolve_languages};
 pub use mangas_core::sources::{Header, PageUrls, ProviderStatus, Source};
 pub use provider::{Capability, Provider, ProviderInfo};
 pub use rate_limit::{host_key, HostLimiters, TokenBucket};

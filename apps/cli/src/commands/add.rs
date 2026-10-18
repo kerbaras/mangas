@@ -21,7 +21,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let source = source_by_name(&args.source)?;
     let id = MangaId(args.id);
     let manga = source.manga(&id).await?;
-    let languages = library::requested_languages(args.lang.as_deref(), &stored_settings());
+    let requested = library::requested_languages(args.lang.as_deref(), &stored_settings());
+    let languages = mangas_providers::languages_for(&args.source, &requested);
     // Fetched before anything is saved: a failed add must not leave the manga followed.
     let lists = library::fetch_chapters(source.as_ref(), &id, &languages).await?;
     let lib = library::open(&paths::library_db()?)?;

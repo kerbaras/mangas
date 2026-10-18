@@ -1,12 +1,12 @@
-import { BookOpen, Download, Send } from "lucide-react";
+import { Download, Send } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ChallengePrompt } from "@/components/challenge-prompt";
 import { ChaptersTable } from "@/components/chapters-table";
 import { Cover } from "@/components/cover";
-import { EmptyState } from "@/components/empty-state";
 import { ErrorAlert } from "@/components/error-alert";
 import { MangaMeta } from "@/components/manga-meta";
+import { NoChapters } from "@/components/no-chapters";
 import { ScreenHeader } from "@/components/screen-header";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ import {
 } from "@/lib/chapters";
 import { rememberDownloads } from "@/lib/download-labels";
 import { languageLabel } from "@/lib/format";
-import { DEFAULT_LANGUAGE, downloadChapters, isChallenge, type Manga } from "@/lib/ipc";
+import { downloadChapters, isChallenge, type Manga } from "@/lib/ipc";
 import { loadChapters } from "@/lib/load-chapters";
 import { useNavigation } from "@/lib/navigation";
 import { notifyError } from "@/lib/notify";
@@ -168,12 +168,7 @@ export function MangaDetailsScreen({ manga: card }: Props) {
               />
             </div>
           ))}
-        {chapters.state.kind === "ready" && all.length === 0 && (
-          <EmptyState icon={<BookOpen />} title={`No ${languageLabel(DEFAULT_LANGUAGE)} chapters`}>
-            {source} lists no chapters in {languageLabel(DEFAULT_LANGUAGE)} for this title. Other
-            languages aren't fetched yet; try the same title on another source.
-          </EmptyState>
-        )}
+        {chapters.state.kind === "ready" && all.length === 0 && <NoChapters source={source} />}
         {chapters.state.kind === "ready" && all.length > 0 && (
           <ChaptersTable
             chapters={visible}
