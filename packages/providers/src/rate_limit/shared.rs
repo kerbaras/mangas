@@ -20,6 +20,10 @@ impl SharedState {
         Self { path }
     }
 
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
     /// Takes a token if one is available (returns zero) or says how long until the next one.
     pub fn take(&self, capacity: f64, per_second: f64) -> io::Result<Duration> {
         self.update(capacity, |tokens| {

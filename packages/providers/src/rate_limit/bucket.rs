@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
@@ -15,6 +15,8 @@ pub struct TokenBucket {
     per_second: AtomicU32,
     state: Mutex<BucketState>,
     shared: OnceLock<SharedState>,
+    /// Set once the fallback to in-memory tokens has been logged at warning level.
+    warned: AtomicBool,
 }
 
 struct BucketState {
@@ -32,6 +34,7 @@ impl TokenBucket {
                 last: Instant::now(),
             }),
             shared: OnceLock::new(),
+            warned: AtomicBool::new(false),
         }
     }
 
@@ -41,26 +44,31 @@ impl TokenBucket {
     }
 
     /// Runs `op` on the shared file off the async threads; `None` when the bucket is not shared
-    /// or the file failed (logged), so the caller falls back to the in-memory tokens.
+    /// or the file failed, so the caller falls back to the in-memory tokens. A failure is a
+    /// warning the first time per bucket (one per host per process), then a debug line.
     async fn on_file<T: Send + 'static>(
         &self,
         op: impl FnOnce(SharedState, f64, f64) -> std::io::Result<T> + Send + 'static,
     ) -> Option<T> {
         let shared = self.shared.get()?.clone();
+        let path = shared.path().to_path_buf();
         let (capacity, per_second) = self.limits();
         let (capacity, per_second) = (f64::from(capacity), f64::from(per_second));
         let done = tokio::task::spawn_blocking(move || op(shared, capacity, per_second)).await;
-        match done {
-            Ok(Ok(value)) => Some(value),
-            Ok(Err(e)) => {
-                log::warn!("shared rate limit unavailable, pacing in this process only: {e}");
-                None
-            }
-            Err(e) => {
-                log::warn!("shared rate limit task failed: {e}");
-                None
-            }
-        }
+        let failure = match done {
+            Ok(Ok(value)) => return Some(value),
+            Ok(Err(e)) => format!("{}: {e}", path.display()),
+            Err(e) => format!("task failed: {e}"),
+        };
+        let level = match self.warned.swap(true, Ordering::Relaxed) {
+            false => log::Level::Warn,
+            true => log::Level::Debug,
+        };
+        log::log!(
+            level,
+            "shared rate limit unavailable, pacing in this process only ({failure})"
+        );
+        None
     }
 
     /// Lowers the burst and refill rate to at most these values; never raises them.
