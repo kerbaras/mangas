@@ -23,6 +23,7 @@ pub fn chapter(id: &str, number: &str) -> Chapter {
         local_path: None,
         group: None,
         availability: Default::default(),
+        exported_at: None,
     }
 }
 

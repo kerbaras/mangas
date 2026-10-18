@@ -185,7 +185,10 @@ fn storage_move_refuses_while_a_download_is_queued() {
     queue::enqueue(&lib, "a", follow(&lib, "a", 1), false).unwrap();
     let (from, to) = (dir.path().join("old"), dir.path().join("new"));
     let err = mangas_core::storage::move_data_dir(&lib, &from, &to, &mut |_| {}).unwrap_err();
-    assert!(err.to_string().contains("1 download(s) still in progress"), "{err}");
+    assert!(
+        err.to_string().contains("1 download(s) still in progress"),
+        "{err}"
+    );
     assert!(!to.exists(), "nothing was touched");
 }
 

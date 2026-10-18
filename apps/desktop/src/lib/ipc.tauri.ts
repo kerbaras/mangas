@@ -14,9 +14,9 @@ import type {
 } from "./ipc";
 import { DEFAULT_LANGUAGE } from "./ipc";
 import type { Diagnostics } from "./ipc.diagnostics";
+import type { DownloadJob, QueueEvent } from "./ipc.downloads";
 import type { Category, LibraryEntry } from "./ipc.library";
 import { tauriStorage } from "./ipc.tauri-storage";
-import type { DownloadJob, QueueEvent } from "./ipc.downloads";
 import {
   type ExportStats,
   type KindleEvent,

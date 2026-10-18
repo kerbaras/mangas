@@ -4,8 +4,8 @@
  * Types here are what the screens consume; the Rust wire shapes live in `ipc.wire.ts`.
  */
 import type { DiagnosticsBackend } from "./ipc.diagnostics";
-import type { LibraryBackend } from "./ipc.library";
 import type { DownloadsBackend, JobState } from "./ipc.downloads";
+import type { LibraryBackend } from "./ipc.library";
 import type { Settings } from "./ipc.settings";
 import type { StorageBackend } from "./ipc.storage";
 
