@@ -1,19 +1,22 @@
 use std::sync::Arc;
 
 use clap::Args as ClapArgs;
-use mangas_core::domain::Chapter;
 use mangas_core::download::queue::{JobState, Scope, Settled};
-use mangas_core::library::updates::{
-    enqueue_new, summary, Summary, TitleUpdate, UpdatePolicy, UpdateReport,
-};
+use mangas_core::library::updates::{enqueue_new, summary, Summary, UpdatePolicy, UpdateReport};
 use mangas_core::library::{self, LOCAL_SOURCE};
 use mangas_providers::updates::check_updates;
 use serde::Serialize;
 
 use super::plural;
+use super::settled::paused_report;
+use super::update_print::print_report;
 use super::watch::{count, run_quietly, run_until_settled};
+use crate::exit::Exit;
 use crate::output::outln;
 use crate::paths;
+
+/// Exit code when some titles couldn't be checked (the rest of the report is still printed).
+pub const NOT_CHECKED_EXIT: u8 = 2;
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -42,8 +45,18 @@ struct JsonReport<'a> {
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
-    if args.source.as_deref() == Some(LOCAL_SOURCE) {
-        anyhow::bail!("imported manga have no source to check for new chapters");
+    match args.source.as_deref() {
+        Some(LOCAL_SOURCE) => {
+            anyhow::bail!("imported manga have no source to check for new chapters")
+        }
+        Some(id) if mangas_providers::info(id).is_none() => {
+            let ids: Vec<_> = mangas_providers::providers()
+                .into_iter()
+                .map(|p| p.id)
+                .collect();
+            anyhow::bail!("unknown provider '{id}' (try: {})", ids.join(", "))
+        }
+        _ => {}
     }
     let lib = Arc::new(library::open(&paths::library_db()?)?);
     let policy = UpdatePolicy {
@@ -66,10 +79,42 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         };
         outln!("{}", serde_json::to_string_pretty(&out)?)?;
     }
-    if failed > 0 {
-        anyhow::bail!("{failed} chapter(s) failed; `mangas queue retry --all` tries them again");
+    let failed_note =
+        format!("{failed} chapter(s) failed; `mangas queue retry --all` tries them again");
+    if let Some((lines, exit)) = paused_report(&settled) {
+        if !args.json {
+            for line in lines {
+                outln!("{line}")?;
+            }
+        }
+        if failed > 0 {
+            eprintln!("{failed_note}");
+        }
+        return Err(exit.into());
     }
-    Ok(())
+    if failed > 0 {
+        anyhow::bail!("{failed_note}");
+    }
+    match not_checked(&report) {
+        Some(exit) => Err(exit.into()),
+        None => Ok(()),
+    }
+}
+
+/// The error for a run where some titles couldn't be checked, naming them.
+fn not_checked(report: &UpdateReport) -> Option<Exit> {
+    let names: Vec<String> = report
+        .failures
+        .iter()
+        .map(|f| format!("{} ({})", f.title, f.source))
+        .collect();
+    (!names.is_empty()).then(|| Exit {
+        code: NOT_CHECKED_EXIT,
+        message: format!(
+            "not checked: {}; the other titles were checked",
+            names.join(", ")
+        ),
+    })
 }
 
 /// Queues the new chapters of auto-download titles (all of them with `everything`) and runs
@@ -102,55 +147,5 @@ fn scope_len(scope: &Scope) -> usize {
     match scope {
         Scope::Jobs(ids) => ids.len(),
         Scope::All => 0,
-    }
-}
-
-fn print_report(report: &UpdateReport) -> anyhow::Result<()> {
-    for update in &report.updates {
-        outln!("{}", title_line(update))?;
-    }
-    for f in &report.failures {
-        let hint = if f.challenge {
-            " (connect it in the app's Settings)"
-        } else {
-            ""
-        };
-        outln!("Not checked: {} ({}): {}{hint}", f.title, f.source, f.error)?;
-    }
-    let mut tail = vec![format!(
-        "checked {}",
-        plural(report.checked, "title", "titles")
-    )];
-    if report.skipped > 0 {
-        tail.push(format!(
-            "skipped {} (completed, dropped or imported; --all checks them)",
-            report.skipped
-        ));
-    }
-    outln!("{} ({})", summary(report).line(), tail.join(", "))?;
-    Ok(())
-}
-
-fn title_line(update: &TitleUpdate) -> String {
-    let mut labels: Vec<String> = Vec::new();
-    for label in update.chapters.iter().map(label) {
-        if !labels.contains(&label) {
-            labels.push(label);
-        }
-    }
-    format!(
-        "{} ({}): {} new: {}",
-        update.title,
-        update.source,
-        labels.len(),
-        labels.join(", ")
-    )
-}
-
-fn label(chapter: &Chapter) -> String {
-    match (chapter.number.trim(), chapter.title.as_deref()) {
-        ("", Some(title)) => title.to_string(),
-        ("", None) => chapter.id.0.clone(),
-        (number, _) => format!("ch. {number}"),
     }
 }

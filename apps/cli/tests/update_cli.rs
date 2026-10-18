@@ -1,4 +1,5 @@
-//! `mangas update` on a fixture library: skip rules, per-title failures, JSON report.
+//! `mangas update` on a fixture library: skip rules, per-title failures (exit 2), unknown
+//! providers, JSON report.
 
 use std::path::Path;
 use std::process::{Command, Output};
@@ -43,27 +44,69 @@ fn fixture(home: &Path) {
     }
 }
 
+fn text(bytes: &[u8]) -> String {
+    String::from_utf8_lossy(bytes).into_owned()
+}
+
 #[test]
-fn skips_finished_titles_and_reports_failures_without_failing() {
+fn reports_failures_with_exit_2_after_printing_the_rest() {
     let home = tempfile::tempdir().unwrap();
     fixture(home.path());
 
-    let text = stdout(&mangas(home.path(), &["update"]));
-    assert!(text.contains("Not checked: GHOST (retired)"), "{text}");
-    assert!(text.contains("1 provider unreachable"), "{text}");
-    assert!(text.contains("checked 1 title, skipped 2"), "{text}");
+    let out = mangas(home.path(), &["update"]);
+    assert_eq!(out.status.code(), Some(2), "{out:?}");
+    let shown = text(&out.stdout);
+    assert!(shown.contains("Not checked: GHOST (retired)"), "{shown}");
+    assert!(
+        shown.contains(
+            "1 provider unreachable (checked 1 title, 1 title not checked on retired, skipped 2"
+        ),
+        "{shown}"
+    );
+    assert!(
+        text(&out.stderr).contains("not checked: GHOST (retired)"),
+        "{out:?}"
+    );
+
+    let out = mangas(home.path(), &["update", "--json"]);
+    assert_eq!(out.status.code(), Some(2), "{out:?}");
+    let report: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(report["checked"], 1);
+    assert_eq!(report["skipped"], 2);
+    assert_eq!(report["updates"].as_array().unwrap().len(), 0);
+    assert_eq!(report["failures"].as_array().unwrap().len(), 1);
+    assert_eq!(report["failures"][0]["manga_id"], "ghost");
+    assert_eq!(report["failures"][0]["challenge"], false);
+}
+
+#[test]
+fn a_run_without_failures_exits_0_and_skips_finished_titles() {
+    let home = tempfile::tempdir().unwrap();
+    fixture(home.path());
 
     let only = stdout(&mangas(home.path(), &["update", "--source", "mangadex"]));
     assert!(
         only.starts_with("Up to date (checked 0 titles, skipped 3"),
         "{only}"
     );
-
-    let json = stdout(&mangas(home.path(), &["update", "--json"]));
+    let json = stdout(&mangas(
+        home.path(),
+        &["update", "--source", "mangadex", "--json"],
+    ));
     let report: serde_json::Value = serde_json::from_str(&json).unwrap();
-    assert_eq!(report["checked"], 1);
-    assert_eq!(report["skipped"], 2);
-    assert_eq!(report["updates"].as_array().unwrap().len(), 0);
-    assert_eq!(report["failures"][0]["manga_id"], "ghost");
-    assert_eq!(report["failures"][0]["challenge"], false);
+    assert_eq!(report["failures"], serde_json::json!([]));
+}
+
+#[test]
+fn an_unknown_source_is_an_error_not_an_empty_check() {
+    let home = tempfile::tempdir().unwrap();
+    fixture(home.path());
+
+    let out = mangas(home.path(), &["update", "--source", "nosuch"]);
+    assert_eq!(out.status.code(), Some(1), "{out:?}");
+    assert!(
+        text(&out.stderr).contains("unknown provider 'nosuch'"),
+        "{out:?}"
+    );
+    assert!(out.stdout.is_empty(), "{out:?}");
 }
