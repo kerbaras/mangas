@@ -95,3 +95,37 @@ async fn a_redirect_loop_gives_up() {
     let err = client(&site.uri()).get("/api", &[]).await.unwrap_err();
     assert!(err.to_string().contains("redirects"), "{err}");
 }
+
+async fn slow_redirect(to: String) -> MockServer {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .respond_with(
+            ResponseTemplate::new(302)
+                .insert_header("location", to)
+                .set_delay(Duration::from_millis(250)),
+        )
+        .mount(&server)
+        .await;
+    server
+}
+
+#[tokio::test]
+async fn a_redirect_chain_shares_one_timeout() {
+    let land = MockServer::start().await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("ok"))
+        .mount(&land)
+        .await;
+    let second = slow_redirect(format!("{}/land", land.uri())).await;
+    let first = slow_redirect(format!("{}/next", second.uri())).await;
+    // Each hop alone fits in the timeout; the two together do not.
+    let config = ClientConfig {
+        retry: RetryPolicy::NONE,
+        requests_per_second: 1000,
+        timeout: Duration::from_millis(400),
+        ..ClientConfig::new(mangadot::INFO, &first.uri())
+    };
+    let client = SiteClient::new(config, None).unwrap();
+    assert!(client.get("/api", &[]).await.is_err());
+    assert!(land.received_requests().await.unwrap().is_empty());
+}

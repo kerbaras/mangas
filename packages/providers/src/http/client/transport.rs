@@ -1,6 +1,8 @@
 //! The request loop of [`SiteClient`]: follow redirects hop by hop and, per hop, pace, send,
 //! read, decide, sleep.
 
+use std::time::{Duration, Instant};
+
 use mangas_core::domain::Result;
 use reqwest::{RequestBuilder, Url};
 
@@ -27,8 +29,12 @@ impl SiteClient {
     ) -> Result<Reply> {
         let origin = first.url.clone();
         let mut request = first;
+        let mut budget = self.config.timeout;
         for _ in 0..=MAX_REDIRECTS {
-            match self.send_hop(path, &request, &origin, retry).await? {
+            match self
+                .send_hop(path, &request, &origin, retry, &mut budget)
+                .await?
+            {
                 Step::Reply(reply) => return Ok(reply),
                 Step::Redirect(next) => {
                     let to = next.url.origin().ascii_serialization();
@@ -40,13 +46,15 @@ impl SiteClient {
         Err(self.error(format!("{path}: more than {MAX_REDIRECTS} redirects")))
     }
 
-    /// One hop with its retries, paced by the bucket of the hop's own host.
+    /// One hop with its retries, paced by the bucket of the hop's own host. The hops of a chain
+    /// share one `timeout` (`budget`), as when reqwest followed them; a retry starts afresh.
     async fn send_hop(
         &self,
         path: &str,
         request: &Outgoing,
         origin: &Url,
         retry: RetryPolicy,
+        budget: &mut Duration,
     ) -> Result<Step> {
         let headers = self.hop_headers(&request.url, origin)?;
         let bucket = self.hop_bucket(&request.url);
@@ -54,7 +62,11 @@ impl SiteClient {
         let mut attempt = 0;
         loop {
             bucket.acquire().await;
-            let builder = self.build(request, headers.clone());
+            if budget.is_zero() {
+                return Err(self.error(format!("{path}: timed out following redirects")));
+            }
+            let builder = self.build(request, headers.clone()).timeout(*budget);
+            let started = Instant::now();
             match self
                 .attempt(path, builder, request, idempotent, retry, attempt)
                 .await
@@ -63,8 +75,12 @@ impl SiteClient {
                     log::debug!("{}: retry {} in {wait:?}", self.config.info.id, attempt + 1);
                     tokio::time::sleep(wait).await;
                     attempt += 1;
+                    *budget = self.config.timeout;
                 }
-                (result, None) => return result,
+                (result, None) => {
+                    *budget = budget.saturating_sub(started.elapsed());
+                    return result;
+                }
             }
         }
     }

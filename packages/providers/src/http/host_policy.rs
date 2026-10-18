@@ -11,6 +11,8 @@ use crate::session::Session;
 pub struct HostPolicy {
     scheme: String,
     host: String,
+    /// The site's port: the session and referer stay off other services on the same host.
+    port: Option<u16>,
     referer: String,
     origin: String,
     image_hosts: &'static [&'static str],
@@ -28,6 +30,7 @@ impl HostPolicy {
                 .and_then(Url::host_str)
                 .unwrap_or_default()
                 .to_string(),
+            port: parsed.as_ref().and_then(Url::port_or_known_default),
             referer: format!("{}/", site.trim_end_matches('/')),
             origin: site.trim_end_matches('/').to_string(),
             image_hosts,
@@ -44,8 +47,10 @@ impl HostPolicy {
             return Vec::new();
         };
         let host = url.host_str().unwrap_or_default();
-        let on_site =
-            !self.host.is_empty() && url.scheme() == self.scheme && host_matches(host, &self.host);
+        let on_site = !self.host.is_empty()
+            && url.scheme() == self.scheme
+            && url.port_or_known_default() == self.port
+            && host_matches(host, &self.host);
         let image_host = url.scheme() == "https"
             && self
                 .image_hosts
