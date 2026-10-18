@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use super::availability::ensure_available;
 use super::event::{Event, OnEvent};
-use super::fetcher::{HttpFetcher, PageFetcher};
+use super::fetcher::PageFetcher;
 use super::mirror::WithMirror;
 use super::pages::download_pages;
 use crate::domain::{Chapter, ChapterId, Error, Result};
@@ -61,18 +61,8 @@ fn safe_component(raw: &str) -> String {
     }
 }
 
-/// Downloads one chapter into `dest` over HTTP and returns the number of pages.
-pub async fn download_chapter(
-    source: &dyn Source,
-    chapter: &Chapter,
-    dest: &Path,
-    on_event: OnEvent<'_>,
-) -> Result<usize> {
-    let fetcher = WithMirror::for_source(HttpFetcher::for_source(source)?, source);
-    download_chapter_with(source, &fetcher, chapter, dest, on_event).await
-}
-
-/// Same as [`download_chapter`] with an explicit page fetcher (tests inject a fake one).
+/// Downloads one chapter into `dest` with `fetcher` and returns the number of pages. Fails,
+/// without [`Event::ChapterDone`], unless every page is on disk.
 pub async fn download_chapter_with(
     source: &dyn Source,
     fetcher: &dyn PageFetcher,
@@ -105,15 +95,18 @@ pub struct Report {
 }
 
 /// Downloads `chapters` one after another under `root` and records each finished chapter in
-/// the library. Emits [`Event::Error`] for a chapter that fails and carries on.
+/// the library. Pages go through `fetcher` (the apps pass the providers' `PageClient`), with
+/// one more try on the source's mirror. Emits [`Event::Error`] for a chapter that fails and
+/// carries on.
 pub async fn download_chapters(
     source: &dyn Source,
+    fetcher: &dyn PageFetcher,
     lib: &Library,
     chapters: &[Chapter],
     root: &Path,
     on_event: OnEvent<'_>,
 ) -> Result<Report> {
-    let fetcher = WithMirror::for_source(HttpFetcher::for_source(source)?, source);
+    let fetcher = WithMirror::for_source(fetcher, source);
     let mut report = Report::default();
     for chapter in chapters {
         let known = library::list_chapters(lib, source.name(), &chapter.manga_id, None)?;

@@ -76,6 +76,12 @@ Rules: the Tauri layer and the CLI contain no business logic. Everything testabl
   content ratings, data-saver, preferred groups). The core never knows their shape.
 - **Mirrors**: `Source::mirror_url(url)` names a second URL for a page; downloads retry a failed
   page there once (`download::WithMirror`). MangaDex maps MD@Home nodes to `uploads.mangadex.org`.
+- **Page downloads**: core only knows `download::PageFetcher`; the apps pass the providers'
+  `http::PageClient`, so pages get the source's page headers, the host's shared token bucket
+  (`image_hosts` take their provider's `requests_per_second`, other hosts `DEFAULT_PAGE_RATE`),
+  `PAGE_RETRY` with `Retry-After`, and public hosts only. A 429 pauses the whole host for the
+  retry delay. A chapter with any page missing after
+  retries is an error naming the failed pages and the count; it is never marked downloaded.
 - **Status**: `SiteClient::status(probe)` does one cheap GET and maps it to `Ready`,
   `NeedsSession` (no or expired session, or a challenge page) or `Unreachable { reason }`.
 

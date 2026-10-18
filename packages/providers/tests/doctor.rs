@@ -200,5 +200,8 @@ async fn the_real_image_fetch_refuses_non_public_hosts() {
     let report = check(&fake(vec!["local"], &[("local", 1)]), "q", "en").await;
     assert_eq!(report.failed_step(), Some(Step::Image));
     let reason = report.steps[5].outcome.clone().unwrap_err();
-    assert!(reason.starts_with("not a public http(s) url"), "{reason}");
+    assert!(
+        reason.contains("refusing to fetch non-public url"),
+        "{reason}"
+    );
 }

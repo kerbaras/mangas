@@ -195,3 +195,27 @@ async fn chapter_without_pages_is_a_source_error() {
         .unwrap_err();
     assert!(matches!(err, Error::Source { .. }), "{err}");
 }
+
+#[tokio::test]
+async fn incomplete_chapter_names_the_failed_pages_and_the_count() {
+    let dir = tempfile::tempdir().unwrap();
+    let urls = urls(3);
+    let fetcher = FakeFetcher {
+        fail_on: Some(urls.0[1].clone()),
+        ..Default::default()
+    };
+    let err = download_pages(&fetcher, &ChapterId("c".into()), &urls, dir.path(), &|_| {})
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(
+        err.contains("1 of 3 pages failed") && err.contains("page 2"),
+        "{err}"
+    );
+    assert_eq!(
+        fetcher.fetched.lock().unwrap().len(),
+        3,
+        "other pages still fetched"
+    );
+    assert!(dir.path().join("0001.png").exists() && dir.path().join("0003.png").exists());
+}

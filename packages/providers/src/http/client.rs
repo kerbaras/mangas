@@ -34,7 +34,9 @@ impl SiteClient {
             .timeout(config.timeout)
             .connect_timeout(config.connect_timeout)
             .build()?;
-        let bucket = HostLimiters::shared().bucket(&config.base, config.requests_per_second);
+        let limiters = HostLimiters::shared();
+        let bucket = limiters.bucket(&config.base, config.requests_per_second);
+        limiters.declare_image_hosts(config.image_hosts, config.requests_per_second);
         Ok(Self {
             policy: HostPolicy::new(config.info.site, config.image_hosts, session),
             bucket,

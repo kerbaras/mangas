@@ -1,96 +1,22 @@
 use std::net::IpAddr;
 
 use async_trait::async_trait;
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
-use reqwest::redirect::{Attempt, Policy};
-use reqwest::Client;
 use url::{Host, Url};
 
-use crate::domain::{Error, Result};
-use crate::sources::{Header, Source};
+use crate::domain::Result;
 
-/// Fetches one page image. Abstracted so downloads can be tested without a network.
+/// Fetches one page image. The apps use the providers' `http::PageClient` (the host's rate
+/// limit, retries, page headers); tests inject fakes.
 #[async_trait]
 pub trait PageFetcher: Send + Sync {
     async fn fetch(&self, url: &str) -> Result<Vec<u8>>;
 }
 
-/// Decides the extra headers for one page URL; sources keep their cookies to their own host.
-pub type HeadersFor<'a> = dyn Fn(&str) -> Vec<Header> + Send + Sync + 'a;
-
-pub struct HttpFetcher<'a> {
-    http: Client,
-    headers_for: Box<HeadersFor<'a>>,
-}
-
-impl<'a> HttpFetcher<'a> {
-    pub fn new() -> Result<Self> {
-        Self::with_headers(Box::new(|_| Vec::new()))
-    }
-
-    /// Fetcher asking `source` which headers each page request needs.
-    pub fn for_source(source: &'a dyn Source) -> Result<Self> {
-        Self::with_headers(Box::new(move |url| source.page_headers(url)))
-    }
-
-    pub fn with_headers(headers_for: Box<HeadersFor<'a>>) -> Result<Self> {
-        let http = Client::builder()
-            .user_agent(concat!("mangas/", env!("CARGO_PKG_VERSION")))
-            .redirect(Policy::custom(public_redirects_only))
-            .build()?;
-        Ok(Self { http, headers_for })
-    }
-}
-
-fn header_map(headers: &[Header]) -> Result<HeaderMap> {
-    let mut map = HeaderMap::new();
-    for (name, value) in headers {
-        let name = HeaderName::from_bytes(name.as_bytes())
-            .map_err(|e| Error::Other(format!("header {name}: {e}")))?;
-        let value = HeaderValue::from_str(value)
-            .map_err(|e| Error::Other(format!("header {name}: {e}")))?;
-        map.insert(name, value);
-    }
-    Ok(map)
-}
-
+/// A borrowed fetcher fetches like the one it points to.
 #[async_trait]
-impl PageFetcher for HttpFetcher<'_> {
+impl<T: PageFetcher + ?Sized> PageFetcher for &T {
     async fn fetch(&self, url: &str) -> Result<Vec<u8>> {
-        if !is_public_http_url(url) {
-            return Err(Error::Other(format!(
-                "refusing to fetch non-public url {url}"
-            )));
-        }
-        let headers = header_map(&(self.headers_for)(url))?;
-        let response = self
-            .http
-            .get(url)
-            .headers(headers)
-            .send()
-            .await?
-            .error_for_status()?;
-        if !is_public_http_url(response.url().as_str()) {
-            return Err(Error::Other(format!(
-                "refusing response from non-public url {}",
-                response.url()
-            )));
-        }
-        Ok(response.bytes().await?.to_vec())
-    }
-}
-
-const MAX_REDIRECTS: usize = 10;
-
-/// Redirects get the same host check as the first request, so a public page URL cannot bounce
-/// the downloader onto an internal address.
-fn public_redirects_only(attempt: Attempt) -> reqwest::redirect::Action {
-    if attempt.previous().len() >= MAX_REDIRECTS {
-        attempt.error("too many redirects")
-    } else if is_public_http_url(attempt.url().as_str()) {
-        attempt.follow()
-    } else {
-        attempt.error("redirect to a non-public url")
+        (**self).fetch(url).await
     }
 }
 

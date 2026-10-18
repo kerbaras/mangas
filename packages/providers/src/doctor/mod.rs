@@ -1,42 +1,34 @@
 //! `providers check`: walks one provider the way a download would (status → search → manga →
 //! chapters → pages → first page image) and reports each step with its timing.
 
-mod fetch;
 mod languages;
 mod report;
 
 use std::future::Future;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use mangas_core::domain::{Chapter, Manga};
 use mangas_core::sources::{Header, ProviderStatus, Source};
-use reqwest::redirect::Policy;
-use reqwest::Client;
 
 pub use languages::first_language;
 pub use report::{lines, Report, Step, StepReport, STEPS};
 
-use crate::http::USER_AGENT;
-use fetch::{first_byte, public_redirects_only};
+use crate::http::PageClient;
 
 /// Search results asked for, and how many of them are tried until one has chapters (popular
 /// titles often have none hosted in a given language).
 const SEARCH_LIMIT: usize = 10;
 const CANDIDATES: usize = 5;
-const IMAGE_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Runs the check against the real site. The image step is a one-byte ranged GET of the first
-/// page with its page headers, and like the downloader it only reaches public hosts.
+/// page through the downloader's [`PageClient`]: same page headers, pacing, retries and
+/// public-hosts-only rule.
 pub async fn check(source: &dyn Source, query: &str, language: &str) -> Report {
-    let client = Client::builder()
-        .user_agent(USER_AGENT)
-        .timeout(IMAGE_TIMEOUT)
-        .redirect(Policy::custom(public_redirects_only))
-        .build()
-        .map_err(|e| e.to_string());
-    check_with(source, query, language, |url, headers| {
-        let client = client.clone();
-        async move { first_byte(client?, url, headers).await }
+    let client = PageClient::for_source(source).map_err(|e| e.to_string());
+    let client = &client;
+    check_with(source, query, language, |url, _headers| async move {
+        let client = client.as_ref().map_err(Clone::clone)?;
+        client.first_byte(&url).await.map_err(|e| e.to_string())
     })
     .await
 }

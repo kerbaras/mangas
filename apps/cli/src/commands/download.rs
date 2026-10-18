@@ -3,6 +3,7 @@ use clap::Args as ClapArgs;
 use mangas_core::domain::{Chapter, MangaId};
 use mangas_core::download::{self, Event};
 use mangas_core::library;
+use mangas_providers::http::PageClient;
 
 use super::{source_by_name, stored_settings};
 use crate::output::{out, outln};
@@ -53,8 +54,16 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let selected = without_unavailable(selected, args.chapters.is_some())?;
     outln!("Downloading {} chapter(s) of {}", selected.len(), id)?;
     let root = paths::downloads()?;
-    let report =
-        download::download_chapters(source.as_ref(), &lib, &selected, &root, &print_event).await?;
+    let pages = PageClient::for_source(source.as_ref())?;
+    let report = download::download_chapters(
+        source.as_ref(),
+        &pages,
+        &lib,
+        &selected,
+        &root,
+        &print_event,
+    )
+    .await?;
     if args.cbz {
         for dir in &report.downloaded {
             let out = download::cbz_path(dir);

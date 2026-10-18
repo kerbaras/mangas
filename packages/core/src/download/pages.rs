@@ -1,10 +1,11 @@
 use std::collections::HashSet;
 use std::path::Path;
 
-use futures::stream::{self, StreamExt, TryStreamExt};
+use futures::stream::{self, StreamExt};
 
 use super::event::{Event, OnEvent};
 use super::fetcher::PageFetcher;
+use super::incomplete::{incomplete, missing_on_disk};
 use crate::domain::{ChapterId, Result};
 use crate::sources::PageUrls;
 
@@ -39,7 +40,9 @@ pub fn plan(urls: &PageUrls, existing: &HashSet<String>) -> Vec<PageJob> {
 }
 
 /// Downloads every page of `urls` into `dest`, skipping files that already exist. Emits
-/// [`Event::PageDone`] per page (including skipped ones) and returns the page count.
+/// [`Event::PageDone`] per page (including skipped ones) and returns the page count. A page
+/// that fails does not stop the others (they stay on disk for a resume), but the chapter is
+/// an error unless all `urls.len()` pages end up on disk.
 pub async fn download_pages(
     fetcher: &dyn PageFetcher,
     chapter: &ChapterId,
@@ -58,19 +61,29 @@ pub async fn download_pages(
             total,
         });
     }
-    stream::iter(jobs)
+    let failed: Vec<_> = stream::iter(jobs)
         .map(|job| async move {
-            fetch_page(fetcher, &job, dest).await?;
-            on_event(Event::PageDone {
-                chapter: chapter.clone(),
-                page: job.index,
-                total,
-            });
-            Ok::<(), crate::domain::Error>(())
+            let result = fetch_page(fetcher, &job, dest).await;
+            if result.is_ok() {
+                on_event(Event::PageDone {
+                    chapter: chapter.clone(),
+                    page: job.index,
+                    total,
+                });
+            }
+            (job.index, result)
         })
         .buffer_unordered(CONCURRENCY)
-        .try_collect::<()>()
-        .await?;
+        .filter_map(|(index, result)| async move { result.err().map(|e| (index, e)) })
+        .collect()
+        .await;
+    if !failed.is_empty() {
+        return Err(incomplete(failed, total));
+    }
+    let missing = plan(urls, &existing_files(dest)?).len();
+    if missing > 0 {
+        return Err(missing_on_disk(missing, total));
+    }
     Ok(total)
 }
 
