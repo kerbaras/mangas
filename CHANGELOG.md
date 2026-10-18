@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.1.0] - 2026-10-18
+
+### Added
+
+- **library:** Import local chapter folders and CBZ files (#47)
+- **providers:** Provider harness with SiteClient, host policy, retries and status (#48)
+- **diagnostics:** Add file logging, diagnostics and error surfaces (#46)
+- **providers:** Provider contract-test suite and providers check (#53)
+- **providers:** MangaDex covers, content rating, groups, languages and data-saver (#54)
+
+### Fixed
+
+- **core:** Export and import GIF pages, warn on skipped files (#59)
+- **providers:** Retry MangaDex edge HTML 400 pages on feed requests (#62)
 ## [0.1.0-rc.6] - 2026-10-16
 
 ### Fixed
@@ -46,6 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **desktop:** A reconnect waits for a session newer than the one it started with
 - **mangadot:** Search text parameter named like the site's own search route (search=)
 - **desktop:** Connect window navigation must stay on https
+[0.1.0]: https://github.com/kerbaras/mangas/compare/v0.1.0-rc.6...v0.1.0
 [0.1.0-rc.6]: https://github.com/kerbaras/mangas/compare/v0.1.0-rc.5...v0.1.0-rc.6
 [0.1.0-rc.5]: https://github.com/kerbaras/mangas/compare/v0.1.0-rc.4...v0.1.0-rc.5
 [0.1.0-rc.4]: https://github.com/kerbaras/mangas/compare/v0.1.0-rc.3...v0.1.0-rc.4
