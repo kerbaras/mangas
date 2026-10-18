@@ -18,7 +18,18 @@ pub fn og(html: &str, property: &str) -> Option<String> {
     let needle = format!("property=\"{property}\"");
     let start = html.find(&needle)?;
     let tag = &html[start..start + html[start..].find('>')?];
-    Some(unescape(attr(tag, "content")?)).filter(|v| !v.is_empty())
+    Some(decode_meta(attr(tag, "content")?)).filter(|v| !v.is_empty())
+}
+
+/// Title pages encode `og:*` values twice (`Enamor&amp;aacute;ndome`): decode until stable,
+/// at most two passes.
+fn decode_meta(raw: &str) -> String {
+    let once = unescape(raw);
+    if once.contains('&') {
+        unescape(&once)
+    } else {
+        once
+    }
 }
 
 /// Names on the title page's `.author_area` ("Sangyoung Seong , Sang-A"), before the
