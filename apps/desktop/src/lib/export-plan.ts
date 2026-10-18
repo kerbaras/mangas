@@ -4,11 +4,10 @@ import type { Chapter, DetectorsStatus, ExportFormat } from "./ipc";
 import type { Grouping } from "./ipc.volumes";
 
 /** How the chapters become files: one per chapter, or bundled like the volume planner does. */
-export type BundleMode = "per_chapter" | Grouping["kind"];
+export type BundleMode = Grouping["kind"];
 
 /** One file per chapter is the planner's "every 1": each file still gets cover, TOC and metadata. */
 export const groupingOf = (mode: BundleMode, size: number): Grouping => {
-  if (mode === "per_chapter") return { kind: "every", size: 1 };
   if (mode === "every") return { kind: "every", size };
   return { kind: mode };
 };

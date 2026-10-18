@@ -30,6 +30,13 @@ pub fn group(chapters: &[Chapter], grouping: Grouping) -> Vec<Volume> {
             })
             .collect(),
         Grouping::ByVolume => by_volume(chapters),
+        Grouping::PerChapter => chapters
+            .iter()
+            .map(|c| Volume {
+                number: None,
+                chapters: vec![c.clone()],
+            })
+            .collect(),
     }
 }
 

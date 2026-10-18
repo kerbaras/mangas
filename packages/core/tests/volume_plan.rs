@@ -186,3 +186,17 @@ fn find_volume_prefers_the_exact_label_over_a_numeric_match() {
     assert_eq!(found("03").as_deref(), Some("1"));
     assert_eq!(found("4.0").as_deref(), Some("3"));
 }
+
+#[test]
+fn one_book_per_chapter_is_named_after_its_chapter() {
+    let chapters = [ch("12", Some("2")), ch("12.5", Some("2"))];
+    let plans = plan(&manga(), &chapters, Grouping::PerChapter, None, None);
+    let names: Vec<_> = plans.iter().map(|p| p.file_name.as_str()).collect();
+    assert_eq!(
+        names,
+        ["Blue Period ch 12.epub", "Blue Period ch 12.5.epub"]
+    );
+    assert!(plans
+        .iter()
+        .all(|p| p.number.is_none() && p.chapters.len() == 1));
+}

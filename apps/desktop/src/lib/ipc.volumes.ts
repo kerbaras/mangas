@@ -2,7 +2,11 @@
 import { backend, type Chapter, type ExportFormat, type ExportResult, type Preset } from "./ipc";
 
 /** Mirrors `mangas_core::export::volume::Grouping` (serde tag = "kind", content = "size"). */
-export type Grouping = { kind: "single" } | { kind: "by_volume" } | { kind: "every"; size: number };
+export type Grouping =
+  | { kind: "single" }
+  | { kind: "by_volume" }
+  | { kind: "per_chapter" }
+  | { kind: "every"; size: number };
 
 /** Mirrors `mangas_core::export::volume::VolumePlan`: one book to write (named `.epub`). */
 export type VolumePlan = {

@@ -15,6 +15,8 @@ function group(
   grouping: Grouping,
 ): { number: string | null; chapters: Chapter[] }[] {
   if (chapters.length === 0) return [];
+  if (grouping.kind === "per_chapter")
+    return chapters.map((c) => ({ number: null, chapters: [c] }));
   if (grouping.kind === "every") {
     const size = Math.max(1, grouping.size);
     const out = [];

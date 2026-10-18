@@ -199,8 +199,9 @@ The desktop app has one export flow: the export dialog (`components/export-dialo
   from across the library, then "Export". That screen also keeps the export history
   ("Recent exports"), where books written earlier can be sent again.
 - **What to write.** Bundle mode: one file per chapter, by volume, every N chapters, or one
-  book. One file per chapter is the planner's `every 1` grouping. Title applies when the
-  choice makes one book. The preview lists the files the backend planned
+  book. One file per chapter is the planner's `per_chapter` grouping: each book is named after
+  its chapter with `chapter_tag` (`<series> ch 12`, `<series> S2 Ep. 0`), not numbered. Title
+  applies when the choice makes one book. The preview lists the files the backend planned
   (`plan_volumes`). For one series the dialog calls `export_volumes`, so every book gets the
   series cover, a TOC and the metadata. Chapters from several series can only be one book,
   which `export_chapters` writes.

@@ -53,9 +53,10 @@ describe("export dialog: bundles", () => {
     render(dialog());
     fireEvent.mouseDown(await screen.findByRole("tab", { name: "Per chapter" }));
     expect(await screen.findByText("3 files")).toBeTruthy();
+    expect(screen.getByText("Solo ch 1.epub")).toBeTruthy();
     fireEvent.click(await screen.findByRole("button", { name: /Export 3 books/ }));
     await waitFor(() => expect(exportVolumes).toHaveBeenCalledOnce());
-    expect(exportVolumes.mock.calls[0][0].grouping).toEqual({ kind: "every", size: 1 });
+    expect(exportVolumes.mock.calls[0][0].grouping).toEqual({ kind: "per_chapter" });
   });
 
   it("names a single book with the typed title", async () => {

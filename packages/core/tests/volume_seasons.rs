@@ -60,3 +60,14 @@ fn toc_entries_use_the_season_label() {
     let meta = book_meta(&tog(), &volume, None);
     assert_eq!(meta.chapter_titles, ["S2 Ep. 0", "S2 Ep. 1 - Return"]);
 }
+
+#[test]
+fn one_book_per_chapter_uses_the_season_tag() {
+    let chapters = [ch("80", "S2 Ep. 0 - Prologue"), ch("81", "S2 Ep. 1")];
+    let plans = plan(&tog(), &chapters, Grouping::PerChapter, None, None);
+    let names: Vec<_> = plans.iter().map(|p| p.file_name.as_str()).collect();
+    assert_eq!(
+        names,
+        ["Tower of God S2 Ep. 0.epub", "Tower of God S2 Ep. 1.epub"]
+    );
+}
