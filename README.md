@@ -12,7 +12,7 @@ Rust core, Tauri 2 + React desktop app, and a small CLI that exposes the same op
 |---|---|---|
 | `packages/core` | `mangas-core` | the `Source` contract, SQLite library, downloads, smart cut, Kindle filters, EPUB writer, optional ONNX detectors |
 | `packages/providers` | `mangas-providers` | site adapters (MangaDex, MangaDot, WeebCentral, Tapas) on a shared rate-limited client, provider registry, browser-session support for Cloudflare-protected sites |
-| `apps/cli` | `mangas-cli` | the command line as a library (+ a dev binary): `search`, `add`, `remove`, `chapters`, `download`, `list`, `kindle` |
+| `apps/cli` | `mangas-cli` | the command line as a library (+ a dev binary): `search`, `add`, `remove`, `chapters`, `download`, `list`, `kindle`, `export` |
 | `apps/desktop` | `@mangas/desktop` | Tauri shell (`src-tauri`, IPC only) and the React UI (`src`); builds the shipped `mangas` executable, which runs the CLI when given arguments and opens the app otherwise |
 
 Design notes and decisions: [`docs/rewrite-design.md`](docs/rewrite-design.md). Rules for
@@ -53,8 +53,10 @@ mangas download <manga-id> --chapters 1-5
 mangas settings languages es-la,en  # preferred chapter languages, shared with the app
 mangas providers options mangadex --set data_saver=true --set preferred_groups="A,B"
 mangas kindle ~/.local/share/mangas/chapters/<manga>/<chapter>... -o out.epub \
-    --device kindle-paperwhite12 --cut-preset balanced
-mangas kindle --list-devices
+    --profile kindle-paperwhite12 --cut-preset balanced
+mangas kindle <chapter>... --format cbz --profile kobo-clara   # or pdf; -o book.pdf also picks pdf
+mangas kindle --list-profiles
+mangas export <manga-id> --by-volume --format cbz --profile kobo-clara   # one book per volume
 ```
 
 `add`, `chapters` and `download` default `--lang` to the preferred languages (English when none

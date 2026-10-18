@@ -39,8 +39,10 @@ describe("exportTitle", () => {
 });
 
 describe("paths", () => {
-  it("builds a safe epub file inside the chosen folder", () => {
+  it("builds a safe file name with the format extension inside the chosen folder", () => {
     expect(exportFileName('Re:Zero / "Arc 4"?')).toBe("Re Zero Arc 4.epub");
+    expect(exportFileName("Solo ch 1", "cbz")).toBe("Solo ch 1.cbz");
+    expect(exportFileName("Solo ch 1", "pdf")).toBe("Solo ch 1.pdf");
     expect(joinPath("/out/", "a.epub")).toBe("/out/a.epub");
     expect(joinPath("C:\\Users\\m\\Kindle", "a.epub")).toBe("C:\\Users\\m\\Kindle/a.epub");
     expect(parentDir("/out/a.epub")).toBe("/out");

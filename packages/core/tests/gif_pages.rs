@@ -66,12 +66,15 @@ fn export_keeps_gif_pages_and_counts_unsupported_files() {
 
     let out = tmp.path().join("book.epub");
     let req = ExportRequest {
+        format: mangas_core::export::Format::Epub,
         chapter_dirs: vec![ch],
         device: device("kindle-paperwhite12").unwrap(),
         cut: Preset::Balanced.options(),
         title: "Book".into(),
         output: out.clone(),
         meta: Default::default(),
+        labels: Default::default(),
+        title_explicit: false,
     };
     let stats = export(&req, None, &mut |_| {}).unwrap();
     assert_eq!((stats.pages, stats.skipped), (3, 1));

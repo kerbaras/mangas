@@ -14,6 +14,11 @@ describe("kindle events", () => {
     expect(
       toExportProgress({ event: "model_download", id: "faces", done: 5, total: null }),
     ).toMatchObject({ current: 5, total: null });
+    expect(toExportProgress({ event: "export", kind: "writing", pages: 9 })).toEqual({
+      stage: "Writing file",
+      current: 9,
+      total: 9,
+    });
   });
 });
 
@@ -23,6 +28,7 @@ describe("export request", () => {
       toExportArgs({
         chapter_dirs: ["/c/1"],
         device: "kindle-paperwhite12",
+        format: "cbz",
         preset: "balanced",
         detectors: false,
         output: "/out",
@@ -30,6 +36,7 @@ describe("export request", () => {
     ).toEqual({
       chapterDirs: ["/c/1"],
       device: "kindle-paperwhite12",
+      format: "cbz",
       preset: "balanced",
       detectors: false,
       output: "/out",

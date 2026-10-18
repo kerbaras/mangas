@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use mangas_core::export::kindle::{self, ExportRequest, ExportStats, Progress};
+use mangas_core::export::{Format, Labels};
 use mangas_core::library;
 use mangas_core::ml;
 use mangas_core::smartcut::{Preset, RowPenalizer};
@@ -37,10 +38,12 @@ pub(super) fn emit(app: &AppHandle, event: ExportEvent) {
 
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
+#[allow(clippy::too_many_arguments)] // Tauri maps each IPC argument to a parameter.
 pub async fn export_kindle(
     app: AppHandle,
     chapter_dirs: Vec<PathBuf>,
     device: String,
+    format: Option<Format>,
     preset: Preset,
     detectors: bool,
     output: PathBuf,
@@ -48,11 +51,16 @@ pub async fn export_kindle(
 ) -> Result<ExportStats, String> {
     let dev =
         kindle::device(&device).ok_or_else(|| to_ipc(format!("unknown device '{device}'")))?;
+    let format = Format::resolve(format, Some(&output), None, &dev).map_err(to_ipc)?;
     let penalizer = penalizer(&app, detectors).await?;
     let req = ExportRequest {
+        labels: labels_of(&chapter_dirs),
+        // The desktop always sends a generated title, so the chapter's own title wins.
+        title_explicit: false,
         title: title.unwrap_or_else(|| default_title(&chapter_dirs)),
         chapter_dirs,
         device: dev,
+        format,
         cut: preset.options(),
         output,
         meta: Default::default(),
@@ -96,6 +104,17 @@ pub(super) fn mark_exported(dirs: &[&std::path::Path]) {
     {
         tracing::warn!("could not mark chapters exported: {e}");
     }
+}
+
+/// Series/chapter/volume labels from the library; without it the file is just unlabelled.
+fn labels_of(dirs: &[PathBuf]) -> Labels {
+    let refs: Vec<&std::path::Path> = dirs.iter().map(PathBuf::as_path).collect();
+    open_library()
+        .and_then(|lib| library::export_labels(&lib, &refs, dirs.len()).map_err(to_ipc))
+        .unwrap_or_else(|e| {
+            tracing::warn!("could not read chapter labels: {e}");
+            Labels::default()
+        })
 }
 
 fn models_dir() -> Result<PathBuf, String> {

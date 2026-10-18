@@ -12,7 +12,11 @@ use std::ffi::OsString;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "mangas", version, about = "Manga library and Kindle exporter")]
+#[command(
+    name = "mangas",
+    version,
+    about = "Manga library and e-reader exporter"
+)]
 pub struct Cli {
     /// Log more to stderr: -v info, -vv debug (MANGAS_LOG overrides)
     #[arg(short, long, action = clap::ArgAction::Count, global = true)]
@@ -43,9 +47,9 @@ enum Command {
     Update(commands::update::Args),
     /// Import chapter folders or .cbz files from disk into the library
     Import(commands::import::Args),
-    /// Export downloaded chapters as a Kindle-ready EPUB
+    /// Export chapter folders as one EPUB, CBZ or PDF for an e-reader profile (Kindle EPUB by default)
     Kindle(commands::kindle::Args),
-    /// Export a followed manga's downloaded chapters as volume EPUBs (TOC, series, cover)
+    /// Export a followed manga's downloaded chapters as volume books: EPUB, CBZ or PDF (TOC, series, cover)
     Export(commands::export::Args),
     /// List the providers and whether they are ready to use
     Providers(commands::providers::Args),

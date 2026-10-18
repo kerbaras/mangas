@@ -15,5 +15,5 @@ async function loadDownloaded(): Promise<DownloadedGroup[]> {
   return groups.filter((g) => g.chapters.length > 0);
 }
 
-/** Everything on disk, grouped by manga, for the Send to Kindle picker. */
+/** Everything on disk, grouped by manga, for the export picker. */
 export const useDownloadedChapters = () => useAsync(loadDownloaded, []);

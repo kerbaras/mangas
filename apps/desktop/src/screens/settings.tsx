@@ -6,6 +6,7 @@ import { DevicesPending } from "@/components/devices-pending";
 import { DiagnosticsPanel } from "@/components/diagnostics-panel";
 import { ErrorAlert } from "@/components/error-alert";
 import { Field } from "@/components/field";
+import { FormatPicker } from "@/components/format-picker";
 import { LanguagesPicker } from "@/components/languages-picker";
 import { MangaDexOptionsForm } from "@/components/mangadex-options";
 import { PresetPicker } from "@/components/preset-picker";
@@ -15,6 +16,7 @@ import { StoragePanel } from "@/components/storage-panel";
 import { Button } from "@/components/ui/button";
 import { UpdatesSettings } from "@/components/updates-settings";
 import { useAsync } from "@/hooks/use-async";
+import { effectiveFormat } from "@/lib/export-formats";
 import { errorMessage } from "@/lib/format";
 import { installCli, listDevices } from "@/lib/ipc";
 import { loadSettings, useSettings, useSettingsLoad } from "@/lib/settings";
@@ -84,11 +86,11 @@ function SettingsForm() {
           <Group title="Updates">
             <UpdatesSettings />
           </Group>
-          <Group title="Kindle">
+          <Group title="Export">
             <Field
               label="Default device"
               htmlFor="default-device"
-              hint="Preselected on Send to Kindle."
+              hint="Preselected when exporting."
             >
               {devices.state.kind === "ready" ? (
                 <DeviceSelect
@@ -100,6 +102,35 @@ function SettingsForm() {
               ) : (
                 <DevicesPending state={devices.state} />
               )}
+            </Field>
+            <Field
+              label="Default format"
+              hint={
+                settings.defaultFormat ? (
+                  <>
+                    Used for every device.{" "}
+                    <button
+                      type="button"
+                      className="text-accent hover:underline"
+                      onClick={() => update({ defaultFormat: null })}
+                    >
+                      Follow the device instead
+                    </button>
+                  </>
+                ) : (
+                  "Follows the device until you pick one."
+                )
+              }
+            >
+              <FormatPicker
+                compact
+                value={effectiveFormat(
+                  settings.defaultFormat,
+                  devices.state.kind === "ready" ? devices.state.data : [],
+                  settings.defaultDevice,
+                )}
+                onChange={(f) => update({ defaultFormat: f })}
+              />
             </Field>
             <Field label="Default cut preset">
               <PresetPicker

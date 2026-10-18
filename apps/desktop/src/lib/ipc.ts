@@ -5,12 +5,20 @@
  */
 import type { DiagnosticsBackend } from "./ipc.diagnostics";
 import type { DownloadsBackend, Enqueued, JobState } from "./ipc.downloads";
+import type { Device, ExportProgress, ExportRequest, ExportResult } from "./ipc.export";
 import type { LibraryBackend } from "./ipc.library";
 import type { Settings } from "./ipc.settings";
 import type { StorageBackend } from "./ipc.storage";
 import type { UpdatesBackend } from "./ipc.updates";
 import type { VolumesBackend } from "./ipc.volumes";
 
+export type {
+  Device,
+  ExportFormat,
+  ExportProgress,
+  ExportRequest,
+  ExportResult,
+} from "./ipc.export";
 export type { ProviderSession, Settings } from "./ipc.settings";
 
 /** Mirrors `mangas_core::domain::Manga`. */
@@ -52,16 +60,6 @@ export type Availability =
   | { kind: "available" }
   | { kind: "locked" }
   | { kind: "external"; url: string | null };
-
-/** Mirrors `mangas_core::export::kindle::Device`. */
-export type Device = {
-  id: string;
-  name: string;
-  width: number;
-  height: number;
-  dpi: number;
-  grayscale: boolean;
-};
 
 /** Mirrors `mangas_core::smartcut::Preset` (kebab-case on the wire). */
 export type Preset = "balanced" | "fewest-cuts" | "no-shrink";
@@ -112,20 +110,6 @@ export type DownloadProgress = {
   done: boolean;
   error: string | null;
 };
-
-/** `total` is null while the count is not known yet (cutting pages). */
-export type ExportProgress = { stage: string; current: number; total: number | null };
-
-export type ExportRequest = {
-  chapter_dirs: string[];
-  device: string;
-  preset: Preset;
-  detectors: boolean;
-  output: string;
-  title?: string;
-};
-
-export type ExportResult = { output: string; pages: number; skipped: number };
 
 export type DetectorsStatus = {
   /** Built with detector support; models download on first use. */

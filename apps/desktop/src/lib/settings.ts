@@ -5,10 +5,12 @@
  * it was edited from, so the backend only saves the fields this window changed.
  */
 import { useCallback, useSyncExternalStore } from "react";
+import { isFormat } from "./export-formats";
 import { errorMessage } from "./format";
 import {
   DEFAULT_LANGUAGE,
   defaultDataDir,
+  type ExportFormat,
   getSettings,
   type Preset,
   type Settings as Stored,
@@ -20,6 +22,8 @@ export type Settings = {
   dataDir: string;
   defaultDevice: string;
   defaultPreset: Preset;
+  /** Export format picked last; null follows what the device reads best. */
+  defaultFormat: ExportFormat | null;
   /** Chapter languages in order of preference, never empty. */
   preferredLanguages: string[];
   providerOptions: Record<string, unknown>;
@@ -36,6 +40,7 @@ const DEFAULTS: Settings = {
   dataDir: "~/.local/share/mangas",
   defaultDevice: "kindle-paperwhite12",
   defaultPreset: DEFAULT_PRESET,
+  defaultFormat: null,
   preferredLanguages: [DEFAULT_LANGUAGE],
   providerOptions: {},
   providersEnabled: {},
@@ -51,6 +56,7 @@ const fromStored = (s: Stored, platformDataDir: string): Settings => ({
   dataDir: s.data_dir || platformDataDir,
   defaultDevice: s.default_device || DEFAULTS.defaultDevice,
   defaultPreset: isPreset(s.default_preset) ? s.default_preset : DEFAULTS.defaultPreset,
+  defaultFormat: isFormat(s.default_format) ? s.default_format : null,
   preferredLanguages: s.preferred_languages?.length
     ? s.preferred_languages
     : DEFAULTS.preferredLanguages,
@@ -70,6 +76,7 @@ const toStored = (s: Settings): Stored => ({
   data_dir: s.dataDir === platformDataDir ? null : s.dataDir,
   default_device: s.defaultDevice,
   default_preset: s.defaultPreset,
+  default_format: s.defaultFormat,
   preferred_languages: s.preferredLanguages,
   provider_options: s.providerOptions,
   providers_enabled: s.providersEnabled,
@@ -83,6 +90,7 @@ const STORED_KEY: { [K in keyof Settings]: keyof Stored } = {
   dataDir: "data_dir",
   defaultDevice: "default_device",
   defaultPreset: "default_preset",
+  defaultFormat: "default_format",
   preferredLanguages: "preferred_languages",
   providerOptions: "provider_options",
   providersEnabled: "providers_enabled",

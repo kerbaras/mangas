@@ -10,8 +10,8 @@ use crate::paths;
 
 #[derive(ClapArgs)]
 pub struct CutArgs {
-    /// Target device id (see `mangas kindle --list-devices`)
-    #[arg(long, default_value = "kindle-paperwhite12")]
+    /// Target e-reader profile id (see `mangas kindle --list-profiles`)
+    #[arg(long, visible_alias = "profile", default_value = "kindle-paperwhite12")]
     pub device: String,
     /// Smart-cut preset for long strips
     #[arg(long, value_enum, default_value_t = PresetArg::Balanced)]
@@ -48,7 +48,7 @@ impl CutArgs {
     pub fn device(&self) -> anyhow::Result<Device> {
         match device(&self.device) {
             Some(d) => Ok(d),
-            None => bail!("unknown device '{}' (try --list-devices)", self.device),
+            None => bail!("unknown profile '{}' (try --list-profiles)", self.device),
         }
     }
 

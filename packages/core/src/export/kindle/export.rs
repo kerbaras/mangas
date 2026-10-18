@@ -1,5 +1,5 @@
-//! Chapter directories -> device pages -> fixed-layout EPUB. Long strips go through the smart
-//! cutter (stitched across files); regular pages are scaled to fit.
+//! Chapter directories -> device pages -> one file in the requested [`Format`]. Long strips go
+//! through the smart cutter (stitched across files); regular pages are scaled to fit.
 
 use std::path::{Path, PathBuf};
 use std::time::Instant;
@@ -13,7 +13,8 @@ use super::process::{process_page, ImageSettings};
 use super::request::{ExportRequest, ExportStats, Progress};
 use super::Device;
 use crate::domain::{Error, Result};
-use crate::export::epub::{self, Book, ChapterEntry, PageImage};
+use crate::export::epub::{ChapterEntry, PageImage};
+use crate::export::Meta;
 use crate::smartcut::{is_long_strip, RowPenalizer, StripPaginator};
 
 struct Run<'a> {
@@ -141,33 +142,32 @@ pub fn export(
     (run.progress)(Progress::Writing {
         pages: run.pages.len(),
     });
-    let meta = &req.meta;
-    let book = Book {
+    let src = &req.meta;
+    let meta = Meta {
         id: book_id(
-            &meta
-                .identity
+            &src.identity
                 .clone()
                 .unwrap_or_else(|| fallback_identity(req)),
         ),
         title: req.title.clone(),
-        authors: if meta.authors.is_empty() {
+        authors: if src.authors.is_empty() {
             vec!["mangas".into()]
         } else {
-            meta.authors.clone()
+            src.authors.clone()
         },
-        language: meta.language.clone().unwrap_or_else(|| "en".into()),
-        series: meta.series.clone(),
+        language: src.language.clone().unwrap_or_else(|| "en".into()),
+        series: src.series.clone(),
         right_to_left: false,
-        device_width: dev.width,
-        device_height: dev.height,
         chapters,
-        pages: run.pages,
-        cover: meta
+        labels: req.labels.clone().or_series(src.series.as_ref()),
+        title_explicit: req.title_explicit,
+        cover: src
             .cover
             .as_deref()
             .and_then(|path| cover_page(path, &run.settings)),
     };
-    run.stats.output = epub::write(&book, &req.output)?;
+    let exporter = req.format.exporter();
+    run.stats.output = exporter.export(run.pages, &meta, &dev, &req.output)?;
     Ok(run.stats)
 }
 

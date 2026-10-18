@@ -4,6 +4,7 @@ use rusqlite::{Connection, OptionalExtension, TransactionBehavior};
 use serde::{Deserialize, Serialize};
 
 use crate::domain::{Error, Result};
+use crate::export::Format;
 use crate::library::settings_merge::merge_edit;
 use crate::library::Library;
 use crate::smartcut::Preset;
@@ -17,6 +18,8 @@ pub struct Settings {
     pub data_dir: Option<String>,
     pub default_device: Option<String>,
     pub default_preset: Option<Preset>,
+    /// Export format picked last; `None` follows the device profile's recommendation.
+    pub default_format: Option<Format>,
     /// Browser sessions captured for providers behind a verification wall, by source name.
     pub provider_sessions: BTreeMap<String, ProviderSession>,
     /// Chapter languages in order of preference (ISO 639-1 with regional suffixes, "pt-br");
