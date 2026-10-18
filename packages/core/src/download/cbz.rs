@@ -39,9 +39,9 @@ fn page_files(dir: &Path) -> Result<Vec<String>> {
     Ok(names)
 }
 
-const IMAGE_EXTENSIONS: [&str; 6] = ["jpg", "jpeg", "png", "gif", "webp", "avif"];
+pub(crate) const IMAGE_EXTENSIONS: [&str; 6] = ["jpg", "jpeg", "png", "gif", "webp", "avif"];
 
-fn is_image(name: &str) -> bool {
+pub(crate) fn is_image(name: &str) -> bool {
     Path::new(name)
         .extension()
         .and_then(|e| e.to_str())

@@ -2,6 +2,12 @@
 //! executable (`apps/desktop`), which runs the same code when given arguments.
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    mangas_cli::run(std::env::args_os()).await
+async fn main() -> std::process::ExitCode {
+    match mangas_cli::run(std::env::args_os()).await {
+        Ok(()) => std::process::ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("error: {e:#}");
+            std::process::ExitCode::from(mangas_cli::exit_code(&e))
+        }
+    }
 }

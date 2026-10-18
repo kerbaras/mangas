@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAsync } from "@/hooks/use-async";
 import { useChapterSelection } from "@/hooks/use-chapter-selection";
-import { useDownloads } from "@/hooks/use-downloads";
+import { chapterFailed, useDownloads } from "@/hooks/use-downloads";
 import { useLibraryEntry } from "@/hooks/use-library-entry";
 import { useMangaDetails } from "@/hooks/use-manga-details";
 import {
@@ -78,7 +78,7 @@ export function MangaDetailsScreen({ manga: card }: Props) {
   const all = chapters.state.kind === "ready" ? chapters.state.data : [];
   const landed = all.filter((c) => {
     const p = downloads.get(c.id);
-    return !c.local_path && p?.done && !p.error;
+    return !c.local_path && p?.state === "done";
   }).length;
   // A finished download changes `local_path` on disk; refetch so export/download buttons follow.
   useEffect(() => {
@@ -100,12 +100,14 @@ export function MangaDetailsScreen({ manga: card }: Props) {
       ]),
     );
     try {
-      // Per-chapter failures, missing chapters included, arrive as progress errors.
-      await downloadChapters(
+      // Queued chapters report through the queue; these ids were not queued at all.
+      const missing = await downloadChapters(
         source,
         id,
         toDownload.map((c) => c.id),
       );
+      for (const gone of missing)
+        chapterFailed(gone, "not found: the source no longer lists this chapter");
       clear();
     } catch (e: unknown) {
       notifyError("Download failed", e, { source, retry: download, id: `download-${source}` });

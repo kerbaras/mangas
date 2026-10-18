@@ -1,31 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  toDetectorsStatus,
-  toDownloadProgress,
-  toExportArgs,
-  toExportProgress,
-} from "@/lib/ipc.wire";
-
-describe("download events", () => {
-  it("maps a page to running progress", () => {
-    expect(toDownloadProgress({ kind: "page_done", chapter: "c1", page: 3, total: 20 })).toEqual({
-      chapter_id: "c1",
-      page: 3,
-      pages: 20,
-      done: false,
-      error: null,
-    });
-  });
-  it("maps chapter_done and error to finished progress", () => {
-    expect(
-      toDownloadProgress({ kind: "chapter_done", chapter: "c1", path: "/x", pages: 20 }),
-    ).toMatchObject({ done: true, page: 20, pages: 20, error: null });
-    expect(toDownloadProgress({ kind: "error", chapter: "c1", message: "429" })).toMatchObject({
-      done: true,
-      error: "429",
-    });
-  });
-});
+import { toDetectorsStatus, toExportArgs, toExportProgress } from "@/lib/ipc.wire";
 
 describe("kindle events", () => {
   it("counts chapters from one and leaves page totals open", () => {

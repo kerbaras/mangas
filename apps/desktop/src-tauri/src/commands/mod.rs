@@ -3,6 +3,7 @@
 pub mod catalog;
 pub mod covers;
 pub mod diagnostics;
+pub mod downloads;
 mod errors;
 pub mod import;
 pub mod kindle;

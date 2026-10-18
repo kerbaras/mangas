@@ -2,20 +2,7 @@
  * Shapes exactly as the Rust side serialises them, plus the pure mappings into the simpler
  * shapes the screens consume. Keeping the two apart means a Rust rename touches one file.
  */
-import type {
-  DetectorsStatus,
-  DownloadProgress,
-  ExportProgress,
-  ExportRequest,
-  ExportResult,
-  Preset,
-} from "./ipc";
-
-/** Mirrors `mangas_core::download::Event` (serde tag = "kind"). */
-export type DownloadEvent =
-  | { kind: "page_done"; chapter: string; page: number; total: number }
-  | { kind: "chapter_done"; chapter: string; path: string; pages: number }
-  | { kind: "error"; chapter: string; message: string };
+import type { DetectorsStatus, ExportProgress, ExportRequest, ExportResult, Preset } from "./ipc";
 
 /** Mirrors `mangas_core::export::kindle::Progress` (serde tag = "kind"). */
 export type KindleProgress =
@@ -63,17 +50,6 @@ export type ExportKindleArgs = {
   detectors: boolean;
   output: string;
   title?: string;
-};
-
-export const toDownloadProgress = (e: DownloadEvent): DownloadProgress => {
-  switch (e.kind) {
-    case "page_done":
-      return { chapter_id: e.chapter, page: e.page, pages: e.total, done: false, error: null };
-    case "chapter_done":
-      return { chapter_id: e.chapter, page: e.pages, pages: e.pages, done: true, error: null };
-    case "error":
-      return { chapter_id: e.chapter, page: 0, pages: 0, done: true, error: e.message };
-  }
 };
 
 export const toExportProgress = (e: KindleEvent): ExportProgress => {

@@ -63,13 +63,16 @@ pub fn parse_feed_response(
 
 /// Error response body (`{"result":"error","errors":[..]}`) -> [`Error::Source`].
 pub fn parse_error_response(status: u16, body: &str) -> Error {
-    let detail = serde_json::from_str::<ErrorBody>(body)
+    source_error(error_detail(body).unwrap_or_else(|| format!("HTTP {status}")))
+}
+
+/// The first error's `detail` (or `title`) of an error response body.
+pub fn error_detail(body: &str) -> Option<String> {
+    serde_json::from_str::<ErrorBody>(body)
         .ok()
         .and_then(|b| b.errors.into_iter().next())
         .map(|e| e.detail.unwrap_or(e.title))
         .filter(|d| !d.is_empty())
-        .unwrap_or_else(|| format!("HTTP {status}"));
-    source_error(detail)
 }
 
 pub fn cover_url(manga_id: &str, file_name: &str) -> String {

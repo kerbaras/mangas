@@ -22,7 +22,7 @@ const REQUESTS_PER_SECOND: u32 = 5;
 const PROBE: &str = "/ping";
 pub use dedupe::{dedupe_chapters, FeedChapter};
 pub use mapping::{
-    cover_url, parse_error_response, parse_feed_response, parse_manga_response,
+    cover_url, error_detail, parse_error_response, parse_feed_response, parse_manga_response,
     parse_search_response, secure_link, FeedPage, SOURCE_NAME,
 };
 pub use options::{MangaDexOptions, ALL_CONTENT_RATINGS};
@@ -114,14 +114,9 @@ impl MangaDex {
 }
 
 impl MangaDex {
-    /// GET returning the body; MangaDex error payloads become [`mangas_core::Error::Source`].
+    /// GET returning the body; a failure keeps the MangaDex error `detail` ([`error_detail`]).
     async fn get(&self, path: &str, query: &[(&str, String)]) -> Result<String> {
-        let reply = self.client.get_raw(path, query).await?;
-        if (200..300).contains(&reply.status) {
-            Ok(reply.body)
-        } else {
-            Err(parse_error_response(reply.status, &reply.body))
-        }
+        self.client.get_explained(path, query, error_detail).await
     }
 }
 

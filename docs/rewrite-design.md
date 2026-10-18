@@ -90,6 +90,14 @@ Rules: the Tauri layer and the CLI contain no business logic. Everything testabl
   `PAGE_RETRY` with `Retry-After`, and public hosts only. A 429 pauses the whole host for the
   retry delay. A chapter with any page missing after
   retries is an error naming the failed pages and the count; it is never marked downloaded.
+- **Download queue** (`download::queue`, #29): every download is a row in `download_jobs`
+  (one per chapter), so it survives restarts and the desktop app and CLI share it. The logic is
+  pure (`transitions` per job, `schedule::pick` for 2 per provider / 4 overall, `retry` with
+  15 s/60 s backoff over 3 attempts, `tick::plan_tick` for one worker step, `events::diff` for
+  UI events); `worker::Queue` is the async edge. A running job is leased to one process
+  (`owner` + `heartbeat_at`, 15 s); claims run in IMMEDIATE transactions so the caps hold
+  across processes, a stale lease goes back to the queue, and a pause or cancel from any process
+  stops the task at the next tick. The runner the apps use is `mangas_providers::QueueRunner`.
 - **Status**: `SiteClient::status(probe)` does one cheap GET and maps it to `Ready`,
   `NeedsSession` (no or expired session, or a challenge page) or `Unreachable { reason }`.
 

@@ -1,5 +1,5 @@
-import { AlertCircle, Check, Send } from "lucide-react";
-import type { MouseEvent } from "react";
+import { AlertCircle, Check, Clock, Pause, Send } from "lucide-react";
+import type { MouseEvent, ReactNode } from "react";
 import { AvailabilityCell } from "@/components/availability-cell";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
@@ -15,13 +15,29 @@ type Props = {
   onToggle: (id: string, shift: boolean) => void;
 };
 
+function Waiting({ icon, label, title }: { icon: ReactNode; label: string; title?: string }) {
+  return (
+    <span className="flex items-center gap-1 text-caption text-ink-3" title={title}>
+      {icon} {label}
+    </span>
+  );
+}
+
 function StateCell({ chapter, progress }: Pick<Props, "chapter" | "progress">) {
-  if (progress && !progress.done) {
+  if (progress?.state === "queued") {
+    const label = progress.retrying ? "Retrying" : "Queued";
+    const title = progress.retrying ?? undefined;
+    return <Waiting icon={<Clock className="size-3.5" />} label={label} title={title} />;
+  }
+  if (progress?.state === "paused") {
+    return <Waiting icon={<Pause className="size-3.5" />} label="Paused" />;
+  }
+  if (progress?.state === "running") {
     return (
       <div className="flex items-center gap-2">
         <Progress value={progress.page} max={progress.pages} className="w-24" />
         <span className="text-caption text-ink-3 tabular-nums">
-          {progress.page}/{progress.pages}
+          {progress.pages > 0 ? `${progress.page}/${progress.pages}` : "Starting"}
         </span>
       </div>
     );
@@ -46,7 +62,7 @@ function StateCell({ chapter, progress }: Pick<Props, "chapter" | "progress">) {
       </span>
     );
   }
-  if (chapter.local_path || progress?.done) {
+  if (chapter.local_path || progress?.state === "done") {
     return (
       <span className="flex items-center gap-1 text-caption text-ink-2">
         <Check className="size-3.5" /> On disk
