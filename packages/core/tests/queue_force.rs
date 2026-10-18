@@ -33,6 +33,8 @@ async fn a_forced_download_rewrites_every_page_even_an_emptied_one() {
     let dir = chapter_dir(&lib);
     std::fs::write(dir.join("0001.jpg"), b"old").unwrap();
     std::fs::write(dir.join("0003.jpg"), b"").unwrap();
+    std::fs::write(dir.join("0001.png"), b"other extension").unwrap();
+    std::fs::write(dir.join("0009.jpg"), b"dropped page").unwrap();
 
     let skipped = queue::enqueue(&lib, "a", chapters.clone(), false).unwrap();
     assert_eq!(skipped.on_disk.len(), 1);
@@ -55,6 +57,8 @@ async fn a_forced_download_rewrites_every_page_even_an_emptied_one() {
         std::fs::read(dir.join("0003.jpg")).unwrap(),
         b"https://cdn/3"
     );
+    assert!(!dir.join("0001.png").exists(), "stale extension removed");
+    assert!(!dir.join("0009.jpg").exists(), "dropped page removed");
     let job = queue::list(&lib).unwrap().remove(0);
     assert_eq!(
         (job.state, job.pages_done, job.pages_total),
@@ -80,4 +84,26 @@ async fn without_force_a_chapter_on_disk_is_left_alone() {
 
     assert!(fetcher.fetched.lock().unwrap().is_empty());
     assert_eq!(std::fs::read(dir.join("0001.jpg")).unwrap(), b"old");
+}
+
+#[test]
+fn a_forced_request_restarts_a_running_job_in_place_with_force() {
+    let run = queue::Job {
+        id: 1,
+        state: JobState::Running,
+        owner: Some("me".into()),
+        created_at: 5,
+        ..queue::Job::default()
+    };
+    let fresh = queue::Job {
+        force: true,
+        ..queue::Job::default()
+    };
+    let again = queue::enqueue_job(Some(&run), fresh.clone(), 1_000).unwrap();
+    assert_eq!(
+        (again.state, again.force, again.owner, again.created_at),
+        (JobState::Queued, true, None, 5)
+    );
+    let forced = queue::Job { force: true, ..run };
+    assert!(queue::enqueue_job(Some(&forced), fresh, 1_000).is_none());
 }

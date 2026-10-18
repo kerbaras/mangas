@@ -31,6 +31,10 @@ describe("DownloadRow progress", () => {
     expect(screen.queryByText(/pages\/s/)).toBeNull();
   });
 
+  it("keeps the busy pulse on a starting row", () => {
+    expect(bar(makeJob({ state: "running" }))).toContain("animate-pulse");
+  });
+
   it("animates a row that is receiving pages", () => {
     const job = makeJob({ state: "running", pages_done: 4, pages_total: 20 });
     expect(bar(job, 3.4)).toContain("transition");

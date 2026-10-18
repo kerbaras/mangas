@@ -75,7 +75,7 @@ function Detail({ job, speed }: { job: DownloadJob; speed: number | null }) {
         <Progress
           value={job.pages_done}
           max={job.pages_total}
-          animated={moving && job.pages_total > 0}
+          animated={moving}
           className="flex-1"
         />
         <span className="w-24 shrink-0 text-right text-caption text-ink-3 tabular-nums">

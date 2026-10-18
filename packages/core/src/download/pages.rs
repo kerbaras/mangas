@@ -63,7 +63,8 @@ pub enum OnDisk {
     /// Resume: a page already on disk is not fetched again.
     #[default]
     Keep,
-    /// Download again: every page is fetched and overwrites its file.
+    /// Download again: every page is fetched and overwrites its file; page images it did not
+    /// write are removed once the chapter is complete.
     Replace,
 }
 
@@ -128,7 +129,25 @@ pub async fn download_pages_with(
     if missing > 0 {
         return Err(missing_on_disk(missing, total));
     }
+    if on_disk == OnDisk::Replace {
+        remove_stale_pages(dest, urls)?;
+    }
     Ok(total)
+}
+
+/// After a full re-download, drops the page images it did not write (another extension, a
+/// page the source no longer has) so an export never picks up an old or duplicate page.
+fn remove_stale_pages(dest: &Path, urls: &PageUrls) -> Result<()> {
+    let wanted: HashSet<String> = plan(urls, &HashSet::new())
+        .into_iter()
+        .map(|job| job.file_name)
+        .collect();
+    for name in existing_files(dest)? {
+        if is_image(&name) && !wanted.contains(&name) {
+            std::fs::remove_file(dest.join(name))?;
+        }
+    }
+    Ok(())
 }
 
 /// Writes to `<name>.part` first so an interrupted download never leaves a truncated page
