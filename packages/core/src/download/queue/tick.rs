@@ -36,7 +36,8 @@ impl Default for QueueConfig {
 pub struct TickInput<'a> {
     pub owner: &'a str,
     pub now: i64,
-    /// Jobs this worker is downloading, with their `(pages done, total)` once known.
+    /// Jobs this worker is downloading or just finished, with their `(pages done, total)` once
+    /// known.
     pub in_flight: &'a HashMap<JobId, Option<(usize, usize)>>,
     /// Jobs whose task ended since the last step: `None` for success.
     pub finished: &'a [(JobId, Option<Failure>)],
@@ -90,6 +91,8 @@ pub fn plan_tick(jobs: Vec<Job>, input: &TickInput<'_>) -> TickPlan {
 fn step(job: &Job, input: &TickInput<'_>) -> Option<Job> {
     let (owner, now) = (input.owner, input.now);
     if let Some((_, outcome)) = input.finished.iter().find(|(id, _)| *id == job.id) {
+        // A chapter can finish between two heartbeats: keep its last page count.
+        let job = &heartbeat(job, input.in_flight.get(&job.id).copied().flatten(), now);
         return match outcome {
             None => finish(job, owner, now),
             Some(failure) => fail(job, owner, failure, &input.config.retry, now),

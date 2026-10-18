@@ -88,6 +88,10 @@ impl Queue {
             }
             match self.step(&scope, &tasks, &progress, &finished) {
                 Ok((plan, status)) => {
+                    // The step recorded their last page counts.
+                    if let Ok(mut p) = progress.lock() {
+                        finished.iter().for_each(|(id, _)| drop(p.remove(id)));
+                    }
                     finished.clear();
                     for job in plan.claimed {
                         // Paused and resumed since the last step: the old run must be gone
@@ -131,6 +135,7 @@ impl Queue {
         let pages = progress.lock().map(|p| p.clone()).unwrap_or_default();
         let in_flight = tasks
             .keys()
+            .chain(finished.iter().map(|(id, _)| id))
             .map(|id| (*id, pages.get(id).copied()))
             .collect();
         let input = TickInput {
@@ -191,9 +196,6 @@ impl Queue {
                     job.id,
                     job.chapter_id
                 );
-            }
-            if let Ok(mut p) = progress.lock() {
-                p.remove(&job.id);
             }
             let _ = tx.send((job.id, run, outcome.as_ref().map(classify)));
         })
