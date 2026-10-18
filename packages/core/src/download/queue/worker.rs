@@ -2,8 +2,7 @@
 //! claimed jobs as tasks, stops the ones paused or cancelled from anywhere, and reports changes.
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use tokio::sync::{mpsc, Notify};
 use tokio::task::JoinHandle;
@@ -12,19 +11,15 @@ use super::events::{diff, gate_event, QueueEvent};
 use super::job::{GateStatus, Job, JobId};
 use super::lease::{new_owner, Clock};
 use super::ops::now_ms;
-use super::retry::{classify, Failure};
+use super::retry::Failure;
 use super::runner::JobRunner;
 use super::schedule::{is_settled, Scope};
+use super::task::{Outcome, Progress, Task};
 use super::tick::{plan_tick, QueueConfig, TickInput, TickPlan};
 use super::transitions::is_run_by;
 use crate::domain::Result;
-use crate::download::Event;
 use crate::library::{self, Library};
 
-type Progress = Arc<Mutex<HashMap<JobId, (usize, usize)>>>;
-/// A task's result, tagged with the run it belongs to: a job paused and resumed between two
-/// ticks is claimed again while its old task is still winding down.
-type Outcome = (JobId, u64, Option<Failure>);
 type Tasks = HashMap<JobId, (u64, bool, JoinHandle<()>)>;
 
 /// Sink for queue events; called from the worker loop only.
@@ -35,7 +30,7 @@ pub struct Queue {
     runner: Arc<dyn JobRunner>,
     config: QueueConfig,
     owner: String,
-    wake: Notify,
+    wake: Arc<Notify>,
     clock: Clock,
 }
 
@@ -46,7 +41,7 @@ impl Queue {
             runner,
             config,
             owner: new_owner(),
-            wake: Notify::new(),
+            wake: Arc::default(),
             clock: Arc::new(now_ms),
         }
     }
@@ -102,7 +97,13 @@ impl Queue {
                             let _ = old.await;
                         }
                         runs += 1;
-                        let handle = self.spawn(job.clone(), runs, tx.clone(), progress.clone());
+                        let task = Task {
+                            lib: self.lib.clone(),
+                            runner: self.runner.clone(),
+                            progress: progress.clone(),
+                            wake: self.wake.clone(),
+                        };
+                        let handle = task.spawn(job.clone(), runs, tx.clone());
                         tasks.insert(job.id, (runs, job.force, handle));
                     }
                     self.stop_lost(&plan.jobs, &mut tasks, &progress);
@@ -168,32 +169,5 @@ impl Queue {
             }
             ours
         });
-    }
-
-    fn spawn(
-        &self,
-        job: Job,
-        run: u64,
-        tx: mpsc::UnboundedSender<Outcome>,
-        progress: Progress,
-    ) -> JoinHandle<()> {
-        let (lib, runner) = (self.lib.clone(), self.runner.clone());
-        tokio::spawn(async move {
-            let done = AtomicUsize::new(0);
-            let on_event = |event: Event| {
-                if let Event::PageDone { total, .. } = event {
-                    let count = done.fetch_add(1, Ordering::Relaxed) + 1;
-                    if let Ok(mut p) = progress.lock() {
-                        p.insert(job.id, (count.min(total), total));
-                    }
-                }
-            };
-            let outcome = runner.run(&lib, &job, &on_event).await.err();
-            if let Some(e) = &outcome {
-                let (id, chapter) = (job.id, &job.chapter_id);
-                log::warn!("download {id} (chapter {chapter}) failed: {e}");
-            }
-            let _ = tx.send((job.id, run, outcome.as_ref().map(classify)));
-        })
     }
 }
