@@ -1,15 +1,18 @@
 //! Kindle export: device profiles, e-ink filters and the export pipeline.
 
+mod cover;
 mod export;
 pub mod filters;
 mod input;
 pub mod process;
+mod request;
 
 use serde::{Deserialize, Serialize};
 
-pub use export::{export, ExportRequest, ExportStats, Progress};
+pub use export::export;
 pub use input::{chapter_files, chapter_images, decode, ChapterFiles};
 pub use process::{process_page, EncodedPage, ImageSettings};
+pub use request::{BookMeta, ExportRequest, ExportStats, Progress};
 
 /// Screen of a target e-reader in pixels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

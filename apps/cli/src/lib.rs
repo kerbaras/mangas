@@ -45,6 +45,8 @@ enum Command {
     Import(commands::import::Args),
     /// Export downloaded chapters as a Kindle-ready EPUB
     Kindle(commands::kindle::Args),
+    /// Export a followed manga's downloaded chapters as volume EPUBs (TOC, series, cover)
+    Export(commands::export::Args),
     /// List the providers and whether they are ready to use
     Providers(commands::providers::Args),
     /// Show or change app settings shared with the desktop app
@@ -86,6 +88,7 @@ async fn dispatch(command: Command) -> anyhow::Result<()> {
         Command::Update(args) => commands::update::run(args).await,
         Command::Import(args) => commands::import::run(args),
         Command::Kindle(args) => commands::kindle::run(args).await,
+        Command::Export(args) => commands::export::run(args).await,
         Command::Providers(args) => commands::providers::run(args).await,
         Command::Settings(args) => commands::settings::run(args),
         Command::Storage(args) => commands::storage::run(args),

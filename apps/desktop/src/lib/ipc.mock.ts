@@ -20,6 +20,7 @@ import { emitJob, simulatedQueue } from "./mock-queue-sim";
 import { mockSearch } from "./mock-search";
 import { mockStorage } from "./mock-storage";
 import { mockUpdates } from "./mock-updates";
+import { mockVolumes } from "./mock-volumes";
 
 const DATA_DIR = "~/.local/share/mangas";
 let settings: Settings = {
@@ -186,6 +187,14 @@ export const mockBackend: Backend = {
   }),
   ...mockLibrary(library, chaptersOf),
   ...simulatedQueue(),
+  ...mockVolumes({
+    manga: (source, id) =>
+      library.get(`${source}:${id}`) ??
+      sampleCatalog.find((m) => m.source === source && m.id === id),
+    chapters: chaptersOf,
+    cached: () => chapterCache.values(),
+    listeners: exportListeners,
+  }),
   ...mockUpdates(library, chaptersOf, () => settings.update_notifications !== false),
   onExportProgress: (cb) => subscribe(exportListeners, cb),
 };

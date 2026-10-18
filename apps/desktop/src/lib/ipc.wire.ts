@@ -13,7 +13,8 @@ export type KindleProgress =
 /** Payload of the `kindle-progress` event (outer tag = "event"). */
 export type KindleEvent =
   | { event: "model_download"; id: string; done: number; total: number | null }
-  | ({ event: "export" } & KindleProgress);
+  | ({ event: "export" } & KindleProgress)
+  | { event: "volume"; index: number; total: number; title: string };
 
 /** Mirrors `mangas_core::export::kindle::ExportStats`. */
 export type ExportStats = {
@@ -55,6 +56,9 @@ export type ExportKindleArgs = {
 export const toExportProgress = (e: KindleEvent): ExportProgress => {
   if (e.event === "model_download") {
     return { stage: `Downloading detector ${e.id}`, current: e.done, total: e.total };
+  }
+  if (e.event === "volume") {
+    return { stage: `Book ${e.index + 1} of ${e.total}: ${e.title}`, current: 0, total: null };
   }
   switch (e.kind) {
     case "chapter":

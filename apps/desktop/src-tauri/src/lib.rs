@@ -56,6 +56,8 @@ pub fn run() {
             commands::import::import_local,
             commands::kindle::export_kindle,
             commands::kindle::detectors_status,
+            commands::volumes::plan_volumes,
+            commands::volumes::export_volumes,
             commands::diagnostics::diagnostics,
             commands::diagnostics::open_logs,
             commands::diagnostics::log_ui_error,

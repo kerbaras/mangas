@@ -2,6 +2,7 @@
 //! full-bleed image, pre-paginated rendition metadata that Kindle Previewer / Send to Kindle
 //! accept as a comic.
 
+mod nav;
 mod xml;
 
 use std::ffi::OsString;
@@ -29,18 +30,31 @@ pub struct ChapterEntry {
     pub first_page: usize,
 }
 
+/// The series a book belongs to and its place in it (the volume number), when known.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Series {
+    pub name: String,
+    pub position: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Book {
     pub id: String,
     pub title: String,
-    pub author: String,
+    pub authors: Vec<String>,
     pub language: String,
+    pub series: Option<Series>,
     pub right_to_left: bool,
     pub device_width: u32,
     pub device_height: u32,
     pub chapters: Vec<ChapterEntry>,
     pub pages: Vec<PageImage>,
+    /// A separate cover page shown first; without one the first page is the cover image.
+    pub cover: Option<PageImage>,
 }
+
+pub(crate) const COVER_XHTML: &str = "cover.xhtml";
+pub(crate) const COVER_IMAGE: &str = "cover.jpg";
 
 pub(crate) struct PageEntry {
     pub index: usize,
@@ -143,7 +157,15 @@ fn write_zip(book: &Book, file: File) -> Result<()> {
     zip.start_file("OEBPS/content.opf", deflated).map_err(z)?;
     zip.write_all(xml::content_opf(book, &pages, &modified).as_bytes())?;
     zip.start_file("OEBPS/nav.xhtml", deflated).map_err(z)?;
-    zip.write_all(xml::nav_xhtml(book, &pages).as_bytes())?;
+    zip.write_all(nav::nav_xhtml(book, &pages).as_bytes())?;
+    if let Some(cover) = &book.cover {
+        zip.start_file(format!("OEBPS/text/{COVER_XHTML}"), deflated)
+            .map_err(z)?;
+        zip.write_all(xml::cover_xhtml(&book.title, cover).as_bytes())?;
+        zip.start_file(format!("OEBPS/images/{COVER_IMAGE}"), stored)
+            .map_err(z)?;
+        zip.write_all(&cover.jpeg)?;
+    }
     for (entry, page) in pages.iter().zip(&book.pages) {
         zip.start_file(format!("OEBPS/text/{}", entry.xhtml_name), deflated)
             .map_err(z)?;

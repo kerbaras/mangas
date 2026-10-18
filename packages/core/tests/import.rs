@@ -119,6 +119,7 @@ fn imports_a_series_folder_and_exports_it() {
         cut: Preset::Balanced.options(),
         title: report.manga.title.clone(),
         output: out.clone(),
+        meta: Default::default(),
     };
     let stats = export(&req, None, &mut |_| {}).unwrap();
     assert_eq!(stats.pages, 6);

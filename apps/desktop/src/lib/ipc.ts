@@ -9,6 +9,7 @@ import type { LibraryBackend } from "./ipc.library";
 import type { Settings } from "./ipc.settings";
 import type { StorageBackend } from "./ipc.storage";
 import type { UpdatesBackend } from "./ipc.updates";
+import type { VolumesBackend } from "./ipc.volumes";
 
 export type { ProviderSession, Settings } from "./ipc.settings";
 
@@ -139,7 +140,8 @@ export type Backend = DiagnosticsBackend &
   DownloadsBackend &
   LibraryBackend &
   StorageBackend &
-  UpdatesBackend & {
+  UpdatesBackend &
+  VolumesBackend & {
     listLibrary(): Promise<Manga[]>;
     listDevices(): Promise<Device[]>;
     getSettings(): Promise<Settings>;

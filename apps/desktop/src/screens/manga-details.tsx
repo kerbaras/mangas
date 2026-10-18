@@ -13,6 +13,7 @@ import { ScreenHeader } from "@/components/screen-header";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { VolumeExportButton } from "@/components/volume-export-button";
 import { useAsync } from "@/hooks/use-async";
 import { useChapterDownload } from "@/hooks/use-chapter-download";
 import { useChapterSelection } from "@/hooks/use-chapter-selection";
@@ -146,6 +147,11 @@ export function MangaDetailsScreen({ manga: card }: Props) {
           >
             <Send /> Send to Kindle
           </Button>
+          <VolumeExportButton
+            manga={{ source, id, title: manga.title }}
+            chapters={toExport}
+            onExported={chapters.reload}
+          />
           {toExport.length > 0 && (
             <Button size="sm" onClick={() => void download(toExport, true)}>
               <RotateCcw /> Download again
