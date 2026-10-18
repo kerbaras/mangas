@@ -3,6 +3,7 @@ import {
   chapterLabel,
   downloadable,
   exportable,
+  exportTargets,
   isUnavailable,
   selectableIds,
   selectionSummary,
@@ -80,6 +81,15 @@ describe("downloadable / exportable", () => {
     expect(selectionSummary(chapters, new Set())).toBe("No chapters selected");
     expect(selectionSummary(chapters, selected)).toBe("2 selected, 1 to download");
     expect(selectionSummary(chapters, new Set(["c1"]))).toBe("1 selected, all downloaded");
+  });
+
+  it("exports the selection, even rows another tab hides, else everything on screen", () => {
+    const es = ch("4", { language: "es", local_path: "/d/4" });
+    const all = [...chapters, es];
+    const ids = (cs: Chapter[]) => cs.map((c) => c.id);
+    expect(ids(exportTargets(all, chapters, new Set(["c4es"])))).toEqual(["c4es"]);
+    expect(ids(exportTargets(all, chapters, new Set(["c2"])))).toEqual([]);
+    expect(ids(exportTargets(all, chapters, new Set()))).toEqual(["c1"]);
   });
 });
 

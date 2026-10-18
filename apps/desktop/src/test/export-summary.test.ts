@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { exportSummary, notifyExported } from "@/lib/export-summary";
+import { combineResults, exportSummary, notifyExported } from "@/lib/export-summary";
 import { toExportResult } from "@/lib/ipc.wire";
 
 const toast = vi.hoisted(() => ({ success: vi.fn(), warning: vi.fn(), error: vi.fn() }));
@@ -26,6 +26,14 @@ describe("exportSummary", () => {
     expect(exportSummary({ ...result, skipped: 1 }).warning).toBe(
       "1 unsupported file skipped — see logs",
     );
+  });
+});
+
+describe("combineResults", () => {
+  it("adds up pages and skipped files across books", () => {
+    const books = [result, { output: "/books/Solo v2.epub", pages: 10, skipped: 2 }];
+    expect(combineResults(books)).toEqual({ output: "2 books", pages: 40, skipped: 2 });
+    expect(exportSummary(combineResults(books)).warning).toMatch(/2 unsupported files skipped/);
   });
 });
 

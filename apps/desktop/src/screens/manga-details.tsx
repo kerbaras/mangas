@@ -1,4 +1,4 @@
-import { Download, RotateCcw, Send } from "lucide-react";
+import { Download, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ChallengePrompt } from "@/components/challenge-prompt";
@@ -6,6 +6,7 @@ import { ChaptersTable } from "@/components/chapters-table";
 import { Cover } from "@/components/cover";
 import { DescriptionSkeleton } from "@/components/description-skeleton";
 import { ErrorAlert } from "@/components/error-alert";
+import { ExportButton } from "@/components/export-button";
 import { LibraryControls } from "@/components/library-controls";
 import { MangaMeta } from "@/components/manga-meta";
 import { NoChapters } from "@/components/no-chapters";
@@ -13,7 +14,6 @@ import { ScreenHeader } from "@/components/screen-header";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { VolumeExportButton } from "@/components/volume-export-button";
 import { useAsync } from "@/hooks/use-async";
 import { useChapterDownload } from "@/hooks/use-chapter-download";
 import { useChapterSelection } from "@/hooks/use-chapter-selection";
@@ -23,6 +23,7 @@ import { useMangaDetails } from "@/hooks/use-manga-details";
 import {
   chapterSummary,
   exportable,
+  exportTargets,
   filterByLanguage,
   isUnavailable,
   languagesOf,
@@ -34,7 +35,6 @@ import {
 import { languageLabel } from "@/lib/format";
 import { isChallenge, type Manga } from "@/lib/ipc";
 import { loadChapters } from "@/lib/load-chapters";
-import { useNavigation } from "@/lib/navigation";
 import { notifyError } from "@/lib/notify";
 
 type Props = { manga: Manga };
@@ -42,7 +42,6 @@ type Props = { manga: Manga };
 export function MangaDetailsScreen({ manga: card }: Props) {
   const { source, id } = card;
   const { manga, loading, reload: reloadManga } = useMangaDetails(card);
-  const nav = useNavigation();
   const refreshToast = `refresh-${source}:${id}`;
   const mounted = useRef(true);
   useEffect(() => {
@@ -140,16 +139,9 @@ export function MangaDetailsScreen({ manga: card }: Props) {
         )}
         <span className="text-caption text-ink-3">{selectionSummary(all, selected, visible)}</span>
         <div className="ml-auto flex gap-2">
-          <Button
-            size="sm"
-            disabled={toExport.length === 0}
-            onClick={() => nav.go({ screen: "kindle", chapterIds: toExport.map((c) => c.id) })}
-          >
-            <Send /> Export
-          </Button>
-          <VolumeExportButton
-            manga={{ source, id, title: manga.title }}
-            chapters={toExport}
+          <ExportButton
+            manga={manga}
+            chapters={exportTargets(all, visible, selected)}
             onExported={chapters.reload}
           />
           {toExport.length > 0 && (

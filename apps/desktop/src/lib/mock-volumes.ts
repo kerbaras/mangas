@@ -1,3 +1,4 @@
+import { withExtension } from "./export-plan";
 import type { Chapter, ExportProgress, Manga } from "./ipc";
 import type { VolumesBackend } from "./ipc.volumes";
 import { simulateExport } from "./mock-export";
@@ -33,9 +34,15 @@ export function mockVolumes(deps: Deps): VolumesBackend {
         await simulateExport(deps.listeners, Math.max(1, book.chapters.length * 2));
         const dirs = book.chapters.flatMap((c) => (c.local_path ? [c.local_path] : []));
         markExported(deps.cached(), dirs);
-        results.push(mockExportResult(`${r.outputDir}/${book.file_name}`, book.chapters.length));
+        results.push(
+          mockExportResult(
+            `${r.outputDir}/${withExtension(book.file_name, r.format)}`,
+            book.chapters.length,
+          ),
+        );
       }
       return results;
     },
+    freeExportNames: async (_dir, names) => names,
   };
 }

@@ -189,6 +189,42 @@ Every registered provider goes through the same contract suite
    JSON object, stored under `Settings.provider_options[id]`). `mangas providers options <id>
    --set key=value` then edits them with no CLI code per provider.
 
+## Desktop export flow
+
+The desktop app has one export flow: the export dialog (`components/export-dialog.tsx`).
+
+- **Entry points.** In Details, "Export" opens the dialog on the selected downloaded chapters,
+  or on every downloaded chapter of the series (in the language shown) when nothing is selected.
+  The Export rail screen is a thin wrapper around the same dialog: pick downloaded chapters
+  from across the library, then "Export". That screen also keeps the export history
+  ("Recent exports"), where books written earlier can be sent again.
+- **What to write.** Bundle mode: one file per chapter, by volume, every N chapters, or one
+  book. One file per chapter is the planner's `per_chapter` grouping: each book is named after
+  its chapter with `chapter_tag` (`<series> ch 12`, `<series> S2 Ep. 0`), not numbered. Title
+  applies when the choice makes one book. The preview lists the files the backend planned
+  (`plan_volumes`). For one series the dialog calls `export_volumes`, so every book gets the
+  series cover, a TOC and the metadata. Chapters from several series can only be one book,
+  which `export_chapters` writes.
+- **How.** Device profile and format (EPUB/CBZ/PDF), stored as the defaults. `export_volumes`
+  resolves the format like the CLI: explicit, else the stored default, else the profile's.
+  Smart cut (`SmartCutSection`): the cut preset and the detectors switch. Per-series smart-cut
+  options go in the same section. The switch is enabled only when the build has detector
+  support (`detectors_status().available`); when it is on, the models are downloaded on first use.
+- **Where.** Output folder (default `<data dir>/kindle`), then delivery: save to folder, copy to
+  the Kindle over USB, or email to Kindle (EPUB/PDF only, needs the mail settings). Delivery runs
+  after the files are written, one book at a time. A copy that finds the file already on the
+  device reports "Already on Kindle", and every delivery is recorded in the export history.
+  When a later book fails, the lines of the books that did go stay next to the error and the
+  history is refreshed. Changing the bundle, title, profile, format, folder or delivery clears
+  the last result.
+- **File names.** The writer never replaces a file: a taken name gets ` (2)`, ` (3)`…
+  (`claim_free_file`). The preview shows the same names before writing: `free_export_names`
+  lists the output folder and runs the planned names through `resolve_free_names`, which tries
+  the same candidates in the same order as the writer.
+- **Names.** Internally this is "export": Tauri `export_chapters`, `export_volumes`, the
+  `export-progress` event, and the `export` route. "Kindle" is used only for the Kindle-specific
+  parts: the `export::kindle` page pipeline, Send to Kindle, and the `mangas kindle` CLI command.
+
 ## Coding rules (also in AGENTS.md)
 
 - Files under 200 lines; never over 400. Split by responsibility, one concern per module.

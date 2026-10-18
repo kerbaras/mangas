@@ -25,6 +25,8 @@ pub enum Grouping {
     ByVolume,
     /// Consecutive books of this many chapters, numbered from 1.
     Every(usize),
+    /// One book per chapter, named after it (`ch 12`, `S2 Ep. 0`) rather than numbered.
+    PerChapter,
     /// Everything in one book.
     Single,
 }

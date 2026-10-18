@@ -170,14 +170,14 @@ export const mockBackend: Backend = {
     chapterCache.set(`${report.manga.source}:${report.manga.id}`, chapters);
     return report;
   },
-  async exportKindle(request) {
+  async exportChapters(request) {
     await simulateExport(exportListeners, Math.max(1, request.chapter_dirs.length * 6));
     markExported(chapterCache.values(), request.chapter_dirs);
     return mockExportResult(request.output, request.chapter_dirs.length);
   },
   async detectorsStatus() {
     await wait(120);
-    return { available: true, downloaded: true, provider: "cpu" };
+    return { available: !mockFlags.noDetectors, downloaded: true, provider: "cpu" };
   },
   ...mockDiagnostics(DATA_DIR, providers, () => settings),
   async openFolder() {},

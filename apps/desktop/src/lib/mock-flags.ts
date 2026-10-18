@@ -14,6 +14,7 @@ export const mockFlags = {
   emptyLibrary: params.has("empty"),
   offline: params.has("offline"),
   skipped: params.has("skipped"),
+  noDetectors: params.has("no-detectors"),
   down: (params.get("down") ?? "").split(",").filter(Boolean),
   settingsFail: params.has("settings-fail"),
   held: params.has("held"),

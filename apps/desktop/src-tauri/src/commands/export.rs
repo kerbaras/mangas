@@ -11,7 +11,7 @@ use super::{open_library, settings_of, to_ipc};
 use crate::paths;
 
 /// Event name for export progress; payload is [`ExportEvent`].
-pub const KINDLE_EVENT: &str = "kindle-progress";
+pub const EXPORT_EVENT: &str = "export-progress";
 
 #[derive(Clone, serde::Serialize)]
 #[serde(tag = "event", rename_all = "snake_case")]
@@ -31,15 +31,15 @@ pub(super) enum ExportEvent {
 }
 
 pub(super) fn emit(app: &AppHandle, event: ExportEvent) {
-    if let Err(e) = app.emit(KINDLE_EVENT, event) {
-        log::warn!("emit {KINDLE_EVENT}: {e}");
+    if let Err(e) = app.emit(EXPORT_EVENT, event) {
+        log::warn!("emit {EXPORT_EVENT}: {e}");
     }
 }
 
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 #[allow(clippy::too_many_arguments)] // Tauri maps each IPC argument to a parameter.
-pub async fn export_kindle(
+pub async fn export_chapters(
     app: AppHandle,
     chapter_dirs: Vec<PathBuf>,
     device: String,
@@ -102,7 +102,7 @@ pub(super) async fn penalizer(
     Ok(Some(p))
 }
 
-/// Marks the chapters exported and adds the book to the export history. The EPUB is written
+/// Marks the chapters exported and adds the book to the export history. The file is written
 /// either way; a library that can't record it only loses the marks.
 pub(super) fn record_export(stats: &ExportStats, dirs: &[PathBuf], title: &str, device: &str) {
     let recorded = open_library().and_then(|lib| {

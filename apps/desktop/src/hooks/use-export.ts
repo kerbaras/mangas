@@ -1,21 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { notifyExported } from "@/lib/export-summary";
+import { combineResults, notifyExported } from "@/lib/export-summary";
 import { errorMessage } from "@/lib/format";
-import {
-  type ExportProgress,
-  type ExportRequest,
-  type ExportResult,
-  exportKindle,
-  onExportProgress,
-} from "@/lib/ipc";
+import { type ExportProgress, type ExportResult, onExportProgress } from "@/lib/ipc";
 import { notifyError } from "@/lib/notify";
 
 export type ExportState =
   | { kind: "idle" }
   | { kind: "running"; progress: ExportProgress | null }
-  | { kind: "done"; result: ExportResult }
+  | { kind: "done"; results: ExportResult[] }
   | { kind: "error"; message: string };
 
+/** Sums the books of an export into the one-line toast a single book shows. */
+/** Runs one export job (one or more books) and follows its progress events. */
 export function useExport() {
   const [state, setState] = useState<ExportState>({ kind: "idle" });
   const running = useRef(false);
@@ -35,16 +31,19 @@ export function useExport() {
     };
   }, []);
 
-  const run = useCallback(async (request: ExportRequest) => {
+  /** Resolves to the written books, or null when the export failed. */
+  const run = useCallback(async (job: () => Promise<ExportResult[]>) => {
     running.current = true;
     setState({ kind: "running", progress: null });
     try {
-      const result = await exportKindle(request);
-      setState({ kind: "done", result });
-      notifyExported(result);
+      const results = await job();
+      setState({ kind: "done", results });
+      notifyExported(combineResults(results));
+      return results;
     } catch (e) {
       setState({ kind: "error", message: errorMessage(e) });
       notifyError("Export failed", e, { id: "export" });
+      return null;
     } finally {
       running.current = false;
     }

@@ -17,10 +17,12 @@ export const tauriVolumes: VolumesBackend = {
     const stats = await invoke<ExportStats[]>("export_volumes", {
       ...planArgs(r),
       device: r.device,
+      format: r.format,
       preset: r.preset,
       detectors: r.detectors,
       outputDir: r.outputDir,
     });
     return stats.map(toExportResult);
   },
+  freeExportNames: (dir, names) => invoke("free_export_names", { dir, names }),
 };

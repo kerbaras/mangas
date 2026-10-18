@@ -4,12 +4,13 @@ use std::path::PathBuf;
 
 use mangas_core::export::kindle::{self, ExportStats, Progress};
 use mangas_core::export::volume::{self, Grouping, VolumePlan};
+use mangas_core::export::Format;
 use mangas_core::smartcut::Preset;
 use tauri::AppHandle;
 
 use super::covers::cover_file;
-use super::kindle::{emit, penalizer, record_export, ExportEvent};
-use super::{open_library, to_ipc};
+use super::export::{emit, penalizer, record_export, ExportEvent};
+use super::{open_library, settings_of, to_ipc};
 
 fn plans(
     source: &str,
@@ -37,6 +38,14 @@ pub fn plan_volumes(
     Ok(plans(&source, &manga_id, &chapter_ids, grouping, title.as_deref())?.1)
 }
 
+/// The names `names` would be written under in `dir` now (` (2)`, ` (3)`… for taken ones), so
+/// the export dialog previews the files the export really writes.
+#[tauri::command]
+#[tracing::instrument(level = "error", skip_all)]
+pub fn free_export_names(dir: PathBuf, names: Vec<String>) -> Result<Vec<String>, String> {
+    mangas_core::export::free_names_in(&dir, &names).map_err(to_ipc)
+}
+
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 #[allow(clippy::too_many_arguments)]
@@ -48,12 +57,15 @@ pub async fn export_volumes(
     grouping: Grouping,
     title: Option<String>,
     device: String,
+    format: Option<Format>,
     preset: Preset,
     detectors: bool,
     output_dir: PathBuf,
 ) -> Result<Vec<ExportStats>, String> {
     let dev =
         kindle::device(&device).ok_or_else(|| to_ipc(format!("unknown device '{device}'")))?;
+    let stored = settings_of(&open_library()?)?.default_format;
+    let format = Format::resolve(format, None, stored, &dev).map_err(to_ipc)?;
     let (src, plans) = plans(&source, &manga_id, &chapter_ids, grouping, title.as_deref())?;
     if plans.is_empty() {
         return Err(to_ipc("none of these chapters is downloaded"));
@@ -78,7 +90,8 @@ pub async fn export_volumes(
             preset.options(),
             &output_dir,
             cover.clone(),
-        );
+        )
+        .with_format(format);
         let (handle, penalizer) = (app.clone(), penalizer.clone());
         let (stats, dirs) = tauri::async_runtime::spawn_blocking(move || {
             let mut on_progress = |p: Progress| emit(&handle, ExportEvent::Export(p));

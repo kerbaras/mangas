@@ -4,7 +4,7 @@ import { Progress } from "@/components/ui/progress";
 import type { ExportState } from "@/hooks/use-export";
 import { revealFolder } from "@/lib/dialogs";
 import { parentDir } from "@/lib/export-name";
-import { exportSummary } from "@/lib/export-summary";
+import { combineResults, exportSummary } from "@/lib/export-summary";
 
 export function ExportProgressPanel({
   state,
@@ -44,8 +44,11 @@ export function ExportProgressPanel({
       </div>
     );
   }
-  const { output, pages } = state.result;
-  const { warning } = exportSummary(state.result);
+  const { results } = state;
+  const [first] = results;
+  const { pages } = combineResults(results);
+  const { warning } = exportSummary(combineResults(results));
+  const folder = first ? parentDir(first.output) : "";
   return (
     <div
       className="flex items-center justify-between gap-3 rounded-md border border-stroke bg-surface p-3"
@@ -53,14 +56,16 @@ export function ExportProgressPanel({
     >
       <div className="min-w-0">
         <p className="text-body font-medium">
-          Exported {pages} {pages === 1 ? "page" : "pages"}
+          {results.length === 1
+            ? `Exported ${pages} ${pages === 1 ? "page" : "pages"}`
+            : `Wrote ${results.length} books`}
         </p>
-        <p className="truncate text-caption text-ink-3" title={output}>
-          {output}
+        <p className="truncate text-caption text-ink-3" title={first?.output}>
+          {results.length === 1 ? first.output : folder}
         </p>
         {warning && <p className="text-caption text-accent">{warning}</p>}
       </div>
-      <Button size="sm" onClick={() => revealFolder(parentDir(output))}>
+      <Button size="sm" onClick={() => revealFolder(folder)}>
         <FolderOpen /> Open folder
       </Button>
     </div>

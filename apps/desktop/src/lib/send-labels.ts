@@ -1,9 +1,9 @@
 /** Words for Send to Kindle states and history rows. Pure. */
 import type { ExportRecord } from "./ipc.send";
 
-/** The EPUB's file name without folders or extension: the title a delivery records. */
+/** The book's file name without folders or extension: the title a delivery records. */
 export const titleOf = (file: string): string =>
-  (file.split(/[\\/]/).pop() ?? file).replace(/\.epub$/i, "");
+  (file.split(/[\\/]/).pop() ?? file).replace(/\.(epub|cbz|pdf)$/i, "");
 
 export const fileName = (path: string): string => path.split(/[\\/]/).pop() ?? path;
 

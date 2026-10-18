@@ -162,7 +162,7 @@ export type Backend = DiagnosticsBackend &
     /** Imports chapter folders / .cbz files (or one series folder) as a `local` manga. */
     importLocal(paths: string[], title?: string): Promise<ImportReport>;
     /** Resolves to the EPUB written, its page count and the files skipped as unsupported. */
-    exportKindle(request: ExportRequest): Promise<ExportResult>;
+    exportChapters(request: ExportRequest): Promise<ExportResult>;
     detectorsStatus(): Promise<DetectorsStatus>;
     onExportProgress(cb: (p: ExportProgress) => void): Promise<Unlisten>;
   };
@@ -213,7 +213,7 @@ export const downloadChapters = async (s: string, mangaId: string, ids: string[]
   (await backend()).downloadChapters(s, mangaId, ids, force);
 export const importLocal = async (paths: string[], title?: string) =>
   (await backend()).importLocal(paths, title);
-export const exportKindle = async (r: ExportRequest) => (await backend()).exportKindle(r);
+export const exportChapters = async (r: ExportRequest) => (await backend()).exportChapters(r);
 export const detectorsStatus = async () => (await backend()).detectorsStatus();
 export const onExportProgress = async (cb: (p: ExportProgress) => void) =>
   (await backend()).onExportProgress(cb);
