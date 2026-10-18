@@ -29,6 +29,8 @@ let settings: Settings = {
   default_device: null,
   default_preset: null,
   provider_sessions: {},
+  preferred_languages: [],
+  provider_options: {},
 };
 
 const library = new Map(

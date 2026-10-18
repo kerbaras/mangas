@@ -54,14 +54,20 @@ pub struct Relationship {
 
 #[derive(Debug, Deserialize)]
 pub struct RelationshipAttributes {
+    /// `cover_art` file.
     #[serde(default, rename = "fileName")]
     pub file_name: Option<String>,
+    /// `scanlation_group` name.
+    #[serde(default)]
+    pub name: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct ChapterData {
     pub id: String,
     pub attributes: ChapterAttributes,
+    #[serde(default)]
+    pub relationships: Vec<Relationship>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -78,6 +84,12 @@ pub struct ChapterAttributes {
     pub external_url: Option<String>,
     #[serde(default, rename = "isUnavailable")]
     pub is_unavailable: bool,
+    /// Page count; 0 for chapters hosted elsewhere.
+    #[serde(default)]
+    pub pages: Option<u32>,
+    /// RFC 3339 in UTC (`2024-01-31T12:00:00+00:00`), so it compares as text.
+    #[serde(default, rename = "publishAt")]
+    pub publish_at: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -92,6 +104,8 @@ pub struct AtHomeChapter {
     pub hash: String,
     #[serde(default)]
     pub data: Vec<String>,
+    #[serde(default, rename = "dataSaver")]
+    pub data_saver: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]

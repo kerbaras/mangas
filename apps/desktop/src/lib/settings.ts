@@ -4,6 +4,7 @@
  */
 import { useCallback, useSyncExternalStore } from "react";
 import {
+  DEFAULT_LANGUAGE,
   defaultDataDir,
   getSettings,
   type Preset,
@@ -16,12 +17,17 @@ export type Settings = {
   dataDir: string;
   defaultDevice: string;
   defaultPreset: Preset;
+  /** Chapter languages in order of preference, never empty. */
+  preferredLanguages: string[];
+  providerOptions: Record<string, unknown>;
 };
 
 const DEFAULTS: Settings = {
   dataDir: "~/.local/share/mangas",
   defaultDevice: "kindle-paperwhite12",
   defaultPreset: DEFAULT_PRESET,
+  preferredLanguages: [DEFAULT_LANGUAGE],
+  providerOptions: {},
 };
 
 const listeners = new Set<() => void>();
@@ -31,6 +37,10 @@ const fromStored = (s: Stored, platformDataDir: string): Settings => ({
   dataDir: s.data_dir || platformDataDir,
   defaultDevice: s.default_device || DEFAULTS.defaultDevice,
   defaultPreset: isPreset(s.default_preset) ? s.default_preset : DEFAULTS.defaultPreset,
+  preferredLanguages: s.preferred_languages?.length
+    ? s.preferred_languages
+    : DEFAULTS.preferredLanguages,
+  providerOptions: s.provider_options ?? {},
 });
 
 /** Platform default; a `dataDir` equal to it is stored as `null` so the default can move. */
@@ -42,6 +52,8 @@ const toStored = (s: Settings): Stored => ({
   data_dir: s.dataDir === platformDataDir ? null : s.dataDir,
   default_device: s.defaultDevice,
   default_preset: s.defaultPreset,
+  preferred_languages: s.preferredLanguages,
+  provider_options: s.providerOptions,
 });
 
 const notify = () => {

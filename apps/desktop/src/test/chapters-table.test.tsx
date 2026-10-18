@@ -15,6 +15,7 @@ const chapters: Chapter[] = [1, 2, 3, 4].map((n) => ({
   volume: "1",
   number: String(n),
   local_path: n === 1 ? "/data/1" : null,
+  group: n === 2 ? "Asura Scans" : null,
 }));
 
 function Harness() {
@@ -61,5 +62,14 @@ describe("ChaptersTable selection", () => {
     await user.click(screen.getByLabelText("Select chapter 2"));
     expect(screen.getByLabelText("Select chapter 2")).toBeChecked();
     expect(screen.getByTestId("summary")).toHaveTextContent("1 selected, 1 to download");
+  });
+});
+
+describe("ChaptersTable columns", () => {
+  it("shows the scanlation group and language", () => {
+    render(<Harness />);
+    expect(screen.getByRole("columnheader", { name: "Group" })).toBeTruthy();
+    expect(screen.getByText("Asura Scans")).toBeTruthy();
+    expect(screen.getAllByText("English")).toHaveLength(4);
   });
 });

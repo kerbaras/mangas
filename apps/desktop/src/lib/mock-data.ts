@@ -141,6 +141,8 @@ const titles = [
   "Night of Miracles",
 ];
 
+const groups = ["Asura Scans", "Flame Comics", "Reaper Scans, Hive Toons"];
+
 /** Deterministic chapter list per manga: 24 chapters, 3 volumes, first few downloaded, a Spanish dup. */
 export function sampleChapters(manga: Manga, dataDir: string): Chapter[] {
   const seed = manga.id.charCodeAt(0) + manga.id.charCodeAt(1);
@@ -157,9 +159,16 @@ export function sampleChapters(manga: Manga, dataDir: string): Chapter[] {
       local_path: downloaded
         ? `${dataDir}/${manga.source}/${manga.id}/${String(n).padStart(3, "0")}`
         : null,
+      group: groups[(n + seed) % (n > 20 ? 1 : groups.length)],
     });
     if (n === 1)
-      chapters.push({ ...chapters[0], id: `${manga.id}-c1-es`, language: "es", local_path: null });
+      chapters.push({
+        ...chapters[0],
+        id: `${manga.id}-c1-es`,
+        language: "es",
+        local_path: null,
+        group: "Lector Scans",
+      });
   }
   return chapters;
 }

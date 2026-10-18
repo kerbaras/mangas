@@ -57,6 +57,7 @@ pub fn plan(manga_id: &MangaId, language: &str, entries: Vec<Entry>) -> Vec<Plan
                 volume: parsed.volume,
                 number: parsed.number.unwrap_or_default(),
                 local_path: None,
+                group: None,
             };
             Planned { entry, chapter }
         })

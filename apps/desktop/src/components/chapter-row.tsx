@@ -65,6 +65,9 @@ export function ChapterRow({ chapter, selected, progress, onToggle }: Props) {
       <td className="truncate pr-4 text-ink">
         {chapter.title ?? <span className="text-ink-3">Untitled</span>}
       </td>
+      <td className="w-40 truncate pr-4 text-ink-2" title={chapter.group ?? undefined}>
+        {chapter.group ?? <span className="text-ink-3">—</span>}
+      </td>
       <td className="w-28 text-ink-2">{languageLabel(chapter.language)}</td>
       <td className="w-44 pr-4">
         <DownloadedCell chapter={chapter} progress={progress} />

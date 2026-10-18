@@ -1,22 +1,20 @@
 //! Pure mapping from MangaDex wire types to domain types.
 
-use std::collections::HashSet;
-
-use super::api::{AtHome, ChapterData, Collection, Entity, ErrorBody, Localized, MangaData};
-use mangas_core::domain::{sort_by_number, Chapter, ChapterId, Error, Manga, MangaId, MangaStatus};
-use mangas_core::sources::PageUrls;
+use super::api::{ChapterData, Collection, Entity, ErrorBody, Localized, MangaData, Relationship};
+use super::dedupe::FeedChapter;
+use mangas_core::domain::{Chapter, ChapterId, Error, Manga, MangaId, MangaStatus};
 
 pub const SOURCE_NAME: &str = "mangadex";
 const COVER_BASE: &str = "https://uploads.mangadex.org/covers";
 
-fn source_error(message: impl Into<String>) -> Error {
+pub(super) fn source_error(message: impl Into<String>) -> Error {
     Error::Source {
         name: SOURCE_NAME.to_string(),
         message: message.into(),
     }
 }
 
-fn parse<T: serde::de::DeserializeOwned>(body: &str) -> Result<T, Error> {
+pub(super) fn parse<T: serde::de::DeserializeOwned>(body: &str) -> Result<T, Error> {
     serde_json::from_str(body).map_err(|e| source_error(format!("unexpected response: {e}")))
 }
 
@@ -34,12 +32,13 @@ pub fn parse_manga_response(body: &str) -> Result<Manga, Error> {
 
 /// One page of `GET /manga/{id}/feed`: the downloadable chapters plus the paging totals.
 pub struct FeedPage {
-    pub chapters: Vec<Chapter>,
+    pub chapters: Vec<FeedChapter>,
     pub next_offset: Option<u32>,
 }
 
 /// `GET /manga/{id}/feed` body -> chapters of `language` that MangaDex actually hosts.
-/// Externally hosted (`externalUrl`) and unavailable chapters are dropped.
+/// Externally hosted (`externalUrl`, e.g. MANGA Plus), unavailable and page-less chapters
+/// are dropped: they cannot be downloaded.
 pub fn parse_feed_response(
     body: &str,
     manga_id: &MangaId,
@@ -51,27 +50,15 @@ pub fn parse_feed_response(
         .iter()
         .filter(|c| c.attributes.translated_language == language)
         .filter(|c| is_hosted(c))
-        .map(|c| chapter_from_data(c, manga_id))
+        .map(|c| FeedChapter {
+            chapter: chapter_from_data(c, manga_id),
+            published_at: c.attributes.publish_at.clone(),
+        })
         .collect();
     Ok(FeedPage {
         chapters,
         next_offset: next_offset(col.limit, col.offset, col.total),
     })
-}
-
-/// `GET /at-home/server/{chapter}` body -> full-quality page URLs.
-pub fn parse_at_home_response(body: &str) -> Result<PageUrls, Error> {
-    let at_home: AtHome = parse(body)?;
-    let base = at_home.base_url.trim_end_matches('/');
-    let hash = at_home.chapter.hash;
-    Ok(PageUrls(
-        at_home
-            .chapter
-            .data
-            .iter()
-            .map(|file| format!("{base}/data/{hash}/{file}"))
-            .collect(),
-    ))
 }
 
 /// Error response body (`{"result":"error","errors":[..]}`) -> [`Error::Source`].
@@ -85,19 +72,8 @@ pub fn parse_error_response(status: u16, body: &str) -> Error {
     source_error(detail)
 }
 
-/// Keeps one chapter per number (the first in feed order) and sorts by number ascending.
-/// Chapters without a number (oneshots, extras) are all kept.
-pub fn dedupe_and_sort(chapters: Vec<Chapter>) -> Vec<Chapter> {
-    let mut seen = HashSet::new();
-    let unique = chapters
-        .into_iter()
-        .filter(|c| c.number.is_empty() || seen.insert(c.number.clone()))
-        .collect();
-    sort_by_number(unique)
-}
-
 pub fn cover_url(manga_id: &str, file_name: &str) -> String {
-    format!("{COVER_BASE}/{manga_id}/{file_name}.512.jpg")
+    format!("{COVER_BASE}/{manga_id}/{file_name}.256.jpg")
 }
 
 fn next_offset(limit: u32, offset: u32, total: u32) -> Option<u32> {
@@ -106,7 +82,8 @@ fn next_offset(limit: u32, offset: u32, total: u32) -> Option<u32> {
 }
 
 fn is_hosted(c: &ChapterData) -> bool {
-    !c.attributes.is_unavailable && c.attributes.external_url.is_none()
+    let a = &c.attributes;
+    !a.is_unavailable && a.external_url.is_none() && a.pages != Some(0)
 }
 
 fn manga_from_data(m: &MangaData) -> Manga {
@@ -145,7 +122,19 @@ fn chapter_from_data(c: &ChapterData, manga_id: &MangaId) -> Chapter {
         volume: attrs.volume.clone().filter(|v| !v.is_empty()),
         number: attrs.chapter.clone().unwrap_or_default(),
         local_path: None,
+        group: group_names(&c.relationships),
     }
+}
+
+/// Names of the `scanlation_group` relationships (needs `includes[]=scanlation_group`).
+fn group_names(relationships: &[Relationship]) -> Option<String> {
+    let names: Vec<&str> = relationships
+        .iter()
+        .filter(|r| r.kind == "scanlation_group")
+        .filter_map(|r| r.attributes.as_ref()?.name.as_deref())
+        .filter(|n| !n.is_empty())
+        .collect();
+    (!names.is_empty()).then(|| names.join(", "))
 }
 
 /// English first, then a romanised title, then whatever the source has.
