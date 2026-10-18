@@ -74,6 +74,10 @@ pub struct Job {
     pub owner: Option<String>,
     /// Unix ms of the owner's last sign of life.
     pub heartbeat_at: i64,
+    /// Running, but the owner's lease expired (its process died): reclaimed by the next worker
+    /// step. Set by [`super::list`] when the jobs are read, never stored.
+    #[serde(default)]
+    pub stale_lease: bool,
     pub created_at: i64,
     pub updated_at: i64,
     pub manga_title: String,
@@ -99,6 +103,7 @@ impl Default for Job {
             not_before: 0,
             owner: None,
             heartbeat_at: 0,
+            stale_lease: false,
             created_at: 0,
             updated_at: 0,
             manga_title: String::new(),

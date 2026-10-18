@@ -35,6 +35,15 @@ async fn run_with(
     let runner = QueueRunner::new(Box::new(|_| {
         paths::downloads().map_err(|e| Error::Other(e.to_string()))
     }));
+    // Chapters left running by a process that died go back to the queue, pages kept.
+    let orphans = queue::reclaim_orphans(&lib, queue::now_ms())?;
+    if !orphans.is_empty() {
+        // stderr: `run_quietly` callers print machine-readable stdout.
+        eprintln!(
+            "  resuming {} left running by a process that stopped",
+            super::plural(orphans.len(), "download", "downloads")
+        );
+    }
     let worker = Queue::new(lib, Arc::new(runner), QueueConfig::default());
     Ok(queue::run_until_settled(&worker, scope, on_event, on_hold).await?)
 }

@@ -77,6 +77,14 @@ fn start_downloads(app: &tauri::AppHandle) {
     let queue = paths::library_db()
         .and_then(|db| mangas_core::library::open(&db).map_err(|e| e.to_string()))
         .map(|lib| {
+            let now = mangas_core::download::queue::now_ms();
+            match mangas_core::download::queue::reclaim_orphans(&lib, now) {
+                Ok(back) if !back.is_empty() => {
+                    tracing::info!("{} orphaned download(s) queued again", back.len())
+                }
+                Ok(_) => {}
+                Err(e) => tracing::warn!("reclaim orphaned downloads: {e}"),
+            }
             let config = mangas_core::download::queue::QueueConfig::default();
             Arc::new(mangas_core::download::queue::Queue::new(
                 Arc::new(lib),

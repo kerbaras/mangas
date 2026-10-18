@@ -92,7 +92,7 @@ fn list(jobs: &[Job], gate: QueueGate) -> anyhow::Result<()> {
         outln!(
             "{:>5}  {:<9} {:>9}  {}{}",
             job.id,
-            job.state.as_str(),
+            state(job),
             pages(job),
             label(job),
             job.error
@@ -102,6 +102,14 @@ fn list(jobs: &[Job], gate: QueueGate) -> anyhow::Result<()> {
         )?;
     }
     Ok(())
+}
+
+/// The job's state, flagged when it runs under a dead process's lease.
+fn state(job: &Job) -> String {
+    match job.stale_lease {
+        true => format!("{} (stale lease)", job.state.as_str()),
+        false => job.state.as_str().to_string(),
+    }
 }
 
 fn pages(job: &Job) -> String {
@@ -130,4 +138,23 @@ async fn run_all(lib: Arc<library::Library>) -> anyhow::Result<()> {
         bail!("{failed} download(s) failed; `mangas queue retry --all` tries them again");
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_running_job_under_a_dead_lease_is_flagged() {
+        let job = Job {
+            state: JobState::Running,
+            ..Default::default()
+        };
+        assert_eq!(state(&job), "running");
+        let stale = Job {
+            stale_lease: true,
+            ..job
+        };
+        assert_eq!(state(&stale), "running (stale lease)");
+    }
 }

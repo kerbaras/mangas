@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use super::job::{Job, JobId};
+use super::lease::LEASE_MS;
 use super::retry::{Failure, RetryPolicy};
 use super::schedule::{pick, Limits, Scope};
 use super::transitions::{claim, fail, finish, heartbeat, is_run_by, recover};
@@ -15,7 +16,8 @@ pub struct QueueConfig {
     pub retry: RetryPolicy,
     /// Pause between two steps when nothing wakes the worker earlier.
     pub tick: Duration,
-    /// A running job whose heartbeat is older than this belongs to a process that is gone.
+    /// A running job whose heartbeat is older than this belongs to a process that is gone
+    /// ([`LEASE_MS`] by default; the worker renews every `tick`).
     pub stale_after_ms: i64,
 }
 
@@ -25,7 +27,7 @@ impl Default for QueueConfig {
             limits: Limits::default(),
             retry: RetryPolicy::default(),
             tick: Duration::from_millis(500),
-            stale_after_ms: 15_000,
+            stale_after_ms: LEASE_MS,
         }
     }
 }

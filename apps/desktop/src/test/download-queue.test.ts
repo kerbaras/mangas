@@ -14,6 +14,7 @@ const job = (patch: Partial<DownloadJob>): DownloadJob => ({
   not_before: 0,
   owner: null,
   heartbeat_at: 0,
+  stale_lease: false,
   created_at: 0,
   updated_at: 0,
   manga_title: "Kaiju",

@@ -86,3 +86,10 @@ fn chapter_key(job: &Job) -> (&str, &str, &str) {
     };
     (&job.source, &job.manga_id.0, name)
 }
+
+/// No job in `scope` is queued (retry backoff included) or running in any process.
+pub fn is_settled(jobs: &[Job], scope: &Scope) -> bool {
+    !jobs
+        .iter()
+        .any(|j| scope.contains(j.id) && matches!(j.state, JobState::Queued | JobState::Running))
+}

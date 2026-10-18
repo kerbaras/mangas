@@ -2,6 +2,7 @@
 //! not apply to the job's current state and nothing changes.
 
 use super::job::{Job, JobState};
+use super::lease::lease_expired;
 use super::retry::{backoff, Failure, RetryPolicy};
 use super::UNLISTED;
 
@@ -159,10 +160,11 @@ pub fn fail(
     })
 }
 
-/// A running job whose owner stopped beating `stale_after` ms ago (the process quit or
-/// crashed) goes back to the queue. The interrupted attempt does not count.
+/// A running job whose lease expired `stale_after` ms after its owner's last heartbeat (the
+/// process quit or crashed) goes back to the queue with its pages. The interrupted attempt
+/// does not count.
 pub fn recover(job: &Job, now: i64, stale_after: i64) -> Option<Job> {
-    (job.state == JobState::Running && now - job.heartbeat_at > stale_after).then(|| Job {
+    lease_expired(job, now, stale_after).then(|| Job {
         state: JobState::Queued,
         attempts: job.attempts.saturating_sub(1),
         owner: None,
