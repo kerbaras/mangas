@@ -50,15 +50,46 @@ pub fn normalize_group(name: Option<&str>) -> Option<String> {
 /// release beats an external one, then the earliest of `preferred` groups (case-insensitive),
 /// then whichever came first. Keeps the list order; chapters without a number are all kept.
 pub fn collapse_groups(chapters: Vec<Chapter>, preferred: &[String]) -> Vec<Chapter> {
-    let mut out: Vec<Chapter> = Vec::new();
+    // Each slot remembers the first volume any of its releases named, so a release without a
+    // volume never bridges two volumes.
+    let mut slots: Vec<(Chapter, Option<String>)> = Vec::new();
     for chapter in chapters {
-        match out.iter().position(|o| same_slot(o, &chapter)) {
-            Some(i) if rank(&chapter, preferred) < rank(&out[i], preferred) => out[i] = chapter,
-            Some(_) => {}
-            None => out.push(chapter),
+        let volume = volume_of(&chapter).map(String::from);
+        let slot = slots.iter().position(|(kept, v)| {
+            let compatible = match (v.as_deref(), volume.as_deref()) {
+                (Some(x), Some(y)) => x == y,
+                _ => true,
+            };
+            compatible
+                && same_slot(
+                    kept,
+                    &Chapter {
+                        volume: None,
+                        ..chapter.clone()
+                    },
+                )
+        });
+        match slot {
+            Some(i) => {
+                if slots[i].1.is_none() {
+                    slots[i].1 = volume;
+                }
+                if rank(&chapter, preferred) < rank(&slots[i].0, preferred) {
+                    slots[i].0 = chapter;
+                }
+            }
+            None => slots.push((chapter, volume)),
         }
     }
-    out
+    slots.into_iter().map(|(c, _)| c).collect()
+}
+
+/// Whether `chapter` adds nothing to `stored`: another release of a stored chapter, unless it
+/// is the first downloadable one.
+pub fn already_have(stored: &[Chapter], chapter: &Chapter) -> bool {
+    stored
+        .iter()
+        .any(|s| same_slot(s, chapter) && (s.is_available() || !chapter.is_available()))
 }
 
 /// Whether two chapters are releases of the same chapter: same language, same number (`1` is

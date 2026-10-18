@@ -124,3 +124,26 @@ fn collapse_keeps_chapters_of_restarted_volumes() {
         .collect();
     assert_eq!(ids, ["v1", "v2"]);
 }
+
+#[test]
+fn a_release_without_volume_never_bridges_two_volumes() {
+    use mangas_core::domain::collapse_groups;
+    let release = |id: &str, volume: Option<&str>, group: &str| Chapter {
+        id: ChapterId(id.into()),
+        number: "1".into(),
+        language: "en".into(),
+        volume: volume.map(String::from),
+        group: Some(group.into()),
+        ..Default::default()
+    };
+    let list = vec![
+        release("none-b", None, "B"),
+        release("v1", Some("1"), "A"),
+        release("v2", Some("2"), "A"),
+    ];
+    let ids: Vec<String> = collapse_groups(list, &["B".into()])
+        .into_iter()
+        .map(|c| c.id.0)
+        .collect();
+    assert_eq!(ids, ["none-b", "v2"]);
+}

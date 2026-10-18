@@ -130,7 +130,7 @@ export function ChapterRow({ chapter, selected, showSourceId, progress, onToggle
         {chapter.title ?? <span className="text-ink-3">Untitled</span>}
       </td>
       <td className="w-40 max-w-40 pr-4 text-ink-2" title={chapter.group ?? undefined}>
-        <div className="flex min-w-0 items-baseline">
+        <div className="flex min-w-0 items-baseline overflow-hidden">
           {chapter.group ? (
             <GroupName name={chapter.group} />
           ) : (

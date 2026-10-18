@@ -109,3 +109,20 @@ fn another_release_of_a_stored_chapter_is_not_new() {
     upsert_chapters(&lib, "mangadex", &id, "en", &listed).unwrap();
     assert_eq!(new_count(&lib), 1, "only chapter 3 is new");
 }
+
+#[test]
+fn the_first_downloadable_release_of_a_locked_chapter_is_new() {
+    let lib = open_in_memory().unwrap();
+    let id = follow(&lib, "a");
+    let mut first = chapters(&id, &["1"], "en");
+    first[0].availability = mangas_core::domain::Availability::Locked;
+    upsert_chapters(&lib, "mangadex", &id, "en", &first).unwrap();
+    let mut listed = first.clone();
+    listed.push(Chapter {
+        id: ChapterId("koi-1".into()),
+        availability: mangas_core::domain::Availability::Available,
+        ..first[0].clone()
+    });
+    upsert_chapters(&lib, "mangadex", &id, "en", &listed).unwrap();
+    assert_eq!(new_count(&lib), 1);
+}

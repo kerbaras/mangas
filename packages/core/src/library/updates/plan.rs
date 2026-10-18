@@ -3,7 +3,7 @@ use std::collections::{BTreeSet, HashSet};
 use serde::{Deserialize, Serialize};
 
 use super::UpdateReport;
-use crate::domain::{parse_number, same_slot, Chapter, Manga};
+use crate::domain::{already_have, parse_number, Chapter, Manga};
 use crate::library::{is_local, LibraryEntry, ReadingStatus};
 
 /// Which followed titles a check refreshes.
@@ -68,12 +68,7 @@ pub fn new_chapters(known: &Known, lists: &[(String, Vec<Chapter>)]) -> Vec<Chap
         .filter(|(lang, _)| known.languages.contains(lang))
         .flat_map(|(_, chapters)| chapters)
         .filter(|c| !known.chapter_ids.contains(&c.id.0))
-        .filter(|c| {
-            !known
-                .releases
-                .iter()
-                .any(|k| same_slot(k, c) && (k.is_available() || !c.is_available()))
-        })
+        .filter(|c| !already_have(&known.releases, c))
         .cloned()
         .collect()
 }

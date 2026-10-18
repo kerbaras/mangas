@@ -22,6 +22,7 @@ mod refresh;
 mod settings_merge;
 mod settings_repo;
 mod snapshot;
+mod stored_releases;
 mod sync;
 mod title_flags;
 pub mod updates;
