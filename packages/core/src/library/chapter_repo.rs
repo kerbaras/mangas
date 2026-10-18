@@ -2,7 +2,7 @@ use std::path::Path;
 
 use rusqlite::{params, Row};
 
-use super::Library;
+use super::{language_sync, Library};
 use crate::domain::{sort_by_number, Availability, Chapter, ChapterId, MangaId, Result};
 use crate::download::queue::{now_ms, UNLISTED};
 
@@ -37,13 +37,7 @@ pub fn upsert_chapters(
                     SELECT 1 FROM chapter c WHERE c.source = ?1 AND c.id = s.id))",
             params![source, manga_id.0],
         )?;
-        // A language synced before makes its unseen chapters new; a first sync is the baseline.
-        let seen_before: bool = tx.query_row(
-            "SELECT EXISTS (SELECT 1 FROM manga_language_sync
-                            WHERE source = ?1 AND manga_id = ?2 AND language = ?3)",
-            params![source, manga_id.0, language],
-            |r| r.get(0),
-        )?;
+        let seen_before = language_sync::synced_before(&tx, source, manga_id, language)?;
         let mut stmt = tx.prepare(
             "INSERT INTO chapter
                 (id, manga_id, source, title, language, volume, number, scanlation_group,
@@ -83,11 +77,7 @@ pub fn upsert_chapters(
                      AND id NOT IN (SELECT id FROM synced))",
             params![source, manga_id.0, language, UNLISTED, now_ms()],
         )?;
-        tx.execute(
-            "INSERT OR IGNORE INTO manga_language_sync (source, manga_id, language)
-             SELECT source, id, ?3 FROM manga WHERE source = ?1 AND id = ?2",
-            params![source, manga_id.0, language],
-        )?;
+        language_sync::record(&tx, source, manga_id, language)?;
         tx.execute(
             "DELETE FROM chapter
              WHERE source = ?1 AND manga_id = ?2 AND language = ?3 AND local_path IS NULL

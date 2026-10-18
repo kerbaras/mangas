@@ -18,7 +18,6 @@ import { useChapterSelection } from "@/hooks/use-chapter-selection";
 import { chapterFailed, useDownloads } from "@/hooks/use-downloads";
 import { useLibraryEntry } from "@/hooks/use-library-entry";
 import { useMangaDetails } from "@/hooks/use-manga-details";
-import { useMarkViewed } from "@/hooks/use-mark-viewed";
 import {
   chapterSummary,
   downloadable,
@@ -67,7 +66,6 @@ export function MangaDetailsScreen({ manga: card }: Props) {
   const refreshed = chapters.state.kind === "ready" ? chapters.state.data : null;
   const shelf = useLibraryEntry(source, id);
   const reloadShelf = shelf.reload;
-  useMarkViewed(source, id, shelf.entry !== null);
   useEffect(() => {
     if (refreshed) {
       reloadManga();

@@ -9,6 +9,7 @@ mod entries;
 mod gate_repo;
 pub mod import;
 mod job_repo;
+mod language_sync;
 mod languages;
 mod manga_repo;
 mod reading_status;
