@@ -17,6 +17,13 @@ export function exportSummary({ output, pages, skipped }: ExportResult) {
   };
 }
 
+/** Several books reported as one: pages and skipped files add up. */
+export const combineResults = (results: ExportResult[]): ExportResult => ({
+  output: results.length === 1 ? results[0].output : `${results.length} books`,
+  pages: results.reduce((n, r) => n + r.pages, 0),
+  skipped: results.reduce((n, r) => n + r.skipped, 0),
+});
+
 const openLogsOrSay = () =>
   openLogs().catch((e: unknown) => notifyError("Couldn't open the logs folder", e));
 

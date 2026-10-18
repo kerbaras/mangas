@@ -4,7 +4,7 @@ import { Progress } from "@/components/ui/progress";
 import type { ExportState } from "@/hooks/use-export";
 import { revealFolder } from "@/lib/dialogs";
 import { parentDir } from "@/lib/export-name";
-import { exportSummary } from "@/lib/export-summary";
+import { combineResults, exportSummary } from "@/lib/export-summary";
 
 export function ExportProgressPanel({
   state,
@@ -46,8 +46,8 @@ export function ExportProgressPanel({
   }
   const { results } = state;
   const [first] = results;
-  const pages = results.reduce((n, r) => n + r.pages, 0);
-  const warning = results.map((r) => exportSummary(r).warning).find(Boolean);
+  const { pages } = combineResults(results);
+  const { warning } = exportSummary(combineResults(results));
   const folder = first ? parentDir(first.output) : "";
   return (
     <div

@@ -141,7 +141,7 @@ export function MangaDetailsScreen({ manga: card }: Props) {
         <div className="ml-auto flex gap-2">
           <ExportButton
             manga={manga}
-            chapters={exportTargets(visible, selected)}
+            chapters={exportTargets(all, visible, selected)}
             onExported={chapters.reload}
           />
           {toExport.length > 0 && (

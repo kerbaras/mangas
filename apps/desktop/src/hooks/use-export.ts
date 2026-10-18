@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { notifyExported } from "@/lib/export-summary";
+import { combineResults, notifyExported } from "@/lib/export-summary";
 import { errorMessage } from "@/lib/format";
 import { type ExportProgress, type ExportResult, onExportProgress } from "@/lib/ipc";
 import { notifyError } from "@/lib/notify";
@@ -11,12 +11,6 @@ export type ExportState =
   | { kind: "error"; message: string };
 
 /** Sums the books of an export into the one-line toast a single book shows. */
-const combined = (results: ExportResult[]): ExportResult => ({
-  output: results.length === 1 ? results[0].output : `${results.length} books`,
-  pages: results.reduce((n, r) => n + r.pages, 0),
-  skipped: results.reduce((n, r) => n + r.skipped, 0),
-});
-
 /** Runs one export job (one or more books) and follows its progress events. */
 export function useExport() {
   const [state, setState] = useState<ExportState>({ kind: "idle" });
@@ -44,7 +38,7 @@ export function useExport() {
     try {
       const results = await job();
       setState({ kind: "done", results });
-      notifyExported(combined(results));
+      notifyExported(combineResults(results));
       return results;
     } catch (e) {
       setState({ kind: "error", message: errorMessage(e) });
