@@ -10,7 +10,7 @@ mod key;
 pub use cache::{CoverCache, Limits};
 pub use check::{decoded_extension, image_extension, looks_intact};
 pub use evict::{to_evict, Entry};
-pub use key::{file_name, file_stem, stored_len};
+pub use key::{content_tag, file_name, file_stem, stored_tag};
 
 use std::path::PathBuf;
 

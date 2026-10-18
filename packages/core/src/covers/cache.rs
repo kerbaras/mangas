@@ -7,7 +7,7 @@ use std::time::SystemTime;
 
 use super::check::{decoded_extension, looks_intact};
 use super::evict::{to_evict, Entry};
-use super::key::{file_name, file_stem, manga_prefix, stored_len};
+use super::key::{file_name, file_stem, manga_prefix, stored_tag};
 use crate::domain::{Error, Result};
 
 /// How much the cache may hold before the least recently used covers are deleted.
@@ -51,9 +51,9 @@ impl CoverCache {
         let prefix = format!("{}-", file_stem(source, manga_id, url));
         let name = self.names().into_iter().find(|n| n.starts_with(&prefix))?;
         let path = self.dir.join(&name);
-        let intact = stored_len(&name)
+        let intact = stored_tag(&name)
             .zip(fs::read(&path).ok())
-            .is_some_and(|(len, bytes)| looks_intact(&bytes, len));
+            .is_some_and(|(tag, bytes)| looks_intact(&bytes, tag));
         if !intact {
             let _ = fs::remove_file(&path);
             return None;
@@ -68,7 +68,7 @@ impl CoverCache {
         let ext = decoded_extension(bytes)
             .ok_or_else(|| Error::Other(format!("cover {url}: not a complete image")))?;
         fs::create_dir_all(&self.dir)?;
-        let name = file_name(&file_stem(source, manga_id, url), bytes.len(), ext);
+        let name = file_name(&file_stem(source, manga_id, url), bytes, ext);
         let path = self.dir.join(&name);
         let tmp = self.dir.join(format!(".{name}.{}.tmp", unique()));
         if let Err(e) = fs::write(&tmp, bytes).and_then(|()| fs::rename(&tmp, &path)) {
@@ -80,9 +80,18 @@ impl CoverCache {
         Ok(path)
     }
 
+    /// Removes this manga's covers written before `keep`. Ordering by (mtime, name) means two
+    /// concurrent writes never delete each other: the later one survives.
     fn remove_older(&self, prefix: &str, keep: &str) {
+        let written = |name: &str| {
+            fs::metadata(self.dir.join(name))
+                .and_then(|m| m.modified())
+                .ok()
+        };
+        let Some(ours) = written(keep) else { return };
         for name in self.names() {
-            if name.starts_with(prefix) && name != keep {
+            let older = written(&name).is_some_and(|t| (t, name.as_str()) < (ours, keep));
+            if name.starts_with(prefix) && older {
                 let _ = fs::remove_file(self.dir.join(name));
             }
         }

@@ -1,8 +1,8 @@
 //! Pure checks that a body is a whole, usable cover image.
 
-use std::io::Cursor;
+use image::ImageFormat;
 
-use image::{ImageFormat, ImageReader};
+use super::key::content_tag;
 
 /// File extension for an image body, from its magic bytes; `None` for anything that is not a
 /// supported image (an HTML error page served with a 200, say).
@@ -24,20 +24,15 @@ pub fn decoded_extension(bytes: &[u8]) -> Option<&'static str> {
     (image.width() > 0 && image.height() > 0 && !truncated_jpeg(ext, bytes)).then_some(ext)
 }
 
-/// Cheap check of a cached file before it is served: still the length it was stored with, and
-/// its header still describes a non-empty image.
-pub fn looks_intact(bytes: &[u8], stored_len: u64) -> bool {
-    bytes.len() as u64 == stored_len
-        && ImageReader::new(Cursor::new(bytes))
-            .with_guessed_format()
-            .ok()
-            .and_then(|r| r.into_dimensions().ok())
-            .is_some_and(|(w, h)| w > 0 && h > 0)
+/// Check of a cached file before it is served: its bytes are still the ones that were decoded
+/// and stored (same content digest), so any damage on disk is a miss.
+pub fn looks_intact(bytes: &[u8], stored_tag: &str) -> bool {
+    content_tag(bytes) == stored_tag
 }
 
-/// JPEG decoders fill a cut-off scan with grey instead of failing; a whole file ends with the
-/// end-of-image marker (allowing a little trailing padding).
+/// JPEG decoders fill a cut-off scan with grey instead of failing. In a whole file the last scan
+/// (start-of-scan marker) is followed by the end-of-image marker; trailing padding is fine.
 fn truncated_jpeg(ext: &str, bytes: &[u8]) -> bool {
-    let tail = &bytes[bytes.len().saturating_sub(64)..];
-    ext == "jpg" && !tail.windows(2).any(|w| w == [0xFF, 0xD9])
+    let last = |marker: [u8; 2]| bytes.windows(2).rposition(|w| w == marker);
+    ext == "jpg" && last([0xFF, 0xD9]) <= last([0xFF, 0xDA])
 }

@@ -76,8 +76,14 @@ async fn a_corrupt_file_on_disk_is_dropped_and_fetched_again() {
         .await
         .unwrap();
     let whole = std::fs::read(&path).unwrap();
-    // Cut short on disk, then overwritten in place with the same length.
-    let damage: [Vec<u8>; 2] = [whole[..whole.len() / 2].to_vec(), vec![0; whole.len()]];
+    // Cut short on disk, overwritten with the same length, and one byte flipped mid-body.
+    let mut flipped = whole.clone();
+    flipped[whole.len() / 2] ^= 0xFF;
+    let damage = [
+        whole[..whole.len() / 2].to_vec(),
+        vec![0; whole.len()],
+        flipped,
+    ];
     for (i, bad) in damage.iter().enumerate() {
         std::fs::write(&path, bad).unwrap();
         assert!(cache(dir.path()).lookup("comick", "m1", url).is_none());
@@ -87,4 +93,24 @@ async fn a_corrupt_file_on_disk_is_dropped_and_fetched_again() {
         assert_eq!(std::fs::read(&again).unwrap(), whole);
         assert_eq!(fetcher.calls.load(Ordering::SeqCst), i + 2);
     }
+}
+
+#[test]
+fn a_jpeg_with_trailing_padding_is_kept() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut padded = jpeg();
+    padded.extend([0u8; 200]);
+    assert!(cache(dir.path())
+        .store("comick", "m", "https://c/x", &padded)
+        .is_ok());
+}
+
+#[test]
+fn a_rewrite_of_the_same_url_leaves_only_the_latest_body() {
+    let dir = tempfile::tempdir().unwrap();
+    let c = cache(dir.path());
+    c.store("comick", "m", "https://c/x", &png()).unwrap();
+    let last = c.store("comick", "m", "https://c/x", &jpeg()).unwrap();
+    assert_eq!(files(dir.path()), 1);
+    assert_eq!(c.lookup("comick", "m", "https://c/x"), Some(last));
 }

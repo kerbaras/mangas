@@ -17,15 +17,21 @@ pub fn manga_prefix(source: &str, manga_id: &str) -> String {
     hex(format!("{source}\0{manga_id}").as_bytes())[..24].to_string()
 }
 
-/// `<stem>-<length>.<ext>`: the stored length lets a lookup spot a file cut short on disk.
-pub fn file_name(stem: &str, len: usize, ext: &str) -> String {
-    format!("{stem}-{len}.{ext}")
+/// `<stem>-<content>.<ext>`: a digest of the stored bytes lets a lookup spot a file that was cut
+/// short or overwritten on disk.
+pub fn file_name(stem: &str, bytes: &[u8], ext: &str) -> String {
+    format!("{stem}-{}.{ext}", content_tag(bytes))
 }
 
-/// Length a cover file was stored with, read back from its [`file_name`].
-pub fn stored_len(name: &str) -> Option<u64> {
+/// Short digest of a cover body, as recorded in its [`file_name`].
+pub fn content_tag(bytes: &[u8]) -> String {
+    hex(bytes)[..16].to_string()
+}
+
+/// Content digest a cover file was stored with, read back from its [`file_name`].
+pub fn stored_tag(name: &str) -> Option<&str> {
     let (base, _ext) = name.rsplit_once('.')?;
-    base.rsplit_once('-')?.1.parse().ok()
+    Some(base.rsplit_once('-')?.1)
 }
 
 fn hex(bytes: &[u8]) -> String {
@@ -40,9 +46,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_stored_length_reads_back_from_the_name() {
-        let name = file_name(&file_stem("comick", "m1", "https://c/a.jpg"), 4096, "jpg");
-        assert_eq!(stored_len(&name), Some(4096));
-        assert_eq!(stored_len("garbage"), None);
+    fn the_content_tag_reads_back_from_the_name() {
+        let name = file_name(
+            &file_stem("comick", "m1", "https://c/a.jpg"),
+            b"cover",
+            "jpg",
+        );
+        assert_eq!(stored_tag(&name), Some(content_tag(b"cover").as_str()));
+        assert_eq!(stored_tag("garbage"), None);
     }
 }
