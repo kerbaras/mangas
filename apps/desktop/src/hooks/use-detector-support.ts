@@ -48,6 +48,8 @@ export function useDetectorSupport(): DetectorSupport {
     let unlisten: (() => void) | undefined;
     try {
       unlisten = await onDetectorsProgress(setProgress);
+      // Cancel clicked while the listener was registering: never start.
+      if (cancelled.current) return;
       const next = await downloadDetectors();
       patch(() => next);
       storageChanged();

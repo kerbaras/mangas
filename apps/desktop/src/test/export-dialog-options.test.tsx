@@ -128,6 +128,32 @@ describe("export dialog: format, smart cut and delivery", () => {
     await waitFor(() => expect(downloadDetectors).toHaveBeenCalledOnce());
   });
 
+  it("never starts the download when Cancel is clicked before it begins", async () => {
+    const missing = detectorState({
+      downloaded: false,
+      runtime: { state: "not_downloaded", version: "1.28.3" },
+      downloadBytes: 1000,
+    });
+    let listen: () => void = () => {};
+    const downloadDetectors = vi.fn(async () => detectorState());
+    exportBackend(
+      {
+        downloadDetectors,
+        onDetectorsProgress: () =>
+          new Promise<() => void>((resolve) => {
+            listen = () => resolve(() => {});
+          }),
+      },
+      missing,
+    );
+    render(dialog());
+    fireEvent.click(await screen.findByRole("button", { name: /Download detector support/ }));
+    fireEvent.click((await screen.findAllByRole("button", { name: /Cancel/ }))[0]);
+    listen();
+    expect(await screen.findByRole("button", { name: /Download detector support/ })).toBeTruthy();
+    expect(downloadDetectors).not.toHaveBeenCalled();
+  });
+
   it("keeps exporting without detectors when the download fails, with Retry", async () => {
     const missing = detectorState({
       downloaded: false,
