@@ -12,20 +12,24 @@ const failed = (provider: string, reason: string): SearchGroup => ({
 
 /**
  * Searches each provider in its own call so groups show up as they answer instead of waiting
- * for the slowest; `retry(id)` reruns one. Every answer is recorded as that provider's status.
+ * for the slowest; `retry(id)` reruns one. Only the latest call per provider lands, and every
+ * answer is recorded as that provider's status.
  */
 export function useMultiSearch(query: string, ids: string[]) {
   const [groups, setGroups] = useState<Record<string, GroupState>>({});
   const generation = useRef(0);
+  const latest = useRef<Record<string, number>>({});
   const key = ids.join(",");
 
   const searchOne = useCallback((q: string, id: string, gen: number) => {
+    const token = (latest.current[id] ?? 0) + 1;
+    latest.current[id] = token;
     setGroups((g) => ({ ...g, [id]: { kind: "searching" } }));
     searchAll(q, [id])
       .then((list) => list.find((g) => g.provider === id) ?? failed(id, "provider is disabled"))
       .catch((e: unknown) => failed(id, errorMessage(e)))
       .then((group) => {
-        if (generation.current !== gen) return;
+        if (generation.current !== gen || latest.current[id] !== token) return;
         recordStatus(id, group.status);
         setGroups((g) => ({ ...g, [id]: { kind: "done", group } }));
       });

@@ -9,6 +9,7 @@ import { type ProviderStatus, providerStatus } from "./ipc";
 export type Checked = { status: ProviderStatus; checkedAt: number };
 
 let checks: Record<string, Checked> = {};
+const probes: Record<string, number> = {};
 const listeners = new Set<() => void>();
 const notify = () => {
   for (const l of listeners) l();
@@ -26,13 +27,18 @@ export function forgetStatus(id: string) {
   notify();
 }
 
-/** Probes `id` and records the answer; a failed probe counts as unreachable. */
+/**
+ * Probes `id` and records the answer unless a newer probe started meanwhile; a failed probe
+ * counts as unreachable.
+ */
 export async function checkStatus(id: string): Promise<ProviderStatus> {
+  const probe = (probes[id] ?? 0) + 1;
+  probes[id] = probe;
   forgetStatus(id);
   const status = await providerStatus(id).catch(
     (e: unknown): ProviderStatus => ({ state: "unreachable", reason: errorMessage(e) }),
   );
-  recordStatus(id, status);
+  if (probes[id] === probe) recordStatus(id, status);
   return status;
 }
 
@@ -40,6 +46,6 @@ const subscribe = (l: () => void) => {
   listeners.add(l);
   return () => listeners.delete(l);
 };
-const read = () => checks;
+export const readChecks = () => checks;
 
-export const useProviderChecks = () => useSyncExternalStore(subscribe, read, read);
+export const useProviderChecks = () => useSyncExternalStore(subscribe, readChecks, readChecks);

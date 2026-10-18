@@ -40,10 +40,14 @@ export function SearchGroupView({
   const items = group?.status.state === "ready" ? group.items : [];
   const more = items.length - shown(items, filtered).length;
   const connect = () =>
-    void connectThen(p.name, () => {
-      forgetStatus(p.id);
-      onRetry();
-    });
+    void connectThen(
+      p.id,
+      () => {
+        forgetStatus(p.id);
+        onRetry();
+      },
+      p.name,
+    );
   return (
     <section aria-label={p.name} className="flex flex-col gap-1">
       <header className="flex h-8 items-center gap-2 px-2">

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { languageLabel } from "@/lib/format";
 import type { ProviderInfo } from "@/lib/ipc";
-import { toggled, withLanguages } from "@/lib/provider-prefs";
+import { offersLanguagePick, toggled, withLanguages } from "@/lib/provider-prefs";
 import { useSettings } from "@/lib/settings";
 
 const keepOpen = (e: Event) => e.preventDefault();
@@ -21,6 +21,7 @@ export function ProviderLanguages({ provider: p }: { provider: ProviderInfo }) {
   const own = (settings.providerLanguages[p.id] ?? []).filter((l) => p.languages.includes(l));
   const set = (list: string[]) =>
     update({ providerLanguages: withLanguages(settings, p.id, list) });
+  if (!offersLanguagePick(p.languages, settings.preferredLanguages)) return null;
   const label = own.length ? own.map((l) => l.toUpperCase()).join(", ") : "App languages";
   return (
     <DropdownMenu>

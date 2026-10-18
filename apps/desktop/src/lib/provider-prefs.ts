@@ -14,6 +14,13 @@ export const languagesFor = (s: Prefs, id: string) => {
   return own?.length ? own : s.preferredLanguages;
 };
 
+/**
+ * Whether a provider needs its own language pick: it offers several, or none of the app-wide
+ * languages (an English-only site while the app reads Spanish).
+ */
+export const offersLanguagePick = (offered: string[], appWide: string[]) =>
+  offered.length > 1 || (offered.length === 1 && !appWide.includes(offered[0]));
+
 /** Enabled providers that can search, in registry order. */
 export const searchable = (providers: ProviderInfo[], s: Pick<Prefs, "providersEnabled">) =>
   providers.filter((p) => p.capabilities.includes("search") && isEnabled(s, p.id));

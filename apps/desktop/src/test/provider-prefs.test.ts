@@ -3,6 +3,7 @@ import type { ProviderInfo } from "@/lib/ipc";
 import {
   isEnabled,
   languagesFor,
+  offersLanguagePick,
   searchable,
   withEnabled,
   withLanguages,
@@ -65,5 +66,16 @@ describe("status labels", () => {
     expect(ago(now - 5 * 60_000, now)).toBe("5 min ago");
     expect(ago(now - 3 * 3_600_000, now)).toBe("3 h ago");
     expect(ago(now + 1_000, now)).toBe("just now");
+  });
+});
+
+describe("offersLanguagePick", () => {
+  it("offers a pick for multi-language providers", () => {
+    expect(offersLanguagePick(["en", "es"], ["en"])).toBe(true);
+  });
+
+  it("offers it to a single-language provider only when the app languages miss it", () => {
+    expect(offersLanguagePick(["en"], ["en", "ja"])).toBe(false);
+    expect(offersLanguagePick(["en"], ["es"])).toBe(true);
   });
 });

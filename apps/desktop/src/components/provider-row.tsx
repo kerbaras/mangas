@@ -54,7 +54,7 @@ export function ProviderRow({
           {detail}
         </p>
       </div>
-      {p.languages.length > 1 && <ProviderLanguages provider={p} />}
+      <ProviderLanguages provider={p} />
       {p.needs_browser_session && session && (
         <Button size="sm" variant="ghost" onClick={on.onDisconnect} disabled={connecting}>
           <Link2Off /> Disconnect
