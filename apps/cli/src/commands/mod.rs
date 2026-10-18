@@ -31,3 +31,8 @@ pub fn stored_settings() -> Settings {
         .and_then(|lib| Ok(library::get_settings(&lib)?))
         .unwrap_or_default()
 }
+
+/// `1 title`, `2 titles`; `many` covers irregular plurals.
+pub(crate) fn plural(n: usize, one: &str, many: &str) -> String {
+    format!("{n} {}", if n == 1 { one } else { many })
+}

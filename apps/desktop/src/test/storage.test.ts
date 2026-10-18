@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { StorageUsage } from "@/lib/ipc.storage";
-import { formatBytes, restoreSummary, share, usageSegments } from "@/lib/storage";
+import { formatBytes, plural, restoreSummary, share, usageSegments } from "@/lib/storage";
 
 describe("storage helpers", () => {
   it("formats sizes like the CLI", () => {
@@ -30,6 +30,12 @@ describe("storage helpers", () => {
     ]);
     expect(share(600, 1000)).toBe(60);
     expect(share(1, 0)).toBe(0);
+  });
+
+  it("pluralises counts", () => {
+    expect(plural(1, "imported title was", "imported titles were")).toBe("1 imported title was");
+    expect(plural(2, "imported title was", "imported titles were")).toBe("2 imported titles were");
+    expect(plural(1, "title")).toBe("1 title");
   });
 
   it("summarises an import", () => {

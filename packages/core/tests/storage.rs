@@ -276,3 +276,28 @@ fn deleting_keeps_chapters_recorded_as_links() {
     assert_eq!((deleted.chapters, deleted.kept.len()), (0, 1));
     assert!(manga.join("real.cbz").exists() && manga.join("real/001.jpg").exists());
 }
+
+#[test]
+fn usage_counts_archives_saved_beside_chapters() {
+    let tmp = tempfile::tempdir().unwrap();
+    let f = folders(tmp.path());
+    let lib = open_in_memory().unwrap();
+    downloaded(
+        &lib,
+        &f.data_dir,
+        "mangadex",
+        "a",
+        &[("2", 100), ("2.5", 10)],
+    );
+    let manga = f.chapters().join("mangadex/a");
+    write(&manga.join("2.cbz"), 60);
+    write(&manga.join("2.5.cbz"), 5);
+    let u = usage(&lib, &f).unwrap();
+    assert_eq!(u.titles[0].bytes, 175);
+    assert_eq!(
+        delete_downloads(&lib, &f.chapters(), "mangadex", "a")
+            .unwrap()
+            .bytes,
+        175
+    );
+}

@@ -2,6 +2,7 @@ use std::path::Path;
 
 use serde::Serialize;
 
+use super::siblings::chapter_files;
 use super::tree::dir_size;
 use super::Folders;
 use crate::domain::Result;
@@ -55,12 +56,15 @@ pub fn group_by_title(chapters: &[(DownloadedChapter, u64)]) -> Vec<TitleUsage> 
     titles
 }
 
-/// Measures every app folder and each title's recorded chapter folders.
+/// Measures every app folder and each title's recorded chapter folders with the archives
+/// saved beside them.
 pub fn usage(lib: &Library, folders: &Folders) -> Result<Usage> {
     let chapters: Vec<_> = downloaded_chapters(lib, None)?
         .into_iter()
         .map(|c| {
-            let bytes = dir_size(Path::new(&c.path));
+            let dir = Path::new(&c.path);
+            let beside: u64 = chapter_files(dir).iter().map(|(_, b)| b).sum();
+            let bytes = dir_size(dir) + beside;
             (c, bytes)
         })
         .collect();

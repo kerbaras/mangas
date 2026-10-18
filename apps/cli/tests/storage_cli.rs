@@ -48,7 +48,7 @@ fn backup_round_trips_through_a_haruneko_bookmark_list() {
         home.path(),
         &["backup", "import", bookmarks.to_str().unwrap()],
     ));
-    assert!(imported.contains("Followed 1 new titles"), "{imported}");
+    assert!(imported.contains("Followed 1 new title ("), "{imported}");
     assert!(stdout(&mangas(home.path(), &["list"])).contains("One"));
 
     let file = home.path().join("backup.json");
@@ -56,7 +56,7 @@ fn backup_round_trips_through_a_haruneko_bookmark_list() {
         home.path(),
         &["backup", "export", file.to_str().unwrap()],
     ));
-    assert!(exported.contains("Exported 1 titles"), "{exported}");
+    assert!(exported.contains("Exported 1 title to"), "{exported}");
     let json = std::fs::read_to_string(&file).unwrap();
     assert!(
         json.contains("\"format\": \"mangas-backup\"") && json.contains("uuid-1"),

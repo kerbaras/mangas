@@ -28,7 +28,7 @@ export const usageSegments = (u: StorageUsage): Segment[] => [
 /** Percentage of `total`, 0 when there's nothing to share. */
 export const share = (bytes: number, total: number) => (total > 0 ? (bytes / total) * 100 : 0);
 
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /** One sentence per outcome of a backup import, for the toast. */
 export function restoreSummary(r: Restored): string {

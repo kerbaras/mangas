@@ -11,7 +11,7 @@ import { pickFolder } from "@/lib/dialogs";
 import { type MoveProgress, moveDataDir, onMoveProgress } from "@/lib/ipc.storage";
 import { notifyError } from "@/lib/notify";
 import { loadSettings, useSettings } from "@/lib/settings";
-import { formatBytes } from "@/lib/storage";
+import { formatBytes, plural } from "@/lib/storage";
 
 /** The data folder, moved (copy, verify, switch) rather than edited, so chapters follow it. */
 export function DataFolderField({ onMoved }: { onMoved: () => void }) {
@@ -37,7 +37,7 @@ export function DataFolderField({ onMoved }: { onMoved: () => void }) {
         ? ` Couldn't delete ${moved.leftovers.join(", ")}; delete it by hand.`
         : "";
       toast.success("Data folder moved", {
-        description: `${moved.files} files (${formatBytes(moved.bytes)}) now live in ${moved.data_dir}.${left}`,
+        description: `${plural(moved.files, "file")} (${formatBytes(moved.bytes)}) now live in ${moved.data_dir}.${left}`,
       });
     } catch (e: unknown) {
       notifyError("Couldn't move the data folder", e);

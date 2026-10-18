@@ -3,9 +3,10 @@ use std::path::Path;
 
 use serde::Serialize;
 
+use super::siblings::chapter_files;
 use super::tree::dir_size;
 use crate::domain::{Error, Result};
-use crate::download::{cbz_path, safe_component};
+use crate::download::safe_component;
 use crate::library::{downloaded_chapters, forget_download, is_local, Library};
 
 /// What deleting a title's downloads freed, and the folders it left alone.
@@ -65,10 +66,9 @@ pub fn delete_downloads(
             deleted.bytes += dir_size(&path);
             fs::remove_dir_all(&path)?;
         }
-        let cbz = cbz_path(&path);
-        if let Ok(meta) = fs::symlink_metadata(&cbz) {
-            deleted.bytes += meta.len();
-            fs::remove_file(&cbz)?;
+        for (file, bytes) in chapter_files(&path) {
+            deleted.bytes += bytes;
+            fs::remove_file(&file)?;
         }
         forget_download(lib, source, &chapter.chapter_id)?;
         deleted.chapters += 1;

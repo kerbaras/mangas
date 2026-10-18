@@ -25,11 +25,15 @@ pub fn run(args: Args) -> anyhow::Result<()> {
     match args.command {
         Command::Export { file } => {
             let summary = backup::export_to(&lib, &file, env!("CARGO_PKG_VERSION"))?;
-            outln!("Exported {} titles to {}", summary.titles, file.display())?;
+            outln!(
+                "Exported {} to {}",
+                super::plural(summary.titles, "title", "titles"),
+                file.display()
+            )?;
             if summary.skipped_local > 0 {
                 outln!(
-                    "Left out {} imported titles: their files aren't part of a backup",
-                    summary.skipped_local
+                    "Left out {}: their files aren't part of a backup",
+                    super::plural(summary.skipped_local, "imported title", "imported titles")
                 )?;
             }
         }
@@ -37,8 +41,8 @@ pub fn run(args: Args) -> anyhow::Result<()> {
             let known: Vec<_> = mangas_providers::providers().iter().map(|p| p.id).collect();
             let report = backup::import_from(&lib, &file, &known)?;
             outln!(
-                "Followed {} new titles ({} already in your library)",
-                report.added,
+                "Followed {} ({} already in your library)",
+                super::plural(report.added, "new title", "new titles"),
                 report.already
             )?;
             if report.settings {

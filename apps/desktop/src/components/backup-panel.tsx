@@ -6,7 +6,7 @@ import { pickBackupFile, pickBackupTarget } from "@/lib/dialogs";
 import { exportBackup, importBackup } from "@/lib/ipc.storage";
 import { notifyError } from "@/lib/notify";
 import { loadSettings } from "@/lib/settings";
-import { restoreSummary } from "@/lib/storage";
+import { plural, restoreSummary } from "@/lib/storage";
 
 /** Settings → Backup: export the library to a JSON file, or merge one back in. */
 export function BackupPanel() {
@@ -16,10 +16,10 @@ export function BackupPanel() {
     try {
       const summary = await exportBackup(path);
       const local = summary.skipped_local
-        ? ` ${summary.skipped_local} imported titles were left out: their files aren't part of a backup.`
+        ? ` ${plural(summary.skipped_local, "imported title was", "imported titles were")} left out: their files aren't part of a backup.`
         : "";
       toast.success("Backup saved", {
-        description: `${summary.titles} titles in ${path}.${local}`,
+        description: `${plural(summary.titles, "title")} in ${path}.${local}`,
       });
     } catch (e: unknown) {
       notifyError("Couldn't save the backup", e);

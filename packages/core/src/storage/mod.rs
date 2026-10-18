@@ -6,6 +6,7 @@ mod delete;
 mod layout;
 mod move_dir;
 mod relocate;
+mod siblings;
 mod size;
 mod tree;
 mod usage;

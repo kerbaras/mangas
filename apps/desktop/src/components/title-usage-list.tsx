@@ -8,7 +8,7 @@ import { useForgetDownloads } from "@/hooks/use-downloads";
 import { downloadContext } from "@/lib/download-labels";
 import { deleteDownloads, type TitleUsage } from "@/lib/ipc.storage";
 import { notifyError } from "@/lib/notify";
-import { chaptersLabel, formatBytes } from "@/lib/storage";
+import { chaptersLabel, formatBytes, plural } from "@/lib/storage";
 
 type Props = { titles: TitleUsage[]; onChange: () => void };
 
@@ -32,7 +32,7 @@ export function TitleUsageList({ titles, onChange }: Props) {
       toast.success(`Deleted the downloads of ${t.title}`, {
         description: `${chaptersLabel(deleted.chapters)}, ${formatBytes(deleted.bytes)} freed.${
           deleted.kept.length
-            ? ` ${deleted.kept.length} folders outside the data folder were left alone.`
+            ? ` ${plural(deleted.kept.length, "folder outside the data folder was", "folders outside the data folder were")} left alone.`
             : ""
         }`,
       });

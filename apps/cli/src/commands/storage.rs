@@ -48,8 +48,8 @@ pub fn run(args: Args) -> anyhow::Result<()> {
         Command::Delete { id, source } => {
             let deleted = storage::delete_downloads(&lib, &folders.chapters(), &source, &id)?;
             outln!(
-                "Deleted {} chapters of {id} ({}); the title stays in your library",
-                deleted.chapters,
+                "Deleted {} of {id} ({}); the title stays in your library",
+                super::plural(deleted.chapters, "chapter", "chapters"),
                 human_size(deleted.bytes)
             )?;
             for path in deleted.kept {
@@ -76,8 +76,8 @@ pub fn run(args: Args) -> anyhow::Result<()> {
         Command::Move { dir } => {
             let moved = storage::move_data_dir(&lib, &folders.data_dir, &dir, &mut |_| {})?;
             outln!(
-                "Moved {} files ({}) to {}",
-                moved.files,
+                "Moved {} ({}) to {}",
+                super::plural(moved.files, "file", "files"),
                 human_size(moved.bytes),
                 moved.data_dir
             )?;
