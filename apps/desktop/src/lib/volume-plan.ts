@@ -5,6 +5,7 @@
 import { sortChapters } from "./chapters";
 import type { Chapter } from "./ipc";
 import type { Grouping, VolumePlan } from "./ipc.volumes";
+import { seasonTag } from "./season-tag";
 
 const volumeOf = (c: Chapter) => c.volume?.trim() || null;
 const num = (s: string) => Number.parseFloat(s);
@@ -47,11 +48,14 @@ const portable = (title: string) =>
       .trim() || "Manga"
   }.epub`;
 
+const tag = (c: Chapter) => seasonTag(c) ?? `ch ${c.number}`;
+
 function bookTitle(series: string, number: string | null, chapters: Chapter[]) {
   if (number !== null) return `${series} v${number}`;
-  const first = chapters[0].number;
-  const last = chapters[chapters.length - 1].number;
-  return first === last ? `${series} c${first}` : `${series} c${first}-${last}`;
+  const [first, last] = [chapters[0], chapters[chapters.length - 1]];
+  if (tag(first) === tag(last)) return `${series} ${tag(first)}`;
+  if (seasonTag(first) || seasonTag(last)) return `${series} ${tag(first)} - ${tag(last)}`;
+  return `${series} ch ${first.number}-${last.number}`;
 }
 
 export function mockPlan(series: string, chapters: Chapter[], grouping: Grouping, title?: string) {

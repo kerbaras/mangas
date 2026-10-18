@@ -1,36 +1,45 @@
 //! Book titles and file names from a template.
 
 use super::Volume;
+use crate::domain::{chapter_tag, season_tag, Chapter};
 
 /// `{series}`, `{volume}`, `{first}` and `{last}` (chapter numbers) are replaced.
 pub const DEFAULT_TEMPLATE: &str = "{series} v{volume}";
-/// Used instead of a template that names the volume when the book has no volume number.
-const NO_VOLUME_TEMPLATE: &str = "{series} c{first}-{last}";
-const SINGLE_CHAPTER_TEMPLATE: &str = "{series} c{first}";
 
-/// The book title for `volume` of `series`.
+/// The book title for `volume` of `series`. A book without a volume number is named after its
+/// chapters instead: `ch 12`, `ch 12-15`, or season tags such as `S1 Ep. 78 - S2 Ep. 1`.
 pub fn render(template: &str, series: &str, volume: &Volume) -> String {
-    let first = volume
-        .chapters
-        .first()
-        .map(|c| c.number.trim())
-        .unwrap_or("");
-    let last = volume
-        .chapters
-        .last()
-        .map(|c| c.number.trim())
-        .unwrap_or("");
-    let template = match &volume.number {
-        None if template.contains("{volume}") && first == last => SINGLE_CHAPTER_TEMPLATE,
-        None if template.contains("{volume}") => NO_VOLUME_TEMPLATE,
-        _ => template,
+    let (first, last) = (volume.chapters.first(), volume.chapters.last());
+    fn number(c: Option<&Chapter>) -> &str {
+        c.map_or("", |c| c.number.trim())
+    }
+    let rendered = match &volume.number {
+        None if template.contains("{volume}") => {
+            format!("{} {}", series.trim(), chapters(first, last))
+        }
+        _ => template
+            .replace("{series}", series.trim())
+            .replace("{volume}", volume.number.as_deref().unwrap_or("").trim())
+            .replace("{first}", number(first))
+            .replace("{last}", number(last)),
     };
-    let rendered = template
-        .replace("{series}", series.trim())
-        .replace("{volume}", volume.number.as_deref().unwrap_or("").trim())
-        .replace("{first}", first)
-        .replace("{last}", last);
     collapse_spaces(&rendered)
+}
+
+/// `ch 12`, `ch 12-15`, `S2 Ep. 0` or `S1 Ep. 78 - S2 Ep. 1`.
+fn chapters(first: Option<&Chapter>, last: Option<&Chapter>) -> String {
+    let (Some(first), Some(last)) = (first, last) else {
+        return String::new();
+    };
+    let (from, to) = (chapter_tag(first), chapter_tag(last));
+    let seasons = [first, last]
+        .iter()
+        .any(|c| c.title.as_deref().and_then(season_tag).is_some());
+    match () {
+        _ if from == to => from,
+        _ if seasons => format!("{from} - {to}"),
+        _ => format!("ch {}-{}", first.number.trim(), last.number.trim()),
+    }
 }
 
 fn collapse_spaces(s: &str) -> String {

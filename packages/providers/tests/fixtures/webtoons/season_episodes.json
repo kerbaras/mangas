@@ -1,0 +1,13 @@
+{
+  "result": {
+    "episodeList": [
+      { "episodeNo": 1, "episodeTitle": "[Season 1] Ep. 0" },
+      { "episodeNo": 2, "episodeTitle": "[Season 1] Ep. 1 - 1F.Headon&#39;s Floor" },
+      { "episodeNo": 80, "episodeTitle": "[Season 2] Ep. 0" },
+      { "episodeNo": 81, "episodeTitle": "[Season 2] Ep. 1" },
+      { "episodeNo": 419, "episodeTitle": "[Season 3] Ep. 1" },
+      { "episodeNo": 653, "episodeTitle": "[Season 3] Ep. 235 (Season 3 Finale)" }
+    ],
+    "nextCursor": 0
+  }
+}

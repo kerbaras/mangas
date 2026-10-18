@@ -5,7 +5,8 @@ use std::path::Path;
 use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId};
 use mangas_core::export::Labels;
 use mangas_core::library::{
-    export_labels, mark_downloaded, open_in_memory, upsert_chapters, upsert_manga, Library,
+    chapter_titles, export_labels, mark_downloaded, open_in_memory, upsert_chapters, upsert_manga,
+    Library,
 };
 
 fn follow(lib: &Library, id: &str, title: &str, chapters: &[(&str, &str, Option<&str>)]) {
@@ -98,4 +99,21 @@ fn duplicate_spellings_count_once_and_unknown_folders_drop_the_labels() {
         Labels::default()
     );
     assert_eq!(labels(&lib, &["/elsewhere/x"], 1), Labels::default());
+}
+
+#[test]
+fn chapter_titles_follow_the_folder_order_or_give_up() {
+    let lib = library();
+    let dirs = |ds: &[&'static str]| -> Vec<Vec<&'static Path>> {
+        ds.iter()
+            .map(|d| vec![Path::new("/nowhere"), Path::new(*d)])
+            .collect()
+    };
+    assert_eq!(
+        chapter_titles(&lib, &dirs(&["/lib/a/a2/", "/lib/a/a1"])).unwrap(),
+        ["Chapter 2: Chapter title 2", "Chapter 1: Chapter title 1"]
+    );
+    assert!(chapter_titles(&lib, &dirs(&["/lib/a/a1", "/elsewhere/x"]))
+        .unwrap()
+        .is_empty());
 }
