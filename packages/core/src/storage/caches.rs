@@ -30,16 +30,14 @@ pub fn clear_cache(folders: &Folders, cache: Cache) -> Result<Cleared> {
     if !dir.exists() {
         return Ok(Cleared::default());
     }
-    if cache == Cache::Models {
-        // Not under a running detector download or folder move, in this process or another.
-        let _lease = lease::acquire(&dir, Purpose::Remove)?;
-        let own = std::fs::metadata(lease::lease_path(&dir)).map_or(0, |m| m.len());
-        let (files, bytes) = empty_dir(&dir)?;
-        return Ok(Cleared {
-            files: files.saturating_sub(1),
-            bytes: bytes.saturating_sub(own),
-        });
-    }
-    let (files, bytes) = empty_dir(&dir)?;
+    // Models: not under a detector download, move or export, in this process or another.
+    let (_lease, keep) = match cache {
+        Cache::Models => (
+            Some(lease::acquire(&dir, Purpose::Remove)?),
+            &lease::LEASE_FILES[..],
+        ),
+        Cache::Covers => (None, &[][..]),
+    };
+    let (files, bytes) = empty_dir(&dir, keep)?;
     Ok(Cleared { files, bytes })
 }

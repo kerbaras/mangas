@@ -52,7 +52,7 @@ fn move_held(
     let from_resolved = fs::canonicalize(from).unwrap_or_else(|_| from.to_path_buf());
     check_target(&from_resolved, &to)?;
     // Not under a detector download or removal in this process or another.
-    let _lease = lease::acquire(&from_resolved.join("models"), Purpose::Move)?;
+    let lease = lease::acquire(&from_resolved.join("models"), Purpose::Move)?;
     let mut plan = Vec::new();
     for sub in DATA_SUBDIRS {
         if !list_files(&to.join(sub))?.is_empty() {
@@ -61,15 +61,11 @@ fn move_held(
                 to.display()
             )));
         }
-        let files = list_files(&from_resolved.join(sub))?;
-        let lease = Path::new(lease::LEASE_FILE);
-        plan.push((
-            sub,
-            files
-                .into_iter()
-                .filter(|f| f.rel != lease)
-                .collect::<Vec<_>>(),
-        ));
+        let mut files = list_files(&from_resolved.join(sub))?;
+        if sub == "models" {
+            files.retain(|f| !lease::LEASE_FILES.iter().any(|l| f.rel == Path::new(l)));
+        }
+        plan.push((sub, files));
     }
     let total: u64 = plan.iter().flat_map(|(_, f)| f).map(|f| f.bytes).sum();
     let files = plan.iter().map(|(_, f)| f.len()).sum();
@@ -81,6 +77,8 @@ fn move_held(
         discard_copy(&to, &plan, &created);
         return Err(e);
     }
+    // The library now points at the new folder; the old copy can go without the lock in it.
+    drop(lease);
     let leftovers = DATA_SUBDIRS
         .iter()
         .map(|sub| from_resolved.join(sub))

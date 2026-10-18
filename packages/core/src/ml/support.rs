@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 
 use super::cache::{ensure_model, is_downloaded, model_path, part_path};
-use super::lease::{self, Purpose};
+use super::lease::{self, Lease, Purpose};
 use super::{runtime, status, Status, ENABLED, MODELS};
 use crate::domain::{Error, Result};
 
@@ -27,20 +27,24 @@ pub async fn download(
     Ok(status(models_dir))
 }
 
-/// Model paths in [`MODELS`] order, everything present and the runtime loaded.
+/// Model paths in [`MODELS`] order, everything present and the runtime loaded; keep the lease
+/// until the models are loaded.
 pub(super) async fn ensure_all(
     models_dir: &Path,
     on_progress: &mut (dyn FnMut(&str, u64, Option<u64>) + Send),
     cancel: &AtomicBool,
-) -> Result<Vec<PathBuf>> {
+) -> Result<(Vec<PathBuf>, Lease)> {
     if !ENABLED {
         return Err(not_built());
     }
     let spec = runtime::current().ok_or_else(runtime::unsupported)?;
-    // Held only while something is missing, so exports with everything on disk never wait.
-    let _lease = (missing_bytes(models_dir, Some(&spec)) > 0)
-        .then(|| lease::acquire(models_dir, Purpose::Download))
-        .transpose()?;
+    // Exclusive while something downloads; shared while the files are only read, so exports
+    // run side by side but never under a removal or move.
+    let lease = if missing_bytes(models_dir, Some(&spec)) > 0 {
+        lease::acquire(models_dir, Purpose::Download)?
+    } else {
+        lease::share(models_dir)?
+    };
     let mut on_runtime = |done, total| on_progress(RUNTIME_ITEM, done, total);
     runtime::ensure(models_dir, &spec, &mut on_runtime, cancel).await?;
     let mut paths = Vec::new();
@@ -52,7 +56,7 @@ pub(super) async fn ensure_all(
     runtime::ensure_loaded(models_dir)?;
     // Only a complete download replaces a pending removal; a cancelled one keeps Remove again.
     runtime::clear_pending(models_dir)?;
-    Ok(paths)
+    Ok((paths, lease))
 }
 
 /// Bytes still to download: the runtime archive if the library is missing, plus missing models.

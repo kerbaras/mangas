@@ -99,7 +99,7 @@ pub async fn row_penalizer(
     on_progress: &mut (dyn FnMut(&str, u64, Option<u64>) + Send),
 ) -> Result<RowPenalizer> {
     let never = std::sync::atomic::AtomicBool::new(false);
-    let paths = support::ensure_all(cache_dir, on_progress, &never).await?;
+    let (paths, _lease) = support::ensure_all(cache_dir, on_progress, &never).await?;
     let detectors = Detectors::load(&paths[0], &paths[1])?;
     Ok(std::sync::Arc::new(move |img| detectors.row_penalties(img)))
 }

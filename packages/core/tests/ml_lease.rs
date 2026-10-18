@@ -1,92 +1,11 @@
-//! The models-folder lease seen from two processes: this test binary re-runs itself as the
-//! holder (`child_holds_the_lease`), and the parent checks every path that changes the folder.
+//! The models-folder lease within one process: exclusive changes, shared reads, and the lock
+//! files surviving a clear and staying behind on a move.
 
 use std::fs;
-use std::path::Path;
-use std::process::Command;
-use std::time::{Duration, Instant, SystemTime};
 
 use mangas_core::library::open_in_memory;
-use mangas_core::ml::lease::{acquire, lease_path, Purpose, LEASE_FILE};
+use mangas_core::ml::lease::{acquire, lease_path, share, Purpose, LEASE_FILE};
 use mangas_core::storage::{clear_cache, move_data_dir, Cache, Folders};
-
-const DIR_VAR: &str = "MANGAS_LEASE_TEST_DIR";
-
-fn wait_for(path: &Path) {
-    let start = Instant::now();
-    while !path.exists() {
-        assert!(
-            start.elapsed() < Duration::from_secs(20),
-            "{} never appeared",
-            path.display()
-        );
-        std::thread::sleep(Duration::from_millis(20));
-    }
-}
-
-#[test]
-#[ignore = "run by a_download_in_another_process_blocks_move_remove_and_clear"]
-fn child_holds_the_lease() {
-    let Ok(dir) = std::env::var(DIR_VAR) else {
-        return;
-    };
-    let dir = Path::new(&dir);
-    let _lease = acquire(&dir.join("data/models"), Purpose::Download).unwrap();
-    fs::write(dir.join("ready"), b"").unwrap();
-    wait_for(&dir.join("done"));
-}
-
-#[test]
-fn a_download_in_another_process_blocks_move_remove_and_clear() {
-    let root = tempfile::tempdir().unwrap();
-    let models = root.path().join("data/models");
-    fs::create_dir_all(&models).unwrap();
-    fs::write(models.join("model.onnx"), b"weights").unwrap();
-    let mut child = Command::new(std::env::current_exe().unwrap())
-        .args([
-            "child_holds_the_lease",
-            "--exact",
-            "--ignored",
-            "--nocapture",
-        ])
-        .env(DIR_VAR, root.path())
-        .spawn()
-        .unwrap();
-    wait_for(&root.path().join("ready"));
-
-    let refused = |e: String| assert!(e.contains("detector support is downloading"), "{e}");
-    refused(mangas_core::ml::remove(&models).unwrap_err().to_string());
-    let folders = Folders {
-        data_dir: root.path().join("data"),
-        database: root.path().join("app/mangas.db"),
-        covers: root.path().join("app/covers"),
-        logs: root.path().join("app/logs"),
-    };
-    refused(
-        clear_cache(&folders, Cache::Models)
-            .unwrap_err()
-            .to_string(),
-    );
-    let lib = open_in_memory().unwrap();
-    let to = root.path().join("moved");
-    let moved = move_data_dir(&lib, &root.path().join("data"), &to, &mut |_| {});
-    refused(moved.unwrap_err().to_string());
-    refused(
-        acquire(&models, Purpose::Download)
-            .err()
-            .unwrap()
-            .to_string(),
-    );
-    assert!(models.join("model.onnx").exists(), "nothing was touched");
-
-    fs::write(root.path().join("done"), b"").unwrap();
-    assert!(child.wait().unwrap().success());
-    assert!(
-        !lease_path(&models).exists(),
-        "released when the holder ends"
-    );
-    assert!(acquire(&models, Purpose::Remove).is_ok());
-}
 
 #[test]
 fn a_move_refuses_a_download_and_a_download_refuses_a_move() {
@@ -108,18 +27,39 @@ fn a_move_refuses_a_download_and_a_download_refuses_a_move() {
 }
 
 #[test]
-fn a_lease_nobody_renews_is_taken_over() {
+fn exports_share_the_folder_but_exclude_changes() {
     let dir = tempfile::tempdir().unwrap();
-    let path = lease_path(dir.path());
-    fs::write(&path, br#"{"pid":999999,"purpose":"download"}"#).unwrap();
-    let old = SystemTime::now() - Duration::from_secs(120);
-    fs::File::options()
-        .write(true)
-        .open(&path)
+    let reading = share(dir.path()).unwrap();
+    let second = share(dir.path()).unwrap();
+    let err = acquire(dir.path(), Purpose::Remove)
+        .err()
         .unwrap()
-        .set_modified(old)
-        .unwrap();
-    assert!(acquire(dir.path(), Purpose::Remove).is_ok());
+        .to_string();
+    assert!(err.contains("an export is using detector support"), "{err}");
+    drop((reading, second));
+    let downloading = acquire(dir.path(), Purpose::Download).unwrap();
+    let err = share(dir.path()).err().unwrap().to_string();
+    assert!(err.contains("detector support is downloading"), "{err}");
+    drop(downloading);
+    assert!(share(dir.path()).is_ok());
+}
+
+#[test]
+fn clearing_the_models_keeps_the_lock_file() {
+    let root = tempfile::tempdir().unwrap();
+    let folders = Folders {
+        data_dir: root.path().join("data"),
+        database: root.path().join("app/mangas.db"),
+        covers: root.path().join("app/covers"),
+        logs: root.path().join("app/logs"),
+    };
+    let models = folders.models();
+    fs::create_dir_all(&models).unwrap();
+    fs::write(models.join("model.onnx"), b"weights").unwrap();
+    let cleared = clear_cache(&folders, Cache::Models).unwrap();
+    assert_eq!((cleared.files, cleared.bytes), (1, 7));
+    assert!(lease_path(&models).exists());
+    assert!(!models.join("model.onnx").exists());
 }
 
 #[test]

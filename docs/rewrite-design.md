@@ -54,9 +54,11 @@ Rules: the Tauri layer and the CLI contain no business logic. Everything testabl
   session. Living under `models/`, it moves with the data folder, counts as detector support in
   storage usage, is deleted with the models and stays out of backups. A failed download or load
   leaves export working without detectors. A download, a data-folder move and a removal
-  (`ml remove`, Settings, Storage) each hold `models/.detectors.lease` (`ml::lease`, owner pid,
-  renewed every 5 s, taken over after 30 s without renewal), so the app and the CLI never change
-  the folder under one another. A move doesn't copy the lease.
+  (`ml remove`, Settings, Storage) lock `models/.detectors.lease` exclusively (`ml::lease`, an
+  OS file lock, so a crashed holder frees it; the owner's pid and purpose go in
+  `.detectors.lease.owner` for the refusal message), and loading detectors for an export shares
+  it. The app and the CLI therefore never change the folder under one another. A move doesn't
+  copy the lock files and clearing the models keeps them.
 - **Inference**: `ort` with execution providers chosen at runtime: CoreML (Apple silicon), CUDA
   (opt-in `cuda` feature), CPU everywhere else. Windows runs on CPU: the official runtime archive
   has no DirectML provider. Detection is optional; smart cut works without
