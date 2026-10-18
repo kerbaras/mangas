@@ -3,6 +3,7 @@
 //! [`registry`] is the only place that knows them by name. See "Provider harness" in `docs/rewrite-design.md`.
 
 pub mod comick;
+pub mod covers;
 pub mod doctor;
 pub mod html;
 pub mod http;

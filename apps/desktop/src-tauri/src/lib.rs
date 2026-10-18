@@ -9,6 +9,10 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .setup(|app| {
+            allow_covers(app.handle());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::list_library,
             commands::list_devices,
@@ -25,6 +29,7 @@ pub fn run() {
             commands::catalog::unfollow_manga,
             commands::catalog::list_chapters,
             commands::catalog::download_chapters,
+            commands::covers::cover_path,
             commands::import::import_local,
             commands::kindle::export_kindle,
             commands::kindle::detectors_status,
@@ -34,6 +39,19 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/// Lets the webview load cached covers through the asset protocol, and nothing else on disk.
+fn allow_covers(app: &tauri::AppHandle) {
+    use tauri::Manager;
+    let allowed = paths::covers().and_then(|dir| {
+        app.asset_protocol_scope()
+            .allow_directory(&dir, false)
+            .map_err(|e| e.to_string())
+    });
+    if let Err(e) = allowed {
+        tracing::warn!("covers will show placeholders: {e}");
+    }
 }
 
 /// File logging under the platform data dir; the app still starts if the folder is unwritable.

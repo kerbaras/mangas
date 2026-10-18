@@ -1,5 +1,5 @@
 /** The real bridge: Tauri `invoke` plus event listeners, adapted to the `Backend` contract. */
-import { invoke } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type {
   Backend,
@@ -51,6 +51,10 @@ export const tauriBackend: Backend = {
   providerStatus: (provider) => invoke<ProviderStatus>("provider_status", { provider }),
   searchAll: (query, providers) =>
     invoke<SearchGroup[]>("search_all", { query, providers, limit: SEARCH_LIMIT }),
+  coverSrc: async ({ source, id, cover_url }) =>
+    cover_url
+      ? convertFileSrc(await invoke<string>("cover_path", { source, mangaId: id, url: cover_url }))
+      : null,
   followManga: async (source, id) => {
     const [first, ...rest] = languages(source);
     const manga = await invoke<Manga>("follow_manga", { source, id, language: first });

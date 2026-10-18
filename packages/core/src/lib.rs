@@ -2,6 +2,7 @@
 //!
 //! Business logic lives here; `apps/desktop` and `apps/cli` only translate input and output.
 
+pub mod covers;
 pub mod diagnostics;
 pub mod domain;
 pub mod download;
