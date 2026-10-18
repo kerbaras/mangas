@@ -1,6 +1,8 @@
 //! Pure mapping from Webtoons responses to domain types.
 
-use mangas_core::domain::{sort_by_number, Chapter, Error, Manga, MangaId, MangaStatus, Result};
+use mangas_core::domain::{
+    season_label, sort_by_number, Chapter, Error, Manga, MangaId, MangaStatus, Result,
+};
 use mangas_core::sources::PageUrls;
 
 use super::api::{EpisodePage, EpisodesReply, SearchReply};
@@ -123,6 +125,14 @@ pub fn parse_episode_page(body: &str, title: &Title) -> Result<EpisodePage> {
 }
 
 /// Episodes as chapters numbered by `episodeNo` (sequential on the site), sorted.
+/// The episode title shown to readers: season markers become `S2 Ep. 5` (see [`season_label`]);
+/// the chapter number stays the site's absolute episode index for ordering and ranges.
+fn episode_title(raw: &str) -> Option<String> {
+    let title = unescape(raw);
+    let title = title.trim();
+    (!title.is_empty()).then(|| season_label(title).unwrap_or_else(|| title.to_string()))
+}
+
 pub fn to_chapters(manga: &MangaId, title: &Title, pages: Vec<EpisodePage>) -> Vec<Chapter> {
     let chapters = pages
         .into_iter()
@@ -134,10 +144,7 @@ pub fn to_chapters(manga: &MangaId, title: &Title, pages: Vec<EpisodePage>) -> V
             }
             .id(),
             manga_id: manga.clone(),
-            title: e
-                .episode_title
-                .map(|t| unescape(&t))
-                .filter(|t| !t.is_empty()),
+            title: e.episode_title.as_deref().and_then(episode_title),
             language: title.language.clone(),
             volume: None,
             number: e.episode_no.to_string(),
