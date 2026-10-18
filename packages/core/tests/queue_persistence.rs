@@ -191,10 +191,11 @@ fn a_chapter_whose_folder_was_deleted_outside_the_app_is_downloaded_again() {
     let lib = library::open_in_memory().unwrap();
     let chapters = follow(&lib, "a", 2);
     let dir = tempfile::tempdir().unwrap();
-    let (gone, emptied) = (dir.path().join("1"), dir.path().join("2"));
-    std::fs::create_dir(&emptied).unwrap();
+    let (gone, interrupted) = (dir.path().join("1"), dir.path().join("2"));
+    std::fs::create_dir(&interrupted).unwrap();
+    std::fs::write(interrupted.join("0001.jpg.part"), b"half").unwrap();
     library::mark_downloaded(&lib, "a", &chapters[0].id, &gone).unwrap();
-    library::mark_downloaded(&lib, "a", &chapters[1].id, &emptied).unwrap();
+    library::mark_downloaded(&lib, "a", &chapters[1].id, &interrupted).unwrap();
 
     let queued = queue::enqueue(&lib, "a", chapters, false).unwrap();
     assert_eq!((queued.jobs.len(), queued.on_disk.len()), (2, 0));

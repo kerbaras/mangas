@@ -8,7 +8,7 @@ use mangas_core::download;
 use mangas_core::download::queue::{self, JobState, Scope};
 use mangas_core::library;
 
-use super::settled::{paused_note, paused_report};
+use super::settled::paused_report;
 use super::watch::{count, run_until_settled};
 use super::{source_by_name, stored_settings};
 use crate::output::outln;
@@ -82,9 +82,6 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
                 outln!("packed {pages} pages -> {}", out.display())?;
             }
         }
-    }
-    if let Some(note) = paused_note(jobs) {
-        outln!("{note}")?;
     }
     let failed = count(jobs, JobState::Failed);
     let failed_note =

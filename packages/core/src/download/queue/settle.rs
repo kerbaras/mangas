@@ -11,8 +11,8 @@ use crate::library;
 
 const HELD_POLL: Duration = Duration::from_millis(500);
 
-/// How a settling run ended: the jobs in scope, and whether the user's queue-wide pause left
-/// some of them queued.
+/// How a settling run ended: the jobs in scope, and whether the user's queue-wide pause was
+/// set (`queue pause --all` also pauses each job, so the ones left are queued or paused).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Settled {
     pub jobs: Vec<Job>,
@@ -39,10 +39,8 @@ pub async fn run_until_settled(
         let gate = library::queue_gate(lib)?;
         let queued = jobs.iter().any(|j| j.state == JobState::Queued);
         if !queued || gate.paused {
-            return Ok(Settled {
-                jobs,
-                paused: queued,
-            });
+            let paused = gate.paused;
+            return Ok(Settled { jobs, paused });
         }
         if gate.held(now_ms()) {
             if !waiting_out_hold {

@@ -32,6 +32,13 @@ pub fn set_queue_paused(lib: &Library, paused: bool) -> Result<()> {
     Ok(())
 }
 
+/// Takes the hold until `until` (unix ms) unless another hold is still live at `now`; returns
+/// whether it was taken.
+pub fn take_queue_hold(lib: &Library, now: i64, until: i64) -> Result<bool> {
+    let sql = "UPDATE download_queue SET held_until = ?1 WHERE id = 1 AND held_until <= ?2";
+    Ok(lib.conn()?.execute(sql, params![until, now])? == 1)
+}
+
 /// Holds the queue until `until` (unix ms); 0 releases it.
 pub fn set_queue_held_until(lib: &Library, until: i64) -> Result<()> {
     let sql = "UPDATE download_queue SET held_until = ?1 WHERE id = 1";

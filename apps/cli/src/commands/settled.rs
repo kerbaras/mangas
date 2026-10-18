@@ -2,38 +2,37 @@
 
 use mangas_core::download::queue::{Job, JobState, Settled};
 
-use super::watch::{count, label};
+use super::watch::label;
 use crate::exit::Exit;
 
-/// Exit code of a run the queue-wide pause stopped with chapters still queued.
+/// Exit code of a run that ended with chapters queued or paused (never 0: they're not done).
 pub const PAUSED_EXIT: u8 = 2;
 
 const CONTINUE: &str = "`mangas queue resume --all` then `mangas queue run` downloads them";
 
-/// When the user's queue-wide pause stopped the run: lines naming the chapters done and the
-/// ones still queued, and the error to exit with.
+/// When chapters are left queued or paused (the queue-wide pause or per-chapter pauses): lines
+/// naming the chapters done and the ones left, and the error to exit with.
 pub fn paused_report(settled: &Settled) -> Option<(Vec<String>, Exit)> {
-    if !settled.paused {
-        return None;
-    }
-    let names = |state| {
-        let picked: Vec<String> = settled
-            .jobs
-            .iter()
-            .filter(|j| j.state == state)
-            .map(label)
-            .collect();
+    let left = |j: &&Job| matches!(j.state, JobState::Queued | JobState::Paused);
+    let names = |keep: &dyn Fn(&&Job) -> bool| {
+        let picked: Vec<String> = settled.jobs.iter().filter(keep).map(label).collect();
         picked.join(", ")
     };
+    let waiting = settled.jobs.iter().filter(left).count();
+    if waiting == 0 {
+        return None;
+    }
     let mut lines = Vec::new();
-    let done = names(JobState::Done);
+    let done = names(&|j| j.state == JobState::Done);
     if !done.is_empty() {
         lines.push(format!("done: {done}"));
     }
-    lines.push(format!("still queued: {}", names(JobState::Queued)));
-    let queued = count(&settled.jobs, JobState::Queued);
-    let message =
-        format!("the download queue is paused with {queued} chapter(s) still queued; {CONTINUE}");
+    lines.push(format!("still queued: {}", names(&left)));
+    let why = match settled.paused {
+        true => format!("the download queue is paused with {waiting} chapter(s) still queued"),
+        false => format!("{waiting} chapter(s) paused"),
+    };
+    let message = format!("{why}; {CONTINUE}");
     Some((
         lines,
         Exit {
@@ -41,14 +40,6 @@ pub fn paused_report(settled: &Settled) -> Option<(Vec<String>, Exit)> {
             message,
         },
     ))
-}
-
-/// Chapters paused one by one (the queue itself still runs).
-pub fn paused_note(jobs: &[Job]) -> Option<String> {
-    match count(jobs, JobState::Paused) {
-        0 => None,
-        n => Some(format!("{n} chapter(s) paused; {CONTINUE}")),
-    }
 }
 
 #[cfg(test)]
@@ -87,16 +78,33 @@ mod tests {
     }
 
     #[test]
-    fn a_run_that_finished_reports_nothing() {
-        let jobs = vec![job("1", JobState::Done)];
-        assert_eq!(
-            paused_report(&Settled {
-                jobs: jobs.clone(),
-                paused: false
-            }),
-            None
+    fn chapters_paused_by_pause_all_or_one_by_one_still_exit_2() {
+        let jobs = vec![job("1", JobState::Done), job("2", JobState::Paused)];
+        let all = Settled {
+            jobs: jobs.clone(),
+            paused: true,
+        };
+        let (lines, exit) = paused_report(&all).unwrap();
+        assert_eq!(lines, ["done: ch 1", "still queued: ch 2"]);
+        assert!(
+            exit.message.starts_with("the download queue is paused"),
+            "{}",
+            exit.message
         );
-        assert_eq!(paused_note(&jobs), None);
-        assert!(paused_note(&[job("3", JobState::Paused)]).is_some());
+        let (_, exit) = paused_report(&Settled {
+            jobs,
+            paused: false,
+        })
+        .unwrap();
+        assert_eq!(
+            (exit.code, exit.message.starts_with("1 chapter(s) paused;")),
+            (2, true)
+        );
+    }
+
+    #[test]
+    fn a_run_that_finished_reports_nothing() {
+        let jobs = vec![job("1", JobState::Done), job("2", JobState::Failed)];
+        assert_eq!(paused_report(&Settled { jobs, paused: true }), None);
     }
 }

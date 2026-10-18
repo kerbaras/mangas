@@ -31,16 +31,13 @@ fn one_at_a_time() -> queue::QueueConfig {
 async fn a_pause_before_the_start_ends_the_run_with_every_chapter_queued() {
     let lib = Arc::new(library::open_in_memory().unwrap());
     queue::enqueue(&lib, "a", follow(&lib, "a", 2), false).unwrap();
-    // Pausing all pauses each job too; resuming them one by one leaves only the queue paused.
     queue::control(&lib, Target::All, Action::Pause).unwrap();
-    queue::control(&lib, Target::Job(1), Action::Resume).unwrap();
-    queue::control(&lib, Target::Job(2), Action::Resume).unwrap();
     let worker = Queue::new(lib.clone(), Arc::new(runner(4)), fast_config());
     let settled = queue::run_until_settled(&worker, Scope::All, &|_| {}, &|| {})
         .await
         .unwrap();
     assert!(settled.paused);
-    assert_eq!(states(&settled.jobs), [JobState::Queued; 2]);
+    assert_eq!(states(&settled.jobs), [JobState::Paused; 2]);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -56,11 +53,11 @@ async fn a_pause_mid_run_lets_the_running_chapter_finish_and_reports_the_rest() 
     let run = tokio::spawn(async move {
         queue::run_until_settled(&background, Scope::All, &|_| {}, &|| {}).await
     });
-    eventually(|| queue::list(&lib).unwrap()[0].state == JobState::Running).await;
-    library::set_queue_paused(&lib, true).unwrap();
+    eventually(|| queue::list(&lib).unwrap()[1].state == JobState::Running).await;
+    queue::control(&lib, Target::All, Action::Pause).unwrap();
     let settled = run.await.unwrap().unwrap();
     assert!(settled.paused);
-    assert_eq!(states(&settled.jobs), [JobState::Done, JobState::Queued]);
+    assert_eq!(states(&settled.jobs), [JobState::Done, JobState::Paused]);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -87,6 +84,12 @@ async fn a_storage_move_hold_is_waited_out_and_the_chapters_carry_on() {
             // "Resume all" from another terminal can't end a move's hold.
             queue::control(&held, Target::All, Action::Resume)?;
             std::thread::sleep(Duration::from_millis(1500));
+            assert!(library::queue_gate(&held)?.held(queue::now_ms()));
+            let second = queue::hold_queue(&held, Duration::from_secs(1), || Ok(()));
+            assert!(second
+                .unwrap_err()
+                .to_string()
+                .contains("another data-folder move"));
             assert!(library::queue_gate(&held)?.held(queue::now_ms()));
             Ok(())
         })

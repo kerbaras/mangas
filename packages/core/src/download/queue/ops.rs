@@ -70,8 +70,8 @@ fn with_stored_paths(lib: &Library, source: &str, chapters: Vec<Chapter>) -> Res
         .collect())
 }
 
-/// Forgets the path of a chapter whose folder was deleted or emptied outside the app, so it is
-/// downloaded again instead of skipped.
+/// Forgets the path of a chapter whose folder was deleted or emptied outside the app (or holds
+/// only interrupted `.part` writes), so it is downloaded again instead of skipped.
 fn still_on_disk(chapters: Vec<Chapter>) -> Vec<Chapter> {
     chapters
         .into_iter()
@@ -87,8 +87,12 @@ fn still_on_disk(chapters: Vec<Chapter>) -> Vec<Chapter> {
 
 fn has_files(dir: &Path) -> bool {
     std::fs::read_dir(dir)
-        .map(|mut entries| entries.any(|e| e.is_ok_and(|e| e.path().is_file())))
+        .map(|mut entries| entries.any(|e| e.is_ok_and(|e| is_page(&e.path()))))
         .unwrap_or(false)
+}
+
+fn is_page(path: &Path) -> bool {
+    path.is_file() && path.extension().is_none_or(|ext| ext != "part")
 }
 
 /// Which jobs an action is for.

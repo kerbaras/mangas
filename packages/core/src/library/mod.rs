@@ -24,7 +24,9 @@ pub use db::{open, open_in_memory, Library};
 pub(crate) use download_repo::switch_data_dir;
 pub use download_repo::{downloaded_chapters, forget_download, DownloadedChapter};
 pub use entries::{count_chapters, list_entries, ChapterCounts, ChapterMark, LibraryEntry};
-pub use gate_repo::{queue_gate, queue_paused, set_queue_held_until, set_queue_paused};
+pub use gate_repo::{
+    queue_gate, queue_paused, set_queue_held_until, set_queue_paused, take_queue_hold,
+};
 pub use import::{import_paths, is_local, ImportReport, ImportRequest, LOCAL_SOURCE};
 pub use job_repo::{delete_jobs, enqueue_jobs, list_jobs, update_jobs, update_jobs_gated};
 pub use languages::{

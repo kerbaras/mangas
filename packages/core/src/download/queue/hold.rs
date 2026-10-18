@@ -22,9 +22,14 @@ const RENEW: Duration = Duration::from_secs(10);
 /// Holds the queue (no process claims a job; the user's pause flag is left alone, so "resume
 /// all" can't end the hold), waits up to `wait` until no job is running, runs `f`, and releases
 /// the hold whatever `f` returns. Refuses with the count of running downloads when they don't
-/// settle in time.
+/// settle in time, and while another move holds the queue.
 pub fn hold_queue<T>(lib: &Library, wait: Duration, f: impl FnOnce() -> Result<T>) -> Result<T> {
-    library::set_queue_held_until(lib, now_ms() + LEASE_MS)?;
+    let now = now_ms();
+    if !library::take_queue_hold(lib, now, now + LEASE_MS)? {
+        return Err(Error::Other(
+            "another data-folder move is in progress; try again when it's done".into(),
+        ));
+    }
     let (stop, stopped) = mpsc::channel::<()>();
     let outcome = std::thread::scope(|s| {
         s.spawn(move || renew(lib, &stopped));
