@@ -19,6 +19,7 @@ fn chapter(number: &str, availability: Availability) -> Chapter {
         local_path: None,
         group: None,
         availability,
+        ..Default::default()
     }
 }
 

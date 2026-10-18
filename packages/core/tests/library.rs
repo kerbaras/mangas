@@ -28,7 +28,7 @@ fn chapter(manga: &str, id: &str, number: &str) -> Chapter {
         number: number.into(),
         local_path: None,
         group: None,
-        availability: Default::default(),
+        ..Default::default()
     }
 }
 

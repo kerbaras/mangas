@@ -36,7 +36,7 @@ export function ChaptersTable({ chapters, selected, downloads, onToggle, onToggl
           <th>Title</th>
           <th className="w-40">Group</th>
           <th className="w-28">Language</th>
-          <th className="w-44">Downloaded</th>
+          <th className="w-44">State</th>
         </tr>
       </thead>
       <tbody>

@@ -27,6 +27,14 @@ pub fn upsert_chapters(
         for c in chapters {
             seen.execute(params![c.id.0])?;
         }
+        // A chapter the library hasn't seen yet makes the title "updated".
+        tx.execute(
+            "UPDATE manga SET updated_at = datetime('now')
+             WHERE source = ?1 AND id = ?2 AND EXISTS (
+                SELECT 1 FROM synced s WHERE NOT EXISTS (
+                    SELECT 1 FROM chapter c WHERE c.source = ?1 AND c.id = s.id))",
+            params![source, manga_id.0],
+        )?;
         let mut stmt = tx.prepare(
             "INSERT INTO chapter
                 (id, manga_id, source, title, language, volume, number, scanlation_group,
@@ -77,7 +85,8 @@ pub fn list_chapters(
     let conn = lib.conn()?;
     let mut stmt = conn.prepare(
         "SELECT id, manga_id, title, language, volume, number, local_path, scanlation_group,
-                availability, external_url
+                availability, external_url,
+                strftime('%Y-%m-%dT%H:%M:%SZ', exported_at)
          FROM chapter WHERE source = ?1 AND manga_id = ?2
                AND (?3 IS NULL OR language = ?3 OR local_path IS NOT NULL)",
     )?;
@@ -100,6 +109,27 @@ pub fn mark_downloaded(
     Ok(())
 }
 
+/// Records that the chapters downloaded to `dirs` were just exported. Paths match the stored
+/// `local_path` ignoring a trailing separator; folders that aren't library chapters are skipped.
+/// Returns how many chapter rows were marked.
+pub fn mark_exported(lib: &Library, dirs: &[&Path]) -> Result<usize> {
+    let mut conn = lib.conn()?;
+    let tx = conn.transaction()?;
+    let mut marked = 0;
+    {
+        let mut stmt = tx.prepare(
+            "UPDATE chapter SET exported_at = datetime('now')
+             WHERE local_path IS NOT NULL AND rtrim(local_path, '/\\') = ?1",
+        )?;
+        for dir in dirs {
+            let path = dir.to_string_lossy();
+            marked += stmt.execute(params![path.trim_end_matches(['/', '\\'])])?;
+        }
+    }
+    tx.commit()?;
+    Ok(marked)
+}
+
 fn row_to_chapter(row: &Row<'_>) -> rusqlite::Result<Chapter> {
     Ok(Chapter {
         id: ChapterId(row.get(0)?),
@@ -111,5 +141,47 @@ fn row_to_chapter(row: &Row<'_>) -> rusqlite::Result<Chapter> {
         local_path: row.get(6)?,
         group: row.get(7)?,
         availability: Availability::from_columns(&row.get::<_, String>(8)?, row.get(9)?),
+        exported_at: row.get(10)?,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::Manga;
+    use crate::library::{list_entries, open_in_memory, upsert_manga};
+
+    fn chapter(id: &str) -> Chapter {
+        Chapter {
+            id: ChapterId(id.into()),
+            manga_id: MangaId("a".into()),
+            language: "en".into(),
+            number: id.trim_start_matches('c').into(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn only_a_chapter_the_library_did_not_have_moves_updated_at() {
+        let lib = open_in_memory().unwrap();
+        let id = MangaId("a".into());
+        let manga = Manga {
+            id: id.clone(),
+            source: "s".into(),
+            ..Default::default()
+        };
+        upsert_manga(&lib, &manga).unwrap();
+        let entry = list_entries(&lib).unwrap().remove(0);
+        assert_eq!(entry.updated_at, entry.added_at);
+        let old = "2020-01-01T00:00:00Z";
+        let sync = |list: &[Chapter]| {
+            let backdate = "UPDATE manga SET updated_at = '2020-01-01 00:00:00'";
+            lib.conn().unwrap().execute(backdate, []).unwrap();
+            upsert_chapters(&lib, "s", &id, "en", list).unwrap();
+            list_entries(&lib).unwrap().remove(0).updated_at
+        };
+        assert_ne!(sync(&[chapter("c1")]), old, "first chapters are new");
+        assert_eq!(sync(&[chapter("c1")]), old, "nothing new");
+        assert_ne!(sync(&[chapter("c1"), chapter("c2")]), old);
+    }
 }

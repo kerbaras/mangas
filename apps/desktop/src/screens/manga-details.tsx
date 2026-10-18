@@ -4,7 +4,9 @@ import { toast } from "sonner";
 import { ChallengePrompt } from "@/components/challenge-prompt";
 import { ChaptersTable } from "@/components/chapters-table";
 import { Cover } from "@/components/cover";
+import { DescriptionSkeleton } from "@/components/description-skeleton";
 import { ErrorAlert } from "@/components/error-alert";
+import { LibraryControls } from "@/components/library-controls";
 import { MangaMeta } from "@/components/manga-meta";
 import { NoChapters } from "@/components/no-chapters";
 import { ScreenHeader } from "@/components/screen-header";
@@ -14,8 +16,10 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAsync } from "@/hooks/use-async";
 import { useChapterSelection } from "@/hooks/use-chapter-selection";
 import { useDownloads } from "@/hooks/use-downloads";
+import { useLibraryEntry } from "@/hooks/use-library-entry";
 import { useMangaDetails } from "@/hooks/use-manga-details";
 import {
+  chapterSummary,
   downloadable,
   exportable,
   filterByLanguage,
@@ -60,9 +64,14 @@ export function MangaDetailsScreen({ manga: card }: Props) {
   );
   // Refreshing a followed title's chapters also saves its source record; show what that filled.
   const refreshed = chapters.state.kind === "ready" ? chapters.state.data : null;
+  const shelf = useLibraryEntry(source, id);
+  const reloadShelf = shelf.reload;
   useEffect(() => {
-    if (refreshed) reloadManga();
-  }, [refreshed, reloadManga]);
+    if (refreshed) {
+      reloadManga();
+      reloadShelf();
+    }
+  }, [refreshed, reloadManga, reloadShelf]);
   const downloads = useDownloads();
   const [language, setLanguage] = useState<string | null>(null);
 
@@ -119,9 +128,15 @@ export function MangaDetailsScreen({ manga: card }: Props) {
           ) : (
             <p className="mt-2 line-clamp-3 max-w-2xl text-body text-ink-2">{manga.description}</p>
           )}
-          <p className="mt-2 text-caption text-ink-3">
-            {all.length} chapters · {all.filter((c) => c.local_path).length} on disk
-          </p>
+          <p className="mt-2 text-caption text-ink-3">{chapterSummary(all)}</p>
+          {shelf.entry && (
+            <LibraryControls
+              entry={shelf.entry}
+              categories={shelf.categories}
+              onStatus={shelf.setStatus}
+              onToggle={shelf.toggle}
+            />
+          )}
         </div>
       </div>
       <div className="flex h-11 shrink-0 items-center gap-3 border-b border-stroke px-4">
@@ -180,14 +195,5 @@ export function MangaDetailsScreen({ manga: card }: Props) {
         )}
       </div>
     </section>
-  );
-}
-
-function DescriptionSkeleton() {
-  return (
-    <div role="status" aria-label="Loading details" className="mt-2 flex max-w-2xl flex-col gap-2">
-      <span className="h-3 w-[28rem] max-w-full animate-pulse rounded-sm bg-surface-2" />
-      <span className="h-3 w-[22rem] max-w-full animate-pulse rounded-sm bg-surface-2" />
-    </div>
   );
 }

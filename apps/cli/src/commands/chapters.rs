@@ -80,9 +80,10 @@ fn format_row(c: &Chapter) -> String {
     )
 }
 
-/// `on disk`, `locked`, `external` or `-` (downloadable, not downloaded yet).
+/// `exported`, `on disk`, `locked`, `external` or `-` (downloadable, not downloaded yet).
 fn status(c: &Chapter) -> &'static str {
     match (&c.availability, c.is_downloaded()) {
+        (_, true) if c.is_exported() => "exported",
         (_, true) => "on disk",
         (Availability::Locked, false) => "locked",
         (Availability::External { .. }, false) => "external",

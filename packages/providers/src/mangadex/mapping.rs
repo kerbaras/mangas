@@ -155,6 +155,7 @@ fn chapter_from_data(c: &ChapterData, manga_id: &MangaId) -> Chapter {
         volume: attrs.volume.clone().filter(|v| !v.is_empty()),
         number: attrs.chapter.clone().unwrap_or_default(),
         local_path: None,
+        exported_at: None,
         group: group_names(&c.relationships),
         availability: availability(c),
     }

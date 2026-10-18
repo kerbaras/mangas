@@ -3,7 +3,7 @@ use rusqlite::{params, OptionalExtension, Row};
 use super::Library;
 use crate::domain::{Manga, MangaId, MangaStatus, Result};
 
-const COLUMNS: &str =
+pub(super) const COLUMNS: &str =
     "id, source, title, description, cover_url, status, authors, artists, year, tags";
 
 /// Inserts the manga or refreshes its metadata if it is already followed.
@@ -72,7 +72,7 @@ pub fn remove_manga(lib: &Library, source: &str, id: &MangaId) -> Result<bool> {
     Ok(removed > 0)
 }
 
-fn row_to_manga(row: &Row<'_>) -> rusqlite::Result<Manga> {
+pub(super) fn row_to_manga(row: &Row<'_>) -> rusqlite::Result<Manga> {
     Ok(Manga {
         id: MangaId(row.get(0)?),
         source: row.get(1)?,

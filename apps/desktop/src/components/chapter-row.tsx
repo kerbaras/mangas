@@ -1,4 +1,4 @@
-import { AlertCircle, Check } from "lucide-react";
+import { AlertCircle, Check, Send } from "lucide-react";
 import type { MouseEvent } from "react";
 import { AvailabilityCell } from "@/components/availability-cell";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,7 +15,7 @@ type Props = {
   onToggle: (id: string, shift: boolean) => void;
 };
 
-function DownloadedCell({ chapter, progress }: Pick<Props, "chapter" | "progress">) {
+function StateCell({ chapter, progress }: Pick<Props, "chapter" | "progress">) {
   if (progress && !progress.done) {
     return (
       <div className="flex items-center gap-2">
@@ -35,6 +35,16 @@ function DownloadedCell({ chapter, progress }: Pick<Props, "chapter" | "progress
   }
   if (chapter.availability && isUnavailable(chapter)) {
     return <AvailabilityCell availability={chapter.availability} />;
+  }
+  if (chapter.local_path && chapter.exported_at) {
+    return (
+      <span
+        className="flex items-center gap-1 text-caption text-ok"
+        title={`Exported ${new Date(chapter.exported_at).toLocaleString()}`}
+      >
+        <Send className="size-3.5" /> Exported
+      </span>
+    );
   }
   if (chapter.local_path || progress?.done) {
     return (
@@ -81,7 +91,7 @@ export function ChapterRow({ chapter, selected, progress, onToggle }: Props) {
       </td>
       <td className="w-28 text-ink-2">{languageLabel(chapter.language)}</td>
       <td className="w-44 pr-4">
-        <DownloadedCell chapter={chapter} progress={progress} />
+        <StateCell chapter={chapter} progress={progress} />
       </td>
     </tr>
   );

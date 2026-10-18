@@ -115,6 +115,7 @@ pub fn to_chapters(episodes: &[Episode], manga: &MangaId) -> Vec<Chapter> {
                 (scene, _) => scene.to_string(),
             },
             local_path: None,
+            exported_at: None,
             group: None,
             availability: if e.is_free() {
                 Availability::Available

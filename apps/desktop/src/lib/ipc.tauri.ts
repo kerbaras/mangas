@@ -14,6 +14,7 @@ import type {
 } from "./ipc";
 import { DEFAULT_LANGUAGE } from "./ipc";
 import type { Diagnostics } from "./ipc.diagnostics";
+import type { Category, LibraryEntry } from "./ipc.library";
 import { tauriStorage } from "./ipc.tauri-storage";
 import {
   type DownloadEvent,
@@ -94,6 +95,15 @@ export const tauriBackend: Backend = {
   exportKindle: async (request) =>
     toExportResult(await invoke<ExportStats>("export_kindle", toExportArgs(request))),
   detectorsStatus: async () => toDetectorsStatus(await invoke<MlStatus>("detectors_status")),
+  listEntries: () => invoke<LibraryEntry[]>("list_entries"),
+  listCategories: () => invoke<Category[]>("list_categories"),
+  createCategory: (name) => invoke<Category>("create_category", { name }),
+  renameCategory: (id, name) => invoke<Category>("rename_category", { id, name }),
+  deleteCategory: (id) => invoke<void>("delete_category", { id }),
+  setMangaCategories: (source, mangaId, categoryIds) =>
+    invoke<void>("set_manga_categories", { source, mangaId, categoryIds }),
+  setReadingStatus: (source, mangaId, status) =>
+    invoke<void>("set_reading_status", { source, mangaId, status }),
   diagnostics: () => invoke<Diagnostics>("diagnostics"),
   openLogs: () => invoke<void>("open_logs"),
   reportError: (message, level = "error") => invoke<void>("log_ui_error", { message, level }),

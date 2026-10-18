@@ -172,6 +172,7 @@ export function sampleChapters(manga: Manga, dataDir: string): Chapter[] {
       local_path: downloaded
         ? `${dataDir}/${manga.source}/${manga.id}/${String(n).padStart(3, "0")}`
         : null,
+      exported_at: downloaded && n <= seed % 4 ? "2026-10-12T19:30:00Z" : null,
       group: groups[(n + seed) % (n > 20 ? 1 : groups.length)],
       availability: n < 23 ? undefined : n === 23 ? { kind: "locked" } : { kind: "external", url },
     });

@@ -46,6 +46,7 @@ pub fn number_chapters(listed: Vec<(ChapterId, String)>, manga: &MangaId) -> Vec
             volume: None,
             number,
             local_path: None,
+            exported_at: None,
             group: None,
             availability: Default::default(),
         })
