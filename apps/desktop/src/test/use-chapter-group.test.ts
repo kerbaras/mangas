@@ -44,6 +44,29 @@ describe("useChapterGroup", () => {
     expect(result.current.group).toBe("K Manga");
   });
 
+  it("clears the group when All is picked while a save is pending", async () => {
+    const followed = entry(null);
+    const { result } = renderHook(() => useChapterGroup(followed, () => {}));
+    act(() => result.current.setGroup("K Manga"));
+    act(() => result.current.setGroup(null));
+    expect(result.current.group).toBeNull();
+    await waitFor(() => expect(calls).toEqual(["K Manga"]));
+    await act(async () => resolvers.shift()?.());
+    await waitFor(() => expect(calls).toEqual(["K Manga", null]));
+  });
+
+  it("follows a group saved elsewhere once nothing is pending", async () => {
+    const { result, rerender } = renderHook(({ e }) => useChapterGroup(e, () => {}), {
+      initialProps: { e: entry(null) },
+    });
+    act(() => result.current.setGroup("K Manga"));
+    await waitFor(() => expect(calls).toEqual(["K Manga"]));
+    await act(async () => resolvers.shift()?.());
+    rerender({ e: entry("Official") });
+    expect(result.current.group).toBe("Official");
+    expect(calls).toEqual(["K Manga"]);
+  });
+
   it("starts from the saved choice", () => {
     const { result } = renderHook(() => useChapterGroup(entry("Official"), () => {}));
     expect(result.current.group).toBe("Official");

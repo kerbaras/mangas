@@ -136,6 +136,7 @@ export function MangaDetailsScreen({ manga: card }: Props) {
             value={group}
             onChange={(g) => {
               clear();
+              setLanguage(null);
               setGroup(g);
             }}
           />
