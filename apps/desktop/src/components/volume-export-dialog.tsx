@@ -15,11 +15,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VolumePreview } from "@/components/volume-preview";
-import { useAsync } from "@/hooks/use-async";
+import { type Async, useAsync } from "@/hooks/use-async";
 import { useVolumeExport } from "@/hooks/use-volume-export";
 import { revealFolder } from "@/lib/dialogs";
 import { type Chapter, detectorsStatus, listDevices, type Manga } from "@/lib/ipc";
-import { type Grouping, planVolumes } from "@/lib/ipc.volumes";
+import { type Grouping, planVolumes, type VolumePlan } from "@/lib/ipc.volumes";
 import { useSettings } from "@/lib/settings";
 
 type Props = {
@@ -38,6 +38,16 @@ const volumes = (chapters: Chapter[]) => new Set(chapters.map((c) => c.volume?.t
 export const initialMode = (chapters: Chapter[]): Mode =>
   volumes(chapters).size > 1 ? "by_volume" : "single";
 
+type Keyed = { key: string; data: VolumePlan[] };
+
+/** The plans for `key`, or loading while an older request's plans are still on screen. */
+const current = (state: Async<Keyed>, key: string): Async<VolumePlan[]> =>
+  state.kind !== "ready"
+    ? state
+    : state.data.key === key
+      ? { kind: "ready", data: state.data.data }
+      : { kind: "loading" };
+
 export function VolumeExportDialog({ open, onOpenChange, manga, chapters }: Props) {
   const [settings] = useSettings();
   const [mode, setMode] = useState<Mode>(() => initialMode(chapters));
@@ -51,10 +61,15 @@ export function VolumeExportDialog({ open, onOpenChange, manga, chapters }: Prop
   const grouping: Grouping = mode === "every" ? { kind: "every", size } : { kind: mode };
   const ids = chapters.map((c) => c.id);
   const request = { source: manga.source, mangaId: manga.id, chapterIds: ids, grouping, title };
-  const plans = useAsync(() => planVolumes(request), [open, ids.join(), mode, size, title]);
-  const books = plans.state.kind === "ready" ? plans.state.data.length : 0;
+  const key = [open, ids.join(), mode, size, title].join("|");
+  const planned = useAsync(() => planVolumes(request).then((data) => ({ key, data })), [key]);
+  const plans = current(planned.state, key);
+  const books = plans.kind === "ready" ? plans.data.length : 0;
   const busy = job.state.kind === "running";
-  const useDetectors = detectors.state.kind === "ready" && detectors.state.data.downloaded;
+  const useDetectors =
+    detectors.state.kind === "ready" &&
+    detectors.state.data.available &&
+    detectors.state.data.downloaded;
 
   const run = () =>
     job.run({
@@ -102,7 +117,7 @@ export function VolumeExportDialog({ open, onOpenChange, manga, chapters }: Prop
                 id="volume-title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder={plans.state.kind === "ready" ? plans.state.data[0].title : ""}
+                placeholder={plans.kind === "ready" ? plans.data[0].title : ""}
               />
             </Field>
           )}
@@ -119,7 +134,7 @@ export function VolumeExportDialog({ open, onOpenChange, manga, chapters }: Prop
             )}
           </Field>
           <Field label={books > 1 ? `${books} files` : "File"}>
-            <VolumePreview plans={plans.state} folder={outputDir} />
+            <VolumePreview plans={plans} folder={outputDir} />
           </Field>
           {job.state.kind === "done" ? (
             <div

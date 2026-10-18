@@ -55,15 +55,20 @@ pub fn plan(
         .collect()
 }
 
-/// The planned book with volume number `number` ("3" matches "03" and "3.0").
+/// The planned book with volume number `number`: an exact label first, else a numeric match
+/// ("3" matches "03" and "3.0").
 pub fn find_volume<'a>(plans: &'a [VolumePlan], number: &str) -> Option<&'a VolumePlan> {
     let wanted = number.trim();
-    plans.iter().find(|p| {
-        p.number.as_deref().is_some_and(|n| {
-            n.trim() == wanted
-                || matches!((parse_number(n), parse_number(wanted)), (Some(a), Some(b)) if a == b)
-        })
+    plans.iter().find(|p| label(p) == Some(wanted)).or_else(|| {
+        let target = parse_number(wanted)?;
+        plans
+            .iter()
+            .find(|p| label(p).and_then(parse_number) == Some(target))
     })
+}
+
+fn label(p: &VolumePlan) -> Option<&str> {
+    p.number.as_deref().map(str::trim)
 }
 
 /// The export of `plan` into `output_dir`, with `cover` (the series cover file) when known.

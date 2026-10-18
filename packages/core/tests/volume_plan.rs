@@ -124,6 +124,9 @@ fn file_names_are_portable() {
     assert_eq!(file_name("Re:Zero / Part 1?"), "Re Zero Part 1.epub");
     assert_eq!(file_name("Dr. Stone..."), "Dr. Stone.epub");
     assert_eq!(file_name(" :: "), "Manga.epub");
+    assert_eq!(file_name("CON"), "CON (manga).epub");
+    assert_eq!(file_name("com3.v1"), "com3.v1 (manga).epub");
+    assert_eq!(file_name("Console"), "Console.epub");
 }
 
 #[test]
@@ -172,4 +175,14 @@ fn request_writes_into_the_output_folder_with_the_planned_name() {
     assert_eq!(req.output, std::path::Path::new("/out/Blue Period v1.epub"));
     assert_eq!(req.chapter_dirs, [std::path::PathBuf::from("/lib/ch1")]);
     assert_eq!(req.title, "Blue Period v1");
+}
+
+#[test]
+fn find_volume_prefers_the_exact_label_over_a_numeric_match() {
+    let chapters = [ch("1", Some("03")), ch("2", Some("3")), ch("3", Some("4"))];
+    let plans = plan(&manga(), &chapters, Grouping::ByVolume, None, None);
+    let found = |n: &str| find_volume(&plans, n).map(|p| p.chapters[0].number.clone());
+    assert_eq!(found("3").as_deref(), Some("2"));
+    assert_eq!(found("03").as_deref(), Some("1"));
+    assert_eq!(found("4.0").as_deref(), Some("3"));
 }

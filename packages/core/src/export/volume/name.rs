@@ -38,7 +38,8 @@ fn collapse_spaces(s: &str) -> String {
 }
 
 /// `title` as a portable `.epub` file name: path separators and characters Windows rejects
-/// become spaces, trailing dots go, and an empty result is "Manga".
+/// become spaces, trailing dots go, Windows device names get a suffix, and an empty result is
+/// "Manga".
 pub fn file_name(title: &str) -> String {
     let cleaned: String = title
         .chars()
@@ -50,6 +51,21 @@ pub fn file_name(title: &str) -> String {
         .collect();
     let stem = collapse_spaces(&cleaned);
     let stem = stem.trim_end_matches(['.', ' ']);
-    let stem = if stem.is_empty() { "Manga" } else { stem };
-    format!("{stem}.epub")
+    match stem {
+        "" => "Manga.epub".into(),
+        s if is_reserved(s) => format!("{s} (manga).epub"),
+        s => format!("{s}.epub"),
+    }
+}
+
+/// Whether Windows reserves `stem` as a device name (`CON`, `nul.x`, `COM1`…).
+fn is_reserved(stem: &str) -> bool {
+    let base = stem.split('.').next().unwrap_or(stem).trim_end();
+    let upper = base.to_ascii_uppercase();
+    let port = |prefix: &str| {
+        upper
+            .strip_prefix(prefix)
+            .is_some_and(|n| matches!(n.as_bytes(), [b'1'..=b'9']))
+    };
+    matches!(upper.as_str(), "CON" | "PRN" | "AUX" | "NUL") || port("COM") || port("LPT")
 }
