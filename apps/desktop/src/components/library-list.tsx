@@ -22,7 +22,7 @@ export function LibraryList({ entries, categories, ...on }: Props) {
           <th className="w-20 text-right">Chapters</th>
           <th className="w-20 text-right">On disk</th>
           <th className="w-20 text-right">Unread</th>
-          <th className="w-32 pr-4 pl-6">Updated</th>
+          <th className="w-36 pr-4 pl-6">Updated</th>
         </tr>
       </thead>
       <tbody>
