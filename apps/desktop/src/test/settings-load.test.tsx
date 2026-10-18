@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type Backend, setBackend } from "@/lib/ipc";
 import { mockBackend } from "@/lib/ipc.mock";
-import { loadSettings, readSettingsLoad, writeSettings } from "@/lib/settings";
+import { loadSettings, readSettings, readSettingsLoad, writeSettings } from "@/lib/settings";
 import { SettingsScreen } from "@/screens/settings";
 
 function backend(getSettings: Backend["getSettings"]) {
@@ -49,5 +49,18 @@ describe("settings load", () => {
     });
     await Promise.all([loadSettings(), loadSettings()]);
     expect(readSettingsLoad()).toEqual({ kind: "ready" });
+  });
+
+  it("never lets an older answer replace a newer one", async () => {
+    const stored = await mockBackend.getSettings();
+    let calls = 0;
+    backend(async () => {
+      calls += 1;
+      if (calls === 2) return { ...stored, default_device: "kindle-scribe" };
+      await new Promise((r) => setTimeout(r, 10));
+      return { ...stored, default_device: "kindle-oasis" };
+    });
+    await Promise.all([loadSettings(), loadSettings()]);
+    expect(readSettings().defaultDevice).toBe("kindle-scribe");
   });
 });

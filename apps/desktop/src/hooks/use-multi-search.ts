@@ -16,7 +16,7 @@ const failed = (provider: string, reason: string): SearchGroup => ({
  * Searches each provider in its own call so groups show up as they answer instead of waiting
  * for the slowest; `retry(id)` reruns one. Only the latest call per provider lands, and every
  * answer is recorded as that provider's status. The last query's groups are kept in
- * `search-session` under the query, provider list and settings, so coming back to the same
+ * `search-session` under the query, provider list and search settings, so coming back to the same
  * search shows them again; only providers still searching when the screen was left are asked
  * again, and changed languages or provider options search afresh.
  */
@@ -24,9 +24,9 @@ export function useMultiSearch(query: string, ids: string[]) {
   const [groups, setGroups] = useState<Record<string, GroupState>>({});
   const generation = useRef(0);
   const latest = useRef<Record<string, number>>({});
-  const [settings] = useSettings();
+  const [{ preferredLanguages, providerLanguages, providerOptions }] = useSettings();
   const key = ids.join(",");
-  const prefs = JSON.stringify(settings);
+  const prefs = JSON.stringify([preferredLanguages, providerLanguages, providerOptions]);
   const current = useRef({ query: "", key: "" });
 
   const searchOne = useCallback((q: string, id: string, gen: number) => {

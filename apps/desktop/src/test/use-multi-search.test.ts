@@ -72,12 +72,12 @@ describe("useMultiSearch", () => {
     expect(searchAll).toHaveBeenLastCalledWith("berserk", ["mangadex"]);
   });
 
-  it("searches again after the settings change", async () => {
+  it("searches again after the chapter languages change", async () => {
     const searchAll = backend();
     const first = renderHook(() => useMultiSearch("dandadan", ["mangadex"]));
     await waitFor(() => expect(first.result.current.groups.mangadex?.kind).toBe("done"));
     first.unmount();
-    act(() => writeSettings({ defaultDevice: "kindle-scribe" }));
+    act(() => writeSettings({ preferredLanguages: ["es"] }));
 
     const again = renderHook(() => useMultiSearch("dandadan", ["mangadex"]));
     await waitFor(() => expect(searchAll).toHaveBeenCalledTimes(2));
