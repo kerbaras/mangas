@@ -93,17 +93,14 @@ fn a_partial_outage_exits_0() {
     assert!(out.status.success(), "{out:?}");
     let report = json(&out);
     assert_eq!(report["all_unreachable"], false);
-    let want = IDS.map(|id| {
-        (
-            id.to_string(),
-            if id == "mangadex" {
-                "ready"
-            } else {
-                "unreachable"
-            }
-            .to_string(),
-        )
-    });
+    let state = |id| {
+        if id == "mangadex" {
+            "ready"
+        } else {
+            "unreachable"
+        }
+    };
+    let want = IDS.map(|id| (id.to_string(), state(id).to_string()));
     assert_eq!(states(&report), want);
     assert!(
         report["providers"][1]["reason"]
