@@ -82,7 +82,7 @@ pub async fn export_volumes(
     if plans.is_empty() {
         return Err(to_ipc("none of these chapters is downloaded"));
     }
-    let penalizer = penalizer(&app, detectors).await?;
+    let detection = penalizer(&app, detectors).await?;
     let cover = cover_file(&src.manga).await;
     let mut written = Vec::with_capacity(plans.len());
     for (index, plan) in plans.iter().enumerate() {
@@ -105,8 +105,8 @@ pub async fn export_volumes(
         )
         .with_format(format)
         .with_page(resolved.page());
-        let (handle, penalizer) = (app.clone(), penalizer.clone());
-        let (stats, dirs) = tauri::async_runtime::spawn_blocking(move || {
+        let (handle, penalizer) = (app.clone(), detection.penalizer.clone());
+        let (mut stats, dirs) = tauri::async_runtime::spawn_blocking(move || {
             let mut on_progress = |p: Progress| emit(&handle, ExportEvent::Export(p));
             kindle::export(&req, penalizer, &mut on_progress).map(|s| (s, req.chapter_dirs))
         })
@@ -114,6 +114,7 @@ pub async fn export_volumes(
         .map_err(to_ipc)?
         .map_err(to_ipc)?;
         record_export(&stats, &dirs, &plan.title, &device);
+        stats.detectors_error = detection.error.clone();
         written.push(stats);
     }
     Ok(written)

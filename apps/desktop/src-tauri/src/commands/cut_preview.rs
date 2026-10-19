@@ -80,7 +80,8 @@ pub async fn preview_cut(
         limit: PREVIEW_PAGES,
         out_dir: root.join(generation.to_string()),
     };
-    let penalizer = penalizer(&app, detectors).await?;
+    let detection = penalizer(&app, detectors).await?;
+    let penalizer = detection.penalizer;
     let watched = panel.clone();
     let cut = tauri::async_runtime::spawn_blocking(move || {
         let stale = || !with_panels(|p| p.is_current(&watched, generation));
@@ -92,8 +93,9 @@ pub async fn preview_cut(
     if !with_panels(|p| p.is_open(&panel)) {
         remove_dir(&root);
     }
-    let preview = cut.map_err(to_ipc)?;
+    let mut preview = cut.map_err(to_ipc)?;
     remove_older(&root, generation);
+    preview.detectors_error = detection.error;
     Ok(preview)
 }
 

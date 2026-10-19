@@ -9,11 +9,15 @@ const fileName = (path: string): string =>
 
 const count = (n: number, word: string): string => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-/** Toast title, plus a warning line when unsupported files were skipped. */
-export function exportSummary({ output, pages, skipped }: ExportResult) {
+/** Toast title, plus a warning when files were skipped or the detectors couldn't run. */
+export function exportSummary({ output, pages, skipped, detectors_error }: ExportResult) {
+  const warnings = [
+    skipped > 0 && `${count(skipped, "unsupported file")} skipped — see logs`,
+    detectors_error && `Cut without detectors: ${detectors_error}`,
+  ].filter(Boolean);
   return {
     title: `Exported ${count(pages, "page")} to ${fileName(output)}`,
-    warning: skipped > 0 ? `${count(skipped, "unsupported file")} skipped — see logs` : null,
+    warning: warnings.length ? warnings.join(". ") : null,
   };
 }
 
@@ -22,6 +26,7 @@ export const combineResults = (results: ExportResult[]): ExportResult => ({
   output: results.length === 1 ? results[0].output : `${results.length} books`,
   pages: results.reduce((n, r) => n + r.pages, 0),
   skipped: results.reduce((n, r) => n + r.skipped, 0),
+  detectors_error: results.find((r) => r.detectors_error)?.detectors_error ?? null,
 });
 
 const openLogsOrSay = () =>

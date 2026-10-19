@@ -20,7 +20,13 @@ export type ExportPreset = {
 
 export type PreviewPage = { src: string; width: number; height: number };
 
-export type CutPreview = { pages: PreviewPage[]; more: boolean; elapsed_ms: number };
+export type CutPreview = {
+  pages: PreviewPage[];
+  more: boolean;
+  elapsed_ms: number;
+  /** Why the detectors were asked for but the cut ran without them. */
+  detectors_error?: string | null;
+};
 
 export type CutPreviewBackend = {
   getExportPreset(source: string, mangaId: string): Promise<ExportPreset | null>;

@@ -37,12 +37,14 @@ export type ExportStats = {
   skipped: number;
   /** File actually written; differs from the request when that name was taken. */
   output: string;
+  detectors_error?: string | null;
 };
 
-export const toExportResult = ({ output, pages, skipped }: ExportStats): ExportResult => ({
-  output,
-  pages,
-  skipped: skipped ?? 0,
+export const toExportResult = (s: ExportStats): ExportResult => ({
+  output: s.output,
+  pages: s.pages,
+  skipped: s.skipped ?? 0,
+  detectors_error: s.detectors_error ?? null,
 });
 
 /** Mirrors `mangas_core::ml::Status`. */

@@ -38,9 +38,16 @@ fn cuda() -> Option<ExecutionProviderDispatch> {
     None
 }
 
+/// ML Program with static shapes: CoreML's default NeuralNetwork format builds a session for the
+/// RT-DETR bubble model and then fails every run ("Unable to compute the prediction"), and ML
+/// Program without static shapes doesn't compile it (#200).
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 fn coreml() -> Option<ExecutionProviderDispatch> {
-    Some(ort::ep::CoreML::default().build())
+    use ort::ep::coreml::ModelFormat;
+    let ep = ort::ep::CoreML::default()
+        .with_model_format(ModelFormat::MLProgram)
+        .with_static_input_shapes(true);
+    Some(ep.build())
 }
 #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
 fn coreml() -> Option<ExecutionProviderDispatch> {
@@ -54,10 +61,27 @@ fn providers() -> Vec<ExecutionProviderDispatch> {
         .collect()
 }
 
+/// A session on the platform accelerator, or on the CPU alone when the accelerator can't build it
+/// (e.g. an op CoreML lacks on an older macOS).
 pub fn load_session(path: &Path) -> Result<Session> {
+    let cpu = || vec![ort::ep::CPU::default().build()];
+    if accelerators().is_empty() {
+        return session(path, cpu());
+    }
+    session(path, providers()).or_else(|e| {
+        tracing::warn!(
+            "onnx: {} can't run {}, using the CPU: {e}",
+            provider_name(),
+            path.display()
+        );
+        session(path, cpu())
+    })
+}
+
+fn session(path: &Path, providers: Vec<ExecutionProviderDispatch>) -> Result<Session> {
     Session::builder()
         .map_err(ort_err)?
-        .with_execution_providers(providers())
+        .with_execution_providers(providers)
         .map_err(ort_err)?
         .with_optimization_level(GraphOptimizationLevel::Level3)
         .map_err(ort_err)?

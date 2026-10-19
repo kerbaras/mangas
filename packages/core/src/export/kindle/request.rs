@@ -91,6 +91,9 @@ pub struct ExportStats {
     pub empty_chapters: Vec<PathBuf>,
     /// File actually written (differs from the request when the name was already taken).
     pub output: PathBuf,
+    /// Why detectors were asked for but not used (set by the caller that chose them).
+    #[serde(default)]
+    pub detectors_error: Option<String>,
 }
 
 impl ExportStats {

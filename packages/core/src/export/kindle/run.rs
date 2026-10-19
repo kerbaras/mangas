@@ -51,6 +51,7 @@ fn empty_stats() -> ExportStats {
         skipped: 0,
         empty_chapters: Vec::new(),
         output: PathBuf::new(),
+        detectors_error: None,
     }
 }
 

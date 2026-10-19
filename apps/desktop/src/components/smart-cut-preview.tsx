@@ -19,7 +19,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useDebounced } from "@/hooks/use-debounced";
+import { useDetectorSupport } from "@/hooks/use-detector-support";
 import type { Series } from "@/hooks/use-series-preset";
+import { runtimeFailure } from "@/lib/detector-hint";
+import { storageChanged } from "@/lib/storage-changed";
 
 const errorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -79,6 +82,8 @@ function SmartCutPreview(props: Props & { onClose: () => void }) {
   const [note, setNote] = useState<string | null>(null);
   const options = useDebounced(form, 400);
   const dir = chapters.find((c) => c.id === chapter)?.dir;
+  const support = useDetectorSupport();
+  const detectorsOff = support.status.kind === "ready" ? runtimeFailure(support.status.data) : null;
 
   // Closing the panel stops its previews in the backend, even one whose request arrives later.
   // Declared first so a (re)mount gets its id before the preview effect runs.
@@ -95,7 +100,12 @@ function SmartCutPreview(props: Props & { onClose: () => void }) {
     setState({ kind: "loading" });
     const request = { cut_preset: cutPreset, ...options, profile: device.id };
     previewCut(dir, request, detectors, panel.current).then(
-      (preview) => live && setState({ kind: "ready", preview }),
+      (preview) => {
+        if (!live) return;
+        setState({ kind: "ready", preview });
+        // The detector status now holds the failure: the "Use detectors" switch shows it.
+        if (preview.detectors_error) storageChanged();
+      },
       (e) => live && setState({ kind: "error", message: errorMessage(e) }),
     );
     return () => {
@@ -160,7 +170,7 @@ function SmartCutPreview(props: Props & { onClose: () => void }) {
               grayscale={device?.grayscale ?? true}
             />
           </div>
-          <CutPreviewPane state={state} />
+          <CutPreviewPane state={state} detectorsOff={detectorsOff} />
         </div>
         <DialogFooter className="items-center">
           {note && <span className="mr-auto text-caption text-ink-3">{note}</span>}

@@ -16,26 +16,50 @@ const device = {
   format: "epub" as const,
 };
 
-function open() {
+function open(detectorsError: string | null = null) {
   const cut = mockCutPreview();
   const cancelCutPreview = vi.fn(async (_panel: string) => {});
-  const previewCut = vi.fn(cut.previewCut);
+  // Like the backend: a preview asked with detectors records the failure in the detector status.
+  let failed: string | null = null;
+  const previewCut = vi.fn(async (...args: Parameters<typeof cut.previewCut>) => {
+    if (args[2]) failed = detectorsError;
+    return { ...(await cut.previewCut(...args)), detectors_error: args[2] ? detectorsError : null };
+  });
+  const detectorsStatus = vi.fn(async () => ({
+    available: true,
+    downloaded: failed === null,
+    provider: "cpu",
+    runtime: failed
+      ? { state: "failed", version: "1.28.3", reason: failed }
+      : { state: "unavailable" },
+    downloadBytes: 0,
+    diskBytes: 0,
+  }));
   const setExportPreset = vi.fn(cut.setExportPreset);
-  setBackend({ ...cut, cancelCutPreview, previewCut, setExportPreset } as unknown as Backend);
-  render(
+  setBackend({
+    ...cut,
+    cancelCutPreview,
+    previewCut,
+    setExportPreset,
+    detectorsStatus,
+  } as unknown as Backend);
+  const button = (detectors: boolean) => (
     <SmartCutButton
       series={{ source: "webtoons", id: "w", title: "Tower" }}
       chapters={[{ id: "c1", label: "Chapter 1", dir: "/d/1" }]}
       device={device}
       format="epub"
       cutPreset="balanced"
-      detectors={false}
+      detectors={detectors}
       saved={null}
       onSaved={() => {}}
-    />,
+    />
   );
+  const { rerender } = render(button(detectorsError !== null));
   fireEvent.click(screen.getByRole("button", { name: /Smart-cut options/ }));
-  return { cancelCutPreview, previewCut, setExportPreset };
+  // The export dialog turns its switch off once the status says the detectors failed.
+  const detectorsOff = () => rerender(button(false));
+  return { cancelCutPreview, previewCut, setExportPreset, detectorsOff };
 }
 
 describe("smart-cut options panel", () => {
@@ -52,6 +76,22 @@ describe("smart-cut options panel", () => {
       }),
     );
     expect(await screen.findByText(/Saved cut settings, device and format/)).toBeTruthy();
+  });
+
+  it("shows why the detectors couldn't run and still shows the pages", async () => {
+    const reason =
+      "onnx runtime /models/runtime/1.28.3/libonnxruntime.dylib: dlopen failed: dlopen(…): tried: …";
+    const { previewCut, detectorsOff } = open(reason);
+    expect(await screen.findByText(`Cut without detectors: ${reason}`)).toBeTruthy();
+    expect(screen.getAllByRole("img", { name: /Page \d+/ }).length).toBeGreaterThan(0);
+    expect(previewCut.mock.calls[0][2]).toBe(true);
+    detectorsOff();
+    await waitFor(() => expect(previewCut).toHaveBeenCalledTimes(2));
+    expect(previewCut.mock.calls[1][2]).toBe(false);
+    await waitFor(() =>
+      expect(screen.getAllByRole("img", { name: /Page \d+/ }).length).toBeGreaterThan(0),
+    );
+    expect(screen.getByText(`Cut without detectors: ${reason}`)).toBeTruthy();
   });
 
   it("cancels the panel's previews when closed", async () => {

@@ -2883,6 +2883,7 @@ dependencies = [
  "futures-util",
  "image",
  "lettre",
+ "libloading 0.9.0",
  "log",
  "lopdf",
  "ndarray",

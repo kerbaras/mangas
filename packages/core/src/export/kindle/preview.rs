@@ -37,6 +37,9 @@ pub struct Preview {
     /// The chapter gives more pages than were rendered.
     pub more: bool,
     pub elapsed_ms: u128,
+    /// Why detectors were asked for but not used (set by the caller that chose them).
+    #[serde(default)]
+    pub detectors_error: Option<String>,
 }
 
 fn write_page(dir: &Path, index: usize, jpeg: &[u8]) -> Result<PathBuf> {
@@ -85,5 +88,6 @@ pub fn preview(
         pages,
         more,
         elapsed_ms: t.elapsed().as_millis(),
+        detectors_error: None,
     })
 }

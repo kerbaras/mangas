@@ -23,6 +23,9 @@ describe("exportSummary", () => {
       title: "Exported 1 page to Solo ch 1.epub",
       warning: "2 unsupported files skipped — see logs",
     });
+    expect(exportSummary({ ...result, detectors_error: "dlopen failed: x" }).warning).toBe(
+      "Cut without detectors: dlopen failed: x",
+    );
     expect(exportSummary({ ...result, skipped: 1 }).warning).toBe(
       "1 unsupported file skipped — see logs",
     );
@@ -32,7 +35,12 @@ describe("exportSummary", () => {
 describe("combineResults", () => {
   it("adds up pages and skipped files across books", () => {
     const books = [result, { output: "/books/Solo v2.epub", pages: 10, skipped: 2 }];
-    expect(combineResults(books)).toEqual({ output: "2 books", pages: 40, skipped: 2 });
+    expect(combineResults(books)).toEqual({
+      output: "2 books",
+      pages: 40,
+      skipped: 2,
+      detectors_error: null,
+    });
     expect(exportSummary(combineResults(books)).warning).toMatch(/2 unsupported files skipped/);
   });
 });
@@ -75,6 +83,11 @@ describe("toExportResult", () => {
       skipped: 1,
       output: "/b.epub",
     };
-    expect(toExportResult(stats)).toEqual({ output: "/b.epub", pages: 29, skipped: 1 });
+    expect(toExportResult(stats)).toEqual({
+      output: "/b.epub",
+      pages: 29,
+      skipped: 1,
+      detectors_error: null,
+    });
   });
 });

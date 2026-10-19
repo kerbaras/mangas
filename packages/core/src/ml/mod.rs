@@ -82,6 +82,18 @@ pub fn status(cache_dir: &Path) -> Status {
     }
 }
 
+/// [`status`] after loading a downloaded runtime, so one that won't load shows as failed with the
+/// loader's message. The app loads it on first use instead; the CLI's `ml status` asks this.
+pub fn checked_status(cache_dir: &Path) -> Status {
+    #[cfg(feature = "ml")]
+    if matches!(runtime::status(cache_dir), RuntimeStatus::Downloaded { .. }) {
+        if let Err(e) = runtime::ensure_loaded(cache_dir) {
+            tracing::debug!("onnx runtime check: {e}");
+        }
+    }
+    status(cache_dir)
+}
+
 #[cfg(feature = "ml")]
 fn execution_provider_name() -> Option<String> {
     Some(session::provider_name().to_string())
@@ -110,4 +122,33 @@ pub async fn row_penalizer(
     _on_progress: &mut (dyn FnMut(&str, u64, Option<u64>) + Send),
 ) -> Result<RowPenalizer> {
     Err(support::not_built())
+}
+
+/// The detectors for one cut, or why it runs without them. The default is "detectors off".
+#[derive(Clone, Default)]
+pub struct Penalizer {
+    pub penalizer: Option<RowPenalizer>,
+    /// Why the detectors are off, e.g. the runtime's load failure (also in [`status`]).
+    pub error: Option<String>,
+}
+
+/// [`row_penalizer`], except that a failure (runtime that won't load, failed download, build
+/// without `ml`) turns the detectors off instead of stopping the export or preview.
+pub async fn penalizer_or_reason(
+    cache_dir: &Path,
+    on_progress: &mut (dyn FnMut(&str, u64, Option<u64>) + Send),
+) -> Penalizer {
+    match row_penalizer(cache_dir, on_progress).await {
+        Ok(p) => Penalizer {
+            penalizer: Some(p),
+            error: None,
+        },
+        Err(e) => {
+            tracing::warn!("cutting without detectors: {e}");
+            Penalizer {
+                penalizer: None,
+                error: Some(e.to_string()),
+            }
+        }
+    }
 }

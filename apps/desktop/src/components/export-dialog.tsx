@@ -40,6 +40,7 @@ import {
 import type { ExportResult } from "@/lib/ipc";
 import type { VolumePlan } from "@/lib/ipc.volumes";
 import { titleOf } from "@/lib/send-labels";
+import { storageChanged } from "@/lib/storage-changed";
 
 type Props = {
   open: boolean;
@@ -134,6 +135,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
     setRuns((n) => n + 1);
     if (!results) return;
     onExported?.(results);
+    if (results.some((r) => r.detectors_error)) storageChanged();
     const sent = results.map((r) => ({ file: r.output, title: titleOf(r.output) }));
     setWritten(sent);
     if (via !== "save") await send.deliver(sent, via);
