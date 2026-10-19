@@ -94,15 +94,32 @@ pub fn get_settings(lib: &Library) -> Result<Settings> {
 /// proxy) when it can't be read, with the warning to show. For work that must not stop on a
 /// broken settings row, such as detector support.
 pub fn settings_or_default(db: &Path) -> (Settings, Option<String>) {
-    match crate::library::open(db).and_then(|lib| get_settings(&lib)) {
-        Ok(settings) => (settings, None),
-        Err(e) => (
-            Settings::default(),
-            Some(format!(
-                "could not read the settings, using the default data folder and the system proxy: {e}"
-            )),
-        ),
+    match crate::library::open(db) {
+        Ok(lib) => settings_or_default_in(&lib),
+        Err(e) => (Settings::default(), Some(fallback_warning(&e))),
     }
+}
+
+/// [`settings_or_default`] for a library that is already open.
+pub fn settings_or_default_in(lib: &Library) -> (Settings, Option<String>) {
+    match get_settings(lib) {
+        Ok(settings) => (settings, None),
+        Err(e) => (Settings::default(), Some(fallback_warning(&e))),
+    }
+}
+
+/// [`settings_or_default_in`] with the warning logged: for reads that must not stop on a broken
+/// row. Writes keep [`get_settings`], so a broken row is never saved over.
+pub fn readable_settings(lib: &Library) -> Settings {
+    let (settings, warning) = settings_or_default_in(lib);
+    if let Some(warning) = warning {
+        log::warn!("{warning}");
+    }
+    settings
+}
+
+fn fallback_warning(e: &Error) -> String {
+    format!("could not read the settings, using the default data folder and the system proxy: {e}")
 }
 
 fn read(conn: &Connection) -> Result<Settings> {

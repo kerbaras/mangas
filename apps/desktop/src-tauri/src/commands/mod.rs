@@ -40,10 +40,10 @@ pub(super) fn open_library() -> Result<Library, String> {
 
 /// The provider called `name`, carrying the browser session stored for it in the settings.
 pub(super) fn source_by_name(name: &str) -> Result<Arc<dyn Source>, String> {
-    let settings = settings_of(&open_library()?)?;
-    mangas_providers::source(name, &settings).map_err(to_ipc)
+    mangas_providers::source(name, &settings_or_default()).map_err(to_ipc)
 }
 
+/// The stored settings, failing on a broken row: for writes, so it is never saved over.
 pub(super) fn settings_of(lib: &Library) -> Result<Settings, String> {
     library::get_settings(lib).map_err(to_ipc)
 }

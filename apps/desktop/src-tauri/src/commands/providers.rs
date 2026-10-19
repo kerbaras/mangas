@@ -6,7 +6,7 @@ use mangas_core::library::{self, ProviderSession, ProxyMode, Settings};
 use mangas_providers::{ProviderInfo, ProviderStatus};
 use tauri::{AppHandle, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
-use super::{open_library, settings_of, to_ipc};
+use super::{open_library, settings_of, settings_or_default, to_ipc};
 
 /// A current browser user agent for the engine the Connect window runs (Chromium on Windows,
 /// WebKit elsewhere): Cloudflare's check loops when the two disagree. It binds `cf_clearance`
@@ -28,7 +28,7 @@ pub fn list_providers() -> Vec<ProviderInfo> {
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub async fn provider_status(provider: String) -> Result<ProviderStatus, String> {
-    let settings = settings_of(&open_library()?)?;
+    let settings = settings_or_default();
     Ok(mangas_providers::status(&provider, &settings).await)
 }
 
@@ -42,7 +42,7 @@ pub async fn test_proxy(mode: ProxyMode, url: String) -> Result<ProviderStatus, 
     let settings = Settings {
         proxy_mode: Some(mode),
         proxy_url: Some(url),
-        ..settings_of(&open_library()?)?
+        ..settings_or_default()
     };
     Ok(mangas_providers::status("mangadex", &settings).await)
 }

@@ -28,7 +28,7 @@ impl QueueRunner {
 impl JobRunner for QueueRunner {
     /// Settings are read per job, so a new session or data folder applies to the next chapter.
     async fn run(&self, lib: &Library, job: &Job, on_event: OnEvent<'_>) -> Result<()> {
-        let settings = library::get_settings(lib)?;
+        let settings = library::readable_settings(lib);
         let source = crate::source(&job.source, &settings)?;
         let pages = PageClient::via(source.as_ref(), &settings.network())?;
         let root = (self.root_for)(&settings)?;

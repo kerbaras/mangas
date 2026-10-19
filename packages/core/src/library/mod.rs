@@ -68,7 +68,8 @@ pub use settings_prefs::{
     DEFAULT_UPDATE_HOURS,
 };
 pub use settings_repo::{
-    edit_settings, get_settings, set_settings, settings_or_default, ProviderSession, Settings,
+    edit_settings, get_settings, readable_settings, set_settings, settings_or_default,
+    settings_or_default_in, ProviderSession, Settings,
 };
 pub use snapshot::{
     read_snapshot, restore_snapshot, CategoryState, ChapterState, LibrarySnapshot, TitleState,
