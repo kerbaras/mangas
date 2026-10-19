@@ -125,12 +125,33 @@ pub fn from_child(now: Status, output: std::io::Result<Output>) -> Status {
         },
         Ok(out) => {
             let said = String::from_utf8_lossy(&out.stderr);
-            let said = said.trim().trim_start_matches("error: ");
-            format!("detector status check failed ({}): {said}", out.status)
+            tracing::warn!("detector status check failed ({}): {said}", out.status);
+            format!(
+                "detector status check failed ({}): {}",
+                out.status,
+                shown(&said)
+            )
         }
         Err(e) => format!("detector status check: {e}"),
     };
     failed(now, reason)
+}
+
+/// Characters of the child's error shown on the Storage card; the whole text goes to the log.
+const SHOWN: usize = 200;
+
+/// The first non-empty line of `stderr`, cut to [`SHOWN`] characters, with "… see log" when
+/// anything was left out.
+fn shown(stderr: &str) -> String {
+    let mut lines = stderr.lines().map(str::trim).filter(|l| !l.is_empty());
+    let first = lines.next().unwrap_or_default();
+    let first = first.trim_start_matches("error: ");
+    let cut: String = first.chars().take(SHOWN).collect();
+    if cut.len() < first.len() || lines.next().is_some() {
+        format!("{cut}… see log")
+    } else {
+        cut
+    }
 }
 
 fn failed(now: Status, reason: String) -> Status {
