@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use anyhow::bail;
 use clap::Args as ClapArgs;
 use mangas_core::library;
-use mangas_core::send::{email, usb};
+use mangas_core::send::{email, password, usb};
 
 use super::deliver::{deliver, SendArg};
 use crate::output::outln;
@@ -39,7 +39,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     }
     let lib = library::open(&paths::library_db()?)?;
     if args.test {
-        let to = email::send_test(&library::get_settings(&lib)?.kindle_email).await?;
+        let settings = password::email_settings(&lib, &*password::system_store())?;
+        let to = email::send_test(&settings).await?;
         return Ok(outln!("test email sent to {to}")?);
     }
     let Some(file) = args.file else {

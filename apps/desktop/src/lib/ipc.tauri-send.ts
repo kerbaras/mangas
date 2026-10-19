@@ -11,6 +11,7 @@ export const tauriSend: SendBackend = {
   sendUsb: (file, title, root) => invoke("send_usb", { file, title, root: root ?? null }),
   onCopyProgress: (cb) => listen<CopyProgress>(SEND_EVENT, (e) => cb(e.payload)),
   sendEmail: (file, title) => invoke("send_email", { file, title }),
-  sendTestEmail: (settings) => invoke("send_test_email", { settings }),
+  sendTestEmail: (settings, typed) => invoke("send_test_email", { settings, typed }),
+  emailPassword: (retry) => invoke("email_password", { retry }),
   listExports: (limit) => invoke("list_exports", { limit }),
 };

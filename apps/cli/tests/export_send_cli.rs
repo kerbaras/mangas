@@ -1,8 +1,9 @@
 //! `mangas export <id> --send` over several volumes, against a library built on disk and a
 //! fake Kindle mount.
 
+use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
 
 use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId};
 use mangas_core::library;
@@ -14,6 +15,7 @@ fn mangas(home: &Path, args: &[&str]) -> Output {
         .args(args)
         .env("HOME", home)
         .env("XDG_DATA_HOME", home.join("data"))
+        .env("MANGAS_KEYCHAIN", "off")
         .env_remove("MANGAS_LOG")
         .output()
         .unwrap()
@@ -121,4 +123,55 @@ fn unsent_volumes_are_each_named_and_exit_with_code_2() {
     let err = text(&out.stderr);
     assert_eq!(err.matches("was written but not sent").count(), 2, "{err}");
     assert!(err.contains("2 book(s) were written but not sent"), "{err}");
+}
+
+/// Email settings with a password kept in the app settings, aimed at a closed port.
+fn email_to_nowhere(home: &Path) {
+    let port = std::net::TcpListener::bind("127.0.0.1:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port()
+        .to_string();
+    let args = [
+        "settings",
+        "email",
+        "--to",
+        "reader@kindle.com",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        &port,
+        "--security",
+        "none",
+        "--username",
+        "me",
+        "--password-stdin",
+    ];
+    let mut child = Command::new(env!("CARGO_BIN_EXE_mangas-cli"))
+        .args(args)
+        .env("HOME", home)
+        .env("XDG_DATA_HOME", home.join("data"))
+        .env("MANGAS_KEYCHAIN", "off")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    child.stdin.take().unwrap().write_all(b"pw\n").unwrap();
+    assert!(child.wait().unwrap().success());
+}
+
+#[test]
+fn emailing_without_a_keychain_warns_once() {
+    let home = tempfile::tempdir().unwrap();
+    library_with(home.path(), [2, 2]);
+    email_to_nowhere(home.path());
+    let out = export_send(home.path(), "email", &kindle(home.path()));
+    assert_eq!(out.status.code(), Some(2), "{out:?}");
+    let err = text(&out.stderr);
+    let warning = "warning: the SMTP password is stored unencrypted in the app settings \
+                   (system keychain turned off by MANGAS_KEYCHAIN)";
+    assert_eq!(err.matches(warning).count(), 1, "{err}");
+    assert_eq!(err.matches("was written but not sent").count(), 2, "{err}");
 }

@@ -5,8 +5,10 @@ use std::io::Write;
 use std::path::Path;
 
 use mangas_core::library::{self, Library};
+use mangas_core::send::password;
 use mangas_core::send::{email, usb, SendVia};
 
+use super::settings_email::warn_unencrypted;
 use crate::output::outln;
 use crate::Exit;
 
@@ -39,7 +41,16 @@ pub async fn deliver(
 ) -> anyhow::Result<()> {
     let to = match via {
         SendArg::Email => {
-            let settings = library::get_settings(lib)?.kindle_email;
+            let store = password::system_store();
+            let settings = password::email_settings(lib, &*store)?;
+            let in_file = !library::get_settings(lib)?.kindle_email.password.is_empty();
+            if in_file {
+                let why = store.get().err().map(|e| e.to_string());
+                warn_unencrypted(
+                    why.as_deref()
+                        .unwrap_or("the system keychain didn't take it"),
+                );
+            }
             let sent = email::send_book(&settings, file, title).await?;
             outln!(
                 "emailed {} ({:.1} MB) to {}",

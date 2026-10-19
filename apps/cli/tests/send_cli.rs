@@ -13,6 +13,7 @@ fn mangas(home: &Path, args: &[&str], stdin: &str) -> Output {
         .args(args)
         .env("HOME", home)
         .env("XDG_DATA_HOME", home.join("data"))
+        .env("MANGAS_KEYCHAIN", "off")
         .env_remove("MANGAS_LOG")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -56,9 +57,19 @@ fn settings_email_saves_and_masks_the_password() {
         "{shown}"
     );
     assert!(shown.contains("from      me@example.test"), "{shown}");
-    assert!(shown.contains("password  (set)"), "{shown}");
+    assert!(
+        shown.contains("password  (set, unencrypted in the app settings)"),
+        "{shown}"
+    );
     assert!(!shown.contains("not-a-real-password"), "{shown}");
-    assert!(text(&out.stderr).contains("stored unencrypted"));
+    let warning = text(&out.stderr);
+    assert!(
+        warning.contains(
+            "the SMTP password is stored unencrypted in the app settings \
+             (system keychain turned off by MANGAS_KEYCHAIN)"
+        ),
+        "{warning}"
+    );
     let again = text(&mangas(home.path(), &["settings", "email"], "").stdout);
     assert_eq!(again, shown);
 }

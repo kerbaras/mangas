@@ -27,6 +27,11 @@ export const EMPTY_EMAIL: EmailSettings = {
   password: "",
 };
 
+/** Mirrors `mangas_core::send::password::Storage`: where the SMTP password is kept. */
+/** `locked`: a keychain that is locked or won't be read, so the password may be in it. */
+export type PasswordStorage = "keychain" | "file" | "locked";
+export type EmailPassword = { password: string; storage: PasswordStorage };
+
 export const DEFAULT_PORT: Record<Security, number> = { starttls: 587, tls: 465, none: 25 };
 
 /** Mirrors `mangas_core::send::KindleVolume`. */
@@ -60,8 +65,16 @@ export type SendBackend = {
   onCopyProgress(cb: (p: CopyProgress) => void): Promise<Unlisten>;
   /** Emails the EPUB to the Kindle address in the settings. */
   sendEmail(file: string, title: string): Promise<SentEmail>;
-  /** Sends a test message with `settings` (saved or not); resolves to the address it went to. */
-  sendTestEmail(settings: EmailSettings): Promise<string>;
+  /**
+   * Sends a test message with `settings` (saved or not); resolves to the address it went to.
+   * Unless a new password was `typed`, the saved one is used, which may prompt to unlock.
+   */
+  sendTestEmail(settings: EmailSettings, typed: boolean): Promise<string>;
+  /**
+   * The saved password and where it is kept. May bring up the keychain's unlock prompt, so
+   * only for something the user did; `retry` prompts again after a dismissed one.
+   */
+  emailPassword(retry: boolean): Promise<EmailPassword>;
   listExports(limit: number): Promise<ExportRecord[]>;
 };
 
@@ -72,5 +85,7 @@ export const onCopyProgress = async (cb: (p: CopyProgress) => void) =>
   (await backend()).onCopyProgress(cb);
 export const sendEmail = async (file: string, title: string) =>
   (await backend()).sendEmail(file, title);
-export const sendTestEmail = async (s: EmailSettings) => (await backend()).sendTestEmail(s);
+export const sendTestEmail = async (s: EmailSettings, typed: boolean) =>
+  (await backend()).sendTestEmail(s, typed);
+export const emailPassword = async (retry: boolean) => (await backend()).emailPassword(retry);
 export const listExports = async (limit: number) => (await backend()).listExports(limit);

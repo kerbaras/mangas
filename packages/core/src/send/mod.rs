@@ -2,6 +2,7 @@
 //! copying the file onto a Kindle mounted over USB.
 
 pub mod email;
+pub mod password;
 pub mod usb;
 
 use serde::{Deserialize, Serialize};
