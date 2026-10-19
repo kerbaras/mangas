@@ -10,6 +10,7 @@ pub mod page;
 pub mod pdf;
 pub mod preset;
 mod profiles;
+pub mod target;
 pub mod volume;
 
 pub use exporter::{Exporter, Format, Labels, Meta};
