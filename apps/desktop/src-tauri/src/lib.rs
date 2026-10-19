@@ -74,6 +74,7 @@ pub fn run() {
             commands::organisation::set_manga_categories,
             commands::organisation::set_reading_status,
             commands::import::import_local,
+            commands::estimate::estimate_export,
             commands::export::export_chapters,
             commands::detectors::detectors_status,
             commands::detectors::download_detectors,
