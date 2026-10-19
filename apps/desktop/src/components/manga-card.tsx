@@ -22,7 +22,7 @@ export function MangaCard({ entry, categories, ...on }: Props) {
           className="group w-full rounded-md p-1.5 text-left outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent"
         >
           <div className="relative transition-transform group-hover:-translate-y-0.5">
-            <Cover manga={entry} />
+            <Cover manga={entry} clearTop={fresh > 0 || unread > 0} />
             {fresh > 0 && (
               <Hint hint={`${fresh} new since you last opened it`} focusable={false}>
                 <span className="absolute top-1.5 left-1.5 rounded-sm bg-ok px-1 text-caption font-semibold text-canvas tabular-nums shadow-sm">
