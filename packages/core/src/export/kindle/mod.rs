@@ -7,6 +7,7 @@ pub mod filters;
 mod input;
 mod margins;
 mod parts;
+mod plan;
 mod preview;
 pub mod process;
 mod request;

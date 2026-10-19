@@ -69,9 +69,25 @@ pub fn crop_sides(img: &RgbaImage, (left, right): (u32, u32)) -> RgbaImage {
 
 /// A page with its blank borders cut off, each side at most a quarter of the page.
 pub fn trim_page(img: &RgbaImage) -> RgbaImage {
-    let Some((left, right)) = side_margins(img) else {
-        return img.clone();
-    };
+    match trim_box(img) {
+        Some((x, y, w, h)) => image::imageops::crop_imm(img, x, y, w, h).to_image(),
+        None => img.clone(),
+    }
+}
+
+/// `trim_page` without a copy when there is nothing to trim.
+pub fn trim_owned(img: RgbaImage) -> RgbaImage {
+    match trim_box(&img) {
+        Some(b) if b != (0, 0, img.width(), img.height()) => {
+            image::imageops::crop_imm(&img, b.0, b.1, b.2, b.3).to_image()
+        }
+        _ => img,
+    }
+}
+
+/// The page with its blank margins cut off (a quarter of the height at most per side).
+fn trim_box(img: &RgbaImage) -> Option<(u32, u32, u32, u32)> {
+    let (left, right) = side_margins(img)?;
     let (w, h) = img.dimensions();
     let cols = (left, w - right);
     let (top_bg, bottom_bg) = (*img.get_pixel(left, 0), *img.get_pixel(left, h - 1));
@@ -83,5 +99,5 @@ pub fn trim_page(img: &RgbaImage) -> RgbaImage {
         .take_while(|&y| row_blank(img, y, cols, &bottom_bg))
         .count() as u32;
     let (top, bottom) = (top.min(h / 4), bottom.min(h / 4));
-    image::imageops::crop_imm(img, left, top, w - left - right, h - top - bottom).to_image()
+    Some((left, top, w - left - right, h - top - bottom))
 }

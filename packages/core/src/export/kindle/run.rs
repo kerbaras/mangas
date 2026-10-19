@@ -1,25 +1,25 @@
 //! One pass of the page pipeline over chapter folders: decode, (trim), cut long strips, apply
 //! the e-ink filters and encode. Shared by the export and the preview so both give the same pages.
 
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use image::RgbaImage;
 use rayon::prelude::*;
 
-use super::input::{chapter_files, decode, ChapterFiles};
-use super::margins::strip_margins;
-use super::process::{process_page, ImageSettings};
+use super::input::{chapter_files, ChapterFiles};
+use super::margins::{load, strip_margins};
+use super::plan::{page_size, regular_run, Margins};
+use super::process::{encode, ImageSettings};
 use super::request::{ExportStats, Progress};
-use super::trim::{crop_sides, trim_page};
+use super::trim::trim_owned;
 use super::Device;
 use crate::domain::{Error, Result};
 use crate::export::epub::PageImage;
 use crate::export::PageSettings;
-use crate::smartcut::{is_long_strip, Options, RowPenalizer, StripPaginator};
+use crate::smartcut::{Options, RowPenalizer, StripPaginator};
 
-/// Full-size scans decoded at once: most of the multi-core speed-up at a bounded peak memory.
+/// Regular pages decoded and encoded at once: most of the multi-core speed-up, a bounded peak.
 const WINDOW: usize = 4;
 
 pub(super) struct Run<'a> {
@@ -87,29 +87,32 @@ impl<'a> Run<'a> {
         self.limit.is_some_and(|n| self.pages.len() + queued >= n)
     }
 
-    /// Trims (when asked) and emits regular pages, in order.
-    fn emit_regular(&mut self, batch: Vec<RgbaImage>) -> Result<()> {
-        if batch.is_empty() {
-            return Ok(());
-        }
-        self.emit_pages(batch, self.trim)
-    }
-
-    /// Each page is dropped as soon as it is encoded, so a window holds few full-size copies.
-    fn emit_pages(&mut self, rendered: Vec<RgbaImage>, trim: bool) -> Result<()> {
+    /// Decodes, crops, trims (when asked) and encodes regular pages side by side, each dropped
+    /// as soon as it is encoded, and emits them in order.
+    fn emit_files(&mut self, files: &[PathBuf], margins: &Margins) -> Result<()> {
         let t = Instant::now();
-        let settings = self.settings;
-        let encoded: Vec<PageImage> = rendered
-            .into_par_iter()
-            .map(|img| {
-                let img = if trim { trim_page(&img) } else { img };
-                process_page(&img, &settings).map(|e| PageImage {
-                    jpeg: e.jpeg,
-                    width: e.width,
-                    height: e.height,
-                })
+        let (settings, trim) = (self.settings, self.trim);
+        let encoded = files
+            .par_iter()
+            .map(|file| {
+                let img = load(file, margins)?;
+                encode(&if trim { trim_owned(img) } else { img }, &settings)
             })
             .collect::<Result<_>>()?;
+        self.push(encoded, t)
+    }
+
+    fn emit_pages(&mut self, rendered: Vec<RgbaImage>) -> Result<()> {
+        let t = Instant::now();
+        let settings = self.settings;
+        let encoded = rendered
+            .par_iter()
+            .map(|img| encode(img, &settings))
+            .collect::<Result<_>>()?;
+        self.push(encoded, t)
+    }
+
+    fn push(&mut self, encoded: Vec<PageImage>, t: Instant) -> Result<()> {
         self.stats.filters_ms += t.elapsed().as_millis();
         self.pages.extend(encoded);
         self.stats.pages = self.pages.len();
@@ -125,14 +128,14 @@ impl<'a> Run<'a> {
         self.stats.pagination_ms += t.elapsed().as_millis();
         self.stats.strips += 1;
         self.stats.source_rows += img.height() as usize;
-        self.emit_pages(pages.into_iter().map(|p| p.image).collect(), false)
+        self.emit_pages(pages.into_iter().map(|p| p.image).collect())
     }
 
     fn flush_strip(&mut self) -> Result<()> {
         let t = Instant::now();
         let pages = self.paginator.flush()?;
         self.stats.pagination_ms += t.elapsed().as_millis();
-        self.emit_pages(pages.into_iter().map(|p| p.image).collect(), false)
+        self.emit_pages(pages.into_iter().map(|p| p.image).collect())
     }
 
     pub fn chapter(&mut self, dir: &Path) -> Result<()> {
@@ -156,44 +159,39 @@ impl<'a> Run<'a> {
         let margins = if self.trim {
             strip_margins(&files)?
         } else {
-            HashMap::new()
+            Margins::new()
         };
-        let dev = self.device;
-        // Regular pages are independent: decode and process a window of them in parallel.
-        let window = rayon::current_num_threads().clamp(1, WINDOW);
-        for (c, chunk) in files.chunks(window).enumerate() {
-            let images: Vec<RgbaImage> = chunk
-                .par_iter()
-                .map(|file| {
-                    let img = decode(file)?;
-                    Ok(match margins.get(&img.width()) {
-                        Some(&m) => crop_sides(&img, m),
-                        None => img,
-                    })
-                })
-                .collect::<Result<_>>()?;
-            let mut regular = Vec::new();
-            for (k, img) in images.into_iter().enumerate() {
-                if (self.cancelled)() {
-                    return Err(Error::Other("cancelled".into()));
-                }
-                if self.full_with(regular.len()) {
-                    self.emit_regular(regular)?;
-                    self.stopped_early = true;
-                    return Ok(());
-                }
-                let (w, h) = (img.width(), img.height());
-                if is_long_strip(w, h, dev.width, dev.height) || self.paginator.has_pending(w) {
-                    self.emit_regular(std::mem::take(&mut regular))?;
-                    self.feed_strip(&img, c * window + k + 1 == files.len())?;
-                    continue;
-                }
-                if regular.is_empty() {
-                    self.flush_strip()?;
-                }
-                regular.push(img);
+        let device = (self.device.width, self.device.height);
+        let sizes = files
+            .iter()
+            .map(|f| page_size(f, &margins))
+            .collect::<Result<Vec<_>>>()?;
+        let mut i = 0;
+        while i < files.len() {
+            if (self.cancelled)() {
+                return Err(Error::Other("cancelled".into()));
             }
-            self.emit_regular(regular)?;
+            if self.full_with(0) {
+                self.stopped_early = true;
+                return Ok(());
+            }
+            // Past a strip's held-back rows, a page of the same width continues that strip.
+            let room = self
+                .limit
+                .map_or(WINDOW, |n| n.saturating_sub(self.pages.len()));
+            let run = match self.paginator.has_pending(sizes[i].0) {
+                true => 0,
+                false => regular_run(&sizes[i..], device, WINDOW.min(room)),
+            };
+            if run == 0 {
+                let img = load(&files[i], &margins)?;
+                self.feed_strip(&img, i + 1 == files.len())?;
+                i += 1;
+                continue;
+            }
+            self.flush_strip()?;
+            self.emit_files(&files[i..i + run], &margins)?;
+            i += run;
         }
         if self.full_with(0) {
             self.stopped_early = self.paginator.has_pending_any();

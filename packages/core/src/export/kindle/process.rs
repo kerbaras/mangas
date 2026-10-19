@@ -120,3 +120,12 @@ pub fn to_gray_image(img: &RgbaImage, s: &ImageSettings) -> Result<GrayImage> {
     GrayImage::from_raw(img.width(), img.height(), gray)
         .ok_or_else(|| Error::Other("gray buffer".into()))
 }
+
+/// `process_page` as a page of the book.
+pub fn encode(img: &RgbaImage, settings: &ImageSettings) -> Result<crate::export::epub::PageImage> {
+    process_page(img, settings).map(|e| crate::export::epub::PageImage {
+        jpeg: e.jpeg,
+        width: e.width,
+        height: e.height,
+    })
+}
