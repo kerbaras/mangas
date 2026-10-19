@@ -54,6 +54,7 @@ function brokenRuntime() {
       library: 194_000,
       logs: 0,
       titles: [],
+      partial_move: null,
     }),
   );
   const detectorsStatus = vi.fn(async () =>
