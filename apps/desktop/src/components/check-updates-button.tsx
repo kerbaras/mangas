@@ -1,5 +1,5 @@
 import { RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { HeaderAction } from "@/components/header-action";
 import { cn } from "@/lib/cn";
 import { notifyError } from "@/lib/notify";
 import { toastRun } from "@/lib/update-toast";
@@ -13,9 +13,12 @@ export function CheckUpdatesButton() {
       .then(toastRun)
       .catch((e: unknown) => notifyError("Couldn't check for updates", e, { retry: check }));
   return (
-    <Button size="sm" onClick={check} disabled={checking} aria-busy={checking}>
-      <RefreshCw className={cn(checking && "animate-spin")} />
-      {checking ? "Checking…" : "Check for updates"}
-    </Button>
+    <HeaderAction
+      icon={<RefreshCw className={cn(checking && "animate-spin")} />}
+      label={checking ? "Checking…" : "Check for updates"}
+      onClick={check}
+      disabled={checking}
+      aria-busy={checking}
+    />
   );
 }

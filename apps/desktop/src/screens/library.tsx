@@ -5,6 +5,7 @@ import { CheckUpdatesButton } from "@/components/check-updates-button";
 import { EmptyState } from "@/components/empty-state";
 import type { EntryHandlers } from "@/components/entry-menu";
 import { ErrorAlert } from "@/components/error-alert";
+import { HeaderAction } from "@/components/header-action";
 import { ImportMenu } from "@/components/import-menu";
 import { LibraryList } from "@/components/library-list";
 import { LibraryToolbar } from "@/components/library-toolbar";
@@ -89,9 +90,13 @@ export function LibraryScreen() {
         ) : null}
         {count ? <CheckUpdatesButton /> : null}
         <ImportMenu busy={imports.busy} onPick={imports.start} />
-        <Button variant="primary" size="sm" onClick={() => nav.go({ screen: "search" })}>
-          <Plus /> Follow a manga
-        </Button>
+        <HeaderAction
+          variant="primary"
+          keepLabel
+          icon={<Plus />}
+          label="Follow a manga"
+          onClick={() => nav.go({ screen: "search" })}
+        />
       </ScreenHeader>
       {count !== null ? (
         <LibraryToolbar
