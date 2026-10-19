@@ -40,7 +40,7 @@ export function ExportSettings() {
               Used for every device.{" "}
               <button
                 type="button"
-                className="text-accent hover:underline"
+                className="text-accent-text hover:underline"
                 onClick={() => update({ defaultFormat: null })}
               >
                 Follow the device instead

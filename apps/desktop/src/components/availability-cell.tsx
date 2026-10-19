@@ -45,7 +45,7 @@ export function AvailabilityCell({ availability }: { availability: Availability 
           e.stopPropagation();
           void open();
         }}
-        className="inline-flex max-w-full items-center gap-1 truncate rounded-sm text-caption font-medium text-accent hover:underline"
+        className="inline-flex max-w-full items-center gap-1 truncate rounded-sm text-caption font-medium text-accent-text hover:underline"
       >
         <ExternalLink className="size-3.5 shrink-0" />
         <span className="truncate">{hostOf(url)}</span>

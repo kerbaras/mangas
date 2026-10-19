@@ -63,7 +63,7 @@ const TONE: Record<DownloadJob["state"], string> = {
   running: "text-ink",
   queued: "text-ink-3",
   paused: "text-ink-2",
-  failed: "text-accent",
+  failed: "text-accent-text",
   cancelled: "text-ink-3",
   done: "text-ok",
 };

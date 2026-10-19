@@ -23,8 +23,8 @@ function RailButton({ item, active }: { item: Item; active: boolean }) {
           {item.badge ? (
             <span
               className={cn(
-                "absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold text-white",
-                item.muted ? "bg-ink-3" : "bg-accent",
+                "absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold",
+                item.muted ? "bg-ink-3 text-white" : "bg-accent-text text-canvas",
               )}
             >
               {item.badge}

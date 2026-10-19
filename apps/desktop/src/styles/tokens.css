@@ -33,6 +33,10 @@
   --color-accent: #b3261e;
   --color-accent-hover: #9a1f18;
   --color-accent-soft: #fbe9e7;
+  /* Red text and small red labels. The dark accent is only 3.5–4.5:1 on the dark surfaces, under
+     AA's 4.5:1 for small text, so dark mode lightens it; `--color-accent` stays for fills,
+     strokes, focus rings and icons. */
+  --color-accent-text: #b3261e;
   --color-ok: #107c10;
   --color-warn: #b17d00;
   --color-bad: #c50f1f;
@@ -52,6 +56,7 @@
   --color-accent: #e0584f;
   --color-accent-hover: #ec7169;
   --color-accent-soft: #3a2422;
+  --color-accent-text: #f07a72;
   --color-ok: #6ccb5f;
   --color-warn: #f2c94c;
   --color-bad: #f1707b;
@@ -69,6 +74,7 @@
     --color-accent: #e0584f;
     --color-accent-hover: #ec7169;
     --color-accent-soft: #3a2422;
+    --color-accent-text: #f07a72;
     --color-ok: #6ccb5f;
     --color-warn: #f2c94c;
     --color-bad: #f1707b;

@@ -30,7 +30,7 @@ export function CutPreviewPane({
           : "Cutting pages…"}
       </p>
       {withoutDetectors && (
-        <p role="status" className="text-caption text-accent">
+        <p role="status" className="text-caption text-accent-text">
           Cut without detectors: {withoutDetectors}
         </p>
       )}

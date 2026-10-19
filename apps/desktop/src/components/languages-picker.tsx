@@ -26,7 +26,7 @@ export function LanguagesPicker() {
             className={cn(
               "inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-caption transition-colors",
               on
-                ? "border-accent bg-accent-soft text-accent"
+                ? "border-accent bg-accent-soft text-accent-text"
                 : "border-stroke text-ink-2 hover:bg-surface-2",
             )}
           >

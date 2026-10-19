@@ -188,7 +188,7 @@ export function EmailSettingsForm() {
       {note && (
         <p
           role="status"
-          className={note.ok ? "text-caption text-ink-2" : "text-caption text-accent"}
+          className={note.ok ? "text-caption text-ink-2" : "text-caption text-accent-text"}
         >
           {note.text}
         </p>

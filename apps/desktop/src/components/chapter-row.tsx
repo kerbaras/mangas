@@ -70,7 +70,7 @@ function StateCell({ chapter, progress }: Pick<Props, "chapter" | "progress">) {
   }
   if (progress?.error) {
     return (
-      <StateLabel hint={describeFailure(progress.error).tooltip} className="text-accent">
+      <StateLabel hint={describeFailure(progress.error).tooltip} className="text-accent-text">
         <AlertCircle className="size-3.5" /> Failed
       </StateLabel>
     );

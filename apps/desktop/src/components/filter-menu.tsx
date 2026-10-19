@@ -28,7 +28,7 @@ export function FilterMenu({ view, sources, onChange }: Props) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className={cn(active > 0 && "text-accent")}>
+        <Button variant="ghost" size="sm" className={cn(active > 0 && "text-accent-text")}>
           <ListFilter /> {active > 0 ? `Filter (${active})` : "Filter"}
         </Button>
       </DropdownMenuTrigger>

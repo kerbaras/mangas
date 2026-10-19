@@ -57,7 +57,7 @@ function CrashScreen({ error, report }: { error: Error; report: string }) {
           </Button>
         </div>
         {copied === "failed" && (
-          <p className="text-caption text-accent">The clipboard is not available.</p>
+          <p className="text-caption text-accent-text">The clipboard is not available.</p>
         )}
       </div>
     </div>

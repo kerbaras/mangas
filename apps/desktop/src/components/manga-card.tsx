@@ -32,7 +32,7 @@ export function MangaCard({ entry, categories, ...on }: Props) {
             )}
             {unread > 0 && (
               <Hint hint={`${unread} unread`} focusable={false}>
-                <span className="absolute top-1.5 right-1.5 min-w-5 rounded-sm bg-accent px-1 text-center text-caption font-semibold text-white tabular-nums shadow-sm">
+                <span className="absolute top-1.5 right-1.5 min-w-5 rounded-sm bg-accent-text px-1 text-center text-caption font-semibold text-canvas tabular-nums shadow-sm">
                   {unread}
                 </span>
               </Hint>
