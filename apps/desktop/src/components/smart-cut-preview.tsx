@@ -80,6 +80,8 @@ function SmartCutPreview(props: Props & { onClose: () => void }) {
   const [chapter, setChapter] = useState(chapters[0]?.id);
   const [state, setState] = useState<PreviewState>({ kind: "loading" });
   const [note, setNote] = useState<string | null>(null);
+  // The last detector failure: a missing model turns the switch off without a runtime reason.
+  const [failed, setFailed] = useState<string | null>(null);
   const options = useDebounced(form, 400);
   const dir = chapters.find((c) => c.id === chapter)?.dir;
   const support = useDetectorSupport();
@@ -104,7 +106,10 @@ function SmartCutPreview(props: Props & { onClose: () => void }) {
         if (!live) return;
         setState({ kind: "ready", preview });
         // The detector status now holds the failure: the "Use detectors" switch shows it.
-        if (preview.detectors_error) storageChanged();
+        if (preview.detectors_error) {
+          setFailed(preview.detectors_error);
+          storageChanged();
+        } else if (detectors) setFailed(null);
       },
       (e) => live && setState({ kind: "error", message: errorMessage(e) }),
     );
@@ -170,7 +175,7 @@ function SmartCutPreview(props: Props & { onClose: () => void }) {
               grayscale={device?.grayscale ?? true}
             />
           </div>
-          <CutPreviewPane state={state} detectorsOff={detectorsOff} />
+          <CutPreviewPane state={state} detectorsOff={detectorsOff ?? failed} />
         </div>
         <DialogFooter className="items-center">
           {note && <span className="mr-auto text-caption text-ink-3">{note}</span>}

@@ -16,7 +16,7 @@ const device = {
   format: "epub" as const,
 };
 
-function open(detectorsError: string | null = null) {
+function open(detectorsError: string | null = null, broken: "runtime" | "model" = "runtime") {
   const cut = mockCutPreview();
   const cancelCutPreview = vi.fn(async (_panel: string) => {});
   // Like the backend: a preview asked with detectors records the failure in the detector status.
@@ -29,9 +29,10 @@ function open(detectorsError: string | null = null) {
     available: true,
     downloaded: failed === null,
     provider: "cpu",
-    runtime: failed
-      ? { state: "failed", version: "1.28.3", reason: failed }
-      : { state: "unavailable" },
+    runtime:
+      failed && broken === "runtime"
+        ? { state: "failed", version: "1.28.3", reason: failed }
+        : { state: "unavailable" },
     downloadBytes: 0,
     diskBytes: 0,
   }));
@@ -78,21 +79,28 @@ describe("smart-cut options panel", () => {
     expect(await screen.findByText(/Saved cut settings, device and format/)).toBeTruthy();
   });
 
-  it("shows why the detectors couldn't run and still shows the pages", async () => {
-    const reason =
-      "onnx runtime /models/runtime/1.28.3/libonnxruntime.dylib: dlopen failed: dlopen(…): tried: …";
-    const { previewCut, detectorsOff } = open(reason);
-    expect(await screen.findByText(`Cut without detectors: ${reason}`)).toBeTruthy();
-    expect(screen.getAllByRole("img", { name: /Page \d+/ }).length).toBeGreaterThan(0);
-    expect(previewCut.mock.calls[0][2]).toBe(true);
-    detectorsOff();
-    await waitFor(() => expect(previewCut).toHaveBeenCalledTimes(2));
-    expect(previewCut.mock.calls[1][2]).toBe(false);
-    await waitFor(() =>
-      expect(screen.getAllByRole("img", { name: /Page \d+/ }).length).toBeGreaterThan(0),
-    );
-    expect(screen.getByText(`Cut without detectors: ${reason}`)).toBeTruthy();
-  });
+  it.each([
+    [
+      "runtime",
+      "onnx runtime /models/runtime/1.28.3/libonnxruntime.dylib: dlopen failed: dlopen(…)",
+    ],
+    ["model", "model comic-text-and-bubble-detector: sha256 mismatch"],
+  ] as const)(
+    "shows why the detectors couldn't run (%s) and still shows the pages",
+    async (broken, reason) => {
+      const { previewCut, detectorsOff } = open(reason, broken);
+      expect(await screen.findByText(`Cut without detectors: ${reason}`)).toBeTruthy();
+      expect(screen.getAllByRole("img", { name: /Page \d+/ }).length).toBeGreaterThan(0);
+      expect(previewCut.mock.calls[0][2]).toBe(true);
+      detectorsOff();
+      await waitFor(() => expect(previewCut).toHaveBeenCalledTimes(2));
+      expect(previewCut.mock.calls[1][2]).toBe(false);
+      await waitFor(() =>
+        expect(screen.getAllByRole("img", { name: /Page \d+/ }).length).toBeGreaterThan(0),
+      );
+      expect(screen.getByText(`Cut without detectors: ${reason}`)).toBeTruthy();
+    },
+  );
 
   it("cancels the panel's previews when closed", async () => {
     const { cancelCutPreview, previewCut } = open();
