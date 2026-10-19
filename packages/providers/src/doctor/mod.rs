@@ -124,9 +124,10 @@ async fn run<T>(
 fn status(status: ProviderStatus) -> Result<(String, ()), String> {
     match status {
         ProviderStatus::Ready => Ok(("ready".to_string(), ())),
-        ProviderStatus::NeedsSession => {
-            Err("needs a browser session (connect in the app: Settings > Providers)".to_string())
-        }
+        ProviderStatus::NeedsSession => Err(
+            "needs a browser session (connect in the app: Settings > Downloads > Sources)"
+                .to_string(),
+        ),
         other => Err(other.to_string()),
     }
 }

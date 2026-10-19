@@ -45,7 +45,7 @@ Website and downloads: https://kerbaras.github.io/mangas
 ## Features
 
 - **Six sources.** MangaDex, MangaDot, WeebCentral, Tapas, Comick and Webtoons behind one
-  search. Comick sits behind a browser check, so connect it once in Settings → Providers.
+  search. Comick sits behind a browser check, so connect it once in Settings → Downloads → Sources.
 - **A library that keeps up.** Follow titles, check them for new chapters, and download through a
   queue that the app and the CLI share and that picks up where it left off after a restart.
 - **Smart cut for webtoons.** Long strips split at the gaps between panels, with an optional

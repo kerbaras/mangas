@@ -16,7 +16,7 @@ import { useSettings } from "@/lib/settings";
 
 const ratingLabel = (r: string) => r[0].toUpperCase() + r.slice(1);
 
-/** Settings > Providers > MangaDex: search filters, image quality and group preference. */
+/** Settings → Downloads → MangaDex: search filters, image quality and group preference. */
 export function MangaDexOptionsForm() {
   const [settings, update] = useSettings();
   const stored = settings.providerOptions[MANGADEX];
