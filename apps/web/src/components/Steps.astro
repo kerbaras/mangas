@@ -41,7 +41,12 @@ const inlineSizes = "100vw";
       <AppWindow title="Mangas" class="sticky">
         <div class="frames">
           {steps.map((s, i) => (
-            <div class="frame" data-frame={i} data-current={i === 0 ? "" : undefined}>
+            <div
+              class="frame"
+              data-frame={i}
+              data-current={i === 0 ? "" : undefined}
+              aria-hidden={i === 0 ? "false" : "true"}
+            >
               <Shot name={s.shot} alt={s.alt} sizes={stageSizes} />
             </div>
           ))}

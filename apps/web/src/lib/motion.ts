@@ -31,8 +31,10 @@ function watchSteps(root: Element) {
   let active = 0;
   const show = (index: number) => {
     active = index;
-    for (const [i, el] of [...steps.entries(), ...frames.entries()]) {
+    for (const [i, el] of steps.entries()) el.toggleAttribute("data-current", i === index);
+    for (const [i, el] of frames.entries()) {
       el.toggleAttribute("data-current", i === index);
+      el.setAttribute("aria-hidden", String(i !== index));
     }
   };
   const io = new IntersectionObserver(
