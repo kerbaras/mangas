@@ -56,6 +56,50 @@ describe("accent text contrast", () => {
   });
 });
 
+// #236: every text colour token passes AA on every surface; white text passes on its fills.
+const TEXT = ["ink", "ink-2", "ink-3", "accent-text", "ok", "warn", "bad"];
+
+describe("text token contrast", () => {
+  it.each([
+    ["light", light],
+    ["dark", dark],
+  ])("passes 4.5:1 on every surface in %s mode", (_, palette) => {
+    for (const fg of TEXT)
+      for (const bg of BACKGROUNDS) {
+        expect(contrast(palette[fg], palette[bg]), `${fg} on ${bg}`).toBeGreaterThanOrEqual(4.5);
+      }
+  });
+
+  it("white text passes 4.5:1 on the accent fill and its hover in both modes", () => {
+    for (const palette of [light, dark])
+      for (const fill of ["accent-fill", "accent-fill-hover"]) {
+        expect(contrast("#ffffff", palette[fill]), fill).toBeGreaterThanOrEqual(4.5);
+      }
+  });
+
+  it("the muted nav badge (canvas on ink-3) passes 4.5:1 in both modes", () => {
+    for (const palette of [light, dark]) {
+      expect(contrast(palette.canvas, palette["ink-3"])).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("the dark accent stays the brand red for strokes, but white text sits on the fill", () => {
+    expect(contrast("#ffffff", dark.accent)).toBeLessThan(4.5);
+  });
+});
+
+// White text belongs on the fill tokens: on `bg-accent` it fails in dark mode.
+describe("white text on accent", () => {
+  it("uses bg-accent-fill", () => {
+    const offenders = Object.entries(sources)
+      .filter(([, src]) =>
+        /bg-accent(?![\w-])[^"]*text-white|!bg-accent(?![\w-])/.test(String(src)),
+      )
+      .map(([path]) => path.split("/").pop() ?? path);
+    expect(offenders).toEqual([]);
+  });
+});
+
 // Text classes may only use the readable token; `text-accent` is left for icons.
 const sources = import.meta.glob("../**/*.tsx", { query: "?raw", import: "default", eager: true });
 const ICONS_ONLY = ["error-boundary.tsx", "sonner.tsx", "nav-rail.tsx"];
