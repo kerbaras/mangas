@@ -14,4 +14,7 @@
   root.classList.toggle("dark", dark);
   root.classList.toggle("light", !dark);
   root.style.colorScheme = dark ? "dark" : "light";
+  // The native window waits hidden for this (`window_theme.rs`): shown now, on this palette, its
+  // first frame matches the page even when the OS theme reads differently on the native side.
+  window.__TAURI_INTERNALS__?.invoke("show_themed", { dark }).catch(() => {});
 })();

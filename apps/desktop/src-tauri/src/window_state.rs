@@ -56,15 +56,15 @@ fn configured<R: Runtime>(
 }
 
 /// The main window starts hidden: placed before it is first shown, a window manager never sees
-/// the config size (which may not fit the screen, so KWin would maximise it).
+/// the config size (which may not fit the screen, so KWin would maximise it). `window_theme`
+/// shows it once the page has its palette.
 pub fn restore<R: Runtime>(app: &AppHandle<R>) {
     let Some(window) = app.get_webview_window(MAIN) else {
         return;
     };
     place(app, &window);
-    if let Err(e) = window.show() {
-        tracing::error!("show the main window: {e}");
-    }
+    crate::window_theme::paint(&window);
+    crate::window_theme::show_later(window);
 }
 
 fn place<R: Runtime>(app: &AppHandle<R>, window: &WebviewWindow<R>) {
