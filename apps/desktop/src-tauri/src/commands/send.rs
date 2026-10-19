@@ -1,9 +1,10 @@
 //! Send to Kindle after an export: email, USB copy, test email and the export history.
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use mangas_core::library::{self, ExportRecord};
-use mangas_core::send::password::{self, Storage};
+use mangas_core::send::password::{self, SecretStore, Storage};
 use mangas_core::send::{email, usb, EmailSettings, KindleVolume, SendVia};
 use tauri::{AppHandle, Emitter};
 
@@ -76,11 +77,25 @@ pub async fn send_email(file: PathBuf, title: String) -> Result<email::Sent, Str
     Ok(sent)
 }
 
-/// Sends a test message with `settings` (the form as edited, saved or not: it loads with the
-/// keychain's password, so an empty one was cleared); returns the address it went to.
+/// Sends a test message with `settings`, the form as edited (saved or not), and returns the
+/// address it went to. Unless the user `typed` a new password it uses the saved one, like a
+/// send: a locked keychain prompts to unlock once; dismissed, the test fails with that.
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
-pub async fn send_test_email(settings: EmailSettings) -> Result<String, String> {
+pub async fn send_test_email(settings: EmailSettings, typed: bool) -> Result<String, String> {
+    test_email(Arc::from(password::system_store()), settings, typed).await
+}
+
+async fn test_email(
+    store: Arc<dyn SecretStore>,
+    draft: EmailSettings,
+    typed: bool,
+) -> Result<String, String> {
+    let settings = blocking(move || {
+        password::retry_keychain();
+        password::test_settings(&*store, &draft, typed).map_err(to_ipc)
+    })
+    .await?;
     email::send_test(&settings).await.map_err(to_ipc)
 }
 
@@ -124,5 +139,30 @@ fn record(file: &std::path::Path, title: &str, via: SendVia, to: &str) {
         .and_then(|lib| library::record_sent(&lib, file, title, via, to).map_err(to_ipc))
     {
         tracing::warn!("could not record the delivery: {e}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mangas_core::send::password::MemoryStore;
+    use std::net::TcpListener;
+
+    #[tokio::test]
+    async fn a_locked_keychain_fails_the_test_email_before_any_smtp() {
+        let server = TcpListener::bind("127.0.0.1:0").unwrap();
+        server.set_nonblocking(true).unwrap();
+        let draft = EmailSettings {
+            to: "reader@kindle.com".into(),
+            from: "me@example.test".into(),
+            host: "127.0.0.1".into(),
+            port: Some(server.local_addr().unwrap().port()),
+            username: "me@example.test".into(),
+            ..EmailSettings::default()
+        };
+        let locked = Arc::new(MemoryStore::locked("prompt dismissed"));
+        let err = test_email(locked, draft, false).await.unwrap_err();
+        assert!(err.contains("keychain is locked"), "{err}");
+        assert!(server.accept().is_err(), "connected to SMTP");
     }
 }

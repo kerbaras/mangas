@@ -64,6 +64,20 @@ pub fn with_password(store: &dyn SecretStore, email: &EmailSettings) -> Result<E
     })
 }
 
+/// The settings a test email uses: the form's `draft`, with the saved password when the user
+/// didn't change it (`typed` false; a locked keychain fails like a send), else exactly as typed,
+/// so a cleared field tests sending without one.
+pub fn test_settings(
+    store: &dyn SecretStore,
+    draft: &EmailSettings,
+    typed: bool,
+) -> Result<EmailSettings> {
+    if typed {
+        return Ok(draft.clone());
+    }
+    with_password(store, draft)
+}
+
 /// Where the password is (or would be) kept: in the file while one is still there, else in
 /// the keychain when it answers.
 pub fn storage(lib: &Library, store: &dyn SecretStore) -> Result<Storage> {

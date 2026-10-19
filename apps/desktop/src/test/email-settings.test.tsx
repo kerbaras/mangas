@@ -110,7 +110,7 @@ describe("email settings", () => {
       username: "me@example.test",
       port: 2525,
     };
-    expect(sendTestEmail).toHaveBeenCalledWith(draft);
+    expect(sendTestEmail).toHaveBeenCalledWith(draft, false);
     expect(readSettings().kindleEmail).toEqual(EMPTY_EMAIL);
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(readSettings().kindleEmail).toEqual(draft));
@@ -136,5 +136,20 @@ describe("email settings", () => {
     type("SMTP server", "smtp.example.test");
     fireEvent.click(screen.getByRole("button", { name: /Send test email/ }));
     expect(await screen.findByText(/Couldn't reach the mail server/)).toBeTruthy();
+  });
+
+  it("shows a locked keychain on Send test email, asking for the saved password", async () => {
+    const locked =
+      "The system keychain is locked or can't be read, so the SMTP password isn't available. Unlock it and try again (prompt dismissed)";
+    const sendTestEmail = vi.fn(async (_s: unknown, _typed: boolean) => {
+      throw new Error(locked);
+    });
+    setBackend({ sendTestEmail, emailPassword: keychain("locked") } as unknown as Backend);
+    render(<EmailSettingsForm />);
+    type("SMTP server", "smtp.example.test");
+    type("User name", "me@example.test");
+    fireEvent.click(screen.getByRole("button", { name: /Send test email/ }));
+    expect(await screen.findByText(locked)).toBeTruthy();
+    expect(sendTestEmail.mock.calls[0]?.[1]).toBe(false);
   });
 });

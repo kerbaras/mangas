@@ -2,7 +2,8 @@
 
 use mangas_core::library::{self, Library, Settings};
 use mangas_core::send::password::{
-    email_settings, load_settings, save_settings, storage, with_password, MemoryStore, Storage,
+    email_settings, load_settings, save_settings, storage, test_settings, with_password,
+    MemoryStore, SecretStore, Storage,
 };
 use mangas_core::send::EmailSettings;
 
@@ -178,4 +179,21 @@ fn a_locked_keychain_fails_a_password_save_and_writes_nothing() {
     assert!(err.starts_with("The system keychain is locked"), "{err}");
     assert_eq!(stored(&lib), "");
     assert_eq!(locked.peek(), None);
+}
+
+#[test]
+fn a_test_email_uses_the_saved_password_unless_one_was_typed() {
+    let locked = MemoryStore::locked("prompt dismissed");
+    let err = test_settings(&locked, &email(""), false).unwrap_err();
+    assert!(err.to_string().starts_with("The system keychain is locked"));
+    assert_eq!(
+        test_settings(&locked, &email(""), true).unwrap().password,
+        ""
+    );
+    let saved = MemoryStore::default();
+    saved.set("saved").unwrap();
+    assert_eq!(
+        test_settings(&saved, &email(""), false).unwrap().password,
+        "saved"
+    );
 }

@@ -90,7 +90,8 @@ export function EmailSettingsForm() {
     setTesting(true);
     setNote(null);
     try {
-      setNote({ ok: true, text: `Test email sent to ${await sendTestEmail(draft)}.` });
+      const to = await sendTestEmail(draft, draft.password !== settings.kindleEmail.password);
+      setNote({ ok: true, text: `Test email sent to ${to}.` });
     } catch (e) {
       setNote({ ok: false, text: errorMessage(e) });
     } finally {
