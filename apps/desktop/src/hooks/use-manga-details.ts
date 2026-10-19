@@ -1,5 +1,5 @@
 import { getManga, type Manga } from "@/lib/ipc";
-import { settingsSettled } from "@/lib/settings";
+import { settingsSettled, useSettingsKnown } from "@/lib/settings";
 import { useAsync } from "./use-async";
 
 /**
@@ -9,10 +9,11 @@ import { useAsync } from "./use-async";
  */
 export function useMangaDetails(card: Manga) {
   const { source, id } = card;
+  const known = useSettingsKnown();
   const { state, reload } = useAsync(async () => {
     await settingsSettled();
     return getManga(source, id);
-  }, [source, id]);
+  }, [source, id, known]);
   return {
     manga: state.kind === "ready" ? state.data : card,
     loading: state.kind === "loading",

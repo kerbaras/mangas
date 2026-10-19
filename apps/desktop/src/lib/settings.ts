@@ -45,6 +45,14 @@ let stored: Stored | undefined;
 let writes: Promise<void> = Promise.resolve();
 export const readSettingsLoad = (): SettingsLoad => load;
 
+/**
+ * Bumped when a load succeeds after a failed first load let fetches run on placeholder
+ * defaults: screens that fetched then (Details, Search) fetch again on it.
+ */
+let known = 0;
+let releasedOnPlaceholders = false;
+export const readSettingsKnown = (): number => known;
+
 let firstSettled: () => void = () => {};
 const firstLoad = new Promise<void>((resolve) => {
   firstSettled = resolve;
@@ -83,9 +91,12 @@ export async function loadSettings(): Promise<void> {
     stored = loaded;
     cached = fromStored(loaded, platformDataDir);
     load = { kind: "ready" };
+    if (releasedOnPlaceholders) known++;
+    releasedOnPlaceholders = false;
   } catch (e: unknown) {
     if (gen !== version || load.kind === "ready") return;
     load = { kind: "failed", error: errorMessage(e) };
+    releasedOnPlaceholders = true;
   }
   notify();
   firstSettled();
@@ -125,3 +136,7 @@ export function useSettings(): [Settings, (patch: Partial<Settings>) => void] {
 
 export const useSettingsLoad = (): SettingsLoad =>
   useSyncExternalStore(subscribe, readSettingsLoad, readSettingsLoad);
+
+/** Changes when settings loaded after fetches ran on placeholders: a dependency to refetch on. */
+export const useSettingsKnown = (): number =>
+  useSyncExternalStore(subscribe, readSettingsKnown, readSettingsKnown);

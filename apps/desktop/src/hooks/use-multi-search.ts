@@ -4,7 +4,7 @@ import { type SearchGroup, searchAll } from "@/lib/ipc";
 import { recordStatus } from "@/lib/provider-status";
 import type { GroupState } from "@/lib/search-groups";
 import { cachedResults, rememberResults } from "@/lib/search-session";
-import { settingsSettled, useSettings } from "@/lib/settings";
+import { settingsSettled, useSettings, useSettingsKnown } from "@/lib/settings";
 
 const failed = (provider: string, reason: string): SearchGroup => ({
   provider,
@@ -26,8 +26,10 @@ export function useMultiSearch(query: string, ids: string[]) {
   const latest = useRef<Record<string, number>>({});
   const [{ preferredLanguages, providerLanguages, providerOptions, proxyMode, proxyUrl }] =
     useSettings();
+  const known = useSettingsKnown();
   const key = ids.join(",");
   const prefs = JSON.stringify([
+    known,
     preferredLanguages,
     providerLanguages,
     providerOptions,
