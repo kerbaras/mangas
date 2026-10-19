@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.4.0-rc.2] - 2026-10-19
+
+### Added
+
+- **web:** Landing page v2 with real app screenshots and scroll-driven motion (#204)
+
+### Fixed
+
+- **desktop:** Keep the window from scrolling so macOS overscroll stays in the pane (#203)
+- **ml:** Load the ONNX Runtime on Apple Silicon and cut without detectors when it can't (#205)
 ## [0.4.0-rc.1] - 2026-10-18
 
 ### Added
@@ -167,6 +177,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **desktop:** A reconnect waits for a session newer than the one it started with
 - **mangadot:** Search text parameter named like the site's own search route (search=)
 - **desktop:** Connect window navigation must stay on https
+[0.4.0-rc.2]: https://github.com/kerbaras/mangas/compare/v0.4.0-rc.1...v0.4.0-rc.2
 [0.4.0-rc.1]: https://github.com/kerbaras/mangas/compare/v0.3.0...v0.4.0-rc.1
 [0.3.0]: https://github.com/kerbaras/mangas/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/kerbaras/mangas/compare/v0.1.0...v0.2.0
