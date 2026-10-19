@@ -12,7 +12,7 @@ use super::settled::{failed_note, paused_report};
 use super::update_print::print_report;
 use super::watch::{count, run_quietly, run_until_settled};
 use crate::exit::Exit;
-use crate::output::outln;
+use crate::output::{outln, print_json};
 use crate::paths;
 
 /// Exit code when some titles couldn't be checked (the rest of the report is still printed).
@@ -77,7 +77,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             downloaded: count(jobs, JobState::Done),
             failed,
         };
-        outln!("{}", serde_json::to_string_pretty(&out)?)?;
+        print_json(&out)?;
     }
     let failed_note = failed_note(jobs, "chapter");
     if let Some((lines, exit)) = paused_report(&settled) {
