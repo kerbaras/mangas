@@ -2,6 +2,7 @@
 import { toast } from "sonner";
 import { describeError } from "./errors";
 import { errorMessage } from "./format";
+import { REFUSED } from "./ipc.downloads";
 import { connectAndWait } from "./providers";
 
 /**
@@ -19,12 +20,31 @@ type Options = {
   id?: string;
 };
 
-function Description({ hint, detail }: { hint: string | null; detail: string }) {
+const REFUSED_AT = new RegExp(`^(.*${REFUSED} )(\\S+)(.*)$`, "s");
+
+/** Error text; a refused address stays on one line so it never splits mid-address. */
+function DetailText({ text }: { text: string }) {
+  const [, head, address, tail] = text.match(REFUSED_AT) ?? [];
+  if (!address) return text;
   return (
-    <span className="flex flex-col gap-0.5">
+    <>
+      {head}
+      <span className="whitespace-nowrap">{address}</span>
+      {tail}
+    </>
+  );
+}
+
+/**
+ * Hint over the raw error, wrapping on word boundaries (sonner sets `overflow-wrap: anywhere`).
+ * The error stops at three lines by height; a `-webkit-box` line clamp can split words in WebKit.
+ */
+export function Description({ hint, detail }: { hint: string | null; detail: string }) {
+  return (
+    <span className="flex flex-col gap-0.5 break-words">
       {hint && <span>{hint}</span>}
-      <span title={detail} className="line-clamp-3 break-words text-ink-3">
-        {detail}
+      <span title={detail} className="max-h-12 overflow-hidden text-ink-3">
+        <DetailText text={detail} />
       </span>
     </span>
   );
