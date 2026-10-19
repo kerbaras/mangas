@@ -31,12 +31,16 @@ function watchSteps(root: Element) {
   let active = 0;
   const show = (index: number) => {
     active = index;
-    steps.forEach((s, i) => s.toggleAttribute("data-current", i === index));
-    frames.forEach((f, i) => f.toggleAttribute("data-current", i === index));
+    for (const [i, el] of [...steps.entries(), ...frames.entries()]) {
+      el.toggleAttribute("data-current", i === index);
+    }
   };
   const io = new IntersectionObserver(
     (entries) => {
-      const hits = entries.map((e) => ({ index: steps.indexOf(e.target), visible: e.isIntersecting }));
+      const hits = entries.map((e) => ({
+        index: steps.indexOf(e.target),
+        visible: e.isIntersecting,
+      }));
       show(nextActive(active, hits));
     },
     { rootMargin: "-50% 0px -50% 0px" },

@@ -17,5 +17,9 @@ function file(name: ShotName, scheme: Scheme, size: Size): ImageMetadata {
 export function shot(name: ShotName, scheme: Scheme) {
   const small = file(name, scheme, "1280");
   const large = file(name, scheme, "2560");
-  return { small, crop: file(name, scheme, "crop"), srcset: `${small.src} 1280w, ${large.src} 2560w` };
+  return {
+    small,
+    crop: file(name, scheme, "crop"),
+    srcset: `${small.src} 1280w, ${large.src} 2560w`,
+  };
 }

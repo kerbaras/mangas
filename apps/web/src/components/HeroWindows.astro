@@ -12,7 +12,6 @@ const sizes = "(min-width: 1024px) 620px, 86vw";
   <AppWindow title="Details" class="front">
     <Shot name="details" sizes={sizes} alt="A title's chapters, filterable by scanlation group and language." eager />
   </AppWindow>
-  <span class="gutter" aria-hidden="true"></span>
 </div>
 
 <style>
@@ -37,14 +36,6 @@ const sizes = "(min-width: 1024px) 620px, 86vw";
     right: -3%;
     top: 30%;
     rotate: 1.5deg;
-  }
-
-  .gutter {
-    position: absolute;
-    left: -2%;
-    right: -6%;
-    top: 24%;
-    border-top: 1.5px dashed var(--color-accent);
   }
 
   @media (max-width: 1023px) {

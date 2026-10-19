@@ -35,6 +35,7 @@
 
   body {
     @apply bg-canvas text-ink font-sans text-body-lg antialiased;
+    overflow-x: clip;
   }
 
   :focus-visible {
