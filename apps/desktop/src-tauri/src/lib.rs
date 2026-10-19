@@ -34,6 +34,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            window_theme::show_themed,
             commands::app_update::check_app_update,
             commands::app_update::install_app_update,
             commands::list_library,

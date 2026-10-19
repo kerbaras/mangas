@@ -31,6 +31,17 @@ describe("theme before first paint", () => {
     expect(coldStart(true)).toBe("dark");
   });
 
+  it("shows the native window on the palette it applied", () => {
+    const invoke = vi.fn(() => Promise.resolve());
+    vi.stubGlobal("__TAURI_INTERNALS__", { invoke });
+    rememberTheme("dark");
+    coldStart(false);
+    expect(invoke).toHaveBeenCalledWith("show_themed", { dark: true });
+    rememberTheme("system");
+    coldStart(false);
+    expect(invoke).toHaveBeenLastCalledWith("show_themed", { dark: false });
+  });
+
   it("reads back only a known theme", () => {
     expect(rememberedTheme()).toBeUndefined();
     rememberTheme("dark");
