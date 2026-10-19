@@ -1,4 +1,5 @@
 import { Mail, Usb } from "lucide-react";
+import { Hint } from "@/components/hint";
 import { SendStatus } from "@/components/send-status";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -31,9 +32,9 @@ export function SendPanel({ file, onSent }: Props) {
   return (
     <div className="flex flex-col gap-3 rounded-md border border-stroke bg-surface p-3">
       <div className="flex items-center justify-between gap-3">
-        <p className="min-w-0 truncate text-body font-medium" title={file}>
-          Send {fileName(file)}
-        </p>
+        <Hint hint={file}>
+          <p className="min-w-0 truncate text-body font-medium">Send {fileName(file)}</p>
+        </Hint>
         <div className="flex shrink-0 gap-2">
           {refusal ? (
             <Tooltip>

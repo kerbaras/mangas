@@ -1,5 +1,7 @@
 /** Toasts for failures. Challenge errors get a Connect action that retries once connected. */
+
 import { toast } from "sonner";
+import { Hint } from "@/components/hint";
 import { describeError } from "./errors";
 import { errorMessage } from "./format";
 import { isFinalError, REFUSED } from "./ipc.downloads";
@@ -43,9 +45,11 @@ export function Description({ hint, detail }: { hint: string | null; detail: str
   return (
     <span className="flex flex-col gap-0.5 break-words">
       {hint && <span>{hint}</span>}
-      <span title={detail} className="max-h-12 overflow-hidden text-ink-3">
-        <DetailText text={detail} />
-      </span>
+      <Hint hint={detail}>
+        <span className="max-h-12 overflow-hidden text-ink-3">
+          <DetailText text={detail} />
+        </span>
+      </Hint>
     </span>
   );
 }

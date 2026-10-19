@@ -1,5 +1,6 @@
 import { CheckCircle2, Info, Loader2, RefreshCw } from "lucide-react";
 import { Field } from "@/components/field";
+import { Hint } from "@/components/hint";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -28,13 +29,11 @@ function CheckResult({ check }: { check: CheckState }) {
   if (check.kind === "checking") return <p className="text-caption text-ink-2">Checking…</p>;
   if (check.kind === "failed")
     return (
-      <p
-        role="alert"
-        className="text-caption text-bad"
-        title={describeFailure(check.error).tooltip}
-      >
-        {checkFailedLine(check.error)}
-      </p>
+      <Hint hint={describeFailure(check.error).tooltip}>
+        <p role="alert" className="text-caption text-bad">
+          {checkFailedLine(check.error)}
+        </p>
+      </Hint>
     );
   if (check.kind !== "done") return null;
   const { status } = check;

@@ -1,4 +1,5 @@
 import { Link2, Link2Off, Loader2 } from "lucide-react";
+import { Hint } from "@/components/hint";
 import { ProviderIcon } from "@/components/provider-icon";
 import { ProviderLanguages } from "@/components/provider-languages";
 import { ProviderStatusBadge } from "@/components/provider-status-badge";
@@ -59,9 +60,9 @@ export function ProviderRow({
             className="shrink-0 whitespace-nowrap"
           />
         </div>
-        <p className="truncate text-caption text-ink-3" title={detail}>
-          {detail}
-        </p>
+        <Hint hint={detail} truncated>
+          <p className="truncate text-caption text-ink-3">{detail}</p>
+        </Hint>
       </div>
       <div className="ml-auto flex shrink-0 items-center gap-2">
         <ProviderLanguages provider={p} />

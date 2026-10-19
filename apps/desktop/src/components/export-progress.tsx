@@ -1,4 +1,5 @@
 import { FolderOpen } from "lucide-react";
+import { Hint } from "@/components/hint";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { ExportState } from "@/hooks/use-export";
@@ -60,9 +61,11 @@ export function ExportProgressPanel({
             ? `Exported ${pages} ${pages === 1 ? "page" : "pages"}`
             : `Wrote ${results.length} books`}
         </p>
-        <p className="truncate text-caption text-ink-3" title={first?.output}>
-          {results.length === 1 ? first.output : folder}
-        </p>
+        <Hint hint={first?.output}>
+          <p className="truncate text-caption text-ink-3">
+            {results.length === 1 ? first.output : folder}
+          </p>
+        </Hint>
         {warning && <p className="text-caption text-accent">{warning}</p>}
       </div>
       <Button size="sm" onClick={() => revealFolder(folder)}>

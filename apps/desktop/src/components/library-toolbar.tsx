@@ -1,5 +1,6 @@
 import { Tags } from "lucide-react";
 import { FilterMenu } from "@/components/filter-menu";
+import { Hint } from "@/components/hint";
 import { LayoutToggle } from "@/components/layout-toggle";
 import { SortMenu } from "@/components/sort-menu";
 import { Button } from "@/components/ui/button";
@@ -38,15 +39,11 @@ export function LibraryToolbar({ view, entries, categories, onChange, onEditCate
           </TabsList>
         </Tabs>
       </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label="Edit categories"
-        title="Edit categories"
-        onClick={onEditCategories}
-      >
-        <Tags />
-      </Button>
+      <Hint hint="Edit categories" focusable={false}>
+        <Button variant="ghost" size="icon" aria-label="Edit categories" onClick={onEditCategories}>
+          <Tags />
+        </Button>
+      </Hint>
       <div className="ml-auto flex items-center gap-1">
         <FilterMenu view={view} sources={sourcesOf(entries)} onChange={onChange} />
         <SortMenu value={view.sort} onChange={(sort) => onChange({ sort })} />

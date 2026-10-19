@@ -1,4 +1,5 @@
 import { ExternalLink, Lock } from "lucide-react";
+import { Hint } from "@/components/hint";
 import { Badge } from "@/components/ui/badge";
 import { openExternal } from "@/lib/dialogs";
 import type { Availability } from "@/lib/ipc";
@@ -16,34 +17,39 @@ const hostOf = (url: string) => {
 export function AvailabilityCell({ availability }: { availability: Availability }) {
   if (availability.kind === "locked") {
     return (
-      <Badge title="Paid, wait-until-free or early access on the site">
-        <Lock className="size-3" /> Locked
-      </Badge>
+      <Hint hint="Paid, wait-until-free or early access on the site">
+        <Badge>
+          <Lock className="size-3" /> Locked
+        </Badge>
+      </Hint>
     );
   }
   if (availability.kind !== "external") return null;
   const { url } = availability;
   if (!url) {
     return (
-      <Badge title="Published on another site">
-        <ExternalLink className="size-3" /> Another site
-      </Badge>
+      <Hint hint="Published on another site">
+        <Badge>
+          <ExternalLink className="size-3" /> Another site
+        </Badge>
+      </Hint>
     );
   }
   const open = () =>
     openExternal(url).catch((e: unknown) => notifyError("Couldn't open the browser", e));
   return (
-    <button
-      type="button"
-      title={`Read on ${url}`}
-      onClick={(e) => {
-        e.stopPropagation();
-        void open();
-      }}
-      className="inline-flex max-w-full items-center gap-1 truncate rounded-sm text-caption font-medium text-accent hover:underline"
-    >
-      <ExternalLink className="size-3.5 shrink-0" />
-      <span className="truncate">{hostOf(url)}</span>
-    </button>
+    <Hint hint={`Read on ${url}`} focusable={false}>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          void open();
+        }}
+        className="inline-flex max-w-full items-center gap-1 truncate rounded-sm text-caption font-medium text-accent hover:underline"
+      >
+        <ExternalLink className="size-3.5 shrink-0" />
+        <span className="truncate">{hostOf(url)}</span>
+      </button>
+    </Hint>
   );
 }

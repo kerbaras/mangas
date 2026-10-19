@@ -12,7 +12,7 @@ export default defineConfig({
   build: { target: "es2022", outDir: "dist" },
   test: {
     environment: "jsdom",
-    setupFiles: ["./src/test/setup.ts"],
+    setupFiles: ["./src/test/setup.tsx"],
     include: ["src/**/*.test.{ts,tsx}"],
     css: false,
   },

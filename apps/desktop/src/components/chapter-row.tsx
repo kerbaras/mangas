@@ -32,9 +32,9 @@ function StateLabel(props: { hint?: string; className: string; children: ReactNo
   );
 }
 
-function Waiting({ icon, label, title }: { icon: ReactNode; label: string; title?: string }) {
+function Waiting({ icon, label, hint }: { icon: ReactNode; label: string; hint?: string }) {
   return (
-    <StateLabel hint={title} className="text-ink-3">
+    <StateLabel hint={hint} className="text-ink-3">
       {icon} {label}
     </StateLabel>
   );
@@ -47,13 +47,13 @@ function StateCell({ chapter, progress }: Pick<Props, "chapter" | "progress">) {
       <Waiting
         icon={<EyeOff className="size-3.5" />}
         label="No longer listed"
-        title="The source stopped listing this chapter. Clear it from Downloads."
+        hint="The source stopped listing this chapter. Clear it from Downloads."
       />
     );
   if (progress?.state === "queued") {
     const label = progress.retrying ? "Retrying" : "Queued";
-    const title = progress.retrying ?? undefined;
-    return <Waiting icon={<Clock className="size-3.5" />} label={label} title={title} />;
+    const hint = progress.retrying ?? undefined;
+    return <Waiting icon={<Clock className="size-3.5" />} label={label} hint={hint} />;
   }
   if (progress?.state === "paused") {
     return <Waiting icon={<Pause className="size-3.5" />} label="Paused" />;
@@ -83,12 +83,12 @@ function StateCell({ chapter, progress }: Pick<Props, "chapter" | "progress">) {
   }
   if (chapter.local_path && chapter.exported_at) {
     return (
-      <span
-        className="flex items-center gap-1 text-caption text-ok"
-        title={`Exported ${new Date(chapter.exported_at).toLocaleString()}`}
+      <StateLabel
+        hint={`Exported ${new Date(chapter.exported_at).toLocaleString()}`}
+        className="text-ok"
       >
         <Send className="size-3.5" /> Exported
-      </span>
+      </StateLabel>
     );
   }
   if (chapter.local_path || progress?.state === "done") {
@@ -144,17 +144,19 @@ export function ChapterRow({ chapter, selected, showSourceId, progress, onToggle
       <td className={cn("truncate pr-4", off ? "text-ink-3" : "text-ink")}>
         {chapter.title ?? <span className="text-ink-3">Untitled</span>}
       </td>
-      <td className="w-40 max-w-40 pr-4 text-ink-2" title={chapter.group ?? undefined}>
-        <div className="flex min-w-0 items-baseline overflow-hidden">
-          {chapter.group ? (
-            <GroupName name={chapter.group} />
-          ) : (
-            <span className="text-ink-3">—</span>
-          )}
-          {showSourceId && (
-            <span className="ml-1 shrink-0 text-caption text-ink-3">{sourceRef(chapter.id)}</span>
-          )}
-        </div>
+      <td className="w-40 max-w-40 pr-4 text-ink-2">
+        <Hint hint={chapter.group} focusable={false} truncated>
+          <div className="flex min-w-0 items-baseline overflow-hidden">
+            {chapter.group ? (
+              <GroupName name={chapter.group} />
+            ) : (
+              <span className="text-ink-3">—</span>
+            )}
+            {showSourceId && (
+              <span className="ml-1 shrink-0 text-caption text-ink-3">{sourceRef(chapter.id)}</span>
+            )}
+          </div>
+        </Hint>
       </td>
       <td className="w-28 text-ink-2">{languageLabel(chapter.language)}</td>
       <td className="w-44 pr-4">

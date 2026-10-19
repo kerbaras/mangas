@@ -20,8 +20,9 @@ export function TooltipContent({
       <TooltipPrimitive.Content
         sideOffset={sideOffset}
         collisionPadding={collisionPadding}
+        // Above sonner's toaster (z-index 999999999), so a toast's detail Hint is not hidden behind it.
         className={cn(
-          "z-50 max-w-[min(24rem,calc(100vw-1rem))] break-words rounded-md border border-stroke bg-surface px-2 py-1 text-caption text-ink shadow-md",
+          "z-[1000000000] max-w-[min(24rem,calc(100vw-1rem))] break-words rounded-md border border-stroke bg-surface px-2 py-1 text-caption text-ink shadow-md",
           className,
         )}
         {...props}

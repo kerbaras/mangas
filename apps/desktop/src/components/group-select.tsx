@@ -34,8 +34,7 @@ export function GroupSelect({ groups, value, onChange }: Props) {
           <SelectItem
             key={g.name}
             value={g.name}
-            title={g.name}
-            className="[&>span]:min-w-0 [&>span]:truncate"
+            className="h-auto min-h-7 py-1 [&>span]:min-w-0 [&>span]:break-words"
           >
             {g.name} ({g.chapters})
           </SelectItem>

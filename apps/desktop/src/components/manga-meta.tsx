@@ -1,3 +1,4 @@
+import { Hint } from "@/components/hint";
 import { Badge } from "@/components/ui/badge";
 import type { Manga } from "@/lib/ipc";
 import { creditsLine, visibleTags } from "@/lib/manga-meta";
@@ -21,9 +22,9 @@ export function MangaMeta({ manga }: { manga: Manga }) {
           ))}
           {hidden > 0 && (
             <li>
-              <Badge variant="outline" title={manga.tags?.slice(MAX_TAGS).join(", ")}>
-                +{hidden}
-              </Badge>
+              <Hint hint={manga.tags?.slice(MAX_TAGS).join(", ")}>
+                <Badge variant="outline">+{hidden}</Badge>
+              </Hint>
             </li>
           )}
         </ul>

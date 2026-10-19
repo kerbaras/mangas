@@ -1,4 +1,5 @@
 import { Download } from "lucide-react";
+import { Hint } from "@/components/hint";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -34,9 +35,9 @@ export function AppUpdateBanner() {
             <span>{progressLine(install.progress)}</span>
           </div>
         ) : install.kind === "failed" ? (
-          <span className="text-bad" title={describeFailure(install.error).tooltip}>
-            Update failed: {describeFailure(install.error).label}
-          </span>
+          <Hint hint={describeFailure(install.error).tooltip}>
+            <span className="text-bad">Update failed: {describeFailure(install.error).label}</span>
+          </Hint>
         ) : (
           "Restart to update. Downloads in progress pick up where they left off."
         )}
