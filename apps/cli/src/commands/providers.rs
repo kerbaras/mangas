@@ -76,7 +76,7 @@ async fn check(args: CheckArgs) -> anyhow::Result<()> {
         let (id, query) = (args.id.clone(), args.query.clone());
         async move {
             let source = mangas_providers::source(&id, &settings)?;
-            anyhow::Ok(doctor::check(&*source, &query, &lang).await)
+            anyhow::Ok(doctor::check(&*source, &query, &lang, &settings.network()).await)
         }
     })
     .await?;

@@ -55,6 +55,7 @@ export const tauriBackend: Backend = {
   connectProvider: (provider) => invoke<void>("connect_provider", { provider }),
   disconnectProvider: (provider) => invoke<void>("disconnect_provider", { provider }),
   providerStatus: (provider) => invoke<ProviderStatus>("provider_status", { provider }),
+  testProxy: (mode, url) => invoke<ProviderStatus>("test_proxy", { mode, url }),
   searchAll: (query, providers) =>
     invoke<SearchGroup[]>("search_all", { query, providers, limit: SEARCH_LIMIT }),
   coverSrc: async ({ source, id, cover_url }) =>

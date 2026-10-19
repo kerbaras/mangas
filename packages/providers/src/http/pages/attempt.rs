@@ -5,6 +5,7 @@ use std::time::Duration;
 use mangas_core::domain::{Error, Result};
 use reqwest::{Method, RequestBuilder, Response, Url};
 
+use super::super::network;
 use super::super::redirect::hop_for;
 use super::super::response::{mitigated, retry_after, retryable_transport, should_retry};
 use super::resolver::refusal_in;
@@ -34,7 +35,7 @@ impl PageClient<'_> {
                     .then(|| self.retry.delay(attempt, None))
                     .flatten();
                 log_failure(id, url, attempt, wait, &e.to_string());
-                return (Err(e.into()), wait);
+                return (Err(network::transport_error(e, &self.network)), wait);
             }
         };
         if let Some(hop) = hop_for(&Method::GET, &response) {

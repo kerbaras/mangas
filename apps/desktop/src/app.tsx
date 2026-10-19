@@ -3,6 +3,7 @@ import { NavRail } from "@/components/nav-rail";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DownloadsProvider, useQueue } from "@/hooks/use-downloads";
+import { useTheme } from "@/hooks/use-theme";
 import { useUpdateSchedule } from "@/hooks/use-update-schedule";
 import { onAppFocus, watchAppFocus } from "@/lib/app-focus";
 import { pendingCount } from "@/lib/download-sections";
@@ -37,11 +38,12 @@ function Shell({ nav }: { nav: Navigation }) {
   const { jobs, gate } = useQueue();
   const pending = useMemo(() => pendingCount(jobs.values()), [jobs]);
   useUpdateSchedule();
+  useTheme();
   return (
     <NavigationContext.Provider value={nav}>
-      <div className="flex h-full">
+      <div className="flex h-full overflow-hidden">
         <NavRail downloads={{ pending, held: gate.paused || gate.held }} />
-        <main className="flex-1 overflow-hidden">
+        <main className="min-w-0 flex-1 overflow-hidden">
           <Screen route={nav.route} />
         </main>
       </div>

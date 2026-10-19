@@ -197,7 +197,13 @@ async fn source_errors_are_reported_not_raised() {
 
 #[tokio::test]
 async fn the_real_image_fetch_refuses_non_public_hosts() {
-    let report = check(&fake(vec!["local"], &[("local", 1)]), "q", "en").await;
+    let report = check(
+        &fake(vec!["local"], &[("local", 1)]),
+        "q",
+        "en",
+        &Default::default(),
+    )
+    .await;
     assert_eq!(report.failed_step(), Some(Step::Image));
     let reason = report.steps[5].outcome.clone().unwrap_err();
     assert!(

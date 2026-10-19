@@ -79,6 +79,7 @@ impl Webtoons {
     pub fn with_bases(site: &str, mobile: &str, settings: &Settings) -> Result<Self> {
         let config = |base| ClientConfig {
             image_hosts: &["webtoon-phinf.pstatic.net", "swebtoon-phinf.pstatic.net"],
+            network: settings.network(),
             ..ClientConfig::new(INFO, base)
         };
         let session = Session::from_settings(settings, INFO.id);

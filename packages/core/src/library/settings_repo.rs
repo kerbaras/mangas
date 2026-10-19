@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::path::Path;
 
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior};
 use serde::{Deserialize, Serialize};
@@ -6,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::domain::{Error, Result};
 use crate::export::Format;
 use crate::library::settings_merge::merge_edit;
+use crate::library::settings_prefs::{ProxyMode, Theme};
 use crate::library::Library;
 use crate::send::EmailSettings;
 use crate::smartcut::Preset;
@@ -24,7 +26,7 @@ pub struct Settings {
     /// Browser sessions captured for providers behind a verification wall, by source name.
     pub provider_sessions: BTreeMap<String, ProviderSession>,
     /// Chapter languages in order of preference (ISO 639-1 with regional suffixes, "pt-br");
-    /// empty means [`DEFAULT_LANGUAGE`]. See [`Settings::languages`].
+    /// empty means [`DEFAULT_LANGUAGE`](super::DEFAULT_LANGUAGE). See [`Settings::languages`].
     pub preferred_languages: Vec<String>,
     /// Provider-specific options by provider id. The core does not know their shape; each
     /// provider deserialises its own entry (with defaults for anything missing).
@@ -35,70 +37,21 @@ pub struct Settings {
     /// Chapter languages per provider id, overriding `preferred_languages` for that provider
     /// when not empty. See [`Settings::languages_for`].
     pub provider_languages: BTreeMap<String, Vec<String>>,
-    /// Hours between background update checks; `None` is [`DEFAULT_UPDATE_HOURS`], 0 is off.
+    /// Hours between background update checks; `None` is [`DEFAULT_UPDATE_HOURS`](super::DEFAULT_UPDATE_HOURS), 0 is off.
     pub update_check_hours: Option<u32>,
     /// Desktop notification when a background check finds new chapters; on when `None`.
     pub update_notifications: Option<bool>,
     /// Send to Kindle by email (SMTP server, sender, Kindle address).
     pub kindle_email: EmailSettings,
-}
-
-/// Hours between background update checks when none is stored.
-pub const DEFAULT_UPDATE_HOURS: u32 = 6;
-
-/// Chapter language used when no preference is stored.
-pub const DEFAULT_LANGUAGE: &str = "en";
-
-impl Settings {
-    /// Preferred chapter languages, never empty.
-    pub fn languages(&self) -> Vec<String> {
-        let set = normalise(&self.preferred_languages);
-        if set.is_empty() {
-            vec![DEFAULT_LANGUAGE.to_string()]
-        } else {
-            set
-        }
-    }
-
-    /// Chapter languages for `provider`: its own list when one is stored, else [`Self::languages`].
-    pub fn languages_for(&self, provider: &str) -> Vec<String> {
-        let own = self
-            .provider_languages
-            .get(provider)
-            .map(|l| normalise(l))
-            .unwrap_or_default();
-        if own.is_empty() {
-            self.languages()
-        } else {
-            own
-        }
-    }
-
-    /// Hours between background update checks; 0 means they are off.
-    pub fn update_hours(&self) -> u32 {
-        self.update_check_hours.unwrap_or(DEFAULT_UPDATE_HOURS)
-    }
-
-    /// Whether background checks that find new chapters notify the desktop.
-    pub fn notify_updates(&self) -> bool {
-        self.update_notifications.unwrap_or(true)
-    }
-
-    /// Whether `provider` takes part in searches; on unless switched off.
-    pub fn provider_enabled(&self, provider: &str) -> bool {
-        self.providers_enabled
-            .get(provider)
-            .copied()
-            .unwrap_or(true)
-    }
-}
-
-fn normalise(languages: &[String]) -> Vec<String> {
-    languages
-        .iter()
-        .map(|l| l.trim().to_ascii_lowercase())
-        .filter(|l| !l.is_empty())
-        .collect()
+    /// Desktop colour scheme; `None` follows the OS ([`Theme::System`]).
+    pub theme: Option<Theme>,
+    /// Chapters downloading at once; `None` is [`DEFAULT_CONCURRENCY`](super::DEFAULT_CONCURRENCY). See
+    /// [`Settings::concurrency`].
+    pub download_concurrency: Option<u8>,
+    /// How provider requests reach the network; `None` is [`ProxyMode::System`].
+    pub proxy_mode: Option<ProxyMode>,
+    /// The proxy used in [`ProxyMode::Custom`]; kept while another mode is picked.
+    pub proxy_url: Option<String>,
 }
 
 /// Cookies and the user agent that obtained them; the HTTP client must send both unchanged.
@@ -118,6 +71,21 @@ fn json_error(e: serde_json::Error) -> Error {
 
 pub fn get_settings(lib: &Library) -> Result<Settings> {
     read(&*lib.conn()?)
+}
+
+/// The settings stored in the library at `db`, or the defaults (platform data folder, system
+/// proxy) when it can't be read, with the warning to show. For work that must not stop on a
+/// broken settings row, such as detector support.
+pub fn settings_or_default(db: &Path) -> (Settings, Option<String>) {
+    match crate::library::open(db).and_then(|lib| get_settings(&lib)) {
+        Ok(settings) => (settings, None),
+        Err(e) => (
+            Settings::default(),
+            Some(format!(
+                "could not read the settings, using the default data folder and the system proxy: {e}"
+            )),
+        ),
+    }
 }
 
 fn read(conn: &Connection) -> Result<Settings> {
@@ -169,21 +137,4 @@ pub fn edit_settings(
     write(&tx, &merged)?;
     tx.commit()?;
     Ok(merged)
-}
-
-impl Settings {
-    /// The groups a provider prefers when a chapter has several releases
-    /// (`provider_options[source].preferred_groups`, first = best).
-    pub fn preferred_groups(&self, source: &str) -> Vec<String> {
-        self.provider_options
-            .get(source)
-            .and_then(|o| o.get("preferred_groups"))
-            .and_then(|g| g.as_array())
-            .map(|g| {
-                g.iter()
-                    .filter_map(|v| v.as_str().map(String::from))
-                    .collect()
-            })
-            .unwrap_or_default()
-    }
 }

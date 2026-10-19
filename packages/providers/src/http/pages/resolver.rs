@@ -83,9 +83,6 @@ pub(super) fn refusal_in(error: &(dyn std::error::Error + 'static)) -> Option<Re
 /// Checks `host` up front when requests go through a proxy: the connection then resolves the
 /// proxy, not the host, so [`PublicResolver`] never sees it.
 pub(super) async fn check_proxied(host: &str) -> Result<(), Refusal> {
-    if !proxied() {
-        return Ok(());
-    }
     let addrs = tokio::net::lookup_host((host, 0))
         .await
         .map_err(|e| Refusal::Unresolved {
@@ -94,20 +91,6 @@ pub(super) async fn check_proxied(host: &str) -> Result<(), Refusal> {
         })?
         .collect();
     public_only(host, addrs).map(|_| ())
-}
-
-/// Whether reqwest picks up a proxy from the environment (it reads these variables).
-fn proxied() -> bool {
-    [
-        "HTTPS_PROXY",
-        "https_proxy",
-        "HTTP_PROXY",
-        "http_proxy",
-        "ALL_PROXY",
-        "all_proxy",
-    ]
-    .iter()
-    .any(|var| std::env::var_os(var).is_some_and(|v| !v.is_empty()))
 }
 
 /// The refusal for a URL whose host text is already non-public: a private IP literal or a

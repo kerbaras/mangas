@@ -62,6 +62,7 @@ impl Provider for WeebCentralProvider {
             requests_per_second: REQUESTS_PER_SECOND,
             // Pages come from rotating CDN hosts; send the referer a browser would send.
             image_hosts: &["*"],
+            network: settings.network(),
             ..ClientConfig::new(INFO, base)
         };
         let session = Session::from_settings(settings, INFO.id);

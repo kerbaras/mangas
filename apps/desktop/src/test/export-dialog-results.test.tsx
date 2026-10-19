@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ExportDialog } from "@/components/export-dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { setBackend } from "@/lib/ipc";
@@ -10,6 +10,8 @@ afterEach(() => {
   setBackend(null);
   writeSettings({ defaultFormat: null, defaultDevice: "kindle-paperwhite12" });
 });
+
+beforeEach(() => writeSettings({ dataDir: "/home/me/.local/share/mangas" }));
 
 const dialog = (onSent?: () => void) => (
   <TooltipProvider>
@@ -43,6 +45,20 @@ describe("export dialog: what it shows before and after writing", () => {
     expect(await screen.findByText("Solo v1 (2).epub")).toBeTruthy();
     fireEvent.click(await screen.findByLabelText("PDF"));
     expect(await screen.findByText("Solo v2 (2).pdf")).toBeTruthy();
+  });
+
+  it("shows where a relative folder really goes: under the default export folder", async () => {
+    const freeExportNames = vi.fn(async (_dir: string, names: string[]) => names);
+    exportBackend({ freeExportNames });
+    render(dialog());
+    fireEvent.change(await screen.findByLabelText("Output folder"), {
+      target: { value: "books" },
+    });
+    const kindleBooks = "/home/me/.local/share/mangas/kindle/books";
+    expect(await screen.findByText(`Saved to ${kindleBooks}`)).toBeTruthy();
+    await waitFor(() =>
+      expect(freeExportNames).toHaveBeenLastCalledWith(kindleBooks, expect.anything()),
+    );
   });
 
   it("keeps the books that copied next to the one that failed, and refreshes the history", async () => {

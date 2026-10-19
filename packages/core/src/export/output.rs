@@ -7,6 +7,16 @@ use std::path::{Path, PathBuf};
 
 use crate::domain::{Error, Result};
 
+/// Where an export path the user gave goes: an absolute path as given, a relative one (or none)
+/// under `default_dir`, never under the process working directory.
+pub fn in_export_folder(default_dir: &Path, path: &Path) -> PathBuf {
+    if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        default_dir.join(path)
+    }
+}
+
 /// Writes a new file at `path` (parent directories are created) with `fill` and returns the
 /// file written. An existing file is never replaced: the name gets ` (2)`, ` (3)`, ... like a
 /// browser download. The target is claimed with `create_new` (two exports racing for one name

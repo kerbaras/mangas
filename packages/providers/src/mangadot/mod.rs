@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId, Result};
-use mangas_core::library::Settings;
+use mangas_core::library::{Network, Settings};
 use mangas_core::sources::{Header, PageUrls, ProviderStatus, Source};
 
 pub use mapping::{
@@ -55,7 +55,7 @@ impl Provider for MangaDotProvider {
     fn build_at(&self, settings: &Settings, base: &str) -> Result<Arc<dyn Source>> {
         let api = format!("{}/api", base.trim_end_matches('/'));
         let session = Session::from_settings(settings, INFO.id);
-        Ok(Arc::new(MangaDot::with_base(&api, session)?))
+        Ok(Arc::new(MangaDot::at(&api, session, settings.network())?))
     }
 }
 
@@ -72,10 +72,15 @@ impl MangaDot {
 
     /// Points the source at another API host (tests).
     pub fn with_base(api: &str, session: Option<Session>) -> Result<Self> {
+        Self::at(api, session, Network::System)
+    }
+
+    fn at(api: &str, session: Option<Session>, network: Network) -> Result<Self> {
         let config = ClientConfig {
             requests_per_second: REQUESTS_PER_SECOND,
             // Mirrored chapters point at other sites' CDNs; they all get the referer.
             image_hosts: &["*"],
+            network,
             ..ClientConfig::new(INFO, api)
         };
         Ok(Self {

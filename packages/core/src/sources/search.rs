@@ -1,6 +1,7 @@
 //! Search across several providers at once. Each provider gets the same deadline and its own
 //! result group, so one that fails, times out or wants a browser session never sinks the rest.
 
+use crate::library::Network;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -34,6 +35,7 @@ pub async fn search_all(
     query: &str,
     limit: usize,
     timeout: Duration,
+    network: &Network,
 ) -> Vec<SearchGroup> {
     let query = query.trim();
     join_all(sources.iter().map(|source| async move {
@@ -42,7 +44,7 @@ pub async fn search_all(
         }
         match tokio::time::timeout(timeout, source.search(query, limit)).await {
             Ok(outcome) => group(source.name(), outcome),
-            Err(_) => timed_out(source.name(), timeout),
+            Err(_) => timed_out(source.name(), timeout, network),
         }
     }))
     .await
@@ -68,11 +70,12 @@ pub fn group(provider: &str, outcome: Result<Vec<Manga>>) -> SearchGroup {
     }
 }
 
-pub fn timed_out(provider: &str, after: Duration) -> SearchGroup {
+/// The group of a provider with no answer within `after`, naming the proxy it went through.
+pub fn timed_out(provider: &str, after: Duration, network: &Network) -> SearchGroup {
     SearchGroup {
         provider: provider.to_string(),
         status: ProviderStatus::Unreachable {
-            reason: format!("no answer within {} s", after.as_secs()),
+            reason: crate::net::no_answer(network, after.as_secs()),
         },
         items: Vec::new(),
     }

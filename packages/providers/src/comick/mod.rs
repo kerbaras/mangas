@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId, Result};
-use mangas_core::library::Settings;
+use mangas_core::library::{Network, Settings};
 use mangas_core::sources::{Header, PageUrls, ProviderStatus, Source};
 
 pub use mapping::{
@@ -63,7 +63,7 @@ impl Provider for ComickProvider {
 
     fn build_at(&self, settings: &Settings, base: &str) -> Result<Arc<dyn Source>> {
         let session = Session::from_settings(settings, INFO.id);
-        Ok(Arc::new(Comick::with_base(base, session)?))
+        Ok(Arc::new(Comick::at(base, session, settings.network())?))
     }
 }
 
@@ -78,10 +78,15 @@ impl Comick {
 
     /// Points the source at another host (tests).
     pub fn with_base(base: &str, session: Option<Session>) -> Result<Self> {
+        Self::at(base, session, Network::System)
+    }
+
+    fn at(base: &str, session: Option<Session>, network: Network) -> Result<Self> {
         let config = ClientConfig {
             requests_per_second: REQUESTS_PER_SECOND,
             // Pages and covers: 403 without the site's referer.
             image_hosts: &["comicknew.pictures"],
+            network,
             ..ClientConfig::new(INFO, base)
         };
         Ok(Self {

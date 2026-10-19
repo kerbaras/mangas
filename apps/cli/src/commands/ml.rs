@@ -40,7 +40,11 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
                 );
             };
             let never = AtomicBool::new(false);
-            let status = ml::download(&dir, &mut on_progress, &never).await;
+            let network = mangas_core::library::get_settings(&mangas_core::library::open(
+                &crate::paths::library_db()?,
+            )?)?
+            .network();
+            let status = ml::download(&dir, &network, &mut on_progress, &never).await;
             eprintln!();
             print_status(&status.context("detector support")?)
         }

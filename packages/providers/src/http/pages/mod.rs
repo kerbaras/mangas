@@ -4,21 +4,21 @@
 //! Covers go through the same client ([`crate::covers::CoverFetcher`]).
 
 mod attempt;
+mod builder;
 mod redirect;
 mod resolver;
 
-#[cfg(any(test, feature = "test-support"))]
-use std::net::IpAddr;
 use std::time::Duration;
 
 use async_trait::async_trait;
 use mangas_core::domain::{Error, Result};
 use mangas_core::download::{is_public_http_url, PageFetcher};
+use mangas_core::library::Network;
 use mangas_core::sources::{Header, Source};
 use reqwest::{Client, Url};
 
 use super::redirect::MAX_REDIRECTS;
-use super::{header_map, RetryPolicy};
+use super::{header_map, network, RetryPolicy};
 use crate::rate_limit::{host_key, HostLimiters};
 
 pub(crate) use redirect::build_http;
@@ -51,6 +51,7 @@ pub struct PageClient<'a> {
     retry: RetryPolicy,
     public_only: bool,
     max_bytes: Option<usize>,
+    network: Network,
 }
 
 /// How one hop ended: the final response, or a redirect to follow.
@@ -60,50 +61,32 @@ enum Step {
 }
 
 impl<'a> PageClient<'a> {
+    /// Through the system proxy; see [`Self::via`].
     pub fn for_source(source: &'a dyn Source) -> Result<Self> {
-        Ok(Self::with_http(source, build_http(true)?, true))
+        Self::via(source, &Network::System)
     }
 
-    /// A client on an `http` built by [`build_http`] with the same `public_only`.
-    pub(crate) fn with_http(source: &'a dyn Source, http: Client, public_only: bool) -> Self {
+    /// Requests go out per `network` (the settings' proxy).
+    pub fn via(source: &'a dyn Source, network: &Network) -> Result<Self> {
+        let http = build_http(true, network)?;
+        Ok(Self::with_http(source, http, true, network.clone()))
+    }
+
+    /// A client on an `http` built by [`build_http`] with the same `public_only` and `network`.
+    pub(crate) fn with_http(
+        source: &'a dyn Source,
+        http: Client,
+        public_only: bool,
+        network: Network,
+    ) -> Self {
         Self {
             source,
             http,
             retry: PAGE_RETRY,
             public_only,
             max_bytes: None,
+            network,
         }
-    }
-
-    pub fn with_retry(self, retry: RetryPolicy) -> Self {
-        Self { retry, ..self }
-    }
-
-    /// Refuse bodies over `max_bytes` (announced or streamed) instead of reading them whole.
-    pub fn with_max_bytes(self, max_bytes: usize) -> Self {
-        Self {
-            max_bytes: Some(max_bytes),
-            ..self
-        }
-    }
-
-    /// Also reaches loopback and private addresses: only for tests against a mock server.
-    pub fn allow_private_hosts(self) -> Result<Self> {
-        Ok(Self {
-            http: build_http(false)?,
-            public_only: false,
-            ..self
-        })
-    }
-
-    /// Resolves every host name to `ip`, still refusing non-public ones: only for tests.
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn resolving_to(self, ip: IpAddr) -> Result<Self> {
-        Ok(Self {
-            http: redirect::build_http_resolving(ip)?,
-            public_only: true,
-            ..self
-        })
     }
 
     /// One-byte ranged GET of `url` (`providers check`); hosts that ignore `Range` answer 200.
@@ -150,7 +133,8 @@ impl<'a> PageClient<'a> {
         let domain = Url::parse(url)
             .ok()
             .and_then(|u| u.domain().map(str::to_string));
-        if let Some(host) = domain.filter(|_| self.public_only) {
+        let proxied = self.public_only && network::proxied(&self.network);
+        if let Some(host) = domain.filter(|_| proxied) {
             resolver::check_proxied(&host)
                 .await
                 .map_err(|e| e.into_error(self.source.name()))?;

@@ -9,6 +9,10 @@ export type ProviderSession = {
   saved_at: string | null;
 };
 
+export type Theme = "light" | "dark" | "system";
+/** `system` follows the OS proxy settings, `none` connects directly, `custom` uses `proxy_url`. */
+export type ProxyMode = "system" | "none" | "custom";
+
 /** Mirrors `mangas_core::library::Settings`; `null` means "use the default". */
 export type Settings = {
   data_dir: string | null;
@@ -30,4 +34,12 @@ export type Settings = {
   update_notifications?: boolean | null;
   /** Send to Kindle by email; the password is stored unencrypted. */
   kindle_email?: EmailSettings;
+  /** null = system. */
+  theme?: Theme | null;
+  /** Chapters downloading at once, 1–8; null = 4. */
+  download_concurrency?: number | null;
+  /** null = system. */
+  proxy_mode?: ProxyMode | null;
+  /** Kept while another mode is picked, so switching back restores it. */
+  proxy_url?: string | null;
 };

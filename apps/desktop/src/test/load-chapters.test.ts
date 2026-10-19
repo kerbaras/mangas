@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { type Backend, type Chapter, setBackend } from "@/lib/ipc";
 import { loadChapters } from "@/lib/load-chapters";
 
+vi.mock("@/lib/settings", () => ({ settingsSettled: () => Promise.resolve() }));
+
 const stored: Chapter = {
   id: "c1",
   manga_id: "m1",

@@ -7,6 +7,8 @@ use std::time::Duration;
 use futures_util::StreamExt;
 
 use crate::domain::{Error, Result};
+use crate::library::Network;
+use crate::net;
 
 /// Message of the error a cancelled download returns.
 pub const CANCELLED: &str = "download cancelled";
@@ -15,15 +17,18 @@ pub fn is_cancelled(err: &Error) -> bool {
     matches!(err, Error::Other(m) if m == CANCELLED)
 }
 
-/// Downloads `url`; `on_progress` gets (bytes so far, total if known) after every chunk, and the
+/// Downloads `url` through `network`; `on_progress` gets (bytes so far, total if known) after every chunk, and the
 /// download stops with [`CANCELLED`] as soon as `cancel` is set.
 pub async fn fetch(
     url: &str,
+    network: &Network,
     on_progress: &mut (dyn FnMut(u64, Option<u64>) + Send),
     cancel: &AtomicBool,
 ) -> Result<Vec<u8>> {
-    let resp = or_cancel(reqwest::get(url), cancel)
-        .await??
+    let client = net::client(network)?;
+    let resp = or_cancel(client.get(url).send(), cancel)
+        .await?
+        .map_err(|e| net::transport_error(e, network))?
         .error_for_status()?;
     let total = resp.content_length();
     let mut stream = resp.bytes_stream();

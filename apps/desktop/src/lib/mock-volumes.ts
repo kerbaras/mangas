@@ -11,6 +11,8 @@ type Deps = {
   chapters: (source: string, id: string) => Chapter[];
   cached: () => Iterable<Chapter[]>;
   listeners: Set<(p: ExportProgress) => void>;
+  /** The default export folder, for a request without one. */
+  exportDir: () => string;
 };
 
 export function mockVolumes(deps: Deps): VolumesBackend {
@@ -36,7 +38,7 @@ export function mockVolumes(deps: Deps): VolumesBackend {
         markExported(deps.cached(), dirs);
         results.push(
           mockExportResult(
-            `${r.outputDir}/${withExtension(book.file_name, r.format)}`,
+            `${r.outputDir ?? deps.exportDir()}/${withExtension(book.file_name, r.format)}`,
             book.chapters.length,
           ),
         );

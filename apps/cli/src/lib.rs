@@ -21,6 +21,9 @@ pub struct Cli {
     /// Log more to stderr: -v info, -vv debug (MANGAS_LOG overrides)
     #[arg(short, long, action = clap::ArgAction::Count, global = true)]
     verbose: u8,
+    /// Proxy for provider requests this run: system, none or an http(s) URL (overrides Settings)
+    #[arg(long, global = true, value_name = "URL")]
+    proxy: Option<String>,
     #[command(subcommand)]
     command: Command,
 }
@@ -82,6 +85,14 @@ where
     let _ = mangas_core::logging::init_stderr(cli.verbose);
     if let Ok(dir) = paths::rate_limits() {
         mangas_providers::HostLimiters::shared().share_across_processes(dir);
+    }
+    if let Some(raw) = &cli.proxy {
+        match mangas_core::library::Network::parse(raw) {
+            Ok(network) => {
+                mangas_providers::http::override_network(network);
+            }
+            Err(e) => return output::ignore_broken_pipe(Err(e.into())),
+        }
     }
     output::ignore_broken_pipe(dispatch(cli.command).await)
 }

@@ -8,8 +8,9 @@ use std::time::{Duration, Instant};
 use mangas_core::ml;
 use tauri::{AppHandle, Emitter};
 
-use super::export::models_dir;
-use super::to_ipc;
+use super::penalizer::models_dir;
+use super::{settings_or_default, to_ipc};
+use crate::paths;
 
 /// Download progress: `{ item, done, total }` in bytes, `item` is "onnxruntime" or a model id.
 pub const DETECTORS_EVENT: &str = "detectors://download";
@@ -87,7 +88,8 @@ pub fn claim_for_move() -> Option<Busy> {
 }
 
 async fn download(app: &AppHandle) -> Result<ml::Status, String> {
-    let dir = models_dir()?;
+    let settings = settings_or_default();
+    let dir = paths::models(&settings)?;
     let mut last = Instant::now() - Duration::from_secs(1);
     let mut on_progress = |item: &str, done: u64, total: Option<u64>| {
         if Some(done) == total || last.elapsed() >= Duration::from_millis(100) {
@@ -102,7 +104,7 @@ async fn download(app: &AppHandle) -> Result<ml::Status, String> {
             }
         }
     };
-    ml::download(&dir, &mut on_progress, &CANCEL)
+    ml::download(&dir, &settings.network(), &mut on_progress, &CANCEL)
         .await
         .map_err(to_ipc)
 }
@@ -158,7 +160,7 @@ mod tests {
         let busy = claim(Holder::Download).expect("free after the move");
         let run = tokio::spawn(async move {
             let mut ignore = |_, _| {};
-            ml::fetch::fetch(&url, &mut ignore, &CANCEL).await
+            ml::fetch::fetch(&url, &Default::default(), &mut ignore, &CANCEL).await
         });
         cancel_detectors_download();
         let err = tokio::time::timeout(Duration::from_secs(5), run)

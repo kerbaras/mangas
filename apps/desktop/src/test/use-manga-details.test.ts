@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { useMangaDetails } from "@/hooks/use-manga-details";
 import { type Backend, type Manga, setBackend } from "@/lib/ipc";
+import { loadSettings } from "@/lib/settings";
 
 const card: Manga = {
   id: "en-webtoon-95",
@@ -16,6 +17,16 @@ const stored: Manga = { ...card, description: "Reach the top of the tower.", sta
 function backendWith(getManga: Backend["getManga"]) {
   setBackend({ getManga } as Backend);
 }
+
+/** The hook waits for the first settings load (#99); this file isn't about that. */
+beforeAll(async () => {
+  setBackend({
+    getSettings: async () => ({ provider_sessions: {} }),
+    defaultDataDir: async () => "/data",
+  } as unknown as Backend);
+  await loadSettings();
+  setBackend(null);
+});
 
 afterEach(() => setBackend(null));
 

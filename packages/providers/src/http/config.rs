@@ -1,5 +1,7 @@
 use std::time::Duration;
 
+use mangas_core::library::Network;
+
 use super::RetryPolicy;
 use crate::provider::ProviderInfo;
 
@@ -23,6 +25,8 @@ pub struct ClientConfig {
     pub json_api: bool,
     /// Known lifetime of the browser session; older sessions report `NeedsSession`.
     pub session_ttl: Option<Duration>,
+    /// Proxy for every request ([`Settings::network`](mangas_core::library::Settings::network)).
+    pub network: Network,
 }
 
 impl ClientConfig {
@@ -37,6 +41,7 @@ impl ClientConfig {
             retry: RetryPolicy::default(),
             json_api: false,
             session_ttl: None,
+            network: Network::System,
         }
     }
 }

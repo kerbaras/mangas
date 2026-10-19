@@ -3,11 +3,12 @@ use std::path::PathBuf;
 use mangas_core::export::kindle::{self, BookMeta, ExportRequest, ExportStats, Progress};
 use mangas_core::export::{ExportPreset, Format, Labels};
 use mangas_core::library;
-use mangas_core::ml;
+use mangas_core::library::Settings;
 use mangas_core::smartcut::Preset;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Runtime};
 
-use super::{open_library, settings_of, to_ipc};
+use super::penalizer::penalizer;
+use super::{open_library, settings_or_default, to_ipc};
 use crate::paths;
 
 /// Event name for export progress; payload is [`ExportEvent`].
@@ -34,7 +35,7 @@ pub(super) enum ExportEvent {
     },
 }
 
-pub(super) fn emit(app: &AppHandle, event: ExportEvent) {
+pub(super) fn emit<R: Runtime>(app: &AppHandle<R>, event: ExportEvent) {
     if let Err(e) = app.emit(EXPORT_EVENT, event) {
         log::warn!("emit {EXPORT_EVENT}: {e}");
     }
@@ -43,8 +44,9 @@ pub(super) fn emit(app: &AppHandle, event: ExportEvent) {
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 #[allow(clippy::too_many_arguments)] // Tauri maps each IPC argument to a parameter.
-pub async fn export_chapters(
-    app: AppHandle,
+/// A relative `output` goes under the default export folder ([`paths::exports`]).
+pub async fn export_chapters<R: Runtime>(
+    app: AppHandle<R>,
     chapter_dirs: Vec<PathBuf>,
     device: Option<String>,
     format: Option<Format>,
@@ -59,13 +61,15 @@ pub async fn export_chapters(
         profile: device,
         ..Default::default()
     };
-    let resolved = resolve(&explicit, series_preset(&chapter_dirs).as_ref())?;
+    let settings = settings_or_default();
+    let output = mangas_core::export::in_export_folder(&paths::exports(&settings)?, &output);
+    let resolved = resolve(&explicit, series_preset(&chapter_dirs).as_ref(), &settings);
     let dev = resolved
         .profile_or(paths::DEFAULT_PROFILE)
         .map_err(to_ipc)?;
     let format = Format::resolve(format, Some(&output), resolved.format, &dev).map_err(to_ipc)?;
     let device = dev.id.to_string();
-    let detection = penalizer(&app, detectors).await?;
+    let detection = penalizer(&app, detectors, &settings).await?;
     let req_dirs = chapter_dirs.clone();
     let req = ExportRequest {
         labels: labels_of(&chapter_dirs),
@@ -99,14 +103,14 @@ pub async fn export_chapters(
     Ok(stats)
 }
 
-/// `explicit` choices over the series preset over the stored defaults.
+/// `explicit` choices over the series preset over the stored defaults (the built-in ones when
+/// the settings can't be read).
 pub(super) fn resolve(
     explicit: &ExportPreset,
     series: Option<&ExportPreset>,
-) -> Result<ExportPreset, String> {
-    let settings = settings_of(&open_library()?)?;
-    let fallback = ExportPreset::from_settings(&settings);
-    Ok(ExportPreset::resolve(explicit, series, &fallback))
+    settings: &Settings,
+) -> ExportPreset {
+    ExportPreset::resolve(explicit, series, &ExportPreset::from_settings(settings))
 }
 
 /// The preset of the series every folder belongs to; none when unreadable or mixed.
@@ -118,24 +122,6 @@ fn series_preset(dirs: &[PathBuf]) -> Option<ExportPreset> {
             tracing::warn!("could not read the series export preset: {e}");
             None
         })
-}
-
-/// The detector row penalizer when `detectors` is on, reporting runtime/model downloads as events.
-/// Detectors that can't run leave it off with the reason; the cut goes on without them.
-pub(super) async fn penalizer(app: &AppHandle, detectors: bool) -> Result<ml::Penalizer, String> {
-    if !detectors {
-        return Ok(ml::Penalizer::default());
-    }
-    let cache = models_dir()?;
-    let bytes = ml::status(&cache).download_bytes;
-    if bytes > 0 {
-        emit(app, ExportEvent::DetectorsMissing { bytes });
-    }
-    let mut on_progress = |id: &str, done: u64, total: Option<u64>| {
-        let id = id.to_string();
-        emit(app, ExportEvent::ModelDownload { id, done, total });
-    };
-    Ok(ml::penalizer_or_reason(&cache, &mut on_progress).await)
 }
 
 /// Marks the chapters exported and adds the book to the export history. The file is written
@@ -170,11 +156,6 @@ fn titles_of(dirs: &[PathBuf]) -> Vec<String> {
             tracing::warn!("could not read chapter titles: {e}");
             Vec::new()
         })
-}
-
-pub(super) fn models_dir() -> Result<PathBuf, String> {
-    let lib = open_library()?;
-    paths::models(&settings_of(&lib)?).map_err(to_ipc)
 }
 
 fn default_title(chapter_dirs: &[PathBuf]) -> String {

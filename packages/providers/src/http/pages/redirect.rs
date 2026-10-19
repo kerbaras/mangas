@@ -8,22 +8,23 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use mangas_core::domain::Result;
+use mangas_core::library::Network;
 use reqwest::redirect::Policy;
 use reqwest::{Client, ClientBuilder};
 
-use super::super::USER_AGENT;
+use super::super::{network, USER_AGENT};
 use super::resolver::PublicResolver;
 
 const TIMEOUT: Duration = Duration::from_secs(30);
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
-pub(crate) fn build_http(public_only: bool) -> Result<Client> {
+pub(crate) fn build_http(public_only: bool, network: &Network) -> Result<Client> {
     let builder = if public_only {
         builder().dns_resolver(Arc::new(PublicResolver::default()))
     } else {
         builder()
     };
-    Ok(builder.build()?)
+    Ok(network::apply(builder, network)?.build()?)
 }
 
 /// A public-only client whose DNS answers every name with `ip` (tests only).

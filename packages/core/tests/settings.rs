@@ -34,6 +34,10 @@ fn settings_round_trip_and_overwrite() {
             security: Security::Tls,
             ..Default::default()
         },
+        theme: Some(library::Theme::Dark),
+        download_concurrency: Some(6),
+        proxy_mode: Some(library::ProxyMode::Custom),
+        proxy_url: Some("http://127.0.0.1:8888".into()),
     };
     library::set_settings(&lib, &first).unwrap();
     assert_eq!(library::get_settings(&lib).unwrap(), first);

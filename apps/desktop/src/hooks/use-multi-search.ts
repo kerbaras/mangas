@@ -4,7 +4,7 @@ import { type SearchGroup, searchAll } from "@/lib/ipc";
 import { recordStatus } from "@/lib/provider-status";
 import type { GroupState } from "@/lib/search-groups";
 import { cachedResults, rememberResults } from "@/lib/search-session";
-import { useSettings } from "@/lib/settings";
+import { settingsSettled, useSettings, useSettingsKnown } from "@/lib/settings";
 
 const failed = (provider: string, reason: string): SearchGroup => ({
   provider,
@@ -18,26 +18,43 @@ const failed = (provider: string, reason: string): SearchGroup => ({
  * answer is recorded as that provider's status. The last query's groups are kept in
  * `search-session` under the query, provider list and search settings, so coming back to the same
  * search shows them again; only providers still searching when the screen was left are asked
- * again, and changed languages or provider options search afresh.
+ * again, and changed languages, provider options or proxy search afresh.
  */
 export function useMultiSearch(query: string, ids: string[]) {
   const [groups, setGroups] = useState<Record<string, GroupState>>({});
   const generation = useRef(0);
   const latest = useRef<Record<string, number>>({});
-  const [{ preferredLanguages, providerLanguages, providerOptions }] = useSettings();
+  const [{ preferredLanguages, providerLanguages, providerOptions, proxyMode, proxyUrl }] =
+    useSettings();
+  const known = useSettingsKnown();
   const key = ids.join(",");
-  const prefs = JSON.stringify([preferredLanguages, providerLanguages, providerOptions]);
+  const prefs = JSON.stringify([
+    known,
+    preferredLanguages,
+    providerLanguages,
+    providerOptions,
+    proxyMode,
+    proxyUrl,
+  ]);
   const current = useRef({ query: "", key: "" });
 
   const searchOne = useCallback((q: string, id: string, gen: number) => {
     const token = (latest.current[id] ?? 0) + 1;
     latest.current[id] = token;
     setGroups((g) => ({ ...g, [id]: { kind: "searching" } }));
-    searchAll(q, [id])
-      .then((list) => list.find((g) => g.provider === id) ?? failed(id, "provider is disabled"))
+    const stale = () => generation.current !== gen || latest.current[id] !== token;
+    // Not before the stored settings are in and saved edits landed: the backend searches with
+    // them, and a search the settings change made stale meanwhile isn't sent at all.
+    settingsSettled()
+      .then(() => (stale() ? null : searchAll(q, [id])))
+      .then((list) =>
+        list === null
+          ? null
+          : (list.find((g) => g.provider === id) ?? failed(id, "provider is disabled")),
+      )
       .catch((e: unknown) => failed(id, errorMessage(e)))
       .then((group) => {
-        if (generation.current !== gen || latest.current[id] !== token) return;
+        if (group === null || stale()) return;
         recordStatus(id, group.status);
         setGroups((g) => ({ ...g, [id]: { kind: "done", group } }));
       });

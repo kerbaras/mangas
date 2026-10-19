@@ -3,6 +3,8 @@ import { isTauri } from "./ipc";
 const isMacLike = () =>
   typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 
+export const isWindows = () => typeof navigator !== "undefined" && /Win/.test(navigator.platform);
+
 /** macOS keeps its native traffic lights (overlay title bar); the header leaves room for them. */
 export const hasTrafficLights = () => isTauri() && isMacLike();
 

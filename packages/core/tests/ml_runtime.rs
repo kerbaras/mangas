@@ -140,9 +140,15 @@ async fn installs_verified_library_once() {
     std::fs::create_dir_all(root(dir.path()).join("1.0.0")).unwrap();
     let mut seen = 0;
     let never = AtomicBool::new(false);
-    let path = ensure(dir.path(), &spec, &mut |done, _| seen = done, &never)
-        .await
-        .unwrap();
+    let path = ensure(
+        dir.path(),
+        &spec,
+        &Default::default(),
+        &mut |done, _| seen = done,
+        &never,
+    )
+    .await
+    .unwrap();
     assert_eq!(path, dir.path().join("runtime/9.9.9/libonnxruntime.so"));
     assert_eq!(std::fs::read(&path).unwrap(), lib);
     assert_eq!(seen, archive.len() as u64);
@@ -151,9 +157,15 @@ async fn installs_verified_library_once() {
         "older runtimes are pruned"
     );
     // The server is gone: a present, verified library is not downloaded again.
-    ensure(dir.path(), &spec, &mut |_, _| {}, &never)
-        .await
-        .unwrap();
+    ensure(
+        dir.path(),
+        &spec,
+        &Default::default(),
+        &mut |_, _| {},
+        &never,
+    )
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
@@ -163,15 +175,27 @@ async fn rejects_checksum_mismatch_and_honours_cancel() {
     let mut spec = spec_for(serve(archive.clone(), 2), &archive, &lib);
     let dir = tempfile::tempdir().unwrap();
     let cancel = AtomicBool::new(true);
-    let err = ensure(dir.path(), &spec, &mut |_, _| {}, &cancel)
-        .await
-        .unwrap_err();
+    let err = ensure(
+        dir.path(),
+        &spec,
+        &Default::default(),
+        &mut |_, _| {},
+        &cancel,
+    )
+    .await
+    .unwrap_err();
     assert!(is_cancelled(&err), "{err}");
     spec.sha256 = "0000000000000000000000000000000000000000000000000000000000000000";
     let never = AtomicBool::new(false);
-    let err = ensure(dir.path(), &spec, &mut |_, _| {}, &never)
-        .await
-        .unwrap_err();
+    let err = ensure(
+        dir.path(),
+        &spec,
+        &Default::default(),
+        &mut |_, _| {},
+        &never,
+    )
+    .await
+    .unwrap_err();
     assert!(err.to_string().contains("sha256 mismatch"), "{err}");
     assert!(!lib_path(dir.path(), &spec).exists());
 }
@@ -233,9 +257,15 @@ async fn official_assets_match_their_checksums() {
     for spec in RUNTIMES {
         let dir = tempfile::tempdir().unwrap();
         let never = AtomicBool::new(false);
-        let path = ensure(dir.path(), &spec, &mut |_, _| {}, &never)
-            .await
-            .unwrap();
+        let path = ensure(
+            dir.path(),
+            &spec,
+            &Default::default(),
+            &mut |_, _| {},
+            &never,
+        )
+        .await
+        .unwrap();
         assert!(path.is_file(), "{} {}", spec.os, spec.arch);
     }
 }

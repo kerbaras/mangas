@@ -44,7 +44,7 @@ async fn run_with(
             super::plural(orphans.len(), "download", "downloads")
         );
     }
-    let worker = Queue::new(lib, Arc::new(runner), QueueConfig::default());
+    let worker = Queue::new(lib, Arc::new(runner), QueueConfig::default()).following_settings();
     Ok(queue::run_until_settled(&worker, scope, on_event, on_hold).await?)
 }
 

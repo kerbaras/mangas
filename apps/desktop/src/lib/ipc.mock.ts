@@ -26,6 +26,7 @@ import { mockUpdates } from "./mock-updates";
 import { mockVolumes } from "./mock-volumes";
 
 const DATA_DIR = "~/.local/share/mangas";
+const exportDir = () => `${settings.data_dir ?? DATA_DIR}/kindle`;
 let settings: Settings = {
   data_dir: null,
   default_device: null,
@@ -116,6 +117,17 @@ export const mockBackend: Backend = {
       return { state: "needs_session" };
     return { state: "ready" };
   },
+  async testProxy(mode, url) {
+    await wait(400);
+    if (mode === "custom" && !/^https?:\/\/[^/]+/.test(url))
+      return { state: "unreachable", reason: `invalid proxy URL "${url}"` };
+    if (url.includes(":9"))
+      return {
+        state: "unreachable",
+        reason: `network: couldn't connect through the proxy ${url}: connection refused`,
+      };
+    return { state: "ready" };
+  },
   async searchAll(query, only) {
     await wait(300 + Math.random() * 600);
     return mockSearch(query, only, settings);
@@ -175,7 +187,10 @@ export const mockBackend: Backend = {
   async exportChapters(request) {
     await simulateExport(exportListeners, Math.max(1, request.chapter_dirs.length * 6));
     markExported(chapterCache.values(), request.chapter_dirs);
-    return mockExportResult(request.output, request.chapter_dirs.length);
+    const output = request.output.includes("/")
+      ? request.output
+      : `${exportDir()}/${request.output}`;
+    return mockExportResult(output, request.chapter_dirs.length);
   },
   ...mockDetectors(),
   ...mockDiagnostics(DATA_DIR, providers, () => settings),
@@ -192,6 +207,7 @@ export const mockBackend: Backend = {
   ...mockCutPreview(),
   ...simulatedQueue(),
   ...mockVolumes({
+    exportDir,
     manga: (source, id) =>
       library.get(`${source}:${id}`) ??
       sampleCatalog.find((m) => m.source === source && m.id === id),

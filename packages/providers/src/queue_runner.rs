@@ -30,7 +30,7 @@ impl JobRunner for QueueRunner {
     async fn run(&self, lib: &Library, job: &Job, on_event: OnEvent<'_>) -> Result<()> {
         let settings = library::get_settings(lib)?;
         let source = crate::source(&job.source, &settings)?;
-        let pages = PageClient::for_source(source.as_ref())?;
+        let pages = PageClient::via(source.as_ref(), &settings.network())?;
         let root = (self.root_for)(&settings)?;
         run_job(lib, source.as_ref(), &pages, job, &root, on_event).await?;
         Ok(())

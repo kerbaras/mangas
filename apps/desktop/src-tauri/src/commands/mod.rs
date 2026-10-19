@@ -1,5 +1,7 @@
 //! IPC surface. Each command parses its arguments, calls `mangas_core`, and returns JSON.
 
+#[cfg(all(test, target_os = "linux"))]
+mod broken_row_tests;
 pub mod catalog;
 pub mod covers;
 pub mod cut_preview;
@@ -11,6 +13,7 @@ pub mod export;
 pub mod folders;
 pub mod import;
 pub mod organisation;
+mod penalizer;
 mod preview_panels;
 pub mod providers;
 pub mod send;
@@ -40,6 +43,25 @@ pub(super) fn source_by_name(name: &str) -> Result<Arc<dyn Source>, String> {
 
 pub(super) fn settings_of(lib: &Library) -> Result<Settings, String> {
     library::get_settings(lib).map_err(to_ipc)
+}
+
+/// The stored settings, or the defaults with a logged warning when they can't be read.
+pub(super) fn settings_or_default() -> Settings {
+    let (settings, warning) = match paths::library_db() {
+        Ok(db) => library::settings_or_default(&db),
+        Err(e) => (Settings::default(), Some(e)),
+    };
+    if let Some(warning) = warning {
+        log::warn!("{warning}");
+    }
+    settings
+}
+
+/// The stored settings, or the defaults without a warning: for previews that run on every keystroke.
+pub(super) fn settings_quietly() -> Settings {
+    paths::library_db()
+        .map(|db| library::settings_or_default(&db).0)
+        .unwrap_or_default()
 }
 
 #[tauri::command]

@@ -14,7 +14,8 @@ export type ExportChoices = {
   format: ExportFormat;
   preset: Preset;
   detectors: boolean;
-  outputDir: string;
+  /** Null for the default export folder, resolved by the backend. */
+  outputDir: string | null;
 };
 
 /**
@@ -52,7 +53,9 @@ function writeBooks(c: ExportChoices): () => Promise<ExportResult[]> {
     await exportChapters({
       chapter_dirs: dirs,
       ...common,
-      output: joinPath(c.outputDir, exportFileName(title, c.format)),
+      output: c.outputDir
+        ? joinPath(c.outputDir, exportFileName(title, c.format))
+        : exportFileName(title, c.format),
       title,
     }),
   ];

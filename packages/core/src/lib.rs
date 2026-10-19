@@ -12,6 +12,7 @@ pub mod images;
 pub mod library;
 pub mod logging;
 pub mod ml;
+pub mod net;
 pub mod send;
 pub mod smartcut;
 pub mod sources;

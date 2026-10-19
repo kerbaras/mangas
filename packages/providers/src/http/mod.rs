@@ -5,6 +5,7 @@
 mod client;
 mod config;
 mod host_policy;
+mod network;
 mod pages;
 mod redact;
 mod redirect;
@@ -19,6 +20,7 @@ use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 pub use client::SiteClient;
 pub use config::ClientConfig;
 pub use host_policy::{host_matches, is_api_path, HostPolicy};
+pub use network::{effective, override_network, shown as shown_proxy};
 pub(crate) use pages::build_http;
 pub use pages::{public_only, Fetched, PageClient, Refusal, DEFAULT_PAGE_RATE, PAGE_RETRY};
 pub use redact::redact_query;

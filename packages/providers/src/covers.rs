@@ -8,6 +8,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use mangas_core::domain::Result;
 use mangas_core::download::PageFetcher;
+use mangas_core::library::Network;
 use reqwest::Client;
 
 use crate::http::{build_http, PageClient, RetryPolicy};
@@ -21,34 +22,51 @@ pub struct CoverFetcher {
     http: Client,
     retry: RetryPolicy,
     public_only: bool,
+    network: Network,
 }
 
 impl CoverFetcher {
     /// Fetches covers for `source`, refusing hosts that are not public (the URL comes from a
     /// provider response).
     pub fn for_source(source: Arc<dyn Source>) -> Result<Self> {
-        Self::build(source, RetryPolicy::default(), true)
+        Self::via(source, &Network::System)
+    }
+
+    /// [`Self::for_source`] with requests going out per `network` (the settings' proxy).
+    pub fn via(source: Arc<dyn Source>, network: &Network) -> Result<Self> {
+        Self::build(source, RetryPolicy::default(), true, network)
     }
 
     /// Like [`CoverFetcher::for_source`] with any host allowed and the given retries (tests
     /// against a local mock server).
     pub fn unguarded(source: Arc<dyn Source>, retry: RetryPolicy) -> Result<Self> {
-        Self::build(source, retry, false)
+        Self::build(source, retry, false, &Network::System)
     }
 
-    fn build(source: Arc<dyn Source>, retry: RetryPolicy, public_only: bool) -> Result<Self> {
+    fn build(
+        source: Arc<dyn Source>,
+        retry: RetryPolicy,
+        public_only: bool,
+        network: &Network,
+    ) -> Result<Self> {
         Ok(Self {
-            http: build_http(public_only)?,
+            http: build_http(public_only, network)?,
             source,
             retry,
             public_only,
+            network: network.clone(),
         })
     }
 
     fn client(&self) -> PageClient<'_> {
-        PageClient::with_http(self.source.as_ref(), self.http.clone(), self.public_only)
-            .with_retry(self.retry)
-            .with_max_bytes(MAX_BYTES)
+        PageClient::with_http(
+            self.source.as_ref(),
+            self.http.clone(),
+            self.public_only,
+            self.network.clone(),
+        )
+        .with_retry(self.retry)
+        .with_max_bytes(MAX_BYTES)
     }
 }
 

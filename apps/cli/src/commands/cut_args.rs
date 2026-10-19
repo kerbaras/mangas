@@ -112,7 +112,12 @@ impl CutArgs {
                 total.map(|t| t.to_string()).unwrap_or_default()
             );
         };
-        let detection = ml::penalizer_or_reason(&cache, &mut on_progress).await;
+        let (settings, warning) = mangas_core::library::settings_or_default(&paths::library_db()?);
+        if let Some(warning) = warning {
+            eprintln!("warning: {warning}");
+        }
+        let detection =
+            ml::penalizer_or_reason(&cache, &settings.network(), &mut on_progress).await;
         match &detection.error {
             Some(e) => eprintln!("detectors off, cutting without them: {e}"),
             None => eprintln!("detectors: {:?}", ml::status(&cache).execution_provider),

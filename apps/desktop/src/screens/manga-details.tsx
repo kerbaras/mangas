@@ -38,12 +38,14 @@ import {
 import { isChallenge, type Manga } from "@/lib/ipc";
 import { loadChapters } from "@/lib/load-chapters";
 import { notifyError } from "@/lib/notify";
+import { useSettingsKnown } from "@/lib/settings";
 
 type Props = { manga: Manga };
 
 export function MangaDetailsScreen({ manga: card }: Props) {
   const { source, id } = card;
   const { manga, loading, reload: reloadManga } = useMangaDetails(card);
+  const known = useSettingsKnown();
   const refreshToast = `refresh-${source}:${id}`;
   const mounted = useRef(true);
   useEffect(() => {
@@ -63,7 +65,7 @@ export function MangaDetailsScreen({ manga: card }: Props) {
           id: refreshToast,
         });
       }),
-    [source, id],
+    [source, id, known],
   );
   // Refreshing a followed title's chapters also saves its source record; show what that filled.
   const refreshed = chapters.state.kind === "ready" ? chapters.state.data : null;

@@ -39,6 +39,11 @@ pub fn models(settings: &Settings) -> Result<PathBuf, String> {
     Ok(data_dir(settings)?.join("models"))
 }
 
+/// Default folder for exported books: `kindle` in the data folder.
+pub fn exports(settings: &Settings) -> Result<PathBuf, String> {
+    Ok(data_dir(settings)?.join("kindle"))
+}
+
 /// Cover cache: next to the library database, whatever `data_dir` says.
 pub fn covers() -> Result<PathBuf, String> {
     Ok(default_data_dir()?.join("covers"))

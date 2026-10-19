@@ -11,7 +11,7 @@ mod query;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use mangas_core::library::Settings;
+use mangas_core::library::{Network, Settings};
 
 use crate::http::{ClientConfig, SiteClient};
 use crate::provider::{Capability, Provider, ProviderInfo};
@@ -59,15 +59,15 @@ impl Provider for MangaDexProvider {
     }
 
     fn build(&self, settings: &Settings) -> Result<Arc<dyn Source>> {
-        let source = MangaDex::new()?.with_preferences(
+        let source = MangaDex::at(API_BASE, settings.network())?.with_preferences(
             MangaDexOptions::from_settings(settings),
             settings.languages_for(INFO.id),
         );
         Ok(Arc::new(source))
     }
 
-    fn build_at(&self, _settings: &Settings, base: &str) -> Result<Arc<dyn Source>> {
-        Ok(Arc::new(MangaDex::with_base(base)?))
+    fn build_at(&self, settings: &Settings, base: &str) -> Result<Arc<dyn Source>> {
+        Ok(Arc::new(MangaDex::at(base, settings.network())?))
     }
 
     fn options(&self, settings: &Settings) -> Option<serde_json::Value> {
@@ -93,9 +93,14 @@ impl MangaDex {
 
     /// Points the source at another base URL (tests, mirrors).
     pub fn with_base(base: &str) -> Result<Self> {
+        Self::at(base, Network::System)
+    }
+
+    fn at(base: &str, network: Network) -> Result<Self> {
         let config = ClientConfig {
             requests_per_second: REQUESTS_PER_SECOND,
             json_api: true,
+            network,
             ..ClientConfig::new(INFO, base)
         };
         Ok(Self {

@@ -7,11 +7,12 @@ use mangas_core::export::volume::{self, Grouping, VolumePlan};
 use mangas_core::export::{ExportPreset, Format};
 use mangas_core::library;
 use mangas_core::smartcut::Preset;
-use tauri::AppHandle;
+use tauri::{AppHandle, Runtime};
 
 use super::covers::cover_file;
-use super::export::{emit, penalizer, record_export, resolve, ExportEvent};
-use super::{open_library, to_ipc};
+use super::export::{emit, record_export, resolve, ExportEvent};
+use super::penalizer::penalizer;
+use super::{open_library, settings_or_default, settings_quietly, to_ipc};
 use crate::paths;
 
 fn plans(
@@ -45,14 +46,16 @@ pub fn plan_volumes(
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub fn free_export_names(dir: PathBuf, names: Vec<String>) -> Result<Vec<String>, String> {
+    let dir = mangas_core::export::in_export_folder(&paths::exports(&settings_quietly())?, &dir);
     mangas_core::export::free_names_in(&dir, &names).map_err(to_ipc)
 }
 
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn export_volumes(
-    app: AppHandle,
+/// A relative `output_dir`, or none, goes under the default export folder ([`paths::exports`]).
+pub async fn export_volumes<R: Runtime>(
+    app: AppHandle<R>,
     source: String,
     manga_id: String,
     chapter_ids: Vec<String>,
@@ -62,8 +65,13 @@ pub async fn export_volumes(
     format: Option<Format>,
     preset: Option<Preset>,
     detectors: bool,
-    output_dir: PathBuf,
+    output_dir: Option<PathBuf>,
 ) -> Result<Vec<ExportStats>, String> {
+    let settings = settings_or_default();
+    let output_dir = mangas_core::export::in_export_folder(
+        &paths::exports(&settings)?,
+        &output_dir.unwrap_or_default(),
+    );
     let explicit = ExportPreset {
         cut_preset: preset,
         format,
@@ -72,7 +80,7 @@ pub async fn export_volumes(
     };
     let series =
         library::get_export_preset(&open_library()?, &source, &manga_id).map_err(to_ipc)?;
-    let resolved = resolve(&explicit, series.as_ref())?;
+    let resolved = resolve(&explicit, series.as_ref(), &settings);
     let dev = resolved
         .profile_or(paths::DEFAULT_PROFILE)
         .map_err(to_ipc)?;
@@ -82,7 +90,7 @@ pub async fn export_volumes(
     if plans.is_empty() {
         return Err(to_ipc("none of these chapters is downloaded"));
     }
-    let detection = penalizer(&app, detectors).await?;
+    let detection = penalizer(&app, detectors, &settings).await?;
     let cover = cover_file(&src.manga).await;
     let mut written = Vec::with_capacity(plans.len());
     for (index, plan) in plans.iter().enumerate() {
