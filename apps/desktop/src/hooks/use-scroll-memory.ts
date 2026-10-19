@@ -5,9 +5,8 @@ const USER_SCROLL = ["wheel", "pointerdown", "keydown", "touchstart"] as const;
 
 /**
  * Ref for a scroll pane whose offset is kept under `key` for the session. On mount (and when
- * `key` changes) the saved offset is put back; while the content is still too short to reach it
- * (results or covers loading), it is put back again as the content grows, until it is reached or
- * the user scrolls. Only offsets the user lands on are saved.
+ * `key` changes) the saved offset is put back, and again whenever the content resizes (results
+ * replaced or covers loading) until the user scrolls. Only offsets the user lands on are saved.
  */
 export function useScrollMemory<T extends HTMLElement>(key: string) {
   const ref = useRef<T>(null);
@@ -18,7 +17,6 @@ export function useScrollMemory<T extends HTMLElement>(key: string) {
     let pending = target > 0;
     const apply = () => {
       el.scrollTop = target;
-      if (el.scrollTop >= target - 1) stop();
     };
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(apply);
     const stop = () => {
