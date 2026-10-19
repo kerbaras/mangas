@@ -55,7 +55,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             .map(|s| s.to_string_lossy().into_owned())
             .unwrap_or_default()
     });
-    deliver(&lib, &file, &title, args.via, args.kindle.as_deref()).await
+    let line = deliver(&lib, &file, &title, args.via, args.kindle.as_deref()).await?;
+    outln!("{line}")?;
+    Ok(())
 }
 
 fn list_devices() -> anyhow::Result<()> {

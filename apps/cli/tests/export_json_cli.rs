@@ -1,7 +1,8 @@
 //! #218: `mangas kindle --json` and `mangas export --json` print one JSON object: the books
 //! written, chapters left out, books not sent and the detectors' state ("off", "skipped" with the
 //! runtime's error, "used"). With the `ml` feature the models folder holds a corrupted runtime and
-//! the certificate store is empty, so the detectors are skipped without a download.
+//! the certificate store is empty, so the detectors are skipped without a download. "used" is in
+//! `export_json_used_cli.rs`, sending and failed volumes in `export_json_send_cli.rs`.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -187,38 +188,4 @@ fn json_conflicts_with_the_modes_that_write_nothing() {
         let out = mangas(home.path(), args);
         assert_eq!(out.status.code(), Some(2), "{args:?}: {out:?}");
     }
-}
-
-/// Downloads the runtime and models (~180 MB):
-/// `cargo test -p mangas-cli --features ml --test export_json_cli -- --ignored`.
-#[cfg(feature = "ml")]
-#[test]
-#[ignore]
-fn used_detectors_report_used() {
-    let home = tempfile::tempdir().unwrap();
-    let chapter = home.path().join("Series/1");
-    std::fs::create_dir_all(&chapter).unwrap();
-    let page = image::RgbImage::from_pixel(64, 96, image::Rgb([200, 200, 200]));
-    page.save(chapter.join("000.png")).unwrap();
-    let book = home.path().join("book.epub");
-    let out = Command::new(env!("CARGO_BIN_EXE_mangas-cli"))
-        .args([
-            "kindle",
-            chapter.to_str().unwrap(),
-            "--detectors",
-            "--json",
-            "-o",
-        ])
-        .arg(&book)
-        .env("HOME", home.path())
-        .env("XDG_DATA_HOME", home.path().join("data"))
-        .env_remove("MANGAS_LOG")
-        .output()
-        .unwrap();
-    assert!(out.status.success(), "{out:?}");
-    assert!(stderr(&out).contains("\ndetectors: "), "{out:?}");
-    assert_eq!(
-        report(&out)["detectors"],
-        json!({"state": "used", "reason": null})
-    );
 }

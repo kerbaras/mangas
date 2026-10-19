@@ -112,7 +112,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let (penalizer, detectors) = args.cut.penalizer().await?;
     let mut report = Report::new(detectors);
     let cover = cover_file(&src.manga).await;
-    for p in &plans {
+    for (p, name) in plans.iter().zip(&names) {
         let req = volume::request(
             &src.manga,
             p,
@@ -124,7 +124,15 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .with_format(format)
         .with_page(preset.page())
         .with_replace(args.replace);
-        let stats = export(&req, penalizer.clone(), &mut print_progress)?;
+        let stats = match export(&req, penalizer.clone(), &mut print_progress) {
+            Ok(stats) => stats,
+            Err(e) if args.json => {
+                report.fail(&args.output_dir.join(name), e.to_string());
+                report.print()?;
+                return Err(e.into());
+            }
+            Err(e) => return Err(e.into()),
+        };
         report.add(&stats, &req.title, &req.chapter_dirs);
         if !args.json {
             outln!("{}: {} pages", stats.output.display(), stats.pages)?;
@@ -140,8 +148,10 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         if let Some(via) = args.send {
             let file = std::path::absolute(&stats.output)?;
             let kindle = args.kindle.as_deref();
-            if let Err(e) = try_deliver(&lib, &file, &req.title, via, kindle).await {
-                report.fail(&stats.output, e);
+            match try_deliver(&lib, &file, &req.title, via, kindle).await {
+                Ok(sent) if args.json => eprintln!("{sent}"),
+                Ok(sent) => outln!("{sent}")?,
+                Err(e) => report.fail(&stats.output, e),
             }
         }
     }
