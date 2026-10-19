@@ -1,5 +1,6 @@
 //! `mangas ml`: detector support (the ONNX Runtime library plus the models).
 
+use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 
 use anyhow::Context;
@@ -7,7 +8,7 @@ use clap::{Args as ClapArgs, Subcommand};
 use mangas_core::ml::{self, RuntimeStatus, Status};
 use mangas_core::storage::human_size;
 
-use crate::output::outln;
+use crate::output::{outln, print_json};
 use crate::paths;
 
 #[derive(ClapArgs)]
@@ -19,7 +20,14 @@ pub struct Args {
 #[derive(Subcommand)]
 enum Command {
     /// Show whether the ONNX Runtime and the detector models are downloaded (the default)
-    Status,
+    Status {
+        /// Print the status as JSON (the shape the desktop app shows)
+        #[arg(long)]
+        json: bool,
+        /// Check this models folder instead of the data folder's; the app's launch check
+        #[arg(long, hide = true)]
+        models_dir: Option<PathBuf>,
+    },
     /// Download the ONNX Runtime library and the detector models
     Download,
     /// Delete them; the next `--detectors` export downloads them again
@@ -27,9 +35,20 @@ enum Command {
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
-    let dir = paths::models()?;
-    match args.command.unwrap_or(Command::Status) {
-        Command::Status => print_status(&ml::checked_status(&dir)),
+    let command = args.command.unwrap_or(Command::Status {
+        json: false,
+        models_dir: None,
+    });
+    let dir = match &command {
+        Command::Status {
+            models_dir: Some(dir),
+            ..
+        } => dir.clone(),
+        _ => paths::models()?,
+    };
+    match command {
+        Command::Status { json: true, .. } => print_json(&ml::checked_status(&dir)),
+        Command::Status { .. } => print_status(&ml::checked_status(&dir)),
         Command::Download => {
             let mut on_progress = |id: &str, done: u64, total: Option<u64>| {
                 let total = total.map(|t| format!(" of {}", human_size(t)));

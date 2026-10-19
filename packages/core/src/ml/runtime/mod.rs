@@ -18,9 +18,15 @@ use crate::domain::Error;
 pub use extract::extract_member;
 pub use install::{check, ensure};
 #[cfg(feature = "ml")]
-pub use load::{ensure_loaded, error_chain, is_loaded, probe};
+pub use load::{attempted, ensure_loaded, error_chain, is_loaded, probe};
 pub use specs::RUNTIMES;
 pub use state::clear as forget_failure;
+
+/// Without `ml` nothing is ever loaded.
+#[cfg(not(feature = "ml"))]
+pub fn attempted() -> bool {
+    false
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Archive {
