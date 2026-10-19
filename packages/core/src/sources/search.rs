@@ -70,7 +70,7 @@ pub fn group(provider: &str, outcome: Result<Vec<Manga>>) -> SearchGroup {
     }
 }
 
-/// The group of a provider that didn't answer within `after`, naming the proxy it went through.
+/// The group of a provider with no answer within `after`, naming the proxy it went through.
 pub fn timed_out(provider: &str, after: Duration, network: &Network) -> SearchGroup {
     SearchGroup {
         provider: provider.to_string(),

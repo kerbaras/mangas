@@ -62,9 +62,10 @@ fn env_proxied() -> bool {
 /// connection failure then means the proxy, not the site, is down, refusing or silent).
 pub fn transport_error(e: reqwest::Error, network: &Network) -> Error {
     match effective(network) {
-        Network::Proxy(url) if e.is_connect() && e.is_timeout() => {
-            Error::Other(format!("network: proxy {} didn't answer", shown(&url)))
-        }
+        Network::Proxy(url) if e.is_connect() && e.is_timeout() => Error::Other(format!(
+            "network: no answer through the proxy {}",
+            shown(&url)
+        )),
         Network::Proxy(url) if e.is_connect() => Error::Other(format!(
             "network: couldn't connect through the proxy {}: {e}",
             shown(&url)
@@ -76,7 +77,10 @@ pub fn transport_error(e: reqwest::Error, network: &Network) -> Error {
 /// Why a request that never answered failed, naming the proxy it went through, if any.
 pub fn no_answer(network: &Network, secs: u64) -> String {
     match effective(network) {
-        Network::Proxy(url) => format!("proxy {} didn't answer in {secs} s", shown(&url)),
+        Network::Proxy(url) => format!(
+            "no answer within {secs} s through the proxy {}",
+            shown(&url)
+        ),
         _ => format!("no answer within {secs} s"),
     }
 }
@@ -121,7 +125,7 @@ mod tests {
         let proxy = Network::Proxy("http://me:pw@127.0.0.1:8888".into());
         assert_eq!(
             no_answer(&proxy, 15),
-            "proxy http://me:***@127.0.0.1:8888/ didn't answer in 15 s"
+            "no answer within 15 s through the proxy http://me:***@127.0.0.1:8888/"
         );
         assert_eq!(no_answer(&Network::Direct, 15), "no answer within 15 s");
     }
