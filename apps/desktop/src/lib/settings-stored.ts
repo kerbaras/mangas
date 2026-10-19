@@ -1,4 +1,5 @@
 /** The app's view of the settings and its mapping to the stored (backend) shape. */
+
 import { isFormat } from "./export-formats";
 import {
   DEFAULT_LANGUAGE,
@@ -8,6 +9,7 @@ import {
   type Settings as Stored,
   type Theme,
 } from "./ipc";
+import type { AppUpdateChannel } from "./ipc.app-update";
 import { EMPTY_EMAIL, type EmailSettings } from "./ipc.send";
 import { DEFAULT_PRESET, isPreset } from "./presets";
 
@@ -27,6 +29,10 @@ export type Settings = {
   /** Hours between background update checks; 0 turns them off. */
   updateCheckHours: number;
   updateNotifications: boolean;
+  /** Release channel the app updates from. */
+  appUpdateChannel: AppUpdateChannel;
+  /** Look for a new app version at launch. */
+  appUpdateChecks: boolean;
   kindleEmail: EmailSettings;
   theme: Theme;
   /** Chapters downloading at once (1–8); a provider gets half of them, at least 2. */
@@ -49,6 +55,8 @@ export const DEFAULTS: Settings = {
   providerLanguages: {},
   updateCheckHours: 6,
   updateNotifications: true,
+  appUpdateChannel: "stable",
+  appUpdateChecks: true,
   kindleEmail: EMPTY_EMAIL,
   theme: "system",
   downloadConcurrency: DEFAULT_CONCURRENCY,
@@ -73,6 +81,8 @@ export const fromStored = (s: Stored, platformDataDir: string): Settings => ({
   providerLanguages: s.provider_languages ?? {},
   updateCheckHours: s.update_check_hours ?? DEFAULTS.updateCheckHours,
   updateNotifications: s.update_notifications ?? DEFAULTS.updateNotifications,
+  appUpdateChannel: s.app_update_channel === "rc" ? "rc" : "stable",
+  appUpdateChecks: s.app_update_checks ?? DEFAULTS.appUpdateChecks,
   kindleEmail: { ...EMPTY_EMAIL, ...s.kindle_email },
   theme: s.theme && THEMES.includes(s.theme) ? s.theme : DEFAULTS.theme,
   downloadConcurrency: clampConcurrency(s.download_concurrency ?? DEFAULT_CONCURRENCY),
@@ -96,6 +106,8 @@ export const toStored = (s: Settings, platformDataDir: string): Stored => ({
   provider_languages: s.providerLanguages,
   update_check_hours: s.updateCheckHours,
   update_notifications: s.updateNotifications,
+  app_update_channel: s.appUpdateChannel,
+  app_update_checks: s.appUpdateChecks,
   kindle_email: s.kindleEmail,
   theme: unlessDefault(s.theme, DEFAULTS.theme),
   download_concurrency: unlessDefault(s.downloadConcurrency, DEFAULT_CONCURRENCY),
@@ -115,6 +127,8 @@ export const STORED_KEY: { [K in keyof Settings]: keyof Stored } = {
   providerLanguages: "provider_languages",
   updateCheckHours: "update_check_hours",
   updateNotifications: "update_notifications",
+  appUpdateChannel: "app_update_channel",
+  appUpdateChecks: "app_update_checks",
   kindleEmail: "kindle_email",
   theme: "theme",
   downloadConcurrency: "download_concurrency",

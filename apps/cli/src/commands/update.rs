@@ -26,12 +26,25 @@ pub struct Args {
     /// Also check titles marked completed or dropped
     #[arg(long)]
     pub all: bool,
-    /// Print the report as JSON
+    /// Print the report as JSON (with --check: the object described under --check)
     #[arg(long)]
     pub json: bool,
     /// Download every new chapter found, not only those of titles with auto-download on
     #[arg(long)]
     pub download: bool,
+    /// Check for a new version of the Mangas app instead of new chapters
+    ///
+    /// Prints one line, or with --json one object whose `kind` is `up_to_date`, `available`,
+    /// `older` (the server offers an older version: nothing to install) or `invalid_signature`
+    /// (not signed with the key this app trusts). Every kind has `current` and `channel`; all
+    /// but `up_to_date` have `version`; `available` adds `notes` and `date` (null when unset).
+    /// Exits 1 for `invalid_signature` and when the check fails; with --json a failure prints
+    /// {"kind": "error", "message": "…"}.
+    #[arg(long, conflicts_with_all = ["source", "all", "download"])]
+    pub check: bool,
+    /// With --check: release channel, `stable` or `rc` (default: the one set in the app)
+    #[arg(long, requires = "check")]
+    pub channel: Option<String>,
 }
 
 /// `--json` output: the report, its totals and what the download queue did with it.
@@ -45,6 +58,9 @@ struct JsonReport<'a> {
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
+    if args.check {
+        return super::app_update::run(args.channel.as_deref(), args.json).await;
+    }
     match args.source.as_deref() {
         Some(LOCAL_SOURCE) => {
             anyhow::bail!("imported manga have no source to check for new chapters")

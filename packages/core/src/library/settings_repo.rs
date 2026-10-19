@@ -4,6 +4,7 @@ use std::path::Path;
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior};
 use serde::{Deserialize, Serialize};
 
+use crate::app_update::Channel;
 use crate::domain::{Error, Result};
 use crate::export::Format;
 use crate::library::settings_merge::merge_edit;
@@ -41,6 +42,10 @@ pub struct Settings {
     pub update_check_hours: Option<u32>,
     /// Desktop notification when a background check finds new chapters; on when `None`.
     pub update_notifications: Option<bool>,
+    /// Release channel the app updates from; stable when `None`.
+    pub app_update_channel: Option<Channel>,
+    /// Whether the app looks for a new version at launch; on when `None`.
+    pub app_update_checks: Option<bool>,
     /// Send to Kindle by email (SMTP server, sender, Kindle address).
     pub kindle_email: EmailSettings,
     /// Desktop colour scheme; `None` follows the OS ([`Theme::System`]).

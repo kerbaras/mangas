@@ -6,6 +6,7 @@ import type { ExportResult } from "./ipc";
  * `?held` holds the download queue as a data-folder move would, `?quiet-queue` starts without
  * the simulated downloads, `?skipped` makes every export leave out two unsupported files, `?down=weebcentral,…` makes those
  * providers unreachable, `?settings-fail` fails settings loads for the first 1.5 s (Retry then works).
+ * App update flags are listed in `mock-app-update.ts`.
  * Detector flags are listed in `mock-detectors.ts`. Searching for "offline" fails too.
  */
 const params = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
@@ -20,6 +21,9 @@ export const mockFlags = {
   down: (params.get("down") ?? "").split(",").filter(Boolean),
   settingsFail: params.has("settings-fail"),
   held: params.has("held"),
+  update: params.has("update"),
+  updateFail: params.has("update-fail"),
+  installFail: params.has("install-fail"),
   quietQueue: params.has("quiet-queue") || params.has("empty"),
 };
 

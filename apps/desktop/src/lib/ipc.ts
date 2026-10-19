@@ -4,6 +4,7 @@
  * Types here are what the screens consume; the Rust wire shapes live in `ipc.wire.ts`.
  */
 
+import type { AppUpdateBackend } from "./ipc.app-update";
 import type { CutPreviewBackend } from "./ipc.cut-preview";
 import type { DetectorsBackend } from "./ipc.detectors";
 import type { DiagnosticsBackend } from "./ipc.diagnostics";
@@ -120,7 +121,8 @@ export type { DetectorsStatus } from "./ipc.detectors";
 
 export type Unlisten = () => void;
 
-export type Backend = CutPreviewBackend &
+export type Backend = AppUpdateBackend &
+  CutPreviewBackend &
   DetectorsBackend &
   DiagnosticsBackend &
   DownloadsBackend &

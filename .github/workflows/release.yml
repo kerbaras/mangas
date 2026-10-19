@@ -76,6 +76,7 @@ jobs:
     env:
       HAS_APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE != '' }}
       GLIBC_FLOOR: "2.35"
+      HAS_UPDATER_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -141,14 +142,52 @@ jobs:
           if [[ "$(printf '%s\n' "$need" "$GLIBC_FLOOR" | sort -V | tail -1)" != "$GLIBC_FLOOR" ]]; then
             echo "::error::$bin needs glibc $need, newer than the $GLIBC_FLOOR floor"; exit 1
           fi
+      # Without the key the bundles still publish, just without updater artifacts or latest.json.
+      - name: Updater signing key
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if [[ "$HAS_UPDATER_KEY" != "true" ]]; then
+            echo "::warning title=Updater not signed::TAURI_SIGNING_PRIVATE_KEY is not set, so this build has no .sig files and no latest.json: installed apps will not offer it as an update."
+            exit 0
+          fi
+          delimiter="$(openssl rand -hex 16)"
+          for name in TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD; do
+            printf '%s<<%s\n%s\n%s\n' "$name" "$delimiter" "${!name}" "$delimiter" >> "$GITHUB_ENV"
+          done
+          echo "UPDATER_ARGS=--config src-tauri/tauri.updater.conf.json" >> "$GITHUB_ENV"
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: apps/desktop
           tauriScript: pnpm tauri
-          args: --target ${{ matrix.target }} --features ml
+          args: --target ${{ matrix.target }} --features ml ${{ env.UPDATER_ARGS }}
           tagName: ${{ needs.version.outputs.tag }}
           releaseName: Mangas ${{ needs.version.outputs.tag }}
           releaseBody: ${{ steps.notes.outputs.body }}
           prerelease: ${{ contains(needs.version.outputs.tag, '-rc.') }}
+          # Merged across the matrix into the release's latest.json (only when signed).
+          includeUpdaterJson: ${{ env.HAS_UPDATER_KEY == 'true' }}
+
+  # Copies the release's latest.json to the rolling `updater` release the apps read:
+  # latest-rc.json on every release, latest.json on stable ones (docs/rewrite-design.md).
+  # Only after every platform built: re-running a failed build job re-runs this one too.
+  updater:
+    needs: [version, build]
+    runs-on: ubuntu-24.04
+    env:
+      HAS_UPDATER_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.tag }}
+      - name: Skip without a signing key
+        if: env.HAS_UPDATER_KEY != 'true'
+        run: echo "::warning title=No update published::TAURI_SIGNING_PRIVATE_KEY is not set; the update channels keep pointing at the previous signed release."
+      - name: Publish update channels
+        if: env.HAS_UPDATER_KEY == 'true'
+        run: scripts/publish-updater.sh "${{ needs.version.outputs.tag }}"

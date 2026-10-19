@@ -1,5 +1,6 @@
 //! IPC surface. Each command parses its arguments, calls `mangas_core`, and returns JSON.
 
+pub mod app_update;
 #[cfg(all(test, target_os = "linux"))]
 mod broken_row_tests;
 pub mod catalog;

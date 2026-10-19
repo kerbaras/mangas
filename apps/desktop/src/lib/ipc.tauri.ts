@@ -16,6 +16,7 @@ import { DEFAULT_LANGUAGE } from "./ipc";
 import type { Diagnostics } from "./ipc.diagnostics";
 import type { Enqueued } from "./ipc.downloads";
 import type { Category, LibraryEntry } from "./ipc.library";
+import { tauriAppUpdate } from "./ipc.tauri-app-update";
 import { tauriCutPreview } from "./ipc.tauri-cut-preview";
 import { tauriDetectors } from "./ipc.tauri-detectors";
 import { tauriDownloads } from "./ipc.tauri-downloads";
@@ -114,6 +115,7 @@ export const tauriBackend: Backend = {
   ...tauriStorage,
   ...tauriDetectors,
   ...tauriSend,
+  ...tauriAppUpdate,
   ...tauriUpdates,
   ...tauriDownloads,
   ...tauriFolders,
