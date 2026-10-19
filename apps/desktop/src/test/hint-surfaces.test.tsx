@@ -53,6 +53,14 @@ describe("failure reasons use the shared Hint, not a native title", () => {
     expect(await screen.findByRole("tooltip")).toHaveTextContent(REASON);
   });
 
+  it("the tooltip stacks above sonner's toaster (z-index 999999999)", async () => {
+    render(<Description hint={null} detail={REASON} />);
+    await userEvent.setup().tab();
+    await screen.findByRole("tooltip");
+    const z = document.querySelector("[data-side]")?.className.match(/z-\[(\d+)\]/)?.[1];
+    expect(Number(z)).toBeGreaterThan(999_999_999);
+  });
+
   it("the Settings provider row puts the reason in the badge's Hint and no title", async () => {
     render(
       <ProviderRow
