@@ -22,6 +22,8 @@ enum Action {
     Proxy(ProxyArgs),
     /// Show or set how many chapters download at once (1-8)
     Concurrency(ConcurrencyArgs),
+    /// Show or set the JPEG quality exports use for a device profile (40-95)
+    Quality(super::settings_quality::QualityArgs),
 }
 
 #[derive(ClapArgs)]
@@ -49,11 +51,12 @@ pub fn run(args: Args) -> anyhow::Result<()> {
         Action::Show(args) => super::settings_show::run(args),
         Action::Proxy(args) => proxy(args),
         Action::Concurrency(args) => concurrency(args),
+        Action::Quality(args) => super::settings_quality::run(args),
     }
 }
 
 /// Saves `edit` of the stored settings as a patch, so other fields changed meanwhile survive.
-fn save(edit: impl Fn(&Settings) -> Settings) -> anyhow::Result<Settings> {
+pub(super) fn save(edit: impl Fn(&Settings) -> Settings) -> anyhow::Result<Settings> {
     let lib = library::open(&paths::library_db()?)?;
     let base = library::get_settings(&lib)?;
     Ok(library::edit_settings(&lib, Some(&base), &edit(&base))?)

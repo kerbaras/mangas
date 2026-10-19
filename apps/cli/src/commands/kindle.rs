@@ -106,10 +106,12 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     }
     let _reading = storage::hold_for_export(paths::data_dir)?;
     // Kept from before other formats existed: a Paperwhite EPUB unless the flags or the
-    // series preset say otherwise, whatever the stored defaults are.
+    // series preset say otherwise, whatever the stored defaults are. The JPEG quality stored for
+    // the profile applies: it belongs to the device, not to the default picks.
     let explicit = args.cut.explicit(None)?;
     let (labels, series, chapter_titles, saved) = from_library(&args.chapters);
-    let preset = ExportPreset::resolve(&explicit, saved.as_ref(), &ExportPreset::default());
+    let preset = ExportPreset::resolve(&explicit, saved.as_ref(), &ExportPreset::default())
+        .with_stored_quality(&super::stored_settings(), DEFAULT_PROFILE);
     let dev = CutArgs::device_of(&preset, DEFAULT_PROFILE)?;
     let file = args.output.as_deref().filter(|o| !is_folder(o));
     let picked = legacy_format(

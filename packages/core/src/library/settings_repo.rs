@@ -25,6 +25,9 @@ pub struct Settings {
     pub default_format: Option<Format>,
     /// Exports write over a file already at their path instead of next to it as ` (2)`; off when `None`.
     pub export_replace: Option<bool>,
+    /// JPEG quality of exported pages by device profile id (40–95); a profile missing here keeps
+    /// its own (90 at 300 dpi, else 85). An export or series preset that sets one wins.
+    pub jpeg_quality: BTreeMap<String, u8>,
     /// Browser sessions captured for providers behind a verification wall, by source name.
     pub provider_sessions: BTreeMap<String, ProviderSession>,
     /// Chapter languages in order of preference (ISO 639-1 with regional suffixes, "pt-br");

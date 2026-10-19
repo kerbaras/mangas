@@ -15,6 +15,6 @@ pub mod volume;
 
 pub use exporter::{Exporter, Format, Labels, Meta};
 pub use output::{free_names_in, in_export_folder, resolve_free_names};
-pub use page::PageSettings;
+pub use page::{default_quality, PageSettings, JPEG_QUALITY};
 pub use preset::ExportPreset;
 pub use profiles::{profile, Profile, PROFILES};

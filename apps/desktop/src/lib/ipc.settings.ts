@@ -21,6 +21,8 @@ export type Settings = {
   default_format?: ExportFormat | null;
   /** Exports write over an existing file instead of a ` (2)` copy; null = off. */
   export_replace?: boolean | null;
+  /** JPEG quality by device profile id (40–95); a profile missing here uses its own. */
+  jpeg_quality?: Record<string, number>;
   provider_sessions: Record<string, ProviderSession>;
   /** Chapter languages, most preferred first (empty = English); options by provider id. */
   preferred_languages?: string[];

@@ -17,6 +17,7 @@ fn settings_round_trip_and_overwrite() {
         default_preset: Some(Preset::FewestCuts),
         default_format: Some(mangas_core::export::Format::Pdf),
         export_replace: Some(true),
+        jpeg_quality: [("kindle-scribe".to_string(), 60)].into(),
         provider_sessions: Default::default(),
         preferred_languages: vec!["es-la".into(), "en".into()],
         provider_options: [(

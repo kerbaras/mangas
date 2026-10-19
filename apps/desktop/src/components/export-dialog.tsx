@@ -38,7 +38,6 @@ import {
 } from "@/lib/export-plan";
 import { filesOf } from "@/lib/export-summary";
 import type { ExportResult } from "@/lib/ipc";
-import { NO_SHRINK, type Shrink } from "@/lib/kindle-size";
 import { titleOf } from "@/lib/send-labels";
 
 type Props = {
@@ -62,7 +61,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const [title, setTitle] = useState("");
   const [detectorsOn, setDetectorsOn] = useState<boolean | null>(null);
   const [delivery, setDelivery] = useState<Delivery>("save");
-  const [shrink, setShrink] = useState<Shrink>(NO_SHRINK);
+  const [splitMb, setSplitMb] = useState<number | null>(null);
   const [written, setWritten] = useState<Book[]>([]);
   const [runs, setRuns] = useState(0);
   const folder = useOutputFolder();
@@ -107,8 +106,8 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
     useDetectors,
     folder.output,
     target.replace,
-    shrink.quality,
-    shrink.splitMb,
+    target.quality,
+    splitMb,
   ].join("|");
   useClearOnChange(choice, busy, clearResult);
   const keepFailed = useCallback(() => !failed && clearResult(), [failed, clearResult]);
@@ -128,7 +127,8 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
         detectors: useDetectors,
         outputDir: folder.picked,
         replace: target.replace,
-        ...shrink,
+        quality: target.quality,
+        splitMb,
       }),
     );
     setRuns((n) => n + 1);
@@ -167,7 +167,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
             detectors={useDetectors}
             onDetectors={setDetectorsOn}
             output={{ value: folder.output, fallback: folder.fallback, onChange: folder.setOutput }}
-            size={{ plans: files, value: shrink, onChange: setShrink }}
+            size={{ plans: files, splitMb, onSplit: setSplitMb }}
             delivery={via}
             onDelivery={setDelivery}
             cut={{ ...cut, chapters }}

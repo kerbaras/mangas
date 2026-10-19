@@ -17,7 +17,6 @@ import { formatLabel } from "@/lib/export-formats";
 import type { Chapter, Preset } from "@/lib/ipc";
 import type { ExportPreset } from "@/lib/ipc.cut-preview";
 import type { VolumePlan } from "@/lib/ipc.volumes";
-import type { Shrink } from "@/lib/kindle-size";
 
 type Props = {
   target: ExportTarget;
@@ -28,7 +27,11 @@ type Props = {
   onDetectors: (on: boolean) => void;
   output: { value: string; fallback: string; onChange: (dir: string) => void };
   /** The planned books, sized against the Send-to-Kindle limit, and how to shrink them. */
-  size: { plans: Async<VolumePlan[]>; value: Shrink; onChange: (s: Shrink) => void };
+  size: {
+    plans: Async<VolumePlan[]>;
+    splitMb: number | null;
+    onSplit: (mb: number | null) => void;
+  };
   delivery: Delivery;
   onDelivery: (d: Delivery) => void;
   /** The series whose smart-cut options can be previewed and saved (none: several series). */
@@ -86,7 +89,13 @@ export function ExportOptions(p: Props) {
           onSaved={p.cut.onSaved}
         />
       </SmartCutSection>
-      <KindleSizeField {...p.size} device={target.device} preset={p.preset} />
+      <KindleSizeField
+        {...p.size}
+        device={target.device}
+        preset={p.preset}
+        quality={target.quality}
+        onQuality={target.setQuality}
+      />
       <OutputFolder {...p.output} />
       <ReplaceSwitch on={target.replace} onChange={target.setReplace} />
       <DeliveryPicker value={p.delivery} onChange={p.onDelivery} format={target.format} />

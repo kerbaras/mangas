@@ -112,13 +112,14 @@ pub async fn export_chapters<R: Runtime>(
 }
 
 /// `explicit` choices over the series preset over the stored defaults (the built-in ones when
-/// the settings can't be read).
+/// the settings can't be read), with the JPEG quality stored for the resolved profile.
 pub(super) fn resolve(
     explicit: &ExportPreset,
     series: Option<&ExportPreset>,
     settings: &Settings,
 ) -> ExportPreset {
     ExportPreset::resolve(explicit, series, &ExportPreset::from_settings(settings))
+        .with_stored_quality(settings, paths::DEFAULT_PROFILE)
 }
 
 /// The preset of the series every folder belongs to; none when unreadable or mixed.

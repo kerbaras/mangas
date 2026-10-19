@@ -119,6 +119,7 @@ fn lines(s: &Settings) -> Vec<(&'static str, String)> {
             "export replace",
             or_default(s.export_replace, on_off, "off"),
         ),
+        ("export JPEG quality", qualities(s)),
         (
             "smart cut preset",
             or_default(s.default_preset, kebab, "balanced"),
@@ -171,6 +172,14 @@ fn kebab(value: impl serde::Serialize) -> String {
 
 fn or_dash_opt(value: Option<String>) -> String {
     value.unwrap_or_else(|| "-".into())
+}
+
+fn qualities(s: &Settings) -> String {
+    let stored: Vec<String> = (s.jpeg_quality.iter())
+        .map(|(id, q)| format!("{id} {q}"))
+        .collect();
+    let shown = (!stored.is_empty()).then(|| stored.join(", "));
+    or_default(shown, |v| v, "the device's")
 }
 
 #[cfg(test)]

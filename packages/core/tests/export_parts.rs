@@ -5,7 +5,8 @@ use std::path::{Path, PathBuf};
 
 use image::{Rgba, RgbaImage};
 use mangas_core::export::kindle::{estimate, export, ExportRequest, ExportStats};
-use mangas_core::export::{profile, Format, PageSettings};
+use mangas_core::export::{profile, ExportPreset, Format, PageSettings};
+use mangas_core::library::Settings;
 use mangas_core::smartcut::Preset;
 
 /// Noisy pages, so their JPEGs are as big as real scans.
@@ -149,4 +150,21 @@ fn a_part_starting_inside_a_chapter_opens_with_its_title_and_is_named_n_of_total
         );
         start += part.pages;
     }
+}
+
+#[test]
+fn the_quality_stored_for_the_profile_applies_unless_a_layer_sets_one() {
+    let stored = Settings {
+        jpeg_quality: [("kobo-clara".to_string(), 60)].into(),
+        ..Default::default()
+    };
+    let on = |profile: Option<&str>, q: Option<u8>| ExportPreset {
+        profile: profile.map(String::from),
+        jpeg_quality: q,
+        ..Default::default()
+    };
+    let quality = |p: ExportPreset| p.with_stored_quality(&stored, "kobo-clara").jpeg_quality;
+    assert_eq!(quality(on(None, None)), Some(60));
+    assert_eq!(quality(on(Some("kobo-clara"), Some(80))), Some(80));
+    assert_eq!(quality(on(Some("kindle-paperwhite12"), None)), None);
 }

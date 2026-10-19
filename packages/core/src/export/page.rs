@@ -12,6 +12,15 @@ pub const TONE: (f64, f64) = (0.5, 2.0);
 /// Allowed JPEG qualities: below 40 pages turn blocky, above 95 only the file grows.
 pub const JPEG_QUALITY: (u8, u8) = (40, 95);
 
+/// The JPEG quality a profile of `dpi` uses when none is picked.
+pub const fn default_quality(dpi: u32) -> u8 {
+    if dpi >= 300 {
+        90
+    } else {
+        85
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct PageSettings {

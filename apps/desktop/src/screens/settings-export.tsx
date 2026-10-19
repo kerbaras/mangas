@@ -2,11 +2,13 @@ import { DeviceSelect } from "@/components/device-select";
 import { DevicesPending } from "@/components/devices-pending";
 import { Field } from "@/components/field";
 import { FormatPicker } from "@/components/format-picker";
+import { JpegQualitySelect } from "@/components/jpeg-quality-select";
 import { PresetPicker } from "@/components/preset-picker";
 import { SettingsGroup } from "@/components/settings-group";
 import { useAsync } from "@/hooks/use-async";
 import { effectiveFormat } from "@/lib/export-formats";
 import { listDevices } from "@/lib/ipc";
+import { withQuality } from "@/lib/kindle-size";
 import { useSettings } from "@/lib/settings";
 
 /** Settings → Export: what the export screen starts with. */
@@ -17,8 +19,8 @@ export function ExportSettings() {
   return (
     <SettingsGroup
       title="Export"
-      resets={["defaultDevice", "defaultFormat", "defaultPreset"]}
-      resetHint="The default device, format and cut preset go back to Kindle Paperwhite, the device's format and Balanced."
+      resets={["defaultDevice", "defaultFormat", "defaultPreset", "jpegQuality"]}
+      resetHint="The default device, format and cut preset go back to Kindle Paperwhite, the device's format and Balanced; every device uses its own JPEG quality again."
     >
       <Field label="Default device" htmlFor="default-device" hint="Preselected when exporting.">
         {devices.state.kind === "ready" ? (
@@ -55,6 +57,19 @@ export function ExportSettings() {
           compact
           value={effectiveFormat(settings.defaultFormat, list, settings.defaultDevice)}
           onChange={(f) => update({ defaultFormat: f })}
+        />
+      </Field>
+      <Field
+        label="JPEG quality"
+        htmlFor="default-quality"
+        hint="For the default device. Lower makes smaller books, for Send to Kindle's 50 MB limit."
+      >
+        <JpegQualitySelect
+          id="default-quality"
+          value={settings.jpegQuality[settings.defaultDevice] ?? null}
+          onChange={(q) =>
+            update({ jpegQuality: withQuality(settings.jpegQuality, settings.defaultDevice, q) })
+          }
         />
       </Field>
       <Field label="Default cut preset">

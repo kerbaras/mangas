@@ -4,7 +4,7 @@ import { ExportDialog } from "@/components/export-dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { setBackend } from "@/lib/ipc";
 import type { EstimateRequest } from "@/lib/ipc.volumes";
-import { writeSettings } from "@/lib/settings";
+import { readSettings, writeSettings } from "@/lib/settings";
 import { chapters, enabledButton, exportBackend, solo } from "./export-backend";
 
 // Radix Select scrolls the picked option into view, which jsdom lacks.
@@ -12,7 +12,7 @@ Element.prototype.scrollIntoView = vi.fn();
 
 afterEach(() => {
   setBackend(null);
-  writeSettings({ defaultFormat: null, defaultDevice: "kindle-paperwhite12" });
+  writeSettings({ defaultFormat: null, defaultDevice: "kindle-paperwhite12", jpegQuality: {} });
 });
 
 const dialog = () => (
@@ -53,8 +53,8 @@ describe("export dialog: Send-to-Kindle size", () => {
     expect(exportVolumes.mock.calls[0][0]).toMatchObject({ splitMb: 45, quality: null });
   });
 
-  it("re-estimates at the picked JPEG quality", async () => {
-    exportBackend({ estimateExport });
+  it("re-estimates at the picked JPEG quality, keeps it for the device and exports with it", async () => {
+    const { exportVolumes } = exportBackend({ estimateExport });
     render(dialog());
     fireEvent.mouseDown(await screen.findByRole("tab", { name: "One book" }));
     expect(await screen.findByText("About 96 MB, 180 pages")).toBeTruthy();
@@ -64,5 +64,21 @@ describe("export dialog: Send-to-Kindle size", () => {
     });
     expect(await screen.findByText("About 48 MB, 180 pages")).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
+    expect(readSettings().jpegQuality).toEqual({ "kindle-paperwhite12": 50 });
+
+    fireEvent.click(await enabledButton(/Export book/));
+    await waitFor(() => expect(exportVolumes).toHaveBeenCalledOnce());
+    expect(exportVolumes.mock.calls[0][0]).toMatchObject({ quality: 50, splitMb: null });
+  });
+
+  it("starts at the quality stored for the device", async () => {
+    await writeSettings({ jpegQuality: { "kindle-paperwhite12": 50 } });
+    exportBackend({ estimateExport });
+    render(dialog());
+    fireEvent.mouseDown(await screen.findByRole("tab", { name: "One book" }));
+    expect(await screen.findByText("About 48 MB, 180 pages")).toBeTruthy();
+    expect(screen.getByRole("combobox", { name: "JPEG quality" }).textContent).toBe(
+      "JPEG quality: 50",
+    );
   });
 });

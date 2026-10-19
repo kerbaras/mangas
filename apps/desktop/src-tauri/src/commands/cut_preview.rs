@@ -69,7 +69,8 @@ pub async fn preview_cut(
         return Err("cancelled: the options panel closed".into());
     };
     let settings = settings_or_default();
-    let preset = options.over(&ExportPreset::from_settings(&settings));
+    let preset = (options.over(&ExportPreset::from_settings(&settings)))
+        .with_stored_quality(&settings, paths::DEFAULT_PROFILE);
     let device = preset.profile_or(paths::DEFAULT_PROFILE).map_err(to_ipc)?;
     let root = paths::cut_previews().map_err(to_ipc)?.join(&panel);
     let req = PreviewRequest {

@@ -31,7 +31,7 @@ impl ImageSettings {
         ImageSettings {
             max_width: d.width,
             max_height: d.height,
-            quality: if d.dpi >= 300 { 90 } else { 85 },
+            quality: crate::export::page::default_quality(d.dpi),
             grayscale: d.grayscale,
             sharpen: d.grayscale,
             contrast: 1.1,

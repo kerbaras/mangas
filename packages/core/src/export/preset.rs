@@ -89,6 +89,15 @@ impl ExportPreset {
         }
     }
 
+    /// The quality stored for the preset's profile (else `default_profile`), when no layer set one.
+    pub fn with_stored_quality(mut self, s: &Settings, default_profile: &str) -> ExportPreset {
+        let id = self.profile.as_deref().unwrap_or(default_profile);
+        self.jpeg_quality = self
+            .jpeg_quality
+            .or_else(|| s.jpeg_quality.get(id).copied());
+        self
+    }
+
     pub fn is_empty(&self) -> bool {
         *self == ExportPreset::default()
     }

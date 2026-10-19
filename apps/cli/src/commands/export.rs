@@ -94,8 +94,10 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         bail!("nothing to export: no downloaded chapters match (see {list})");
     }
     let series = library::get_export_preset(&lib, &args.source, &args.manga_id)?;
-    let fallback = ExportPreset::from_settings(&stored_settings());
-    let preset = ExportPreset::resolve(&explicit, series.as_ref(), &fallback);
+    let stored = stored_settings();
+    let fallback = ExportPreset::from_settings(&stored);
+    let preset = ExportPreset::resolve(&explicit, series.as_ref(), &fallback)
+        .with_stored_quality(&stored, DEFAULT_PROFILE);
     let device = CutArgs::device_of(&preset, DEFAULT_PROFILE)?;
     let format = Format::resolve(preset.format, None, None, &device)?;
     let names = volume::written_names(&plans, &args.output_dir, format.id(), args.replace)?;

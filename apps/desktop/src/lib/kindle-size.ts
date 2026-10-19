@@ -8,10 +8,15 @@ export const PART_MB = 45;
 /** JPEG qualities the core accepts (`export::page::JPEG_QUALITY`). */
 export const JPEG_QUALITIES = [80, 70, 60, 50] as const;
 
-/** How the dialog keeps a book under the limit: smaller pages, numbered parts, or both. */
-export type Shrink = { quality: number | null; splitMb: number | null };
-
-export const NO_SHRINK: Shrink = { quality: null, splitMb: null };
+/** `stored` qualities with `device`'s set to `quality`, or removed for the device's own. */
+export const withQuality = (
+  stored: Record<string, number>,
+  device: string,
+  quality: number | null,
+): Record<string, number> => {
+  const rest = Object.fromEntries(Object.entries(stored).filter(([id]) => id !== device));
+  return quality === null ? rest : { ...rest, [device]: quality };
+};
 
 export const megabytes = (bytes: number): string => {
   const mb = bytes / 1_000_000;
