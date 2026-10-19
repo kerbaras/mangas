@@ -112,10 +112,20 @@ impl CutArgs {
                 total.map(|t| t.to_string()).unwrap_or_default()
             );
         };
-        let network = mangas_core::library::get_settings(&mangas_core::library::open(
-            &crate::paths::library_db()?,
-        )?)?
-        .network();
+        // Cached detectors need neither the network nor the library: an unreadable one only
+        // means downloads use the system proxy.
+        let stored = paths::library_db().and_then(|db| {
+            Ok(mangas_core::library::get_settings(
+                &mangas_core::library::open(&db)?,
+            )?)
+        });
+        let network = match stored {
+            Ok(settings) => settings.network(),
+            Err(e) => {
+                eprintln!("warning: could not read the settings, using the system proxy: {e}");
+                Default::default()
+            }
+        };
         let detection = ml::penalizer_or_reason(&cache, &network, &mut on_progress).await;
         match &detection.error {
             Some(e) => eprintln!("detectors off, cutting without them: {e}"),

@@ -135,7 +135,15 @@ pub(super) async fn penalizer(app: &AppHandle, detectors: bool) -> Result<ml::Pe
         let id = id.to_string();
         emit(app, ExportEvent::ModelDownload { id, done, total });
     };
-    let network = settings_of(&open_library()?)?.network();
+    // Cached detectors need neither the network nor the library: an unreadable one only means
+    // downloads use the system proxy.
+    let network = open_library()
+        .and_then(|lib| settings_of(&lib))
+        .map(|s| s.network())
+        .unwrap_or_else(|e| {
+            log::warn!("detectors: settings unreadable, using the system proxy: {e}");
+            Default::default()
+        });
     Ok(ml::penalizer_or_reason(&cache, &network, &mut on_progress).await)
 }
 
