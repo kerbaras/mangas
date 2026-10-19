@@ -3,7 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::page::{PageSettings, PAGE_HEIGHT, TONE};
+use super::page::{PageSettings, JPEG_QUALITY, PAGE_HEIGHT, TONE};
 use super::{profile, Format, Profile};
 use crate::domain::{Error, Result};
 use crate::library::Settings;
@@ -33,6 +33,9 @@ pub struct ExportPreset {
     pub gamma: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sharpen: Option<bool>,
+    /// JPEG quality of the pages ([`JPEG_QUALITY`]); lower makes smaller books.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub jpeg_quality: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<Format>,
     /// Profile id (`export::PROFILES`).
@@ -60,6 +63,7 @@ impl ExportPreset {
             contrast,
             gamma,
             sharpen,
+            jpeg_quality,
             format,
             profile
         )
@@ -108,6 +112,7 @@ impl ExportPreset {
             contrast: self.contrast,
             gamma: self.gamma,
             sharpen: self.sharpen,
+            quality: self.jpeg_quality,
         }
     }
 
@@ -130,6 +135,10 @@ impl ExportPreset {
             if let Some(v) = value.filter(|v| !(v.is_finite() && (lo..=hi).contains(v))) {
                 return Err(Error::Other(format!("{name} {v} is outside {lo}–{hi}")));
             }
+        }
+        let (lo, hi) = JPEG_QUALITY;
+        if let Some(q) = self.jpeg_quality.filter(|q| !(lo..=hi).contains(q)) {
+            return Err(Error::Other(format!("JPEG quality {q} is outside {lo}–{hi}")));
         }
         if let Some(p) = &self.profile {
             self.profile_or(p)?;

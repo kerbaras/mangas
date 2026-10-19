@@ -25,6 +25,7 @@ fn exports_chapters_and_skips_empty_directories() {
     write_png(&ch3, "001.png", 800, 1200);
     let out = root.path().join("book.epub");
     let req = ExportRequest {
+        split: None,
         format: mangas_core::export::Format::Epub,
         chapter_dirs: vec![ch1, empty, ch3],
         device: device("kindle-paperwhite12").unwrap(),
@@ -76,6 +77,7 @@ fn exports_chapters_and_skips_empty_directories() {
 fn missing_directory_is_an_error() {
     let root = tempfile::tempdir().unwrap();
     let req = ExportRequest {
+        split: None,
         format: mangas_core::export::Format::Epub,
         chapter_dirs: vec![root.path().join("nope")],
         device: device("kindle-paperwhite12").unwrap(),

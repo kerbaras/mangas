@@ -33,15 +33,30 @@ pub async fn record_and_send(
         }
     };
     mark_exported(&lib, &stats.exported_chapters(dirs));
-    record_export(&lib, &stats.output, title, device);
+    let outputs = stats.outputs();
+    for output in &outputs {
+        record_export(&lib, output, title, device);
+    }
     let Some((via, kindle)) = to else {
         return Ok(None);
     };
-    let file = std::path::absolute(&stats.output)?;
-    deliver(&lib, &file, title, via, kindle)
-        .await
-        .map(Some)
-        .map_err(unsent)
+    // Every part is tried; the first that fails is the error, the others were said on stderr.
+    let (mut lines, mut failed) = (Vec::new(), None);
+    for output in &outputs {
+        let file = std::path::absolute(output)?;
+        match deliver(&lib, &file, title, via, kindle).await {
+            Ok(line) => lines.push(line),
+            Err(e) => {
+                let message = not_sent(output, via, kindle, &e);
+                eprintln!("{message}");
+                failed.get_or_insert(message);
+            }
+        }
+    }
+    match failed {
+        Some(message) => Err(Exit { code: 2, message }.into()),
+        None => Ok(Some(lines.join("\n"))),
+    }
 }
 
 /// Library chapters among `dirs` count as read from now on; folders from elsewhere are ignored.

@@ -46,6 +46,7 @@ mod tests {
             title_explicit: false,
             output: dir.join(format!("{name}.epub")),
             replace,
+            split: None,
             meta: Default::default(),
             labels: Default::default(),
         }

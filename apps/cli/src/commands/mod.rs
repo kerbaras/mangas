@@ -12,6 +12,7 @@ mod export_cover;
 mod export_plans;
 mod export_preset;
 mod export_report;
+mod export_size;
 pub mod group;
 pub mod import;
 pub mod info;

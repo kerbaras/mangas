@@ -42,6 +42,14 @@ pub struct CutArgs {
     /// Sharpen grey pages [default: the profile's]
     #[arg(long, value_name = "BOOL", num_args = 0..=1, default_missing_value = "true")]
     pub sharpen: Option<bool>,
+    /// JPEG quality of the pages (40–95) [default: the profile's, 90 at 300 dpi]; lower makes
+    /// smaller books
+    #[arg(long, value_name = "40-95")]
+    pub quality: Option<u8>,
+    /// Write a book bigger than this many MB as numbered parts, "Title (part 1).epub", ... (45
+    /// keeps each part under the 50 MB Send-to-Kindle email limit)
+    #[arg(long, value_name = "MB", value_parser = clap::value_parser!(u64).range(1..))]
+    pub split_mb: Option<u64>,
     /// Run the ONNX bubble/text/face detectors (needs a build with the `ml` feature). When they
     /// can't run, the export warns and cuts without them (exit 0)
     #[arg(long)]
@@ -79,6 +87,11 @@ impl CutArgs {
         }
     }
 
+    /// The `--split-mb` part size in bytes.
+    pub fn split(&self) -> Option<u64> {
+        self.split_mb.map(|mb| mb * 1_000_000)
+    }
+
     /// The options given on the command line, as the top layer over a series preset.
     pub fn explicit(&self, format: Option<Format>) -> anyhow::Result<ExportPreset> {
         let preset = ExportPreset {
@@ -90,6 +103,7 @@ impl CutArgs {
             contrast: self.contrast,
             gamma: self.gamma,
             sharpen: self.sharpen,
+            jpeg_quality: self.quality,
             format,
             profile: self.device.clone(),
         };

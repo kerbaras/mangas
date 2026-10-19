@@ -2,11 +2,13 @@
 //! through the smart cutter (stitched across files); regular pages are scaled to fit.
 
 use super::cover::cover_page;
+use std::ops::Range;
 use super::input::{book_id, chapter_title};
-use super::request::{ExportRequest, ExportStats, Progress};
+use super::parts::{chapters_in, part_path, part_title, split_points};
+use super::request::{ExportRequest, ExportStats, Part, Progress};
 use super::run::{Run, RunSpec};
 use crate::domain::{Error, Result};
-use crate::export::epub::ChapterEntry;
+use crate::export::epub::{ChapterEntry, PageImage};
 use crate::export::Meta;
 use crate::smartcut::RowPenalizer;
 
@@ -75,9 +77,55 @@ pub fn export(
             .as_deref()
             .and_then(|path| cover_page(path, &run.settings)),
     };
+    let ranges = req
+        .split
+        .map(|max| split_points(&run.pages, meta.cover.as_ref(), max))
+        .filter(|r| r.len() > 1);
     let exporter = req.format.exporter();
-    run.stats.output = exporter.export(run.pages, &meta, &dev, &req.output, req.replace)?;
+    match ranges {
+        None => run.stats.output = exporter.export(run.pages, &meta, &dev, &req.output, req.replace)?,
+        Some(ranges) => {
+            run.stats.parts = write_parts(req, run.pages, &meta, &ranges)?;
+            run.stats.output = run.stats.parts[0].path.clone();
+        }
+    }
     Ok(run.stats)
+}
+
+/// Writes `pages` as one book per range. A part that fails removes the parts written before
+/// it: half a book is never left behind.
+fn write_parts(
+    req: &ExportRequest,
+    mut pages: Vec<PageImage>,
+    meta: &Meta,
+    ranges: &[Range<usize>],
+) -> Result<Vec<Part>> {
+    let mut written = Vec::new();
+    for (i, range) in ranges.iter().enumerate() {
+        let n = i + 1;
+        let part = Meta {
+            id: book_id(&format!("{}|part {n}", meta.id)),
+            title: part_title(&meta.title, n, ranges.len()),
+            chapters: chapters_in(&meta.chapters, range),
+            ..meta.clone()
+        };
+        let rest = pages.split_off(range.len());
+        let out = part_path(&req.output, n);
+        match req.format.exporter().export(pages, &part, &req.device, &out, req.replace) {
+            Ok(path) => written.push(Part {
+                path,
+                pages: range.len(),
+            }),
+            Err(e) => {
+                for part in &written {
+                    let _ = std::fs::remove_file(&part.path);
+                }
+                return Err(e);
+            }
+        }
+        pages = rest;
+    }
+    Ok(written)
 }
 
 fn fallback_identity(req: &ExportRequest) -> String {

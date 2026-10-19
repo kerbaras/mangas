@@ -111,6 +111,7 @@ fn imports_a_series_folder_and_exports_it() {
 
     let out = tmp.path().join("berserk.epub");
     let req = ExportRequest {
+        split: None,
         format: mangas_core::export::Format::Epub,
         chapter_dirs: stored
             .iter()

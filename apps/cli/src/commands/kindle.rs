@@ -11,6 +11,7 @@ use mangas_core::export::{ExportPreset, Format, PROFILES};
 use mangas_core::storage;
 
 use super::cut_args::{print_progress, CutArgs, DEFAULT_PROFILE};
+use super::export_size::warn_too_big;
 use super::deliver::SendArg;
 use super::export_args::FormatArg;
 use super::export_preset::note_series_preset;
@@ -128,6 +129,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     note_series_preset(saved.as_ref());
     let (penalizer, detectors) = args.cut.penalizer().await?;
     let req = ExportRequest {
+        split: args.cut.split(),
         chapter_dirs: args.chapters.clone(),
         device: dev,
         format,
@@ -145,6 +147,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     };
     let started = Instant::now();
     let stats = export(&req, penalizer, &mut print_progress)?;
+    warn_too_big(&stats.outputs());
     let mut report = Report::new(detectors);
     report.add(&stats, &req.title, &req.chapter_dirs);
     if !args.json {
@@ -159,6 +162,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             stats.filters_ms,
             started.elapsed().as_millis()
         )?;
+    }
+    for part in stats.parts.iter().filter(|_| !args.json) {
+        outln!("  {}: {} pages", part.path.display(), part.pages)?;
     }
     if stats.skipped > 0 && !args.json {
         outln!(

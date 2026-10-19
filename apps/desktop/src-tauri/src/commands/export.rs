@@ -75,6 +75,7 @@ pub async fn export_chapters<R: Runtime>(
     let detection = penalizer(&app, detectors, &settings).await?;
     let req_dirs = chapter_dirs.clone();
     let req = ExportRequest {
+        split: None,
         labels: labels_of(&chapter_dirs),
         // The desktop always sends a generated title, so the chapter's own title wins.
         title_explicit: false,

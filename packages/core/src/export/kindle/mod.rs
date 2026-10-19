@@ -1,9 +1,11 @@
 //! Device export: e-ink filters and the page pipeline shared by every format.
 
 mod cover;
+mod estimate;
 mod export;
 pub mod filters;
 mod input;
+mod parts;
 mod preview;
 pub mod process;
 mod request;
@@ -12,11 +14,13 @@ pub mod trim;
 
 use super::{profile, Profile, PROFILES};
 
+pub use estimate::{estimate, Estimate};
 pub use export::export;
+pub use parts::{part_path, PART_SIZE, SEND_TO_KINDLE_LIMIT};
 pub use input::{chapter_files, chapter_images, decode, ChapterFiles};
 pub use preview::{preview, Preview, PreviewPage, PreviewRequest};
 pub use process::{process_page, EncodedPage, ImageSettings};
-pub use request::{BookMeta, ExportRequest, ExportStats, Progress};
+pub use request::{BookMeta, ExportRequest, ExportStats, Part, Progress};
 
 /// A target e-reader. Kept as the historic name of [`Profile`]; ids are stored in settings.
 pub type Device = Profile;

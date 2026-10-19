@@ -14,6 +14,7 @@ use super::export_cover::cover_file;
 use super::export_plans::plans;
 use super::export_preset::{self, PresetAction};
 use super::export_report::Report;
+use super::export_size::{warn_too_big, written_pages};
 use super::kindle_record;
 use super::{hint, stored_settings};
 use crate::output::outln;
@@ -53,7 +54,7 @@ pub struct Args {
     /// Print the files that would be written and exit
     #[arg(long)]
     pub dry_run: bool,
-    /// Print one JSON object instead of the lines above: `files` (path, title, chapters, pages,
+    /// Print one JSON object instead of the lines above: `files` (path, title, chapters, pages, bytes, part {index, total} when split,
     /// skipped_files), `skipped`, `failed` and `not_written` (path, reason; a failed book stops
     /// the run: the books before it stay, the ones after it are `not_written`)
     /// and `detectors` (state "used", "skipped" or "off", and the runtime's error as reason)
@@ -129,6 +130,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             .with_format(format)
             .with_page(preset.page())
             .with_replace(args.replace)
+            .with_split(args.cut.split())
         })
         .collect();
     let mut written = Vec::with_capacity(reqs.len());
@@ -145,18 +147,21 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             }
         };
         report.add(&stats, &req.title, &req.chapter_dirs);
+        let outputs = stats.outputs();
         if !args.json {
             print_written(&stats)?;
         }
+        warn_too_big(&outputs);
         kindle_record::mark_exported(&lib, &stats.exported_chapters(&req.chapter_dirs));
-        kindle_record::record_export(&lib, &stats.output, &req.title, device.id);
-        if let Some(via) = args.send {
-            let file = std::path::absolute(&stats.output)?;
+        for output in &outputs {
+            kindle_record::record_export(&lib, output, &req.title, device.id);
+            let Some(via) = args.send else { continue };
+            let file = std::path::absolute(output)?;
             let kindle = args.kindle.as_deref();
             match try_deliver(&lib, &file, &req.title, via, kindle).await {
                 Ok(sent) if args.json => eprintln!("{sent}"),
                 Ok(sent) => outln!("{sent}")?,
-                Err(e) => report.fail(&stats.output, e),
+                Err(e) => report.fail(output, e),
             }
         }
         written.push(stats);
@@ -168,7 +173,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
 }
 
 fn print_written(stats: &ExportStats) -> std::io::Result<()> {
-    outln!("{}: {} pages", stats.output.display(), stats.pages)?;
+    for (file, pages) in written_pages(stats) {
+        outln!("{}: {pages} pages", file.display())?;
+    }
     if stats.skipped > 0 {
         outln!(
             "skipped {} unsupported file(s), listed in the warnings above",

@@ -9,6 +9,8 @@ use super::kindle::{Device, ImageSettings};
 pub const PAGE_HEIGHT: (f64, f64) = (0.5, 1.0);
 /// Allowed contrast and gamma factors.
 pub const TONE: (f64, f64) = (0.5, 2.0);
+/// Allowed JPEG qualities: below 40 pages turn blocky, above 95 only the file grows.
+pub const JPEG_QUALITY: (u8, u8) = (40, 95);
 
 #[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
 #[serde(default)]
@@ -21,6 +23,8 @@ pub struct PageSettings {
     pub contrast: Option<f64>,
     pub gamma: Option<f64>,
     pub sharpen: Option<bool>,
+    /// JPEG quality of every page; `None` keeps the profile's (90 at 300 dpi, else 85).
+    pub quality: Option<u8>,
 }
 
 fn within(v: f64, (lo, hi): (f64, f64)) -> f64 {
@@ -45,6 +49,9 @@ impl PageSettings {
             contrast: self.contrast.map_or(base.contrast, |c| within(c, TONE)),
             gamma: self.gamma.map_or(base.gamma, |g| within(g, TONE)),
             sharpen: self.sharpen.unwrap_or(base.sharpen),
+            quality: self
+                .quality
+                .map_or(base.quality, |q| q.clamp(JPEG_QUALITY.0, JPEG_QUALITY.1)),
             ..base
         }
     }

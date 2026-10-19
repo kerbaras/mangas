@@ -151,6 +151,7 @@ pub fn request(
         chapters: plan.chapters.clone(),
     };
     ExportRequest {
+        split: None,
         chapter_dirs: plan
             .chapters
             .iter()

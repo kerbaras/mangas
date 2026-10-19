@@ -18,6 +18,7 @@ const CHILD_ENV: &str = "MANGAS_REPLACE_CHILD";
 
 fn request(root: &Path, format: Format, replace: bool) -> ExportRequest {
     ExportRequest {
+        split: None,
         chapter_dirs: vec![root.join("Chapter 1"), root.join("Chapter 2")],
         device: profile("kindle-paperwhite12").unwrap(),
         format,
@@ -87,6 +88,7 @@ fn off_writes_a_numbered_copy_and_on_replaces_the_file() {
 fn replacing_into_a_missing_folder_creates_it() {
     let root = fixture();
     let req = ExportRequest {
+        split: None,
         output: root.path().join("new/book.cbz"),
         ..request(root.path(), Format::Cbz, true)
     };
@@ -100,6 +102,7 @@ fn replacing_a_file_with_a_name_near_the_limit_works() {
     let output = root.path().join(format!("{}.epub", "b".repeat(250)));
     std::fs::write(&output, b"old").unwrap();
     let req = ExportRequest {
+        split: None,
         output: output.clone(),
         ..request(root.path(), Format::Epub, true)
     };
