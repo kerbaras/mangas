@@ -9,6 +9,7 @@ pub fn smtp_double() -> (u16, std::thread::JoinHandle<String>) {
     smtp_sessions(1)
 }
 
+#[allow(dead_code)]
 /// `sessions` SMTP sessions in a row (one per email), taking any login; yields every line sent.
 pub fn smtp_sessions(sessions: usize) -> (u16, std::thread::JoinHandle<String>) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
