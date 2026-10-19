@@ -12,17 +12,32 @@ const SPAN: u64 = 20 * 365 * 24 * 3600;
 
 pub(super) fn modified(book: &Book) -> String {
     let mut hash = Sha256::new();
-    for text in [&book.id, &book.title, &book.language] {
-        hash.update(text.as_bytes());
+    let mut text = |t: &str| {
+        hash.update(t.as_bytes());
         hash.update([0]);
+    };
+    text(&book.id);
+    text(&book.title);
+    text(&book.language);
+    book.authors.iter().for_each(|a| text(a));
+    text("series");
+    if let Some(series) = &book.series {
+        text(&series.name);
+        text(series.position.as_deref().unwrap_or(""));
     }
-    for author in &book.authors {
-        hash.update(author.as_bytes());
-        hash.update([0]);
+    text("chapters");
+    for chapter in &book.chapters {
+        text(&chapter.title);
+        text(&chapter.first_page.to_string());
     }
+    hash.update([u8::from(book.right_to_left)]);
+    hash.update(book.device_width.to_le_bytes());
+    hash.update(book.device_height.to_le_bytes());
+    hash.update([u8::from(book.cover.is_some())]);
     for page in book.cover.iter().chain(&book.pages) {
         hash.update(page.width.to_le_bytes());
         hash.update(page.height.to_le_bytes());
+        hash.update((page.jpeg.len() as u64).to_le_bytes());
         hash.update(&page.jpeg);
     }
     let digest = hash.finalize();
@@ -38,7 +53,7 @@ pub(super) fn modified(book: &Book) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::export::epub::PageImage;
+    use crate::export::epub::{ChapterEntry, PageImage, Series};
 
     fn book(jpeg: &[u8]) -> Book {
         Book {
@@ -65,6 +80,18 @@ mod tests {
         let date = modified(&book(b"one"));
         assert_eq!(date, modified(&book(b"one")));
         assert_ne!(date, modified(&book(b"two")));
+        let mut renamed = book(b"one");
+        renamed.chapters = vec![ChapterEntry {
+            title: "Chapter 1".into(),
+            first_page: 0,
+        }];
+        assert_ne!(date, modified(&renamed), "a chapter title is metadata too");
+        let mut series = book(b"one");
+        series.series = Some(Series {
+            name: "S".into(),
+            position: Some("2".into()),
+        });
+        assert_ne!(date, modified(&series), "so is the series");
         assert_eq!(date.len(), "2000-01-01T00:00:00Z".len());
         assert!(
             date.as_str() >= "2000-01-01" && date.as_str() < "2020-01-01",
