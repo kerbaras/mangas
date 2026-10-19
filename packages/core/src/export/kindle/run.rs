@@ -112,6 +112,13 @@ impl<'a> Run<'a> {
         self.push(encoded, t)
     }
 
+    fn check_cancelled(&self) -> Result<()> {
+        match (self.cancelled)() {
+            true => Err(Error::Other("cancelled".into())),
+            false => Ok(()),
+        }
+    }
+
     fn push(&mut self, encoded: Vec<PageImage>, t: Instant) -> Result<()> {
         self.stats.filters_ms += t.elapsed().as_millis();
         self.pages.extend(encoded);
@@ -162,15 +169,9 @@ impl<'a> Run<'a> {
             Margins::new()
         };
         let device = (self.device.width, self.device.height);
-        let sizes = files
-            .iter()
-            .map(|f| page_size(f, &margins))
-            .collect::<Result<Vec<_>>>()?;
         let mut i = 0;
         while i < files.len() {
-            if (self.cancelled)() {
-                return Err(Error::Other("cancelled".into()));
-            }
+            self.check_cancelled()?;
             if self.full_with(0) {
                 self.stopped_early = true;
                 return Ok(());
@@ -179,9 +180,12 @@ impl<'a> Run<'a> {
             let room = self
                 .limit
                 .map_or(WINDOW, |n| n.saturating_sub(self.pages.len()));
-            let run = match self.paginator.has_pending(sizes[i].0) {
+            let run = match self
+                .paginator
+                .has_pending(page_size(&files[i], &margins)?.0)
+            {
                 true => 0,
-                false => regular_run(&sizes[i..], device, WINDOW.min(room)),
+                false => regular_run(&files[i..], &margins, device, WINDOW.min(room))?,
             };
             if run == 0 {
                 let img = load(&files[i], &margins)?;
@@ -193,6 +197,7 @@ impl<'a> Run<'a> {
             self.emit_files(&files[i..i + run], &margins)?;
             i += run;
         }
+        self.check_cancelled()?;
         if self.full_with(0) {
             self.stopped_early = self.paginator.has_pending_any();
             return Ok(());
