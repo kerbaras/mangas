@@ -18,5 +18,6 @@ pub mod send;
 pub mod smartcut;
 pub mod sources;
 pub mod storage;
+mod zip_out;
 
 pub use domain::{Chapter, Error, Manga, Result};

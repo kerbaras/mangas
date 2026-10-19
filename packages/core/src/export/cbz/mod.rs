@@ -8,7 +8,7 @@ use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 use zip::write::SimpleFileOptions;
-use zip::{CompressionMethod, ZipWriter};
+use zip::CompressionMethod;
 
 use super::epub::PageImage;
 use super::output::write_file;
@@ -52,17 +52,17 @@ pub fn page_name(index: usize, total: usize) -> String {
 }
 
 fn write_zip(pages: &[PageImage], meta: &Meta, profile: &Profile, file: File) -> Result<()> {
-    let mut zip = ZipWriter::new(BufWriter::new(file));
-    let stored = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
-    let deflated = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
-    let z = |e: zip::result::ZipError| Error::Other(format!("cbz: {e}"));
-    for (i, page) in pages.iter().enumerate() {
-        zip.start_file(page_name(i, pages.len()), stored)
-            .map_err(z)?;
-        zip.write_all(&page.jpeg)?;
-    }
-    zip.start_file("ComicInfo.xml", deflated).map_err(z)?;
-    zip.write_all(comic_info_xml(pages, meta, profile).as_bytes())?;
-    zip.finish().map_err(z)?.flush()?;
-    Ok(())
+    crate::zip_out::write_zip(BufWriter::new(file), "cbz", |zip| {
+        let stored = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
+        let deflated = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
+        let z = |e: zip::result::ZipError| Error::Other(format!("cbz: {e}"));
+        for (i, page) in pages.iter().enumerate() {
+            zip.start_file(page_name(i, pages.len()), stored)
+                .map_err(z)?;
+            zip.write_all(&page.jpeg)?;
+        }
+        zip.start_file("ComicInfo.xml", deflated).map_err(z)?;
+        zip.write_all(comic_info_xml(pages, meta, profile).as_bytes())?;
+        Ok(())
+    })
 }

@@ -106,3 +106,31 @@ fn every_format_keeps_an_existing_file() {
         assert_eq!(again.output, root.path().join(format!("book (2).{format}")));
     }
 }
+
+#[test]
+fn exporting_the_same_chapters_twice_gives_identical_files() {
+    for format in Format::ALL {
+        let (root, first) = run(format, "kindle-paperwhite12", &format!("one.{format}"));
+        // Across a second boundary: a clock-based date would differ.
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+        let req = ExportRequest {
+            chapter_dirs: vec![root.path().join("Chapter 1"), root.path().join("Chapter 2")],
+            device: profile("kindle-paperwhite12").unwrap(),
+            format,
+            cut: Preset::Balanced.options(),
+            page: Default::default(),
+            title: "Tom & Jerry".into(),
+            output: root.path().join(format!("two.{format}")),
+            replace: false,
+            labels: Default::default(),
+            title_explicit: false,
+            meta: Default::default(),
+        };
+        let second = export(&req, None, &mut |_| {}).unwrap();
+        let (a, b) = (
+            std::fs::read(&first.output).unwrap(),
+            std::fs::read(&second.output).unwrap(),
+        );
+        assert!(a == b, "{format}: the two exports differ");
+    }
+}
