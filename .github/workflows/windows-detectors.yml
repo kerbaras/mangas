@@ -1,0 +1,88 @@
+# Scratch-only proof for #210 (not part of the PR). Checks out the PR head named below, builds
+# the release binary the way release.yml does, and on a real Windows runner:
+#   1. runs it as the app does (`mangas ml status --json --models-dir <dir>`) around install/remove;
+#   2. in one process (standing in for the app): child status check, then Remove with no restart,
+#      and asserts the runtime DLL is gone;
+#   3. control: the old in-process check keeps the DLL locked.
+name: windows-detectors-210
+
+on:
+  push:
+    branches: ["devin/*-scratch-windows-210"]
+
+permissions:
+  contents: read
+
+env:
+  PR_HEAD: 48b0277b816800eb260bc2c2e6fb323ba7d12186
+  TARGET: x86_64-pc-windows-msvc
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: 0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PR_HEAD }}
+      - name: Building exactly the PR head
+        shell: bash
+        run: |
+          echo "HEAD $(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD)" = "$PR_HEAD"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ env.TARGET }}
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Release binary, same command as release.yml
+        run: pnpm -C apps/desktop tauri build --target ${{ env.TARGET }} --features ml --no-bundle
+      - name: Shipped binary run as the app runs it - install, status, remove
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $exe = (Resolve-Path "target/$env:TARGET/release/mangas.exe").Path
+          $models = Join-Path $env:APPDATA "kerbaras\mangas\data\models"
+          & $exe ml download | Out-Host; if ($LASTEXITCODE) { throw "ml download failed" }
+          $dll = Get-ChildItem $models -Recurse -Filter onnxruntime.dll | Select-Object -First 1
+          if (-not $dll) { throw "no onnxruntime.dll under $models" }
+          Write-Host "runtime: $($dll.FullName)"
+          $raw = & $exe ml status --json --models-dir $models
+          if ($LASTEXITCODE) { throw "ml status --json failed" }
+          Write-Host $raw
+          $status = $raw | Out-String | ConvertFrom-Json
+          if (-not $status.downloaded) { throw "status after install is not downloaded" }
+          & $exe ml remove | Out-Host; if ($LASTEXITCODE) { throw "ml remove failed" }
+          if (Test-Path $dll.FullName) { throw "DLL still there: $($dll.FullName)" }
+          $after = & $exe ml status --json --models-dir $models | Out-String | ConvertFrom-Json
+          Write-Host ($after | ConvertTo-Json -Depth 5)
+          if ($after.downloaded) { throw "still downloaded after remove" }
+          Write-Host "DLL gone after remove"
+      - name: One process - child status check on the release binary, then Remove, no restart
+        shell: pwsh
+        run: |
+          $env:MANGAS_EXE = (Resolve-Path "target/$env:TARGET/release/mangas.exe").Path
+          cargo test -p mangas-cli --features ml --test ml_status_child -- --ignored --exact --nocapture remove_after_a_child_status_check_needs_no_restart
+          if ($LASTEXITCODE) { exit 1 }
+      - name: Control - the old in-process check keeps the DLL locked
+        shell: pwsh
+        run: |
+          cargo test -p mangas-cli --features ml --test ml_status_child -- --ignored --exact --nocapture an_in_process_check_keeps_the_runtime_mapped
+          if ($LASTEXITCODE) { exit 1 }
+      - name: Tests touched by #210
+        shell: pwsh
+        run: |
+          $env:MANGAS_EXE = (Resolve-Path "target/$env:TARGET/release/mangas.exe").Path
+          cargo test -p mangas-core --features ml --lib ml::
+          if ($LASTEXITCODE) { exit 1 }
+          cargo test -p mangas-cli --features ml --test ml_status_child
+          if ($LASTEXITCODE) { exit 1 }
+          cargo test -p mangas-desktop --features ml --lib commands::detectors
+          if ($LASTEXITCODE) { exit 1 }
