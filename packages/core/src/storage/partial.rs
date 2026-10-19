@@ -92,6 +92,27 @@ pub(crate) fn unmark(lib: &Library, to: &Path) -> Result<()> {
     set_pending_move(lib, None)
 }
 
+/// Wipes a marked folder for a new move, unless it also holds files that aren't the app's.
+pub(crate) fn wipe_for_reuse(dir: &Path) -> Result<()> {
+    let mut foreign = Vec::new();
+    for entry in fs::read_dir(dir)? {
+        let name = entry?.file_name().to_string_lossy().into_owned();
+        if name != MOVE_MARKER && !DATA_SUBDIRS.contains(&name.as_str()) {
+            foreign.push(name);
+        }
+    }
+    if !foreign.is_empty() {
+        foreign.sort();
+        return Err(Error::Other(format!(
+            "{} holds other files besides the partial copy ({}); remove the partial copy from \
+             the storage status and choose an empty folder",
+            dir.display(),
+            foreign.join(", ")
+        )));
+    }
+    wipe(dir)
+}
+
 /// Removes the app's subfolders from a marked folder, then the marker.
 pub(crate) fn wipe(dir: &Path) -> Result<()> {
     for sub in DATA_SUBDIRS {

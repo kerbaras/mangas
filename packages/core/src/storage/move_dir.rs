@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 
 use super::layout::DATA_SUBDIRS;
-use super::partial::{is_marked, mark, unmark, wipe};
+use super::partial::{is_marked, mark, unmark, wipe_for_reuse};
 use super::relocate::{check_target, rebase};
 use super::tree::{empty_dir, list_files, FileEntry};
 use crate::domain::{Error, Result};
@@ -78,7 +78,7 @@ fn move_held(
                 to.display()
             )));
         }
-        wipe(&to)?;
+        wipe_for_reuse(&to)?;
     }
     let mut plan = Vec::new();
     for sub in DATA_SUBDIRS {

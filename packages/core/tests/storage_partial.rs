@@ -154,3 +154,19 @@ fn a_folder_with_unrelated_files_is_refused_even_with_force() {
     assert!(to.join("chapters/x/001.jpg").exists());
     assert_eq!(usage(&lib, &f).unwrap().partial_move, None);
 }
+
+#[test]
+fn a_partial_copy_next_to_unrelated_files_is_refused_even_with_force() {
+    let tmp = tempfile::tempdir().unwrap();
+    let f = folders(tmp.path());
+    let lib = library_with_two_chapters(&f);
+    let to = tmp.path().join("shared");
+    fs::create_dir_all(&to).unwrap();
+    fs::write(to.join("thesis.txt"), "mine").unwrap();
+    killed_move(&lib, tmp.path(), &to);
+    let err = move_data_dir_with(&lib, &f.data_dir, &to, true, &mut |_| {}).unwrap_err();
+    assert!(err.to_string().contains("thesis.txt"), "{err}");
+    assert!(to.join("thesis.txt").exists() && to.join(MOVE_MARKER).exists());
+    assert!(usage(&lib, &f).unwrap().partial_move.is_some());
+    assert_ne!(get_settings(&lib).unwrap().data_dir.as_deref(), to.to_str());
+}
