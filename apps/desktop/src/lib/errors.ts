@@ -40,6 +40,14 @@ export function describeError(message: string): ErrorInfo {
   return { hint: match?.[1] ?? null, detail, challenge: false };
 }
 
+/** A failure for a short label and its tooltip: the readable hint when known, else the raw text. */
+export function describeFailure(message: string): { label: string; tooltip: string } {
+  const { hint, detail } = describeError(message);
+  return hint
+    ? { label: hint, tooltip: `${hint} (${detail})` }
+    : { label: detail, tooltip: detail };
+}
+
 /** Text for "Copy error" and the log: what crashed and where. */
 export function crashReport(error: Error, componentStack?: string | null): string {
   return [

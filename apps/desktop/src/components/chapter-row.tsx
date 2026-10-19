@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { sourceRef, splitGroup } from "@/lib/chapter-groups";
 import { isUnavailable } from "@/lib/chapters";
 import { cn } from "@/lib/cn";
+import { describeFailure } from "@/lib/errors";
 import { languageLabel } from "@/lib/format";
 import type { Chapter, DownloadProgress } from "@/lib/ipc";
 import { isUnlisted } from "@/lib/ipc.downloads";
@@ -69,7 +70,7 @@ function StateCell({ chapter, progress }: Pick<Props, "chapter" | "progress">) {
   }
   if (progress?.error) {
     return (
-      <StateLabel hint={progress.error} className="text-accent">
+      <StateLabel hint={describeFailure(progress.error).tooltip} className="text-accent">
         <AlertCircle className="size-3.5" /> Failed
       </StateLabel>
     );

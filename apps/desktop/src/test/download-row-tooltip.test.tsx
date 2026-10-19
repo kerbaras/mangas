@@ -7,6 +7,7 @@ import { type DownloadJob, UNLISTED } from "@/lib/ipc.downloads";
 import { makeJob } from "./job-fixture";
 
 const REASON = "refused: webtoon-phinf.pstatic.net resolves to a non-public address 10.0.0.1";
+const LABEL = "The image host points at a local or private address, so the app won't fetch it.";
 
 function row(job: DownloadJob) {
   render(
@@ -22,12 +23,12 @@ describe("DownloadRow failure tooltip", () => {
   it("has no native title anywhere in a failed row", () => {
     row(makeJob({ state: "failed", error: REASON }));
     expect(screen.getByRole("listitem").querySelector(`[title="${REASON}"]`)).toBeNull();
-    expect(screen.getByText(REASON)).not.toHaveAttribute("title");
+    expect(screen.getByText(LABEL)).not.toHaveAttribute("title");
   });
 
   it("shows the reason in the edge-aware tooltip on keyboard focus", async () => {
     row(makeJob({ state: "failed", error: REASON }));
-    const reason = screen.getByText(REASON);
+    const reason = screen.getByText(LABEL);
     await userEvent.tab();
     expect(reason).toHaveFocus();
     expect(await screen.findByRole("tooltip")).toHaveTextContent(REASON);
@@ -35,7 +36,7 @@ describe("DownloadRow failure tooltip", () => {
 
   it("shows the reason on hover", async () => {
     row(makeJob({ state: "failed", error: REASON }));
-    await userEvent.hover(screen.getByText(REASON));
+    await userEvent.hover(screen.getByText(LABEL));
     expect(await screen.findByRole("tooltip")).toHaveTextContent(REASON);
   });
 
