@@ -15,7 +15,7 @@ pub use group::group;
 pub use load::{load, VolumeSource};
 pub use meta::{book_meta, chapter_label};
 pub use name::{file_name, render, DEFAULT_TEMPLATE};
-pub use plan::{find_volume, plan, request, VolumePlan};
+pub use plan::{find_volume, one_file_each, plan, request, written_names, VolumePlan};
 
 /// How a manga's chapters are split into books.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

@@ -41,6 +41,7 @@ flate2 = "1"
 tar = { version = "0.4", default-features = false }
 pdf-writer = "0.15"
 lettre = { version = "0.11", default-features = false, features = ["builder", "hostname", "smtp-transport", "tokio1", "tokio1-rustls", "aws-lc-rs", "rustls-platform-verifier"] }
+tempfile = "3"
 
 [features]
 default = []
@@ -56,7 +57,6 @@ ort = { version = "=2.0.0-rc.13", optional = true, default-features = false, fea
 lopdf = "0.45"
 roxmltree = "0.21.1"
 tokio = { workspace = true, features = ["net", "io-util"] }
-tempfile = "3"
 flate2 = "1"
 tar = { version = "0.4", default-features = false }
 zip = { version = "9", default-features = false, features = ["deflate"] }

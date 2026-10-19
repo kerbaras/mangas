@@ -75,6 +75,7 @@ async fn the_export_lands_in_the_default_export_folder(home: &Path) {
         false,
         book,
         None,
+        None,
     )
     .await
     .unwrap();
@@ -113,6 +114,7 @@ async fn relative_folders_land_under_the_default_export_folder(home: &Path) {
         false,
         book,
         None,
+        None,
     );
     assert_eq!(stats.await.unwrap().output, books.join("Mixed.epub"));
 
@@ -140,22 +142,30 @@ async fn relative_folders_land_under_the_default_export_folder(home: &Path) {
     )
     .unwrap();
     library::mark_downloaded(&lib, "mangadex", &chapter.id, &chapter_dir(home, "solo")).unwrap();
-    let written = export_volumes(
-        app.handle().clone(),
-        "mangadex".into(),
-        "solo".into(),
-        vec!["solo-1".into()],
-        Grouping::Single,
-        None,
-        None,
-        Some(mangas_core::export::Format::Epub),
-        None,
-        false,
-        Some(PathBuf::from("books")),
-    )
-    .await
-    .unwrap();
+    let volume = |replace: Option<bool>| {
+        export_volumes(
+            app.handle().clone(),
+            "mangadex".into(),
+            "solo".into(),
+            vec!["solo-1".into()],
+            Grouping::Single,
+            None,
+            None,
+            Some(mangas_core::export::Format::Epub),
+            None,
+            false,
+            Some(PathBuf::from("books")),
+            replace,
+        )
+    };
+    let written = volume(None).await.unwrap();
     assert_eq!(written.len(), 1);
     assert_eq!(written[0].output.parent(), Some(books.as_path()));
     assert!(written[0].output.is_file());
+
+    let first = written[0].output.clone();
+    let copy = volume(Some(false)).await.unwrap();
+    assert_ne!(copy[0].output, first, "replace off writes a numbered copy");
+    let replaced = volume(Some(true)).await.unwrap();
+    assert_eq!(replaced[0].output, first, "replace on writes the same file");
 }

@@ -76,7 +76,7 @@ pub fn export(
             .and_then(|path| cover_page(path, &run.settings)),
     };
     let exporter = req.format.exporter();
-    run.stats.output = exporter.export(run.pages, &meta, &dev, &req.output)?;
+    run.stats.output = exporter.export(run.pages, &meta, &dev, &req.output, req.replace)?;
     Ok(run.stats)
 }
 

@@ -121,6 +121,7 @@ fn imports_a_series_folder_and_exports_it() {
         page: Default::default(),
         title: report.manga.title.clone(),
         output: out.clone(),
+        replace: false,
         meta: Default::default(),
         labels: Default::default(),
         title_explicit: false,

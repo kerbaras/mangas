@@ -40,7 +40,21 @@ describe("export request", () => {
       preset: "balanced",
       detectors: false,
       output: "/out",
+      replace: false,
     });
+  });
+
+  it("passes the replace choice", () => {
+    const args = toExportArgs({
+      chapter_dirs: [],
+      device: "d",
+      format: "cbz",
+      preset: "balanced",
+      detectors: false,
+      output: "/o",
+      replace: true,
+    });
+    expect(args.replace).toBe(true);
   });
 });
 

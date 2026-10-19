@@ -54,8 +54,9 @@ impl Labels {
     }
 }
 
-/// Writes processed pages as one file. Implementations never replace an existing file (the
-/// name gets ` (2)`, ...) and never leave a half-written one; they return the path written.
+/// Writes processed pages as one file and returns the path written. An existing file is
+/// replaced only when `replace` (atomically: a failed export keeps the old one); otherwise the
+/// name gets ` (2)`, .... Implementations never leave a half-written file.
 pub trait Exporter: Sync {
     fn name(&self) -> &'static str;
     /// File extension without the dot.
@@ -66,6 +67,7 @@ pub trait Exporter: Sync {
         meta: &Meta,
         profile: &Profile,
         output: &Path,
+        replace: bool,
     ) -> Result<PathBuf>;
 }
 

@@ -52,3 +52,26 @@ fn names_differing_only_in_case_count_as_taken() {
         names(&["book (2).epub"])
     );
 }
+
+#[test]
+fn written_names_match_what_each_mode_writes() {
+    use mangas_core::export::volume::{written_names, VolumePlan};
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("book.epub"), "old").unwrap();
+    let plan = |name: &str| VolumePlan {
+        number: None,
+        title: name.into(),
+        file_name: name.into(),
+        chapters: Vec::new(),
+    };
+    let plans = [plan("Book"), plan("Book"), plan("Other")];
+    assert_eq!(
+        written_names(&plans, dir.path(), "epub", false).unwrap(),
+        names(&["Book (2).epub", "Book (3).epub", "Other.epub"])
+    );
+    let numbered = [plan("Book"), plan("Book (2)")];
+    assert_eq!(
+        written_names(&numbered, dir.path(), "cbz", true).unwrap(),
+        names(&["Book.cbz", "Book (2).cbz"])
+    );
+}

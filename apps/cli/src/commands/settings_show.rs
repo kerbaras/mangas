@@ -116,6 +116,10 @@ fn lines(s: &Settings) -> Vec<(&'static str, String)> {
             ),
         ),
         (
+            "export replace",
+            or_default(s.export_replace, on_off, "off"),
+        ),
+        (
             "smart cut preset",
             or_default(s.default_preset, kebab, "balanced"),
         ),

@@ -11,7 +11,7 @@ use image::{ColorType, ImageDecoder};
 use pdf_writer::{Content, Filter, Finish, Name, Pdf, Rect, Ref, TextStr};
 
 use super::epub::PageImage;
-use super::output::write_new;
+use super::output::write_file;
 use super::{Exporter, Meta, Profile};
 use crate::domain::{Error, Result};
 
@@ -34,12 +34,13 @@ impl Exporter for PdfExporter {
         meta: &Meta,
         profile: &Profile,
         output: &Path,
+        replace: bool,
     ) -> Result<PathBuf> {
         if pages.is_empty() {
             return Err(Error::Other("pdf: no pages".into()));
         }
         let bytes = document(pages, meta, profile)?;
-        write_new(output, |file| {
+        write_file(output, replace, |file| {
             let mut out = BufWriter::new(file);
             out.write_all(&bytes)?;
             Ok(out.flush()?)

@@ -53,6 +53,9 @@ pub struct Args {
     /// Print the files that would be written and exit
     #[arg(long)]
     pub dry_run: bool,
+    /// Write over books already in the folder instead of next to them as "Title (2)"
+    #[arg(long)]
+    pub replace: bool,
     /// After writing, email each book to the Kindle or copy it to one over USB
     #[arg(long, value_enum)]
     pub send: Option<SendArg>,
@@ -128,7 +131,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         return export_preset::manage(&lib, &args.source, &args.manga_id, action, &explicit);
     }
     let src = volume::load(&lib, &args.source, &args.manga_id, None)?;
-    let plans = plans(&args, &src.manga, &src.chapters)?;
+    let plans = volume::one_file_each(plans(&args, &src.manga, &src.chapters)?, args.replace);
     if plans.is_empty() {
         let list = hint(&format!("chapters {}", args.manga_id), &args.source);
         bail!("nothing to export: no downloaded chapters match (see {list})");
@@ -138,17 +141,15 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let preset = ExportPreset::resolve(&explicit, series.as_ref(), &fallback);
     let device = CutArgs::device_of(&preset, DEFAULT_PROFILE)?;
     let format = Format::resolve(preset.format, None, None, &device)?;
-    for p in &plans {
+    let names = volume::written_names(&plans, &args.output_dir, format.id(), args.replace)?;
+    for (p, name) in plans.iter().zip(&names) {
         let (first, last) = (
             &p.chapters[0].number,
             &p.chapters[p.chapters.len() - 1].number,
         );
         outln!(
             "{}  ({} chapters, {first}–{last})",
-            args.output_dir
-                .join(&p.file_name)
-                .with_extension(format.id())
-                .display(),
+            args.output_dir.join(name).display(),
             p.chapters.len()
         )?;
     }
@@ -169,7 +170,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             cover.clone(),
         )
         .with_format(format)
-        .with_page(preset.page());
+        .with_page(preset.page())
+        .with_replace(args.replace);
         let stats = export(&req, penalizer.clone(), &mut print_progress)?;
         outln!("{}: {} pages", stats.output.display(), stats.pages)?;
         if stats.skipped > 0 {

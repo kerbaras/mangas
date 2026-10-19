@@ -24,6 +24,8 @@ pub struct Settings {
     pub default_preset: Option<Preset>,
     /// Export format picked last; `None` follows the device profile's recommendation.
     pub default_format: Option<Format>,
+    /// Exports write over a file already at their path instead of next to it as ` (2)`; off when `None`.
+    pub export_replace: Option<bool>,
     /// Browser sessions captured for providers behind a verification wall, by source name.
     pub provider_sessions: BTreeMap<String, ProviderSession>,
     /// Chapter languages in order of preference (ISO 639-1 with regional suffixes, "pt-br");

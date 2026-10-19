@@ -48,6 +48,7 @@ fn export_pages(dir: &Path, root: &Path, page: PageSettings) -> usize {
         title: "t".into(),
         title_explicit: false,
         output: root.join("book.cbz"),
+        replace: false,
         meta: Default::default(),
         labels: Default::default(),
     };

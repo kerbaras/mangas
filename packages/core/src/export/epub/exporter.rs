@@ -23,6 +23,7 @@ impl Exporter for EpubExporter {
         meta: &Meta,
         profile: &Profile,
         output: &Path,
+        replace: bool,
     ) -> Result<PathBuf> {
         let book = Book {
             id: meta.id.clone(),
@@ -37,6 +38,6 @@ impl Exporter for EpubExporter {
             pages,
             cover: meta.cover.clone(),
         };
-        write(&book, output)
+        write(&book, output, replace)
     }
 }

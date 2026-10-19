@@ -34,6 +34,9 @@ pub struct Args {
     /// Output file [default: out.<format>]
     #[arg(long, short)]
     pub output: Option<PathBuf>,
+    /// Write over the output file if it exists instead of next to it as "out (2)"
+    #[arg(long)]
+    pub replace: bool,
     /// After writing the book, email it to the Kindle or copy it to one over USB
     #[arg(long, value_enum)]
     pub send: Option<SendArg>,
@@ -122,6 +125,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             .unwrap_or_else(|| default_title(series.as_deref(), &args.chapters)),
         title_explicit: args.title.is_some(),
         output: output.clone(),
+        replace: args.replace,
         meta: BookMeta {
             chapter_titles,
             ..Default::default()

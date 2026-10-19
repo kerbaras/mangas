@@ -66,6 +66,7 @@ pub async fn export_volumes<R: Runtime>(
     preset: Option<Preset>,
     detectors: bool,
     output_dir: Option<PathBuf>,
+    replace: Option<bool>,
 ) -> Result<Vec<ExportStats>, String> {
     let settings = settings_or_default();
     let output_dir = mangas_core::export::in_export_folder(
@@ -87,6 +88,7 @@ pub async fn export_volumes<R: Runtime>(
     let device = dev.id.to_string();
     let format = Format::resolve(None, None, resolved.format, &dev).map_err(to_ipc)?;
     let (src, plans) = plans(&source, &manga_id, &chapter_ids, grouping, title.as_deref())?;
+    let plans = volume::one_file_each(plans, replace.unwrap_or(false));
     if plans.is_empty() {
         return Err(to_ipc("none of these chapters is downloaded"));
     }
@@ -112,7 +114,8 @@ pub async fn export_volumes<R: Runtime>(
             cover.clone(),
         )
         .with_format(format)
-        .with_page(resolved.page());
+        .with_page(resolved.page())
+        .with_replace(replace.unwrap_or(false));
         let (handle, penalizer) = (app.clone(), detection.penalizer.clone());
         let (mut stats, dirs) = tauri::async_runtime::spawn_blocking(move || {
             let mut on_progress = |p: Progress| emit(&handle, ExportEvent::Export(p));

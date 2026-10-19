@@ -38,6 +38,8 @@ pub struct ExportRequest {
     /// The user typed `title`; it then beats the library's chapter title in ComicInfo.
     pub title_explicit: bool,
     pub output: PathBuf,
+    /// Write over a file already at `output` instead of next to it as ` (2)`, ....
+    pub replace: bool,
     pub meta: BookMeta,
     /// Series, chapter and volume labels from the library (CBZ writes them to ComicInfo).
     pub labels: Labels,
@@ -47,6 +49,11 @@ impl ExportRequest {
     /// The same export with `page` tweaks.
     pub fn with_page(self, page: PageSettings) -> ExportRequest {
         ExportRequest { page, ..self }
+    }
+
+    /// The same export, replacing an existing file at the output path when `replace`.
+    pub fn with_replace(self, replace: bool) -> ExportRequest {
+        ExportRequest { replace, ..self }
     }
 
     /// The same export written as `format`, the output's extension changed to match.

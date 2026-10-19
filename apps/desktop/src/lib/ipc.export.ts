@@ -32,6 +32,8 @@ export type ExportRequest = {
   detectors: boolean;
   output: string;
   title?: string;
+  /** Write over a file already at `output` instead of a ` (2)` copy. */
+  replace?: boolean;
 };
 
 export type ExportResult = {

@@ -54,6 +54,7 @@ pub async fn export_chapters<R: Runtime>(
     detectors: bool,
     output: PathBuf,
     title: Option<String>,
+    replace: Option<bool>,
 ) -> Result<ExportStats, String> {
     let explicit = ExportPreset {
         cut_preset: preset,
@@ -82,6 +83,7 @@ pub async fn export_chapters<R: Runtime>(
         cut: resolved.cut(),
         page: resolved.page(),
         output,
+        replace: replace.unwrap_or(false),
         meta: BookMeta {
             chapter_titles: titles_of(&req_dirs),
             ..Default::default()

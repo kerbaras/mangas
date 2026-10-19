@@ -108,3 +108,25 @@ fn a_dead_proxy_flag_names_the_proxy() {
         "{text}"
     );
 }
+
+#[test]
+fn show_lists_the_replace_switch_the_app_saves() {
+    use mangas_core::library::{self, Settings};
+    let home = tempfile::tempdir().unwrap();
+    let shown = stdout(&mangas(home.path(), &["settings", "show"]));
+    assert!(
+        shown.contains("export replace        off (default)\n"),
+        "{shown}"
+    );
+    let db = home.path().join("data/mangas/mangas.db");
+    let lib = library::open(&db).unwrap();
+    let on = Settings {
+        export_replace: Some(true),
+        ..library::get_settings(&lib).unwrap()
+    };
+    library::edit_settings(&lib, None, &on).unwrap();
+    let shown = stdout(&mangas(home.path(), &["settings", "show"]));
+    assert!(shown.contains("export replace        on\n"), "{shown}");
+    let json = stdout(&mangas(home.path(), &["settings", "show", "--json"]));
+    assert!(json.contains("\"export_replace\": true"), "{json}");
+}

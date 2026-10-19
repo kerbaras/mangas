@@ -11,7 +11,7 @@ use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipWriter};
 
 use super::epub::PageImage;
-use super::output::write_new;
+use super::output::write_file;
 use super::{Exporter, Meta, Profile};
 use crate::domain::{Error, Result};
 
@@ -34,11 +34,14 @@ impl Exporter for CbzExporter {
         meta: &Meta,
         profile: &Profile,
         output: &Path,
+        replace: bool,
     ) -> Result<PathBuf> {
         if pages.is_empty() {
             return Err(Error::Other("cbz: no pages".into()));
         }
-        write_new(output, |file| write_zip(&pages, meta, profile, file))
+        write_file(output, replace, |file| {
+            write_zip(&pages, meta, profile, file)
+        })
     }
 }
 

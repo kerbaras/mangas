@@ -84,7 +84,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
           })),
         }
       : plans;
-  const { files, named } = useFreeNames(planned, folder.resolved, runs);
+  const { files, named } = useFreeNames(planned, folder.resolved, runs, target.replace);
   const books = files.kind === "ready" ? files.data.length : 0;
   const sending = ["looking", "copying", "emailing"].includes(send.state.kind);
   const busy = job.state.kind === "running" || sending;
@@ -96,9 +96,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
     target.devices.kind === "ready" &&
     detectors.status.kind !== "loading" &&
     settled;
-
-  const { reset: resetJob } = job;
-  const { reset: resetSend } = send;
+  const [resetJob, resetSend] = [job.reset, send.reset];
   const clearResult = useCallback(() => {
     resetJob();
     resetSend();
@@ -113,6 +111,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
     useDetectors,
     via,
     folder.output,
+    target.replace,
   ].join("|");
   useClearOnChange(choice, busy, clearResult);
 
@@ -129,6 +128,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
         preset,
         detectors: useDetectors,
         outputDir: folder.picked,
+        replace: target.replace,
       }),
     );
     setRuns((n) => n + 1);

@@ -16,6 +16,7 @@ fn settings_round_trip_and_overwrite() {
         default_device: Some("kindle-scribe".into()),
         default_preset: Some(Preset::FewestCuts),
         default_format: Some(mangas_core::export::Format::Pdf),
+        export_replace: Some(true),
         provider_sessions: Default::default(),
         preferred_languages: vec!["es-la".into(), "en".into()],
         provider_options: [(

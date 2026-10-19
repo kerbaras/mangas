@@ -42,7 +42,7 @@ fn writes_valid_fixed_layout_epub() {
         pages: vec![page(1264, 1680), page(1264, 1680), page(600, 800)],
         cover: None,
     };
-    epub::write(&book, &out).expect("write");
+    epub::write(&book, &out, false).expect("write");
 
     let mut zip = zip::ZipArchive::new(std::fs::File::open(&out).unwrap()).unwrap();
     let first = zip.by_index(0).unwrap();
@@ -117,7 +117,7 @@ fn failed_write_keeps_the_previous_file() {
         pages: vec![],
         cover: None,
     };
-    assert!(epub::write(&empty, &out).is_err());
+    assert!(epub::write(&empty, &out, false).is_err());
     assert_eq!(std::fs::read(&out).unwrap(), b"previous");
 }
 
@@ -137,7 +137,7 @@ fn rejects_empty_book() {
         pages: vec![],
         cover: None,
     };
-    assert!(epub::write(&book, &dir.path().join("e.epub")).is_err());
+    assert!(epub::write(&book, &dir.path().join("e.epub"), false).is_err());
 }
 
 #[test]
@@ -158,10 +158,10 @@ fn never_replaces_an_existing_book() {
         pages: vec![page(600, 800)],
         cover: None,
     };
-    let written = epub::write(&book, &out).expect("write");
+    let written = epub::write(&book, &out, false).expect("write");
     assert_eq!(written, dir.path().join("Title ch 1-3 (2).epub"));
     assert_eq!(std::fs::read(&out).unwrap(), b"previous");
-    let again = epub::write(&book, &out).expect("write");
+    let again = epub::write(&book, &out, false).expect("write");
     assert_eq!(again, dir.path().join("Title ch 1-3 (3).epub"));
     assert!(!dir.path().join("Title ch 1-3 (2).epub.part").exists());
 }

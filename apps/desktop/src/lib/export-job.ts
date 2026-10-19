@@ -16,6 +16,8 @@ export type ExportChoices = {
   detectors: boolean;
   /** Null for the default export folder, resolved by the backend. */
   outputDir: string | null;
+  /** Write over files already in the folder instead of ` (2)` copies. */
+  replace: boolean;
 };
 
 /**
@@ -33,7 +35,8 @@ export function exportJob(c: ExportChoices): () => Promise<ExportResult[]> {
 }
 
 function writeBooks(c: ExportChoices): () => Promise<ExportResult[]> {
-  const common = { device: c.device, format: c.format, preset: c.preset, detectors: c.detectors };
+  const { device, format, preset, detectors, replace } = c;
+  const common = { device, format, preset, detectors, replace };
   if (c.picks.length === 1) {
     const [{ manga, chapters }] = c.picks;
     return () =>

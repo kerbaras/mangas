@@ -67,6 +67,7 @@ export type ExportChaptersArgs = {
   detectors: boolean;
   output: string;
   title?: string;
+  replace: boolean;
 };
 
 export const toExportProgress = (e: ExportEvent): ExportProgress => {
@@ -107,4 +108,5 @@ export const toExportArgs = (r: ExportRequest): ExportChaptersArgs => ({
   detectors: r.detectors,
   output: r.output,
   ...(r.title ? { title: r.title } : {}),
+  replace: r.replace ?? false,
 });
