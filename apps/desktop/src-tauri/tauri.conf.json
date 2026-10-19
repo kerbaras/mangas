@@ -37,6 +37,10 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "linux": {
+      "deb": { "depends": ["ca-certificates"] },
+      "rpm": { "depends": ["ca-certificates"] }
+    },
     "macOS": {
       "minimumSystemVersion": "12.0"
     }

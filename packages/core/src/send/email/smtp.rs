@@ -10,7 +10,7 @@ use tokio::time::timeout;
 
 use super::errors::{explain, Failure};
 use super::{Security, Smtp};
-use crate::domain::{Error, Result};
+use crate::domain::{missing_root_certificates, Error, Result};
 
 /// Slowest upload we wait for.
 const MIN_UPLOAD_BYTES_PER_SEC: u64 = 100_000;
@@ -93,7 +93,9 @@ fn failure(e: &lettre::transport::smtp::Error) -> Failure {
     if let Some(code) = e.status() {
         return Failure::Reply(u16::from(code));
     }
-    if e.is_timeout() {
+    if missing_root_certificates(e) {
+        Failure::NoRootCertificates
+    } else if e.is_timeout() {
         Failure::Timeout
     } else if e.is_tls() {
         Failure::Tls

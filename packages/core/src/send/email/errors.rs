@@ -1,5 +1,7 @@
 //! SMTP failures in words a user can act on.
 
+use crate::domain::NO_ROOT_CERTIFICATES;
+
 /// What went wrong talking to the server.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Failure {
@@ -11,6 +13,8 @@ pub enum Failure {
     /// seconds.
     Stalled(u64),
     Tls,
+    /// The system has no root certificates to check the server's.
+    NoRootCertificates,
     /// Couldn't connect, or the connection dropped.
     Connection,
 }
@@ -47,6 +51,7 @@ pub fn explain(failure: Failure, raw: &str, host: &str, port: u16) -> String {
             "Couldn't set up a secure connection to {at}; port 465 uses TLS, 587 uses STARTTLS \
              ({raw})"
         ),
+        Failure::NoRootCertificates => format!("Couldn't connect to {at}: {NO_ROOT_CERTIFICATES}"),
         Failure::Connection => format!("Couldn't reach the mail server at {at} ({raw})"),
     }
 }
