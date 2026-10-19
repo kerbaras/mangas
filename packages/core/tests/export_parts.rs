@@ -114,3 +114,39 @@ fn the_estimate_is_close_to_the_written_size() {
     let off = (guess.bytes as f64 - real).abs() / real;
     assert!(off < 0.15, "estimate {} B vs {real} B", guess.bytes);
 }
+
+fn entry(path: &Path, name: &str) -> String {
+    let mut zip = zip::ZipArchive::new(std::fs::File::open(path).unwrap()).unwrap();
+    std::io::read_to_string(zip.by_name(name).unwrap()).unwrap()
+}
+
+#[test]
+fn a_part_starting_inside_a_chapter_opens_with_its_title_and_is_named_n_of_total() {
+    let root = tempfile::tempdir().unwrap();
+    let whole = run(&request(root.path(), PageSettings::default(), None));
+    assert_eq!(whole.pages, 6);
+    let stats = run(&request(
+        root.path(),
+        PageSettings::default(),
+        Some(size(&whole.output) / 3),
+    ));
+    let total = stats.parts.len();
+    assert!(total >= 3, "{:?}", stats.parts);
+    let mut start = 0;
+    for (i, part) in stats.parts.iter().enumerate() {
+        let opf = entry(&part.path, "OEBPS/content.opf");
+        assert!(opf.contains(&format!(
+            "<dc:title>Big (part {} of {total})</dc:title>",
+            i + 1
+        )));
+        let nav = entry(&part.path, "OEBPS/nav.xhtml");
+        let first = nav.split("<li><a href=").nth(1).unwrap();
+        let chapter = if start < 3 { "Chapter 1" } else { "Chapter 2" };
+        assert!(
+            first.contains(&format!(">{chapter}</a>")),
+            "part {}: {nav}",
+            i + 1
+        );
+        start += part.pages;
+    }
+}
