@@ -37,17 +37,14 @@ struct DownloadProgress {
     total: Option<u64>,
 }
 
-/// Tries to load an installed runtime first, so a broken one shows its error before any preview
-/// or export runs. Nothing installed: no load, no network.
+/// Tries to load an installed runtime first, so a broken one shows before any preview or export.
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub async fn detectors_status() -> Result<ml::Status, String> {
-    let exe = std::env::current_exe().map_err(to_ipc)?;
-    status_in(models_dir()?, exe).await
+    status_in(models_dir()?, std::env::current_exe().map_err(to_ipc)?).await
 }
 
-/// The load is tried in `exe ml status --json` (this binary as the CLI), off the UI thread, so the
-/// app maps the runtime only for a detector run and Windows can delete it without a restart.
+/// Loads in `exe ml status --json`, so only a detector run maps the runtime (Windows can delete it).
 async fn status_in(dir: PathBuf, exe: PathBuf) -> Result<ml::Status, String> {
     tauri::async_runtime::spawn_blocking(move || ml::child::probed_status(&dir, &exe))
         .await
