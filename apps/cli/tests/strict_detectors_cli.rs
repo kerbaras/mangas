@@ -10,6 +10,7 @@ use mangas_core::library;
 
 const ID: &str = "series-1";
 const WARNING: &str = "detectors off, cutting without them: ";
+const CORE_WARNING: &str = "cutting without detectors";
 
 /// The CLI with an empty certificate store, so the runtime can't be downloaded again.
 fn mangas(home: &Path, args: &[&str]) -> Output {
@@ -92,6 +93,8 @@ fn fallback_reason(home: &Path, args: &[&str], written: &Path) -> String {
     assert!(out.status.success(), "{out:?}");
     assert!(written.exists(), "{out:?}");
     let shown = stderr(&out);
+    assert_eq!(shown.matches(WARNING).count(), 1, "{shown}");
+    assert!(!shown.contains(CORE_WARNING), "{shown}");
     let (_, rest) = shown.split_once(WARNING).expect(&shown);
     let reason = rest.lines().next().unwrap_or_default().to_owned();
     assert!(!reason.is_empty(), "{shown}");
@@ -104,6 +107,7 @@ fn assert_strict_failure(out: &Output, reason: &str) {
     assert!(shown.contains("--strict-detectors"), "{shown}");
     assert!(shown.contains(reason), "{shown}");
     assert!(!shown.contains(WARNING), "{shown}");
+    assert!(!shown.contains(CORE_WARNING), "{shown}");
 }
 
 #[test]

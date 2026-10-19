@@ -149,12 +149,9 @@ pub async fn penalizer_or_reason(
             penalizer: Some(p),
             error: None,
         },
-        Err(e) => {
-            tracing::warn!("cutting without detectors: {e}");
-            Penalizer {
-                penalizer: None,
-                error: Some(e.to_string()),
-            }
-        }
+        Err(e) => Penalizer {
+            penalizer: None,
+            error: Some(e.to_string()),
+        },
     }
 }

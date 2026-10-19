@@ -132,7 +132,13 @@ impl CutArgs {
                 bail!("detectors were requested (--strict-detectors) but can't run: {e}")
             }
             Some(e) => eprintln!("detectors off, cutting without them: {e}"),
-            None => eprintln!("detectors: {:?}", ml::status(&cache).execution_provider),
+            None => eprintln!(
+                "detectors: {}",
+                ml::status(&cache)
+                    .execution_provider
+                    .as_deref()
+                    .unwrap_or("default")
+            ),
         }
         Ok(detection.penalizer)
     }
