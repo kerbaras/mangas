@@ -113,7 +113,9 @@ export const DownloadRow = memo(function DownloadRow({ job, speed }: Props) {
           <span className="shrink-0">Chapter {job.number}</span>
         </p>
         <p className="truncate text-caption text-ink-3">
-          {[job.title, languageLabel(job.language), job.source].filter(Boolean).join(" · ")}
+          {[job.title, job.group, languageLabel(job.language), job.source]
+            .filter(Boolean)
+            .join(" · ")}
         </p>
       </div>
       <div className="flex flex-col items-start gap-0.5">

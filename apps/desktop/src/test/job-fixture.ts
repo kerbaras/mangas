@@ -24,5 +24,6 @@ export const makeJob = (patch: Partial<DownloadJob> = {}): DownloadJob => ({
   title: null,
   language: "en",
   local_path: null,
+  group: null,
   ...patch,
 });

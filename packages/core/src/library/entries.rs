@@ -87,13 +87,15 @@ fn categories_by_manga(conn: &Connection) -> Result<HashMap<Key, Vec<i64>>> {
     Ok(map)
 }
 
+/// Chapter marks per title, of its saved group only when it is narrowed to one.
 fn marks_by_manga(conn: &Connection) -> Result<HashMap<Key, Vec<ChapterMark>>> {
     let mut stmt = conn.prepare(
         "SELECT c.source, c.manga_id, c.number, c.availability = 'available',
                 c.local_path IS NOT NULL, c.exported_at IS NOT NULL, c.id,
                 c.first_seen_at IS NOT NULL
                   AND c.first_seen_at > COALESCE(m.last_viewed_at, '')
-         FROM chapter c JOIN manga m ON m.source = c.source AND m.id = c.manga_id",
+         FROM chapter c JOIN manga m ON m.source = c.source AND m.id = c.manga_id
+         WHERE m.chapter_group IS NULL OR c.scanlation_group = m.chapter_group",
     )?;
     let rows = stmt.query_map([], |r| {
         let mark = ChapterMark {

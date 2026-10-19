@@ -58,6 +58,7 @@ function seedJob(i: number, now: number): DownloadJob {
     title: null,
     language: "en",
     local_path: state === "done" ? path : null,
+    group: null,
   };
 }
 

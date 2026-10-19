@@ -100,12 +100,14 @@ fn rows(jobs: &[Job]) -> Vec<String> {
     jobs.iter()
         .map(|job| {
             let error = job.error.as_deref().map(|e| format!("  ({e})"));
+            let group = job.group.as_deref().map(|g| format!(" [{g}]"));
             format!(
-                "{:>5}  {:<width$} {:>9}  {}{}",
+                "{:>5}  {:<width$} {:>9}  {}{}{}",
                 job.id,
                 state(job),
                 pages(job),
                 label(job),
+                group.unwrap_or_default(),
                 error.unwrap_or_default()
             )
         })
@@ -180,5 +182,18 @@ mod tests {
         let column = |row: &String| row.find("5/72").unwrap();
         assert_eq!(column(&rows[0]), column(&rows[1]));
         assert!(rows[0].contains("running (stale lease) "));
+    }
+
+    #[test]
+    fn a_row_names_the_group_when_the_title_has_several() {
+        let job = |group: Option<&str>| Job {
+            manga_title: "Knight".into(),
+            number: "4".into(),
+            group: group.map(String::from),
+            ..Default::default()
+        };
+        let lines = rows(&[job(Some("K Manga")), job(None)]);
+        assert!(lines[0].ends_with("Knight ch 4 [K Manga]"), "{lines:?}");
+        assert!(lines[1].ends_with("Knight ch 4"), "{lines:?}");
     }
 }
