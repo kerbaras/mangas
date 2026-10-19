@@ -7,6 +7,7 @@ import type { DetectorSupport } from "@/hooks/use-detector-support";
 import {
   downloadLabel,
   installedLabel,
+  leftoverLabel,
   pendingRemoval,
   progressLabel,
   runtimeFailure,
@@ -41,9 +42,9 @@ export function DetectorSupportActions({ support, manage = false }: Props) {
       </div>
     );
   }
-  const remove = async () => {
+  const remove = async (leftovers = false) => {
     try {
-      const freed = await support.remove();
+      const freed = await (leftovers ? support.removeLeftovers() : support.remove());
       toast.success("Detector support removed", {
         description: `${formatBytes(freed)} freed; download it again here or in the export dialog.`,
       });
@@ -53,10 +54,21 @@ export function DetectorSupportActions({ support, manage = false }: Props) {
   };
   const pending = pendingRemoval(status);
   const notice = pending && <span className="text-caption text-ink-3">{pending}</span>;
+  const leftover = manage && !status.downloaded && !pending && status.diskBytes > 0;
   const removeAgain = manage && pending && (
     <Button size="sm" variant="ghost" onClick={() => void remove()}>
       <Trash2 /> Remove again
     </Button>
+  );
+  const leftovers = leftover && (
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <span className="text-caption text-ink-3 tabular-nums">
+        {leftoverLabel(status.diskBytes)}
+      </span>
+      <Button size="sm" variant="ghost" onClick={() => void remove(true)}>
+        <Trash2 /> Remove
+      </Button>
+    </div>
   );
   const failure = support.failure ?? runtimeFailure(status);
   if (failure)
@@ -69,6 +81,7 @@ export function DetectorSupportActions({ support, manage = false }: Props) {
         />
         {notice}
         {removeAgain && <div>{removeAgain}</div>}
+        {leftovers}
       </div>
     );
   if (!status.downloaded)
@@ -81,6 +94,7 @@ export function DetectorSupportActions({ support, manage = false }: Props) {
           </Button>
           {removeAgain}
         </div>
+        {leftovers}
       </div>
     );
   if (!manage) return null;

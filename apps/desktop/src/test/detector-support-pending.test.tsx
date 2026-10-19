@@ -23,6 +23,7 @@ const pending = (
   download: vi.fn(async () => {}),
   cancel: vi.fn(),
   remove,
+  removeLeftovers: vi.fn(async () => 0),
 });
 
 const notice = /Detector models removed; the runtime \(.+\) is still in use — restart Mangas/;

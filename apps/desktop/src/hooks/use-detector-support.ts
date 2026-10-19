@@ -14,6 +14,7 @@ import {
   detectorsStatus,
   removeDetectors,
 } from "@/lib/ipc.detectors";
+import { clearCache } from "@/lib/ipc.storage";
 import { storageChanged, useStorageChanged } from "@/lib/storage-changed";
 
 export type DetectorSupport = {
@@ -27,6 +28,8 @@ export type DetectorSupport = {
   cancel: () => void;
   /** Resolves to the bytes freed. */
   remove: () => Promise<number>;
+  /** Empties the detector folder, like Storage → Delete detector support; the bytes freed. */
+  removeLeftovers: () => Promise<number>;
 };
 
 /** Detector support status plus the shared download (progress, cancel) and remove. */
@@ -37,14 +40,11 @@ export function useDetectorSupport(): DetectorSupport {
   useAppFocus(reload);
   useStorageChanged(reload);
 
-  const remove = useCallback(async () => {
-    try {
-      return await removeDetectors();
-    } finally {
-      clearFailure();
-      storageChanged();
-    }
-  }, []);
+  const remove = useCallback(() => afterRemove(removeDetectors()), []);
+  const removeLeftovers = useCallback(
+    () => afterRemove(clearCache("models").then((c) => c.bytes)),
+    [],
+  );
 
   return {
     status: status.state,
@@ -54,5 +54,15 @@ export function useDetectorSupport(): DetectorSupport {
     download: startDownload,
     cancel: cancelDownload,
     remove,
+    removeLeftovers,
   };
+}
+
+async function afterRemove(removing: Promise<number>): Promise<number> {
+  try {
+    return await removing;
+  } finally {
+    clearFailure();
+    storageChanged();
+  }
 }
