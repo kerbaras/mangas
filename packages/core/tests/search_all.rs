@@ -1,3 +1,4 @@
+use mangas_core::library::Network;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -81,7 +82,14 @@ async fn failing_providers_get_their_own_group_and_never_sink_the_search() {
         fake("slow", Behaviour::Hang),
     ];
     let started = std::time::Instant::now();
-    let groups = search_all(&sources, "  berserk ", 10, Duration::from_millis(200)).await;
+    let groups = search_all(
+        &sources,
+        "  berserk ",
+        10,
+        Duration::from_millis(200),
+        &Network::Direct,
+    )
+    .await;
     assert!(
         started.elapsed() < Duration::from_secs(5),
         "the timeout bounds the search"
@@ -96,7 +104,10 @@ async fn failing_providers_get_their_own_group_and_never_sink_the_search() {
     assert!(
         matches!(&groups[2].status, ProviderStatus::Unreachable { reason } if reason.contains("HTTP 503"))
     );
-    assert_eq!(groups[3], timed_out("slow", Duration::from_millis(200)));
+    assert_eq!(
+        groups[3],
+        timed_out("slow", Duration::from_millis(200), &Network::Direct)
+    );
     assert_eq!(total(&groups), 2);
     assert!(groups[0].is_ok() && !groups[1].is_ok());
 }
@@ -105,7 +116,14 @@ async fn failing_providers_get_their_own_group_and_never_sink_the_search() {
 async fn sources_run_concurrently_under_one_deadline() {
     let sources = [fake("a", Behaviour::Hang), fake("b", Behaviour::Hang)];
     let started = std::time::Instant::now();
-    let groups = search_all(&sources, "berserk", 10, Duration::from_millis(300)).await;
+    let groups = search_all(
+        &sources,
+        "berserk",
+        10,
+        Duration::from_millis(300),
+        &Network::Direct,
+    )
+    .await;
     assert!(
         started.elapsed() < Duration::from_millis(550),
         "{:?}",
@@ -117,7 +135,14 @@ async fn sources_run_concurrently_under_one_deadline() {
 #[tokio::test]
 async fn an_empty_query_sends_nothing() {
     let sources = [fake("down", Behaviour::Fail)];
-    let groups = search_all(&sources, "   ", 10, Duration::from_secs(1)).await;
+    let groups = search_all(
+        &sources,
+        "   ",
+        10,
+        Duration::from_secs(1),
+        &Network::Direct,
+    )
+    .await;
     assert_eq!(groups, [group("down", Ok(Vec::new()))]);
 }
 

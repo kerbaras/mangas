@@ -30,6 +30,12 @@ fn show_marks_defaults_and_json_holds_only_changes() {
         shown.contains("proxy                 system (default)"),
         "{shown}"
     );
+    for row in shown.lines() {
+        assert!(
+            row.ends_with("default)"),
+            "a fresh library shows every row at its default: {row}"
+        );
+    }
     assert_eq!(
         stdout(&mangas(home.path(), &["settings", "show", "--json"])),
         "{}\n"

@@ -8,6 +8,7 @@ use super::cache::{ensure_model, is_downloaded, model_path, part_path};
 use super::lease::{self, Lease, Purpose};
 use super::{runtime, status, Status, ENABLED, MODELS};
 use crate::domain::{Error, Result};
+use crate::library::Network;
 
 /// Progress item name of the runtime download (models report their id).
 pub const RUNTIME_ITEM: &str = "onnxruntime";
@@ -20,10 +21,11 @@ pub(super) fn not_built() -> Error {
 /// `on_progress` gets (item, bytes so far, total if known).
 pub async fn download(
     models_dir: &Path,
+    network: &Network,
     on_progress: &mut (dyn FnMut(&str, u64, Option<u64>) + Send),
     cancel: &AtomicBool,
 ) -> Result<Status> {
-    ensure_all(models_dir, on_progress, cancel).await?;
+    ensure_all(models_dir, network, on_progress, cancel).await?;
     Ok(status(models_dir))
 }
 
@@ -31,6 +33,7 @@ pub async fn download(
 /// until the models are loaded.
 pub(super) async fn ensure_all(
     models_dir: &Path,
+    network: &Network,
     on_progress: &mut (dyn FnMut(&str, u64, Option<u64>) + Send),
     cancel: &AtomicBool,
 ) -> Result<(Vec<PathBuf>, Lease)> {
@@ -46,11 +49,11 @@ pub(super) async fn ensure_all(
         lease::share(models_dir)?
     };
     let mut on_runtime = |done, total| on_progress(RUNTIME_ITEM, done, total);
-    runtime::ensure(models_dir, &spec, &mut on_runtime, cancel).await?;
+    runtime::ensure(models_dir, &spec, network, &mut on_runtime, cancel).await?;
     let mut paths = Vec::new();
     for model in &MODELS {
         let mut on_model = |done, total| on_progress(model.id, done, total);
-        paths.push(ensure_model(models_dir, model, &mut on_model, cancel).await?);
+        paths.push(ensure_model(models_dir, model, network, &mut on_model, cancel).await?);
     }
     #[cfg(feature = "ml")]
     runtime::ensure_loaded(models_dir)?;

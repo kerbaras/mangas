@@ -9,6 +9,7 @@ use sha2::{Digest, Sha256};
 use super::fetch::fetch;
 use super::ModelSpec;
 use crate::domain::{Error, Result};
+use crate::library::Network;
 
 pub fn model_path(cache_dir: &Path, spec: &ModelSpec) -> PathBuf {
     cache_dir.join(format!("{}.onnx", spec.id))
@@ -45,6 +46,7 @@ fn verify(spec: &ModelSpec, bytes: &[u8]) -> Result<()> {
 pub async fn ensure_model(
     cache_dir: &Path,
     spec: &ModelSpec,
+    network: &Network,
     on_progress: &mut (dyn FnMut(u64, Option<u64>) + Send),
     cancel: &AtomicBool,
 ) -> Result<PathBuf> {
@@ -60,7 +62,7 @@ pub async fn ensure_model(
         std::fs::remove_file(&path)?;
     }
     std::fs::create_dir_all(cache_dir)?;
-    let bytes = fetch(spec.url, on_progress, cancel).await?;
+    let bytes = fetch(spec.url, network, on_progress, cancel).await?;
     verify(spec, &bytes)?;
     let tmp = part_path(&path);
     std::fs::write(&tmp, &bytes)?;

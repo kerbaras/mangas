@@ -111,10 +111,11 @@ fn execution_provider_name() -> Option<String> {
 #[cfg(feature = "ml")]
 pub async fn row_penalizer(
     cache_dir: &Path,
+    network: &crate::library::Network,
     on_progress: &mut (dyn FnMut(&str, u64, Option<u64>) + Send),
 ) -> Result<RowPenalizer> {
     let never = std::sync::atomic::AtomicBool::new(false);
-    let (paths, _lease) = support::ensure_all(cache_dir, on_progress, &never).await?;
+    let (paths, _lease) = support::ensure_all(cache_dir, network, on_progress, &never).await?;
     let detectors = Detectors::load(&paths[0], &paths[1])?;
     Ok(std::sync::Arc::new(move |img| detectors.row_penalties(img)))
 }
@@ -122,6 +123,7 @@ pub async fn row_penalizer(
 #[cfg(not(feature = "ml"))]
 pub async fn row_penalizer(
     _cache_dir: &Path,
+    _network: &crate::library::Network,
     _on_progress: &mut (dyn FnMut(&str, u64, Option<u64>) + Send),
 ) -> Result<RowPenalizer> {
     Err(support::not_built())
@@ -139,9 +141,10 @@ pub struct Penalizer {
 /// without `ml`) turns the detectors off instead of stopping the export or preview.
 pub async fn penalizer_or_reason(
     cache_dir: &Path,
+    network: &crate::library::Network,
     on_progress: &mut (dyn FnMut(&str, u64, Option<u64>) + Send),
 ) -> Penalizer {
-    match row_penalizer(cache_dir, on_progress).await {
+    match row_penalizer(cache_dir, network, on_progress).await {
         Ok(p) => Penalizer {
             penalizer: Some(p),
             error: None,

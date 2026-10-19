@@ -37,7 +37,7 @@ pub async fn search_enabled(
             Err(e) => failed.push(group(info.id, Err(e))),
         }
     }
-    let mut groups = search_all(&built, query, limit, SEARCH_TIMEOUT).await;
+    let mut groups = search_all(&built, query, limit, SEARCH_TIMEOUT, &settings.network()).await;
     groups.extend(failed);
     let ids: Vec<&str> = infos.iter().map(|p| p.id).collect();
     in_order(groups, &ids)

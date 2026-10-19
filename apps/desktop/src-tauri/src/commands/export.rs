@@ -135,7 +135,8 @@ pub(super) async fn penalizer(app: &AppHandle, detectors: bool) -> Result<ml::Pe
         let id = id.to_string();
         emit(app, ExportEvent::ModelDownload { id, done, total });
     };
-    Ok(ml::penalizer_or_reason(&cache, &mut on_progress).await)
+    let network = settings_of(&open_library()?)?.network();
+    Ok(ml::penalizer_or_reason(&cache, &network, &mut on_progress).await)
 }
 
 /// Marks the chapters exported and adds the book to the export history. The file is written

@@ -18,3 +18,25 @@ export function applyTheme(theme: Theme, root: HTMLElement = document.documentEl
   media?.addEventListener("change", apply);
   return () => media?.removeEventListener("change", apply);
 }
+
+/** Where the last applied theme is kept for `public/theme-boot.js` to apply before first paint. */
+export const THEME_KEY = "mangas.theme";
+
+const THEMES: readonly Theme[] = ["light", "dark", "system"];
+
+export function rememberTheme(theme: Theme) {
+  try {
+    window.localStorage.setItem(THEME_KEY, theme);
+  } catch {
+    // Storage off: the next cold start follows the OS until the settings load.
+  }
+}
+
+export function rememberedTheme(): Theme | undefined {
+  try {
+    const kept = window.localStorage.getItem(THEME_KEY);
+    return THEMES.find((t) => t === kept);
+  } catch {
+    return undefined;
+  }
+}

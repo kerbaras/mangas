@@ -1,7 +1,7 @@
 //! `mangas settings show`: every preference the app and the CLI share, defaults marked.
 
 use clap::Args as ClapArgs;
-use mangas_core::library::{self, Network, Settings, Theme};
+use mangas_core::library::{self, Network, Settings, Theme, DEFAULT_UPDATE_HOURS};
 
 use crate::output::outln;
 use crate::paths;
@@ -72,12 +72,21 @@ fn lines(s: &Settings) -> Vec<(&'static str, String)> {
         .and_then(|o| o.get("content_ratings").cloned())
         .and_then(|r| serde_json::from_value::<Vec<String>>(r).ok())
         .map_or("-".into(), |r| r.join(","));
+    let rated = s
+        .provider_options
+        .get("mangadex")
+        .is_some_and(|o| o.get("content_ratings").is_some());
+    let ratings = if rated {
+        format!("{ratings} (mangadex)")
+    } else {
+        format!("{ratings} (mangadex, default)")
+    };
     let languages = if s.preferred_languages.is_empty() {
         format!("{} (default)", s.languages().join(","))
     } else {
         s.languages().join(",")
     };
-    let hours = match s.update_hours() {
+    let hours = |h: u32| match h {
         0 => "off".to_string(),
         h => format!("every {h} h"),
     };
@@ -88,7 +97,7 @@ fn lines(s: &Settings) -> Vec<(&'static str, String)> {
             or_default(s.download_concurrency, |_| s.concurrency().to_string(), "4"),
         ),
         ("languages", languages),
-        ("content rating", format!("{ratings} (mangadex)")),
+        ("content rating", ratings),
         ("proxy", proxy(s)),
         (
             "data folder",
@@ -108,10 +117,16 @@ fn lines(s: &Settings) -> Vec<(&'static str, String)> {
         ),
         (
             "smart cut preset",
-            or_default(s.default_preset, |p| format!("{p:?}"), "balanced"),
+            or_default(s.default_preset, kebab, "balanced"),
         ),
-        ("update checks", hours),
-        ("notifications", on_off(s.notify_updates())),
+        (
+            "update checks",
+            or_default(s.update_check_hours, hours, &hours(DEFAULT_UPDATE_HOURS)),
+        ),
+        (
+            "notifications",
+            or_default(s.update_notifications, on_off, "on"),
+        ),
         ("kindle email", or_dash(&s.kindle_email.to)),
     ]
 }
@@ -134,9 +149,33 @@ fn on_off(on: bool) -> String {
 }
 
 fn or_dash(value: &str) -> String {
-    if value.is_empty() { "-" } else { value }.to_string()
+    if value.is_empty() {
+        "- (default)"
+    } else {
+        value
+    }
+    .to_string()
+}
+
+/// How the CLI flags spell `value` (its serde name, e.g. `fewest-cuts`).
+fn kebab(value: impl serde::Serialize) -> String {
+    serde_json::to_value(value)
+        .ok()
+        .and_then(|v| v.as_str().map(String::from))
+        .unwrap_or_default()
 }
 
 fn or_dash_opt(value: Option<String>) -> String {
     value.unwrap_or_else(|| "-".into())
+}
+
+#[cfg(test)]
+mod tests {
+    use mangas_core::smartcut::Preset;
+
+    #[test]
+    fn presets_read_as_the_cli_flag_spells_them() {
+        assert_eq!(super::kebab(Preset::FewestCuts), "fewest-cuts");
+        assert_eq!(super::kebab(Preset::NoShrink), "no-shrink");
+    }
 }

@@ -5,6 +5,7 @@ use std::sync::atomic::AtomicBool;
 
 use super::{lib_path, root, state, RuntimeSpec};
 use crate::domain::{Error, Result};
+use crate::library::Network;
 use crate::ml::cache::sha256_hex;
 use crate::ml::fetch::{fetch, is_cancelled};
 
@@ -24,10 +25,11 @@ pub fn check(bytes: &[u8], want: &str, what: &str) -> Result<()> {
 pub async fn ensure(
     models_dir: &Path,
     spec: &RuntimeSpec,
+    network: &Network,
     on_progress: &mut (dyn FnMut(u64, Option<u64>) + Send),
     cancel: &AtomicBool,
 ) -> Result<PathBuf> {
-    let result = install(models_dir, spec, on_progress, cancel).await;
+    let result = install(models_dir, spec, network, on_progress, cancel).await;
     match &result {
         Ok(_) => state::clear(),
         Err(e) if !is_cancelled(e) => state::record(models_dir, e.to_string()),
@@ -39,6 +41,7 @@ pub async fn ensure(
 async fn install(
     models_dir: &Path,
     spec: &RuntimeSpec,
+    network: &Network,
     on_progress: &mut (dyn FnMut(u64, Option<u64>) + Send),
     cancel: &AtomicBool,
 ) -> Result<PathBuf> {
@@ -46,7 +49,7 @@ async fn install(
     if path.is_file() && check(&std::fs::read(&path)?, spec.lib_sha256, "").is_ok() {
         return Ok(path);
     }
-    let archive = fetch(spec.url, on_progress, cancel).await?;
+    let archive = fetch(spec.url, network, on_progress, cancel).await?;
     check(&archive, spec.sha256, "ONNX Runtime archive")?;
     let lib = super::extract_member(&archive, spec.archive, spec.member)?;
     check(&lib, spec.lib_sha256, "ONNX Runtime library")?;

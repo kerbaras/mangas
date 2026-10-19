@@ -9,7 +9,7 @@ use mangas_core::ml;
 use tauri::{AppHandle, Emitter};
 
 use super::export::models_dir;
-use super::to_ipc;
+use super::{open_library, settings_of, to_ipc};
 
 /// Download progress: `{ item, done, total }` in bytes, `item` is "onnxruntime" or a model id.
 pub const DETECTORS_EVENT: &str = "detectors://download";
@@ -102,7 +102,8 @@ async fn download(app: &AppHandle) -> Result<ml::Status, String> {
             }
         }
     };
-    ml::download(&dir, &mut on_progress, &CANCEL)
+    let network = settings_of(&open_library()?)?.network();
+    ml::download(&dir, &network, &mut on_progress, &CANCEL)
         .await
         .map_err(to_ipc)
 }
@@ -158,7 +159,7 @@ mod tests {
         let busy = claim(Holder::Download).expect("free after the move");
         let run = tokio::spawn(async move {
             let mut ignore = |_, _| {};
-            ml::fetch::fetch(&url, &mut ignore, &CANCEL).await
+            ml::fetch::fetch(&url, &Default::default(), &mut ignore, &CANCEL).await
         });
         cancel_detectors_download();
         let err = tokio::time::timeout(Duration::from_secs(5), run)
