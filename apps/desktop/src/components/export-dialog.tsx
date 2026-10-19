@@ -107,7 +107,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   ].join("|");
   useClearOnChange(choice, busy, clearResult);
   const keepFailed = useCallback(() => !failed && clearResult(), [failed, clearResult]);
-  useClearOnChange(via, busy, keepFailed);
+  useClearOnChange(via, busy, keepFailed, true);
 
   const run = async () => {
     send.reset();
