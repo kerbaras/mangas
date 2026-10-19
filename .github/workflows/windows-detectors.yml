@@ -50,19 +50,30 @@ jobs:
           $ErrorActionPreference = "Stop"
           $exe = (Resolve-Path "target/$env:TARGET/release/mangas.exe").Path
           $models = Join-Path $env:APPDATA "kerbaras\mangas\data\models"
+          # Like the app: start the GUI-subsystem exe with stdout/stderr redirected to handles
+          # (STARTF_USESTDHANDLES), wait for it, read stdout as the shared Status JSON.
+          function Status($exe, $models) {
+            $out = Join-Path $env:RUNNER_TEMP "status.json"
+            $err = Join-Path $env:RUNNER_TEMP "status.err"
+            $p = Start-Process -FilePath $exe -NoNewWindow -Wait -PassThru `
+              -ArgumentList @("ml", "status", "--json", "--models-dir", "`"$models`"") `
+              -RedirectStandardOutput $out -RedirectStandardError $err
+            Get-Content $err | Out-Host
+            if ($p.ExitCode) { throw "ml status --json exited $($p.ExitCode)" }
+            $raw = Get-Content $out -Raw
+            Write-Host "ml status --json --models-dir $models"
+            Write-Host $raw
+            $raw | ConvertFrom-Json
+          }
           & $exe ml download | Out-Host; if ($LASTEXITCODE) { throw "ml download failed" }
           $dll = Get-ChildItem $models -Recurse -Filter onnxruntime.dll | Select-Object -First 1
           if (-not $dll) { throw "no onnxruntime.dll under $models" }
           Write-Host "runtime: $($dll.FullName)"
-          $raw = & $exe ml status --json --models-dir $models
-          if ($LASTEXITCODE) { throw "ml status --json failed" }
-          Write-Host $raw
-          $status = $raw | Out-String | ConvertFrom-Json
+          $status = Status $exe $models
           if (-not $status.downloaded) { throw "status after install is not downloaded" }
           & $exe ml remove | Out-Host; if ($LASTEXITCODE) { throw "ml remove failed" }
           if (Test-Path $dll.FullName) { throw "DLL still there: $($dll.FullName)" }
-          $after = & $exe ml status --json --models-dir $models | Out-String | ConvertFrom-Json
-          Write-Host ($after | ConvertTo-Json -Depth 5)
+          $after = Status $exe $models
           if ($after.downloaded) { throw "still downloaded after remove" }
           Write-Host "DLL gone after remove"
       - name: One process - child status check on the release binary, then Remove, no restart
