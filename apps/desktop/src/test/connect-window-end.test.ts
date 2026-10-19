@@ -70,3 +70,21 @@ describe("connectAndWait", () => {
     await expect(connectAndWait("comick", 50)).resolves.toBe("timed_out");
   });
 });
+
+describe("connectAndWait after the window closed", () => {
+  it("stops polling: no settings read once the wait is over", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      backend({ kind: "closed" });
+      await expect(connectAndWait("comick")).resolves.toBe("cancelled");
+      const reads = vi.fn(async () => {
+        throw new Error("settings unreadable");
+      });
+      setBackend({ getSettings: reads } as unknown as Backend);
+      await vi.advanceTimersByTimeAsync(5000); // vitest fails the run on an unhandled rejection
+      expect(reads).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

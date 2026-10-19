@@ -22,6 +22,7 @@ export async function waitForSession(
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline && !signal?.aborted) {
     await sleep(POLL_MS);
+    if (signal?.aborted) break;
     if (await isFresh(id, previous)) return true;
   }
   return false;
@@ -59,6 +60,8 @@ export async function connectAndWait(id: string, timeoutMs = TIMEOUT_MS): Promis
     const polled = waitForSession(id, previous, timeoutMs, stop.signal).then(
       (ok): ConnectOutcome => (ok ? "connected" : "timed_out"),
     );
+    polled.catch(() => {}); // a read failing after the window closed is nobody's to report
+
     return await Promise.race([polled, ended]);
   } finally {
     stop.abort();
