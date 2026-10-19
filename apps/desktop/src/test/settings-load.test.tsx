@@ -1,7 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { toast } from "sonner";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { SettingsGroup } from "@/components/settings-group";
 import { type Backend, setBackend } from "@/lib/ipc";
 import { mockBackend } from "@/lib/ipc.mock";
+import { notifyError } from "@/lib/notify";
 import {
   loadSettings,
   readSettings,
@@ -10,6 +13,15 @@ import {
   writeSettings,
 } from "@/lib/settings";
 import { SettingsScreen } from "@/screens/settings";
+
+vi.mock("@/lib/notify", async (actual) => ({
+  ...(await actual<typeof import("@/lib/notify")>()),
+  notifyError: vi.fn(),
+}));
+vi.mock("sonner", async (actual) => {
+  const real = await actual<typeof import("sonner")>();
+  return { ...real, toast: Object.assign(real.toast, { success: vi.fn() }) };
+});
 
 function backend(getSettings: Backend["getSettings"]) {
   const setSettings = vi.fn(async () => {});
@@ -55,6 +67,30 @@ describe("settings load", () => {
     await expect(saveSettings({ defaultDevice: "kindle-scribe" })).rejects.toThrow(
       "settings: key must be a string at line 1 column 2",
     );
+    expect(setSettings).not.toHaveBeenCalled();
+  });
+
+  it("changes nothing after a failed load, and Reset to defaults says it didn't save", async () => {
+    const error = "settings: key must be a string at line 1 column 2";
+    const setSettings = backend(async () => {
+      throw error;
+    });
+    await loadSettings();
+    const before = readSettings();
+    expect(await writeSettings({ defaultDevice: "kindle-scribe" })).toBe(false);
+    expect(readSettings()).toBe(before);
+    render(
+      <SettingsGroup title="Export" resets={["defaultDevice"]}>
+        <span />
+      </SettingsGroup>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /reset to defaults/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+    await waitFor(() =>
+      expect(notifyError).toHaveBeenCalledWith("Couldn't reset export settings", error),
+    );
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(readSettings()).toBe(before);
     expect(setSettings).not.toHaveBeenCalled();
   });
 
