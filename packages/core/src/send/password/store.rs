@@ -32,7 +32,7 @@ pub fn system_store() -> Box<dyn SecretStore> {
     });
     if off {
         Box::new(MemoryStore::unavailable(&format!(
-            "turned off by {KEYCHAIN_ENV}"
+            "system keychain turned off by {KEYCHAIN_ENV}"
         )))
     } else {
         Box::new(Keychain)

@@ -46,6 +46,14 @@ function usePasswordStorage(saved: string): PasswordStorage | null {
   return storage;
 }
 
+/** Where the saved password is, or that there is none. */
+function passwordHint(saved: boolean, storage: PasswordStorage | null): string | undefined {
+  if (!saved) return "No password saved.";
+  if (storage === "keychain") return "Kept in your system keychain.";
+  if (storage === "file") return "Kept in the app settings (no system keychain).";
+  return undefined;
+}
+
 /** Send to Kindle email: edited as a draft, saved with "Save", testable before saving. */
 export function EmailSettingsForm() {
   const [settings, update] = useSettings();
@@ -132,7 +140,7 @@ export function EmailSettingsForm() {
         <Field
           label="Password"
           htmlFor="smtp-password"
-          hint={storage === "keychain" ? "Kept in your system keychain." : undefined}
+          hint={passwordHint(settings.kindleEmail.password !== "", storage)}
         >
           {text("password", "smtp-password", { type: "password", autoComplete: "off" })}
         </Field>

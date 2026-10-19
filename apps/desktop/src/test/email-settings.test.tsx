@@ -10,6 +10,8 @@ afterEach(() => {
   writeSettings({ kindleEmail: EMPTY_EMAIL });
 });
 
+const WITH_PASSWORD = { ...EMPTY_EMAIL, username: "me", password: "app-password" };
+
 const type = (label: string, value: string) =>
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
@@ -17,6 +19,7 @@ describe("email settings", () => {
   it("says the password is in the keychain when there is one", async () => {
     const emailPasswordStorage = vi.fn(async () => "keychain");
     setBackend({ emailPasswordStorage } as unknown as Backend);
+    writeSettings({ kindleEmail: WITH_PASSWORD });
     render(<EmailSettingsForm />);
     expect(await screen.findByText("Kept in your system keychain.")).toBeTruthy();
     expect(screen.queryByText(/stored unencrypted/)).toBeNull();
@@ -26,10 +29,23 @@ describe("email settings", () => {
   it("warns that the password is stored unencrypted without a keychain", async () => {
     const emailPasswordStorage = vi.fn(async () => "file");
     setBackend({ emailPasswordStorage } as unknown as Backend);
+    writeSettings({ kindleEmail: WITH_PASSWORD });
     render(<EmailSettingsForm />);
     expect(
       await screen.findByText("No system keychain: the password is stored unencrypted"),
     ).toBeTruthy();
+    expect(screen.getByText("Kept in the app settings (no system keychain).")).toBeTruthy();
+    expect(screen.queryByText("Kept in your system keychain.")).toBeNull();
+  });
+
+  it("says no password is saved once it is cleared", async () => {
+    const emailPasswordStorage = vi.fn(async () => "keychain");
+    setBackend({ emailPasswordStorage } as unknown as Backend);
+    writeSettings({ kindleEmail: WITH_PASSWORD });
+    render(<EmailSettingsForm />);
+    expect(await screen.findByText("Kept in your system keychain.")).toBeTruthy();
+    act(() => writeSettings({ kindleEmail: EMPTY_EMAIL }));
+    expect(await screen.findByText("No password saved.")).toBeTruthy();
     expect(screen.queryByText("Kept in your system keychain.")).toBeNull();
   });
 

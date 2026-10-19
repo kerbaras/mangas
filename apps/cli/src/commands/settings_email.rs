@@ -65,14 +65,19 @@ pub fn run(args: EmailArgs) -> anyhow::Result<()> {
     if settings != before {
         let saved = password::save_settings(&lib, &*store, Some(&before), &settings)?;
         if let Some(why) = saved.fallback {
-            eprintln!(
-                "warning: no system keychain ({why}); the SMTP password is stored unencrypted in \
-                 the app settings"
-            );
+            warn_unencrypted(&why);
         }
         settings = saved.settings;
     }
     print(&settings.kindle_email, password::storage(&lib, &*store)?)
+}
+
+/// Says once per run that the password sits unencrypted in the app settings, and why.
+pub fn warn_unencrypted(why: &str) {
+    static SAID: std::sync::Once = std::sync::Once::new();
+    SAID.call_once(|| {
+        eprintln!("warning: the SMTP password is stored unencrypted in the app settings ({why})");
+    });
 }
 
 fn apply(e: &mut EmailSettings, args: EmailArgs, password: Option<String>) {

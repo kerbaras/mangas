@@ -64,7 +64,10 @@ fn settings_email_saves_and_masks_the_password() {
     assert!(!shown.contains("not-a-real-password"), "{shown}");
     let warning = text(&out.stderr);
     assert!(
-        warning.contains("no system keychain (turned off by MANGAS_KEYCHAIN)"),
+        warning.contains(
+            "the SMTP password is stored unencrypted in the app settings \
+             (system keychain turned off by MANGAS_KEYCHAIN)"
+        ),
         "{warning}"
     );
     let again = text(&mangas(home.path(), &["settings", "email"], "").stdout);
