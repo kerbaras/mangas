@@ -6,6 +6,7 @@ use std::time::Instant;
 use anyhow::bail;
 use clap::Args as ClapArgs;
 use mangas_core::export::kindle::{export, BookMeta, ExportRequest};
+use mangas_core::export::target::{book_path, is_folder};
 use mangas_core::export::{ExportPreset, Format, PROFILES};
 use mangas_core::library;
 
@@ -31,7 +32,8 @@ pub struct Args {
     /// parent name)
     #[arg(long)]
     pub title: Option<String>,
-    /// Output file [default: out.<format>]
+    /// Output file, or a folder (existing, or ending in a separator) to write the book into
+    /// under its title [default: out.<format>]
     #[arg(long, short)]
     pub output: Option<PathBuf>,
     /// Write over the output file if it exists instead of next to it as "out (2)"
@@ -101,16 +103,21 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let (labels, series, chapter_titles, saved) = from_library(&args.chapters);
     let preset = ExportPreset::resolve(&explicit, saved.as_ref(), &ExportPreset::default());
     let dev = CutArgs::device_of(&preset, DEFAULT_PROFILE)?;
+    let file = args.output.as_deref().filter(|o| !is_folder(o));
     let picked = legacy_format(
         args.format.map(Format::from),
-        args.output.as_deref(),
+        file,
         saved.as_ref().and_then(|p| p.format),
     );
-    let format = Format::resolve(Some(picked), args.output.as_deref(), None, &dev)?;
-    let output = args
-        .output
+    let format = Format::resolve(Some(picked), file, None, &dev)?;
+    let title = args
+        .title
         .clone()
-        .unwrap_or_else(|| PathBuf::from(format!("out.{format}")));
+        .unwrap_or_else(|| default_title(series.as_deref(), &args.chapters));
+    let output = match &args.output {
+        Some(o) => book_path(o, &title, format),
+        None => PathBuf::from(format!("out.{format}")),
+    };
     note_series_preset(saved.as_ref());
     let penalizer = args.cut.penalizer().await?;
     let req = ExportRequest {
@@ -119,10 +126,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         format,
         cut: preset.cut(),
         page: preset.page(),
-        title: args
-            .title
-            .clone()
-            .unwrap_or_else(|| default_title(series.as_deref(), &args.chapters)),
+        title,
         title_explicit: args.title.is_some(),
         output: output.clone(),
         replace: args.replace,
