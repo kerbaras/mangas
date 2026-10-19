@@ -9,6 +9,7 @@ import { useAsync } from "@/hooks/use-async";
 import { useDebounced } from "@/hooks/use-debounced";
 import { useLibrary } from "@/hooks/use-library";
 import { useMultiSearch } from "@/hooks/use-multi-search";
+import { useScrollMemory } from "@/hooks/use-scroll-memory";
 import { mangaKey } from "@/lib/format";
 import { listProviders, type Manga } from "@/lib/ipc";
 import { useNavigation } from "@/lib/navigation";
@@ -39,6 +40,7 @@ export function SearchScreen() {
     setStored(id);
   };
   const [busy, setBusy] = useState<string | null>(null);
+  const pane = useScrollMemory<HTMLDivElement>(`search|${debounced.trim()}`);
 
   const followed = new Set(library.kind === "ready" ? library.data.map(mangaKey) : []);
   const onFollow = async (m: Manga) => {
@@ -78,7 +80,10 @@ export function SearchScreen() {
           />
         </div>
       </div>
-      <div className="relative min-h-0 flex-1 overflow-auto overscroll-contain px-4 py-3">
+      <div
+        ref={pane}
+        className="relative min-h-0 flex-1 overflow-auto overscroll-contain px-4 py-3"
+      >
         <div className="mx-auto max-w-2xl">
           {noneEnabled && (
             <EmptyState
