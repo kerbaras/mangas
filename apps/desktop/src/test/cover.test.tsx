@@ -95,4 +95,13 @@ describe("Cover", () => {
     expect(coverSrc).not.toHaveBeenCalled();
     expect(placeholder()).toBeInTheDocument();
   });
+
+  it("keeps a long title inside the box: one column, ellipsised", () => {
+    useBackend(async () => null);
+    const title = "A".repeat(120);
+    render(<Cover manga={{ ...manga, title, cover_url: null }} />);
+    const p = placeholder();
+    expect(p).toHaveTextContent(title);
+    expect(p).toHaveClass("absolute", "inset-0", "truncate", "[writing-mode:vertical-rl]");
+  });
 });

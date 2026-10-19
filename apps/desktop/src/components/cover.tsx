@@ -7,6 +7,7 @@ type Props = { manga: Manga; className?: string };
 /**
  * 2:3 cover. The title, set like a spine, holds the box until the image has loaded and stays
  * when there is no image or it fails, so a cover never shows as broken or shifts the layout.
+ * One column, ellipsised at the bottom: a long title stays inside the box instead of clipping.
  */
 export function Cover({ manga, className }: Props) {
   const { src, loaded, onLoad, onError } = useCover(manga);
@@ -20,7 +21,7 @@ export function Cover({ manga, className }: Props) {
       {!loaded && (
         <p
           data-testid="cover-placeholder"
-          className="p-2 text-caption font-medium text-ink-3 [writing-mode:vertical-rl]"
+          className="absolute inset-0 truncate p-2 text-caption font-medium text-ink-3 [writing-mode:vertical-rl]"
         >
           {manga.title}
         </p>
