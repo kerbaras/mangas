@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use mangas_core::export::kindle::ExportStats;
 use mangas_core::library::{self, Library};
 
-use super::deliver::{deliver, SendArg};
+use super::deliver::{deliver, not_sent, SendArg};
 use crate::{paths, Exit};
 
 /// Records the book `stats` describes, made from the chapter folders `dirs`, in the library, then sends it when `to` says how (and to
@@ -19,13 +19,14 @@ pub async fn record_and_send(
     device: &str,
     to: Option<(SendArg, Option<&Path>)>,
 ) -> anyhow::Result<Option<String>> {
-    let not_sent = |e: anyhow::Error| -> anyhow::Error {
-        let message = format!("{} was written but not sent: {e:#}", stats.output.display());
+    let unsent = |e: anyhow::Error| -> anyhow::Error {
+        let (via, kindle) = to.unwrap_or((SendArg::Email, None));
+        let message = not_sent(&stats.output, via, kindle, &e);
         Exit { code: 2, message }.into()
     };
     let lib = match paths::library_db().and_then(|db| Ok(library::open(&db)?)) {
         Ok(lib) => lib,
-        Err(e) if to.is_some() => return Err(not_sent(e)),
+        Err(e) if to.is_some() => return Err(unsent(e)),
         Err(e) => {
             eprintln!("warning: could not open the library: {e}");
             return Ok(None);
@@ -40,7 +41,7 @@ pub async fn record_and_send(
     deliver(&lib, &file, title, via, kindle)
         .await
         .map(Some)
-        .map_err(not_sent)
+        .map_err(unsent)
 }
 
 /// Library chapters among `dirs` count as read from now on; folders from elsewhere are ignored.

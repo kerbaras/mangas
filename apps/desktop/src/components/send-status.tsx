@@ -2,11 +2,22 @@ import { RefreshCw, Usb } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import type { SendState } from "@/hooks/use-send";
+import type { SendState, Via } from "@/hooks/use-send";
 import { megabytes } from "@/lib/send-labels";
 
-/** Where a delivery is: looking, copying with progress, Device not found + Retry, done, failed. */
-export function SendStatus({ state, onRetry }: { state: SendState; onRetry: () => void }) {
+type Props = {
+  state: SendState;
+  /** The delivery picked now: a failure of another one is no longer what Retry does. */
+  via?: Via | "save";
+  onRetry?: () => void;
+};
+
+/** Where a delivery is: looking, copying with progress, Device not found or failed (+ Retry when given), done. */
+export function SendStatus({ state, via, onRetry }: Props) {
+  const failed = failedVia(state);
+  if (via !== undefined && failed !== undefined && failed !== via) {
+    return state.kind === "error" && state.sent ? <Sent lines={state.sent} /> : null;
+  }
   switch (state.kind) {
     case "idle":
       return null;
@@ -35,9 +46,11 @@ export function SendStatus({ state, onRetry }: { state: SendState; onRetry: () =
           <AlertTitle>Device not found</AlertTitle>
           <AlertDescription>
             Connect your Kindle with a USB cable and unlock it; it shows up as a drive named Kindle.
-            <Button size="sm" onClick={onRetry} className="mt-1">
-              <RefreshCw /> Retry
-            </Button>
+            {onRetry && (
+              <Button size="sm" onClick={onRetry} className="mt-1">
+                <RefreshCw /> Retry
+              </Button>
+            )}
           </AlertDescription>
         </Alert>
       );
@@ -50,16 +63,34 @@ export function SendStatus({ state, onRetry }: { state: SendState; onRetry: () =
     case "error":
       return (
         <>
-          {state.sent && (
-            <p role="status" className="whitespace-pre-line text-caption text-ink-2">
-              {state.sent}
-            </p>
-          )}
+          {state.sent && <Sent lines={state.sent} />}
           <Alert variant="destructive">
             <AlertTitle>{state.via === "email" ? "Email not sent" : "Copy failed"}</AlertTitle>
-            <AlertDescription>{state.message}</AlertDescription>
+            <AlertDescription>
+              {state.message}
+              {onRetry && (
+                <Button size="sm" onClick={onRetry} className="mt-1">
+                  <RefreshCw /> Retry
+                </Button>
+              )}
+            </AlertDescription>
           </Alert>
         </>
       );
   }
+}
+
+/** The delivery a failed `state` was for, or `undefined` when nothing failed. */
+function failedVia(state: SendState): Via | undefined {
+  if (state.kind === "error") return state.via;
+  if (state.kind === "no-device") return "usb";
+  return undefined;
+}
+
+function Sent({ lines }: { lines: string }) {
+  return (
+    <p role="status" className="whitespace-pre-line text-caption text-ink-2">
+      {lines}
+    </p>
+  );
 }

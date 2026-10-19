@@ -18,13 +18,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { VolumePreview } from "@/components/volume-preview";
-import type { Async } from "@/hooks/use-async";
 import { useClearOnChange } from "@/hooks/use-clear-on-change";
 import { useDetectorSupport } from "@/hooks/use-detector-support";
 import { useExport } from "@/hooks/use-export";
 import { useExportPlan } from "@/hooks/use-export-plan";
 import { useFreeNames } from "@/hooks/use-free-names";
-import { type Book, useSend } from "@/hooks/use-send";
+import { type Book, runningVia, useSend } from "@/hooks/use-send";
 import { useSeriesTarget } from "@/hooks/use-series-target";
 import { exportJob } from "@/lib/export-job";
 import type { ExportPick } from "@/lib/export-name";
@@ -33,12 +32,11 @@ import {
   detectorsDefault,
   detectorsUsable,
   exportAction,
+  inFormat,
   initialMode,
   pickSummary,
-  withExtension,
 } from "@/lib/export-plan";
 import type { ExportResult } from "@/lib/ipc";
-import type { VolumePlan } from "@/lib/ipc.volumes";
 import { titleOf } from "@/lib/send-labels";
 
 type Props = {
@@ -74,20 +72,14 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const via = delivery === "email" && emailBlocked ? "save" : delivery;
   const useDetectors =
     detectorsUsable(detectors.status) && (detectorsOn ?? detectorsDefault(detectors.status));
-  const planned: Async<VolumePlan[]> =
-    plans.kind === "ready"
-      ? {
-          kind: "ready",
-          data: plans.data.map((p) => ({
-            ...p,
-            file_name: withExtension(p.file_name, target.format),
-          })),
-        }
-      : plans;
+  const planned = inFormat(plans, target.format);
   const { files, named } = useFreeNames(planned, folder.resolved, runs, target.replace);
   const books = files.kind === "ready" ? files.data.length : 0;
-  const sending = ["looking", "copying", "emailing"].includes(send.state.kind);
-  const busy = job.state.kind === "running" || sending;
+  const sending = runningVia(send.state);
+  const busy = job.state.kind === "running" || sending !== undefined;
+  const failed = written.length > 0 && ["error", "no-device"].includes(send.state.kind);
+  const sendVia = via === "save" ? undefined : via;
+  const resend = failed && sendVia !== undefined;
   const ready =
     fresh &&
     named &&
@@ -100,6 +92,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const clearResult = useCallback(() => {
     resetJob();
     resetSend();
+    setWritten([]);
   }, [resetJob, resetSend]);
   const choice = [
     mode,
@@ -109,11 +102,12 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
     target.format,
     preset,
     useDetectors,
-    via,
     folder.output,
     target.replace,
   ].join("|");
   useClearOnChange(choice, busy, clearResult);
+  const keepFailed = useCallback(() => !failed && clearResult(), [failed, clearResult]);
+  useClearOnChange(via, busy, keepFailed);
 
   const run = async () => {
     send.reset();
@@ -183,15 +177,20 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
           <ExportProgressPanel state={job.state} onReset={job.reset} />
           <SendStatus
             state={send.state}
-            onRetry={() => void send.deliver(written, via === "email" ? "email" : "usb")}
+            via={via}
+            onRetry={sendVia && (() => void send.retry(sendVia))}
           />
         </div>
         <DialogFooter>
           <Button disabled={busy} onClick={() => onOpenChange(false)}>
             {job.state.kind === "done" ? "Close" : "Cancel"}
           </Button>
-          <Button variant="primary" disabled={busy || !ready} onClick={() => void run()}>
-            <Send /> {exportAction(books, via)}
+          <Button
+            variant="primary"
+            disabled={busy || !ready}
+            onClick={() => void (resend ? send.retry(sendVia) : run())}
+          >
+            <Send /> {exportAction(books, via, resend, sending)}
           </Button>
         </DialogFooter>
       </DialogContent>
