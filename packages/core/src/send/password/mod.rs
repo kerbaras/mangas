@@ -6,9 +6,13 @@ mod memo;
 mod resolve;
 mod settings;
 mod store;
+mod view;
 
 pub use resolve::{reads_keychain, test_settings, with_password};
 pub use settings::{email_settings, load_settings, save_settings, storage, Saved, Storage};
 pub use store::{
     retry_keychain, system_store, Keychain, MemoryStore, SecretStore, StoreError, KEYCHAIN_ENV,
+};
+pub use view::{
+    draft_test_settings, has_password, public_settings, redact, save_preferences, set_password,
 };

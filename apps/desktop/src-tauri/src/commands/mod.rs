@@ -18,6 +18,7 @@ mod penalizer;
 mod preview_panels;
 pub mod providers;
 pub mod send;
+pub mod smtp_password;
 pub mod storage;
 pub mod updates;
 pub mod volumes;
@@ -92,22 +93,30 @@ pub fn default_data_dir() -> Result<String, String> {
 /// comes empty, and the email settings ask for it with `send::email_password`.
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
-pub async fn get_settings() -> Result<Settings, String> {
-    blocking(|| settings_of(&open_library()?)).await
+pub async fn get_settings() -> Result<serde_json::Value, String> {
+    blocking(|| {
+        let lib = open_library()?;
+        password::public_settings(&lib, &settings_of(&lib)?).map_err(to_ipc)
+    })
+    .await
 }
 
 /// Preferences edited in the UI on a copy loaded as `base`, saved over whatever another
 /// process stored since (`library::edit_settings`); returns what is stored now. Provider
 /// sessions are owned by `connect_provider` / `disconnect_provider` and never replaced here.
-/// A changed SMTP password goes to the keychain (`password::save_settings`).
+/// The SMTP password is never part of it (`send::set_smtp_password` saves that); both are
+/// returned without it, as `get_settings` does.
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
-pub async fn set_settings(settings: Settings, base: Option<Settings>) -> Result<Settings, String> {
+pub async fn set_settings(
+    settings: Settings,
+    base: Option<Settings>,
+) -> Result<serde_json::Value, String> {
     blocking(move || {
-        let store = password::system_store();
-        password::save_settings(&open_library()?, &*store, base.as_ref(), &settings)
-            .map(|saved| saved.settings)
-            .map_err(to_ipc)
+        let (lib, store) = (open_library()?, password::system_store());
+        let saved =
+            password::save_preferences(&lib, &*store, base.as_ref(), &settings).map_err(to_ipc)?;
+        password::public_settings(&lib, &saved.settings).map_err(to_ipc)
     })
     .await
 }

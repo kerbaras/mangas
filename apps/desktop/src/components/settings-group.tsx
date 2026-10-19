@@ -11,15 +11,19 @@ type Props = {
   resets?: readonly (keyof Settings)[];
   /** What a reset changes, for the confirmation. */
   resetHint?: string;
+  /** What a reset does besides restoring the settings in `resets`; false: it failed (and said
+   * so), so the reset isn't reported as done. */
+  onReset?: () => Promise<boolean>;
   children: ReactNode;
 };
 
 /** One Settings group: title, an optional reset with confirmation, then its fields. */
-export function SettingsGroup({ title, resets = [], resetHint, children }: Props) {
+export function SettingsGroup({ title, resets = [], resetHint, onReset, children }: Props) {
   const [asking, setAsking] = useState(false);
-  const reset = () => {
+  const reset = async () => {
     setAsking(false);
     writeSettings(defaultsOf(resets));
+    if (onReset && !(await onReset())) return;
     toast.success(`${title} settings reset`);
   };
   return (
@@ -38,7 +42,7 @@ export function SettingsGroup({ title, resets = [], resetHint, children }: Props
         title={`Reset ${title.toLowerCase()} settings?`}
         description={resetHint ?? "The settings in this group go back to their defaults."}
         confirm="Reset"
-        onConfirm={reset}
+        onConfirm={() => void reset()}
         onCancel={() => setAsking(false)}
       />
     </section>

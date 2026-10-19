@@ -5,7 +5,10 @@ import { backend } from "./ipc";
 /** Mirrors `mangas_core::send::Security`. */
 export type Security = "starttls" | "tls" | "none";
 
-/** Mirrors `mangas_core::send::EmailSettings`; empty strings mean "not set". */
+/**
+ * Mirrors `mangas_core::send::EmailSettings` as `get_settings` sends it: empty strings mean
+ * "not set", and the password never leaves the backend, only whether one is saved.
+ */
 export type EmailSettings = {
   to: string;
   from: string;
@@ -14,8 +17,11 @@ export type EmailSettings = {
   port: number | null;
   security: Security;
   username: string;
-  password: string;
+  has_password: boolean;
 };
+
+/** The form as edited, for a test email: `password` is what was typed (empty: the saved one). */
+export type EmailDraft = Omit<EmailSettings, "has_password"> & { password: string };
 
 export const EMPTY_EMAIL: EmailSettings = {
   to: "",
@@ -24,13 +30,18 @@ export const EMPTY_EMAIL: EmailSettings = {
   port: null,
   security: "starttls",
   username: "",
-  password: "",
+  has_password: false,
 };
 
 /** Mirrors `mangas_core::send::password::Storage`: where the SMTP password is kept. */
 /** `locked`: a keychain that is locked or won't be read, so the password may be in it. */
 export type PasswordStorage = "keychain" | "file" | "locked";
-export type EmailPassword = { password: string; storage: PasswordStorage };
+/** Whether a password is saved and where; `fallback`: why a new one went to the settings file. */
+export type PasswordStatus = {
+  has_password: boolean;
+  storage: PasswordStorage;
+  fallback: string | null;
+};
 
 export const DEFAULT_PORT: Record<Security, number> = { starttls: 587, tls: 465, none: 25 };
 
@@ -69,12 +80,14 @@ export type SendBackend = {
    * Sends a test message with `settings` (saved or not); resolves to the address it went to.
    * Unless a new password was `typed`, the saved one is used, which may prompt to unlock.
    */
-  sendTestEmail(settings: EmailSettings, typed: boolean): Promise<string>;
+  sendTestEmail(settings: EmailDraft, typed: boolean): Promise<string>;
   /**
-   * The saved password and where it is kept. May bring up the keychain's unlock prompt, so
-   * only for something the user did; `retry` prompts again after a dismissed one.
+   * Whether a password is saved and where. May bring up the keychain's unlock prompt, so only
+   * for something the user did; `retry` prompts again after a dismissed one.
    */
-  emailPassword(retry: boolean): Promise<EmailPassword>;
+  smtpPasswordStatus(retry: boolean): Promise<PasswordStatus>;
+  /** Saves the SMTP password (empty: clears it); it is never sent back. */
+  setSmtpPassword(password: string): Promise<PasswordStatus>;
   listExports(limit: number): Promise<ExportRecord[]>;
 };
 
@@ -85,7 +98,10 @@ export const onCopyProgress = async (cb: (p: CopyProgress) => void) =>
   (await backend()).onCopyProgress(cb);
 export const sendEmail = async (file: string, title: string) =>
   (await backend()).sendEmail(file, title);
-export const sendTestEmail = async (s: EmailSettings, typed: boolean) =>
+export const sendTestEmail = async (s: EmailDraft, typed: boolean) =>
   (await backend()).sendTestEmail(s, typed);
-export const emailPassword = async (retry: boolean) => (await backend()).emailPassword(retry);
+export const smtpPasswordStatus = async (retry: boolean) =>
+  (await backend()).smtpPasswordStatus(retry);
+export const setSmtpPassword = async (password: string) =>
+  (await backend()).setSmtpPassword(password);
 export const listExports = async (limit: number) => (await backend()).listExports(limit);

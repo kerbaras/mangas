@@ -99,11 +99,7 @@ export const mockBackend: Backend = {
       ...settings,
       provider_sessions: {
         ...settings.provider_sessions,
-        [id]: {
-          cookies: "cf_clearance=mock",
-          user_agent: "mock",
-          saved_at: new Date().toISOString(),
-        },
+        [id]: { saved_at: new Date().toISOString() },
       },
     };
   },

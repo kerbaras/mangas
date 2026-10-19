@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use mangas_core::library::{self, ExportRecord};
-use mangas_core::send::password::{self, SecretStore, Storage};
+use mangas_core::send::password::{self, SecretStore};
 use mangas_core::send::{email, usb, EmailSettings, KindleVolume, SendVia};
 use tauri::{AppHandle, Emitter};
 
@@ -83,44 +83,21 @@ pub async fn send_email(file: PathBuf, title: String) -> Result<email::Sent, Str
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub async fn send_test_email(settings: EmailSettings, typed: bool) -> Result<String, String> {
-    test_email(Arc::from(password::system_store()), settings, typed).await
+    let lib = blocking(open_library).await?;
+    test_email(lib, Arc::from(password::system_store()), settings, typed).await
 }
 
 async fn test_email(
+    lib: library::Library,
     store: Arc<dyn SecretStore>,
     draft: EmailSettings,
     typed: bool,
 ) -> Result<String, String> {
-    let settings =
-        blocking(move || password::test_settings(&*store, &draft, typed).map_err(to_ipc)).await?;
-    email::send_test(&settings).await.map_err(to_ipc)
-}
-
-/// The saved SMTP password and where it is kept.
-#[derive(serde::Serialize)]
-pub struct EmailPassword {
-    password: String,
-    storage: Storage,
-}
-
-/// The saved SMTP password (moved to the keychain first if still in the settings) and where it
-/// is kept. Only for something the user did: with `retry`, a locked keychain prompts to unlock
-/// even after a dismissed prompt; without, it answers `locked` from memory.
-#[tauri::command]
-#[tracing::instrument(level = "error", skip_all)]
-pub async fn email_password(retry: bool) -> Result<EmailPassword, String> {
-    blocking(move || {
-        if retry {
-            password::retry_keychain();
-        }
-        let (lib, store) = (open_library()?, password::system_store());
-        let settings = password::load_settings(&lib, &*store).map_err(to_ipc)?;
-        Ok(EmailPassword {
-            password: settings.kindle_email.password,
-            storage: password::storage(&lib, &*store).map_err(to_ipc)?,
-        })
+    let settings = blocking(move || {
+        password::draft_test_settings(&lib, &*store, &draft, typed).map_err(to_ipc)
     })
-    .await
+    .await?;
+    email::send_test(&settings).await.map_err(to_ipc)
 }
 
 /// The `limit` most recent exports, newest first.
@@ -158,7 +135,8 @@ mod tests {
             ..EmailSettings::default()
         };
         let locked = Arc::new(MemoryStore::locked("prompt dismissed"));
-        let err = test_email(locked, draft, false).await.unwrap_err();
+        let lib = library::open_in_memory().unwrap();
+        let err = test_email(lib, locked, draft, false).await.unwrap_err();
         assert!(err.contains("keychain is locked"), "{err}");
         assert!(server.accept().is_err(), "connected to SMTP");
     }
@@ -178,7 +156,8 @@ mod tests {
             ..EmailSettings::default()
         };
         let store = Arc::new(MemoryStore::locked("prompt dismissed"));
-        let _ = test_email(store.clone(), draft, true).await;
+        let fresh = library::open_in_memory().unwrap();
+        let _ = test_email(fresh, store.clone(), draft, true).await;
         assert_eq!(store.calls(), 0);
         let lib = library::open_in_memory().unwrap();
         let base = password::load_settings(&lib, &MemoryStore::default()).unwrap();

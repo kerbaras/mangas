@@ -1,6 +1,7 @@
 import { Send, TriangleAlert } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Field } from "@/components/field";
+import { SmtpPasswordField, usePasswordStorage } from "@/components/smtp-password-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,12 +16,11 @@ import { errorMessage } from "@/lib/format";
 import {
   DEFAULT_PORT,
   type EmailSettings,
-  emailPassword,
-  type PasswordStorage,
   type Security,
   sendTestEmail,
+  setSmtpPassword,
 } from "@/lib/ipc.send";
-import { adoptKeychainPassword, saveSettings, useSettings } from "@/lib/settings";
+import { loadSettings, saveSettings, useSettings } from "@/lib/settings";
 
 const SECURITY: { value: Security; label: string }[] = [
   { value: "starttls", label: "STARTTLS" },
@@ -29,40 +29,6 @@ const SECURITY: { value: Security; label: string }[] = [
 ];
 
 type Note = { ok: boolean; text: string } | null;
-
-/**
- * Where the saved password is kept, and the password itself from the keychain. Reading it may
- * bring up the keychain's unlock prompt, so only the user's actions do: opening this form, a
- * click in a locked password field (`ask(true)`: prompt again) and a save (`ask(false)`).
- * Window focus never does.
- */
-function usePasswordStorage() {
-  const [storage, setStorage] = useState<PasswordStorage | null>(null);
-  const ask = useCallback(async (retry: boolean) => {
-    try {
-      const found = await emailPassword(retry);
-      if (found.storage === "keychain") adoptKeychainPassword(found.password);
-      setStorage(found.storage);
-    } catch {
-      setStorage("file");
-    }
-  }, []);
-  useEffect(() => void ask(true), [ask]);
-  return [storage, ask] as const;
-}
-
-/** Where the saved password is, or that there is none. A locked keychain loads as an empty
- * password, so it gets its own wording instead of "none saved". */
-function passwordHint(saved: boolean, storage: PasswordStorage | null): string | undefined {
-  if (storage === "locked") return "Your system keychain is locked or can't be read.";
-  if (storage === "keychain") return saved ? "Kept in your system keychain." : "No password saved.";
-  if (storage === "file") {
-    return saved
-      ? "Kept in the app settings (no system keychain)."
-      : "No password saved. Without a system keychain it will be kept in the app settings.";
-  }
-  return undefined;
-}
 
 /** Send to Kindle email: edited as a draft, saved with "Save", testable before saving. */
 export function EmailSettingsForm() {
@@ -73,24 +39,34 @@ export function EmailSettingsForm() {
   const saved = JSON.stringify(settings.kindleEmail);
   useEffect(() => setDraft(JSON.parse(saved) as EmailSettings), [saved]);
   const set = (patch: Partial<EmailSettings>) => setDraft((d) => ({ ...d, ...patch }));
-  const dirty = JSON.stringify(draft) !== saved;
-  const [storage, askStorage] = usePasswordStorage();
+  const hasPassword = settings.kindleEmail.has_password;
+  const [typed, setTyped] = useState<string | null>(null);
+  const dirty = JSON.stringify(draft) !== saved || Boolean(typed);
+  const [storage, askStorage, adoptStatus] = usePasswordStorage(hasPassword);
+  /** Saves (empty: clears) the password, never through the settings; reloads `has_password`. */
+  const savePassword = async (password: string) => {
+    adoptStatus(await setSmtpPassword(password));
+    setTyped(null);
+    await loadSettings();
+  };
   const save = async () => {
     setNote(null);
     try {
-      await saveSettings({ kindleEmail: draft });
+      if (JSON.stringify(draft) !== saved) await saveSettings({ kindleEmail: draft });
+      if (typed) await savePassword(typed);
     } catch (e) {
       setNote({ ok: false, text: errorMessage(e) });
     }
     void askStorage(false);
   };
-  const hasPassword = settings.kindleEmail.password !== "";
+  const clear = () => savePassword("").catch((e) => setNote({ ok: false, text: errorMessage(e) }));
 
   const test = async () => {
     setTesting(true);
     setNote(null);
     try {
-      const to = await sendTestEmail(draft, draft.password !== settings.kindleEmail.password);
+      const { has_password: _, ...fields } = draft;
+      const to = await sendTestEmail({ ...fields, password: typed ?? "" }, Boolean(typed));
       setNote({ ok: true, text: `Test email sent to ${to}.` });
     } catch (e) {
       setNote({ ok: false, text: errorMessage(e) });
@@ -158,13 +134,14 @@ export function EmailSettingsForm() {
         <Field label="User name" htmlFor="smtp-user">
           {text("username", "smtp-user", { autoComplete: "off" })}
         </Field>
-        <Field label="Password" htmlFor="smtp-password" hint={passwordHint(hasPassword, storage)}>
-          {text("password", "smtp-password", {
-            type: "password",
-            autoComplete: "off",
-            onFocus: () => storage === "locked" && void askStorage(true),
-          })}
-        </Field>
+        <SmtpPasswordField
+          saved={hasPassword}
+          storage={storage}
+          typed={typed}
+          onType={setTyped}
+          onClear={() => void clear()}
+          onUnlock={() => void askStorage(true)}
+        />
       </div>
       {storage === "file" && hasPassword && (
         <Alert>

@@ -5,6 +5,7 @@ use serde::Serialize;
 
 use super::resolve::{locked, with_password};
 use super::store::{SecretStore, StoreError};
+use super::view::remember;
 use crate::domain::Result;
 use crate::library::{edit_settings, get_settings, Library, Settings};
 use crate::send::EmailSettings;
@@ -50,9 +51,16 @@ pub fn storage(lib: &Library, store: &dyn SecretStore) -> Result<Storage> {
         return Ok(Storage::File);
     }
     Ok(match store.get() {
-        Ok(_) => Storage::Keychain,
+        Ok(secret) => {
+            remember(lib, secret.is_some_and(|s| !s.is_empty()))?;
+            Storage::Keychain
+        }
         Err(StoreError::Locked(_)) => Storage::Locked,
-        Err(StoreError::Unavailable(_)) => Storage::File,
+        Err(StoreError::Unavailable(_)) => {
+            // No keychain and nothing in the file: no password, whatever was guessed before.
+            remember(lib, false)?;
+            Storage::File
+        }
     })
 }
 
@@ -118,6 +126,9 @@ pub fn save_settings(
             return Err(e);
         }
     };
+    if changed {
+        remember(lib, fallback.is_none() && !password.is_empty())?;
+    }
     if settings.kindle_email.password.is_empty() {
         settings.kindle_email.password = password;
     }
@@ -140,6 +151,7 @@ fn migrate(lib: &Library, store: &dyn SecretStore) -> Result<Settings> {
     let mut blank = settings.clone();
     blank.kindle_email.password.clear();
     edit_settings(lib, Some(&settings), &blank)?;
+    remember(lib, true)?;
     tracing::info!("moved the SMTP password from the settings file to the system keychain");
     Ok(settings)
 }

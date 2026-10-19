@@ -1,10 +1,11 @@
 import { Download, HardDrive, Info, Mail, ScanSearch, Send, Settings2, Wifi } from "lucide-react";
-import type { ComponentType, ReactNode } from "react";
+import { type ComponentType, type ReactNode, useState } from "react";
 import { BackupPanel } from "@/components/backup-panel";
 import { DetectorSupportSettings } from "@/components/detector-support-settings";
 import { EmailSettingsForm } from "@/components/email-settings";
 import { Field } from "@/components/field";
 import { SettingsGroup } from "@/components/settings-group";
+import { clearSmtpPassword } from "@/components/smtp-password-field";
 import { StoragePanel } from "@/components/storage-panel";
 import { AboutSettings } from "./settings-about";
 import { DownloadsSettings } from "./settings-downloads";
@@ -32,17 +33,24 @@ function DetectorsSettings() {
 }
 
 function KindleSettings() {
+  // A reset also drops what the form holds unsaved (a typed password included): a new form.
+  const [form, setForm] = useState(0);
+  const reset = () => {
+    setForm((n) => n + 1);
+    return clearSmtpPassword();
+  };
   return (
     <SettingsGroup
       title="Kindle"
       resets={["kindleEmail"]}
       resetHint="The Send to Kindle address and the SMTP account, password included, are cleared."
+      onReset={reset}
     >
       <Field
         label="Send by email"
         hint="Books go to your Kindle address as an attachment; Amazon takes up to 50 MB per email."
       >
-        <EmailSettingsForm />
+        <EmailSettingsForm key={form} />
       </Field>
     </SettingsGroup>
   );
