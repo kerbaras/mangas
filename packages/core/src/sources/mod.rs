@@ -7,4 +7,4 @@ mod status;
 
 pub use search::{search_all, SearchGroup, SEARCH_TIMEOUT};
 pub use source::{Header, PageUrls, Source};
-pub use status::ProviderStatus;
+pub use status::{all_unreachable, ProviderStatus};

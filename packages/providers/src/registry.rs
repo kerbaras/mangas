@@ -1,6 +1,7 @@
 //! The only place that knows the providers: add one by appending its descriptor to
 //! [`PROVIDERS`].
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use futures::future::join_all;
@@ -43,7 +44,11 @@ pub fn source_at(id: &str, settings: &Settings, base: &str) -> Result<Arc<dyn So
 
 /// Whether `id` is usable now: one cheap request at most.
 pub async fn status(id: &str, settings: &Settings) -> ProviderStatus {
-    match source(id, settings) {
+    probe(source(id, settings)).await
+}
+
+async fn probe(source: Result<Arc<dyn Source>>) -> ProviderStatus {
+    match source {
         Ok(source) => source.status().await,
         Err(e) => ProviderStatus::Unreachable {
             reason: e.to_string(),
@@ -53,8 +58,20 @@ pub async fn status(id: &str, settings: &Settings) -> ProviderStatus {
 
 /// Every provider with its status, probed concurrently.
 pub async fn statuses(settings: &Settings) -> Vec<(ProviderInfo, ProviderStatus)> {
+    statuses_at(settings, &HashMap::new()).await
+}
+
+/// Like [`statuses`] with the providers in `bases` (id to base URL) probed there instead (see
+/// [`source_at`]).
+pub async fn statuses_at(
+    settings: &Settings,
+    bases: &HashMap<String, String>,
+) -> Vec<(ProviderInfo, ProviderStatus)> {
     let infos = providers();
-    let probes = infos.iter().map(|p| status(p.id, settings));
+    let probes = infos.iter().map(|p| match bases.get(p.id) {
+        Some(base) => probe(source_at(p.id, settings, base)),
+        None => probe(source(p.id, settings)),
+    });
     infos.iter().copied().zip(join_all(probes).await).collect()
 }
 

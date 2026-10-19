@@ -59,7 +59,8 @@ enum Command {
     Export(commands::export::Args),
     /// Send an EPUB to the Kindle by email or over USB
     Send(commands::send::Args),
-    /// List the providers and whether they are ready to use
+    /// List the providers and whether they are ready to use. Exits 1 when every provider is
+    /// unreachable (no network, a proxy or TLS certificates problem); a partial outage exits 0
     Providers(commands::providers::Args),
     /// Show or change app settings shared with the desktop app
     Settings(commands::settings::Args),
