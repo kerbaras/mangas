@@ -72,6 +72,9 @@ fn provider_sessions_show_only_when_they_were_saved() {
 #[test]
 fn a_password_set_through_the_keychain_never_shows_in_the_dto() {
     let lib = library::open_in_memory().unwrap();
+    // A fresh install: the app reads the settings before an account is entered.
+    let fresh = library::get_settings(&lib).unwrap();
+    assert!(!has_password(&lib, &fresh).unwrap());
     library::set_settings(&lib, &with_email("")).unwrap();
     let store = MemoryStore::default();
     let settings = library::get_settings(&lib).unwrap();
@@ -139,13 +142,36 @@ fn a_settings_edit_from_the_webview_never_changes_the_password() {
 }
 
 #[test]
-fn a_password_already_in_the_keychain_is_found_once_the_user_opens_the_form() {
-    let lib = library::open_in_memory().unwrap();
-    let store = MemoryStore::with("from-before-the-upgrade");
+fn a_password_saved_before_the_upgrade_shows_on_the_first_read() {
+    // What main left: the account in the settings row, the password in the keychain, no flag.
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("mangas.db");
+    library::open(&path).unwrap();
+    let row = serde_json::to_string(&with_email("")).unwrap();
+    rusqlite::Connection::open(&path)
+        .unwrap()
+        .execute("INSERT INTO setting (key, value) VALUES ('app', ?1)", [row])
+        .unwrap();
+    let lib = library::open(&path).unwrap();
     let settings = library::get_settings(&lib).unwrap();
+    let dto = public_settings(&lib, &settings).unwrap();
+    assert_eq!(dto["kindle_email"]["has_password"], Value::Bool(true));
+    let again = public_settings(&lib, &settings).unwrap();
+    assert_eq!(again["kindle_email"]["has_password"], Value::Bool(true));
+    // Once the keychain is asked (the Kindle pane), its answer wins.
+    assert_eq!(
+        storage(&lib, &MemoryStore::default()).unwrap(),
+        Storage::Keychain
+    );
     assert!(!has_password(&lib, &settings).unwrap());
-    assert_eq!(storage(&lib, &store).unwrap(), Storage::Keychain);
-    assert!(has_password(&lib, &settings).unwrap());
+}
+
+#[test]
+fn no_account_before_the_upgrade_means_no_password() {
+    let lib = library::open_in_memory().unwrap();
+    let settings = library::get_settings(&lib).unwrap();
+    let dto = public_settings(&lib, &settings).unwrap();
+    assert_eq!(dto["kindle_email"]["has_password"], Value::Bool(false));
 }
 
 #[test]

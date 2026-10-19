@@ -5,7 +5,7 @@
 use rusqlite::OptionalExtension;
 use serde_json::Value;
 
-use super::resolve::{locked, test_settings};
+use super::resolve::{locked, reads_keychain, test_settings};
 use super::settings::{load_settings, save_settings, Saved};
 use super::store::{SecretStore, StoreError};
 use crate::domain::{Error, Result};
@@ -42,7 +42,9 @@ pub fn public_settings(lib: &Library, settings: &Settings) -> Result<Value> {
     redact(settings, has_password(lib, settings)?)
 }
 
-/// A password in the settings file (no keychain), or one the keychain last said it holds.
+/// A password in the settings file (no keychain), or one the keychain last said it holds. The
+/// first read without the flag (settings from before it) records the rule sends already follow:
+/// a user name with no password in the file means the password went to the keychain.
 pub fn has_password(lib: &Library, settings: &Settings) -> Result<bool> {
     if !settings.kindle_email.password.is_empty() {
         return Ok(true);
@@ -52,7 +54,14 @@ pub fn has_password(lib: &Library, settings: &Settings) -> Result<bool> {
         .conn()?
         .query_row(sql, [SAVED_KEY], |r| r.get(0))
         .optional()?;
-    Ok(saved.as_deref() == Some("1"))
+    Ok(match saved.as_deref() {
+        Some(flag) => flag == "1",
+        None => {
+            let saved = reads_keychain(&settings.kindle_email);
+            remember(lib, saved)?;
+            saved
+        }
+    })
 }
 
 /// Records whether the keychain holds a password, for [`has_password`].
