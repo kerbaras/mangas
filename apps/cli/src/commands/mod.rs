@@ -1,4 +1,5 @@
 pub mod add;
+mod app_update;
 pub mod backup;
 pub mod chapters;
 mod cut_args;

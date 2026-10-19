@@ -27,6 +27,8 @@ fn settings_round_trip_and_overwrite() {
         provider_languages: [("mangadex".to_string(), vec!["es".to_string()])].into(),
         update_check_hours: Some(0),
         update_notifications: Some(false),
+        app_update_channel: Some(mangas_core::app_update::Channel::Rc),
+        app_update_checks: Some(false),
         kindle_email: EmailSettings {
             to: "reader@kindle.com".into(),
             host: "smtp.example.test".into(),
@@ -127,6 +129,8 @@ fn update_checks_default_to_every_six_hours_with_notifications() {
     let off = Settings {
         update_check_hours: Some(0),
         update_notifications: Some(false),
+        app_update_channel: Some(mangas_core::app_update::Channel::Rc),
+        app_update_checks: Some(false),
         ..Settings::default()
     };
     assert_eq!((off.update_hours(), off.notify_updates()), (0, false));

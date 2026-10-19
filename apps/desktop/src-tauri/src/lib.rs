@@ -14,6 +14,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(commands::app_update::PendingUpdate::default())
         .setup(|app| {
             allow_covers(app.handle());
             allow_cut_previews(app.handle());
@@ -21,6 +23,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::app_update::check_app_update,
+            commands::app_update::install_app_update,
             commands::list_library,
             commands::list_devices,
             commands::default_data_dir,

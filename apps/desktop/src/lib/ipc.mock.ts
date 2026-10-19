@@ -3,6 +3,7 @@
  * drives the same progress events the Rust side emits, so every screen works in `pnpm dev:web`.
  */
 import type { Backend, Chapter, ExportProgress, Manga, Settings, Unlisten } from "./ipc";
+import { mockAppUpdate } from "./mock-app-update";
 import { mockCutPreview } from "./mock-cut-preview";
 import {
   sampleProviders as providers,
@@ -215,6 +216,7 @@ export const mockBackend: Backend = {
     cached: () => chapterCache.values(),
     listeners: exportListeners,
   }),
+  ...mockAppUpdate(),
   ...mockUpdates(library, chaptersOf, () => settings.update_notifications !== false),
   onExportProgress: (cb) => subscribe(exportListeners, cb),
 };

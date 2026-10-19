@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { AppUpdateBanner } from "@/components/app-update-banner";
 import { NavRail } from "@/components/nav-rail";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DownloadsProvider, useQueue } from "@/hooks/use-downloads";
+import { useLaunchAppUpdate } from "@/hooks/use-launch-app-update";
 import { useTheme } from "@/hooks/use-theme";
 import { useUpdateSchedule } from "@/hooks/use-update-schedule";
 import { onAppFocus, watchAppFocus } from "@/lib/app-focus";
@@ -39,12 +41,16 @@ function Shell({ nav }: { nav: Navigation }) {
   const pending = useMemo(() => pendingCount(jobs.values()), [jobs]);
   useUpdateSchedule();
   useTheme();
+  useLaunchAppUpdate();
   return (
     <NavigationContext.Provider value={nav}>
       <div className="flex h-full overflow-hidden">
         <NavRail downloads={{ pending, held: gate.paused || gate.held }} />
-        <main className="min-w-0 flex-1 overflow-hidden">
-          <Screen route={nav.route} />
+        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <AppUpdateBanner />
+          <div className="min-h-0 flex-1">
+            <Screen route={nav.route} />
+          </div>
         </main>
       </div>
     </NavigationContext.Provider>

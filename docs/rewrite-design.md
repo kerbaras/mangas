@@ -242,6 +242,37 @@ The desktop app has one export flow: the export dialog (`components/export-dialo
   `export-progress` event, and the `export` route. "Kindle" is used only for the Kindle-specific
   parts: the `export::kindle` page pipeline, Send to Kindle, and the `mangas kindle` CLI command.
 
+## App updates
+
+`tauri-plugin-updater` installs in place: AppImage, .deb, .rpm, NSIS and the macOS .app (the
+.deb path asks for a password through `pkexec`). The rules live in `mangas_core::app_update`;
+the desktop (`commands/app_update.rs`) and `mangas update --check` both use them.
+
+- Channels: **stable** (default) and **release candidates**, picked in Settings → About and
+  stored as `app_update_channel`. The rc channel also gets full releases.
+- Manifests: tauri-action writes each signed release's `latest.json` (`includeUpdaterJson`).
+  The `updater` job (`scripts/publish-updater.sh`) copies it to the rolling `updater`
+  pre-release: `latest-rc.json` for every release, `latest.json` for stable ones only, and only
+  over an older version. Apps read `releases/download/updater/<file>`, then fall back to
+  `releases/latest/download/latest.json` (GitHub's latest release is never a pre-release). So
+  stable can never be offered an rc, and re-running an old tag can't move a channel back.
+- Versions: an update must be strictly newer (semver, `rc.10` > `rc.2`); a pre-release counts
+  only on the rc channel. The same version is "up to date"; an older one is its own outcome
+  (`older`, nothing to install). A newer release without a build for this OS/arch is an
+  error, and one whose signature carries another key id than `plugins.updater.pubkey` is
+  `invalid_signature` (never offered; the plugin still verifies the full signature when it
+  downloads).
+- Signing: bundles are signed with `TAURI_SIGNING_PRIVATE_KEY` (+ `_PASSWORD`) through
+  `src-tauri/tauri.updater.conf.json` (`createUpdaterArtifacts`), only added when the secret is
+  set, so local builds and keyless CI still bundle. Without the key the release still publishes,
+  with a warning and no manifest. The public key is `plugins.updater.pubkey` in
+  `tauri.conf.json`; the publish step refuses a manifest signed by any other key
+  (`scripts/test-publish-updater.sh` dry-runs it in CI against a fake `gh`).
+- Checks: one silent check per launch (failures only logged), unless "Check for updates at
+  launch" is off (`app_update_checks`). Nothing downloads until "Restart to update"; the banner
+  then shows progress and the app relaunches. `MANGAS_UPDATE_URL` points every channel at one
+  manifest URL, for testing against a local server.
+
 ## Coding rules (also in AGENTS.md)
 
 - Files under 200 lines; never over 400. Split by responsibility, one concern per module.

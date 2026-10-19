@@ -32,6 +32,10 @@ export type Settings = {
   update_check_hours?: number | null;
   /** Desktop notification when a background check finds new chapters; null = on. */
   update_notifications?: boolean | null;
+  /** Release channel the app updates from; null = stable. */
+  app_update_channel?: "stable" | "rc" | null;
+  /** Whether the app looks for a new version at launch; null = on. */
+  app_update_checks?: boolean | null;
   /** Send to Kindle by email; the password is stored unencrypted. */
   kindle_email?: EmailSettings;
   /** null = system. */
