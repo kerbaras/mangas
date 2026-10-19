@@ -112,21 +112,12 @@ impl CutArgs {
                 total.map(|t| t.to_string()).unwrap_or_default()
             );
         };
-        // Cached detectors need neither the network nor the library: an unreadable one only
-        // means downloads use the system proxy.
-        let stored = paths::library_db().and_then(|db| {
-            Ok(mangas_core::library::get_settings(
-                &mangas_core::library::open(&db)?,
-            )?)
-        });
-        let network = match stored {
-            Ok(settings) => settings.network(),
-            Err(e) => {
-                eprintln!("warning: could not read the settings, using the system proxy: {e}");
-                Default::default()
-            }
-        };
-        let detection = ml::penalizer_or_reason(&cache, &network, &mut on_progress).await;
+        let (settings, warning) = mangas_core::library::settings_or_default(&paths::library_db()?);
+        if let Some(warning) = warning {
+            eprintln!("warning: {warning}");
+        }
+        let detection =
+            ml::penalizer_or_reason(&cache, &settings.network(), &mut on_progress).await;
         match &detection.error {
             Some(e) => eprintln!("detectors off, cutting without them: {e}"),
             None => eprintln!("detectors: {:?}", ml::status(&cache).execution_provider),

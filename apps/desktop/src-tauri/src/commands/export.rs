@@ -3,11 +3,11 @@ use std::path::PathBuf;
 use mangas_core::export::kindle::{self, BookMeta, ExportRequest, ExportStats, Progress};
 use mangas_core::export::{ExportPreset, Format, Labels};
 use mangas_core::library;
-use mangas_core::ml;
 use mangas_core::smartcut::Preset;
 use tauri::{AppHandle, Emitter};
 
-use super::{open_library, settings_of, to_ipc};
+use super::penalizer::penalizer;
+use super::{open_library, settings_or_default, to_ipc};
 use crate::paths;
 
 /// Event name for export progress; payload is [`ExportEvent`].
@@ -99,13 +99,13 @@ pub async fn export_chapters(
     Ok(stats)
 }
 
-/// `explicit` choices over the series preset over the stored defaults.
+/// `explicit` choices over the series preset over the stored defaults (the built-in ones when
+/// the settings can't be read).
 pub(super) fn resolve(
     explicit: &ExportPreset,
     series: Option<&ExportPreset>,
 ) -> Result<ExportPreset, String> {
-    let settings = settings_of(&open_library()?)?;
-    let fallback = ExportPreset::from_settings(&settings);
+    let fallback = ExportPreset::from_settings(&settings_or_default());
     Ok(ExportPreset::resolve(explicit, series, &fallback))
 }
 
@@ -118,33 +118,6 @@ fn series_preset(dirs: &[PathBuf]) -> Option<ExportPreset> {
             tracing::warn!("could not read the series export preset: {e}");
             None
         })
-}
-
-/// The detector row penalizer when `detectors` is on, reporting runtime/model downloads as events.
-/// Detectors that can't run leave it off with the reason; the cut goes on without them.
-pub(super) async fn penalizer(app: &AppHandle, detectors: bool) -> Result<ml::Penalizer, String> {
-    if !detectors {
-        return Ok(ml::Penalizer::default());
-    }
-    let cache = models_dir()?;
-    let bytes = ml::status(&cache).download_bytes;
-    if bytes > 0 {
-        emit(app, ExportEvent::DetectorsMissing { bytes });
-    }
-    let mut on_progress = |id: &str, done: u64, total: Option<u64>| {
-        let id = id.to_string();
-        emit(app, ExportEvent::ModelDownload { id, done, total });
-    };
-    // Cached detectors need neither the network nor the library: an unreadable one only means
-    // downloads use the system proxy.
-    let network = open_library()
-        .and_then(|lib| settings_of(&lib))
-        .map(|s| s.network())
-        .unwrap_or_else(|e| {
-            log::warn!("detectors: settings unreadable, using the system proxy: {e}");
-            Default::default()
-        });
-    Ok(ml::penalizer_or_reason(&cache, &network, &mut on_progress).await)
 }
 
 /// Marks the chapters exported and adds the book to the export history. The file is written
@@ -179,11 +152,6 @@ fn titles_of(dirs: &[PathBuf]) -> Vec<String> {
             tracing::warn!("could not read chapter titles: {e}");
             Vec::new()
         })
-}
-
-pub(super) fn models_dir() -> Result<PathBuf, String> {
-    let lib = open_library()?;
-    paths::models(&settings_of(&lib)?).map_err(to_ipc)
 }
 
 fn default_title(chapter_dirs: &[PathBuf]) -> String {

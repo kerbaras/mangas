@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::path::Path;
 
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior};
 use serde::{Deserialize, Serialize};
@@ -70,6 +71,21 @@ fn json_error(e: serde_json::Error) -> Error {
 
 pub fn get_settings(lib: &Library) -> Result<Settings> {
     read(&*lib.conn()?)
+}
+
+/// The settings stored in the library at `db`, or the defaults (platform data folder, system
+/// proxy) when it can't be read, with the warning to show. For work that must not stop on a
+/// broken settings row, such as detector support.
+pub fn settings_or_default(db: &Path) -> (Settings, Option<String>) {
+    match crate::library::open(db).and_then(|lib| get_settings(&lib)) {
+        Ok(settings) => (settings, None),
+        Err(e) => (
+            Settings::default(),
+            Some(format!(
+                "could not read the settings, using the default data folder and the system proxy: {e}"
+            )),
+        ),
+    }
 }
 
 fn read(conn: &Connection) -> Result<Settings> {

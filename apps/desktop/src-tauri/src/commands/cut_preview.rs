@@ -8,9 +8,9 @@ use mangas_core::export::kindle::{self, Preview, PreviewRequest};
 use mangas_core::export::ExportPreset;
 use mangas_core::library;
 
-use super::export::penalizer;
+use super::penalizer::penalizer;
 use super::preview_panels::{valid_panel, Panels};
-use super::{open_library, settings_of, to_ipc};
+use super::{open_library, settings_or_default, to_ipc};
 use crate::paths;
 
 /// Pages a preview renders at most.
@@ -68,8 +68,7 @@ pub async fn preview_cut(
     let Some(generation) = started else {
         return Err("cancelled: the options panel closed".into());
     };
-    let settings = settings_of(&open_library()?)?;
-    let preset = options.over(&ExportPreset::from_settings(&settings));
+    let preset = options.over(&ExportPreset::from_settings(&settings_or_default()));
     let device = preset.profile_or(paths::DEFAULT_PROFILE).map_err(to_ipc)?;
     let root = paths::cut_previews().map_err(to_ipc)?.join(&panel);
     let req = PreviewRequest {

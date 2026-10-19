@@ -98,7 +98,12 @@ async fn preview_and_export_cut_without_detectors_that_cant_run() {
     std::env::set_var("HTTPS_PROXY", "http://127.0.0.1:9");
     let models = tempfile::tempdir().unwrap();
     garbage_runtime(models.path());
-    let detection = ml::penalizer_or_reason(models.path(), &mangas_core::library::Network::default(), &mut |_, _, _| {}).await;
+    let detection = ml::penalizer_or_reason(
+        models.path(),
+        &mangas_core::library::Network::default(),
+        &mut |_, _, _| {},
+    )
+    .await;
     assert!(detection.penalizer.is_none());
     let reason = detection.error.unwrap();
     assert!(matches!(

@@ -10,7 +10,8 @@ use mangas_core::smartcut::Preset;
 use tauri::AppHandle;
 
 use super::covers::cover_file;
-use super::export::{emit, penalizer, record_export, resolve, ExportEvent};
+use super::export::{emit, record_export, resolve, ExportEvent};
+use super::penalizer::penalizer;
 use super::{open_library, to_ipc};
 use crate::paths;
 

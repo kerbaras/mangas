@@ -65,7 +65,9 @@ pub use settings_prefs::{
     proxy_url, Network, ProxyMode, Theme, CONCURRENCY_RANGE, DEFAULT_CONCURRENCY, DEFAULT_LANGUAGE,
     DEFAULT_UPDATE_HOURS,
 };
-pub use settings_repo::{edit_settings, get_settings, set_settings, ProviderSession, Settings};
+pub use settings_repo::{
+    edit_settings, get_settings, set_settings, settings_or_default, ProviderSession, Settings,
+};
 pub use snapshot::{
     read_snapshot, restore_snapshot, CategoryState, ChapterState, LibrarySnapshot, TitleState,
 };

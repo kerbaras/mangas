@@ -11,6 +11,7 @@ pub mod export;
 pub mod folders;
 pub mod import;
 pub mod organisation;
+mod penalizer;
 mod preview_panels;
 pub mod providers;
 pub mod send;
@@ -40,6 +41,18 @@ pub(super) fn source_by_name(name: &str) -> Result<Arc<dyn Source>, String> {
 
 pub(super) fn settings_of(lib: &Library) -> Result<Settings, String> {
     library::get_settings(lib).map_err(to_ipc)
+}
+
+/// The stored settings, or the defaults with a logged warning when they can't be read.
+pub(super) fn settings_or_default() -> Settings {
+    let (settings, warning) = match paths::library_db() {
+        Ok(db) => library::settings_or_default(&db),
+        Err(e) => (Settings::default(), Some(e)),
+    };
+    if let Some(warning) = warning {
+        log::warn!("{warning}");
+    }
+    settings
 }
 
 #[tauri::command]
