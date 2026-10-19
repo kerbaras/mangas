@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { UsageBar } from "@/components/usage-bar";
 import { useAsync } from "@/hooks/use-async";
 import { useAppFocus } from "@/lib/app-focus";
+import { clearFailure } from "@/lib/detector-download";
 import { type CacheKind, clearCache, storageUsage } from "@/lib/ipc.storage";
 import { notifyError } from "@/lib/notify";
 import { formatBytes } from "@/lib/storage";
@@ -36,6 +37,8 @@ export function StoragePanel() {
   const clear = async (cache: CacheKind) => {
     try {
       const cleared = await clearCache(cache);
+      // A download failure from before the delete no longer applies once the models are gone.
+      if (cache === "models") clearFailure();
       toast.success(CACHES[cache].done, {
         description: `${formatBytes(cleared.bytes)} freed; ${CACHES[cache].hint}.`,
       });
