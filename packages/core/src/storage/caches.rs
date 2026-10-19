@@ -39,5 +39,9 @@ pub fn clear_cache(folders: &Folders, cache: Cache) -> Result<Cleared> {
         Cache::Covers => (None, &[][..]),
     };
     let (files, bytes) = empty_dir(&dir, keep)?;
+    if cache == Cache::Models {
+        // The runtime is gone, so its last load failure no longer applies (as after `ml::remove`).
+        crate::ml::runtime::forget_failure();
+    }
     Ok(Cleared { files, bytes })
 }

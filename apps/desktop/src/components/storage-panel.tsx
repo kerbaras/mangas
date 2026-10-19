@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { UsageBar } from "@/components/usage-bar";
 import { useAsync } from "@/hooks/use-async";
 import { useAppFocus } from "@/lib/app-focus";
+import { clearFailure } from "@/lib/detector-download";
 import { type CacheKind, clearCache, storageUsage } from "@/lib/ipc.storage";
 import { notifyError } from "@/lib/notify";
 import { formatBytes } from "@/lib/storage";
@@ -42,6 +43,8 @@ export function StoragePanel() {
     } catch (e: unknown) {
       notifyError(`Couldn't ${CACHES[cache].label.toLowerCase()}`, e);
     }
+    // As after Remove on the detector card: a failure from before the delete no longer applies.
+    if (cache === "models") clearFailure();
     storageChanged();
   };
 
