@@ -1,13 +1,16 @@
 //! A data-folder move killed midway leaves a marked partial copy that the next move may replace.
+//! The kill is real: this test binary re-runs itself as the mover (`child_moves_until_killed`)
+//! and the parent SIGKILLs it once the first file is copied.
 
 use std::fs;
-use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::Path;
+use std::process::Command;
+use std::time::{Duration, Instant};
 
 use mangas_core::domain::{ChapterId, MangaId};
 use mangas_core::library::{
-    get_settings, mark_downloaded, open_in_memory, set_queue_held_until, upsert_chapters,
-    upsert_manga, Library,
+    get_settings, mark_downloaded, open, set_queue_held_until, upsert_chapters, upsert_manga,
+    Library,
 };
 use mangas_core::storage::{
     move_data_dir, move_data_dir_with, partial_copy_at, remove_leftover_copy, usage, Folders,
@@ -23,8 +26,13 @@ fn folders(root: &Path) -> Folders {
     }
 }
 
-fn library_with_two_chapters(data: &Path) -> Library {
-    let lib = open_in_memory().unwrap();
+const ROOT_VAR: &str = "MANGAS_MOVE_TEST_ROOT";
+const TO_VAR: &str = "MANGAS_MOVE_TEST_TO";
+
+fn library_with_two_chapters(f: &Folders) -> Library {
+    let data = &f.data_dir;
+    fs::create_dir_all(f.database.parent().unwrap()).unwrap();
+    let lib = open(&f.database).unwrap();
     let manga = mangas_core::domain::Manga {
         id: MangaId("a".into()),
         source: "mangadex".into(),
@@ -52,17 +60,42 @@ fn library_with_two_chapters(data: &Path) -> Library {
     lib
 }
 
-/// Starts a move to `to` and "kills" it after the first file is copied (a panic skips every
-/// cleanup, as SIGKILL does), then lets the queue hold expire as a dead process's would.
-fn killed_move(lib: &Library, from: &Path, to: &Path) {
-    let killed = catch_unwind(AssertUnwindSafe(|| {
-        move_data_dir(lib, from, to, &mut |p| {
-            if p.copied > 0 {
-                panic!("killed");
-            }
-        })
-    }));
-    assert!(killed.is_err());
+#[test]
+#[ignore = "run by killed_move"]
+fn child_moves_until_killed() {
+    let (Ok(root), Ok(to)) = (std::env::var(ROOT_VAR), std::env::var(TO_VAR)) else {
+        return;
+    };
+    let f = folders(Path::new(&root));
+    let lib = open(&f.database).unwrap();
+    let ready = Path::new(&root).join("ready");
+    let _ = move_data_dir(&lib, &f.data_dir, Path::new(&to), &mut |p| {
+        if p.copied > 0 {
+            fs::write(&ready, b"").unwrap();
+            std::thread::sleep(Duration::from_secs(600));
+        }
+    });
+}
+
+/// Moves to `to` in a child process, SIGKILLs it after the first file is copied, then lets
+/// the queue hold expire as a dead process's lease does.
+fn killed_move(lib: &Library, root: &Path, to: &Path) {
+    let mut child = Command::new(std::env::current_exe().unwrap())
+        .args(["child_moves_until_killed", "--exact", "--ignored"])
+        .env(ROOT_VAR, root)
+        .env(TO_VAR, to)
+        .spawn()
+        .unwrap();
+    let start = Instant::now();
+    while !root.join("ready").exists() {
+        assert!(
+            start.elapsed() < Duration::from_secs(30),
+            "the move never copied a file"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    child.kill().unwrap();
+    child.wait().unwrap();
     set_queue_held_until(lib, 0).unwrap();
 }
 
@@ -70,9 +103,9 @@ fn killed_move(lib: &Library, from: &Path, to: &Path) {
 fn a_killed_move_is_listed_refused_then_replaced_with_force() {
     let tmp = tempfile::tempdir().unwrap();
     let f = folders(tmp.path());
-    let lib = library_with_two_chapters(&f.data_dir);
+    let lib = library_with_two_chapters(&f);
     let to = tmp.path().join("big");
-    killed_move(&lib, &f.data_dir, &to);
+    killed_move(&lib, tmp.path(), &to);
     assert!(to.join(MOVE_MARKER).exists());
     let left = usage(&lib, &f).unwrap().partial_move.expect("listed");
     assert_eq!(left.bytes, 100);
@@ -93,11 +126,11 @@ fn a_killed_move_is_listed_refused_then_replaced_with_force() {
 fn removing_the_partial_copy_keeps_the_rest_of_that_folder() {
     let tmp = tempfile::tempdir().unwrap();
     let f = folders(tmp.path());
-    let lib = library_with_two_chapters(&f.data_dir);
+    let lib = library_with_two_chapters(&f);
     let to = tmp.path().join("big");
     fs::create_dir_all(&to).unwrap();
     fs::write(to.join("notes.txt"), "mine").unwrap();
-    killed_move(&lib, &f.data_dir, &to);
+    killed_move(&lib, tmp.path(), &to);
     let removed = remove_leftover_copy(&lib, &f.data_dir).unwrap().unwrap();
     assert_eq!(removed.bytes, 100);
     assert!(!to.join("chapters").exists() && !to.join(MOVE_MARKER).exists());
@@ -112,7 +145,7 @@ fn removing_the_partial_copy_keeps_the_rest_of_that_folder() {
 fn a_folder_with_unrelated_files_is_refused_even_with_force() {
     let tmp = tempfile::tempdir().unwrap();
     let f = folders(tmp.path());
-    let lib = library_with_two_chapters(&f.data_dir);
+    let lib = library_with_two_chapters(&f);
     let to = tmp.path().join("other");
     fs::create_dir_all(to.join("chapters/x")).unwrap();
     fs::write(to.join("chapters/x/001.jpg"), "someone else's").unwrap();
