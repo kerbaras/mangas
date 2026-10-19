@@ -96,14 +96,17 @@ pub fn run(args: Args) -> anyhow::Result<()> {
             }
             Ok(())
         }
-        Command::RemovePartial => match storage::remove_leftover_copy(&lib, &folders.data_dir)? {
-            Some(copy) => outln!(
-                "Removed the partial copy in {} ({})",
-                copy.path,
-                human_size(copy.bytes)
-            ),
-            None => outln!("No interrupted move left a partial copy"),
-        },
+        Command::RemovePartial => {
+            match storage::remove_leftover_copy(&lib, &folders.data_dir)? {
+                Some(copy) => outln!(
+                    "Removed the partial copy in {} ({})",
+                    copy.path,
+                    human_size(copy.bytes)
+                )?,
+                None => outln!("No interrupted move left a partial copy")?,
+            }
+            Ok(())
+        }
     }
 }
 
