@@ -3,7 +3,7 @@
 use super::*;
 use crate::commands::kindle_library::*;
 use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId};
-use mangas_core::library::Library;
+use mangas_core::library::{self, Library};
 
 #[test]
 fn kindle_writes_epub_unless_the_flags_say_otherwise() {

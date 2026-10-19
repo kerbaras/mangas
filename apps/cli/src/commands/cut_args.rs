@@ -4,7 +4,7 @@ use anyhow::bail;
 use clap::Args as ClapArgs;
 use mangas_core::export::kindle::{device, Device, Progress};
 use mangas_core::export::{ExportPreset, Format};
-use mangas_core::ml;
+use mangas_core::ml::{self, DetectorReport};
 use mangas_core::smartcut::{Preset, RowPenalizer};
 
 use crate::paths;
@@ -97,12 +97,12 @@ impl CutArgs {
         Ok(preset)
     }
 
-    /// The detector-backed row penalizer when `--detectors` is set, downloading models first.
-    /// Detectors that can't run are reported and left off, so the cut goes on without them; with
-    /// `--strict-detectors` that is an error instead.
-    pub async fn penalizer(&self) -> anyhow::Result<Option<RowPenalizer>> {
+    /// The detector-backed row penalizer when `--detectors` is set, downloading models first,
+    /// and what became of the detectors. Detectors that can't run are reported and left off, so
+    /// the cut goes on without them; with `--strict-detectors` that is an error instead.
+    pub async fn penalizer(&self) -> anyhow::Result<(Option<RowPenalizer>, DetectorReport)> {
         if !self.detectors {
-            return Ok(None);
+            return Ok((None, DetectorReport::off()));
         }
         let cache = paths::models()?;
         let missing = ml::status(&cache).download_bytes;
@@ -127,20 +127,19 @@ impl CutArgs {
         if missing > 0 {
             eprintln!();
         }
-        match &detection.error {
-            Some(e) if self.strict_detectors => {
-                bail!("detectors were requested (--strict-detectors) but can't run: {e}")
-            }
-            Some(e) => eprintln!("detectors off, cutting without them: {e}"),
-            None => eprintln!(
-                "detectors: {}",
-                ml::status(&cache)
-                    .execution_provider
-                    .as_deref()
-                    .unwrap_or("default")
-            ),
+        if let (Some(e), true) = (&detection.error, self.strict_detectors) {
+            bail!("detectors were requested (--strict-detectors) but can't run: {e}")
         }
-        Ok(detection.penalizer)
+        let report = detection.report();
+        let provider = match report.state {
+            ml::DetectorState::Used => ml::status(&cache).execution_provider,
+            _ => None,
+        };
+        let provider = provider.unwrap_or_else(|| "default".into());
+        if let Some(line) = report.message(&provider) {
+            eprintln!("{line}");
+        }
+        Ok((detection.penalizer, report))
     }
 }
 

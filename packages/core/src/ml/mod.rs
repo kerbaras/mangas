@@ -8,6 +8,7 @@ pub mod lease;
 pub mod models;
 pub mod nms;
 pub mod penalty;
+mod report;
 pub mod runtime;
 mod support;
 pub mod tiles;
@@ -22,6 +23,7 @@ mod session;
 pub use detect::{Detectors, DETECTOR_SCORE_THRESHOLD, NMS_IOU, TILE_OVERLAP, TILE_SIZE};
 pub use fetch::{is_cancelled, CANCELLED};
 pub use models::{ModelSpec, BUBBLE_TEXT_DETECTOR, FACE_DETECTOR, MODELS};
+pub use report::{DetectorReport, DetectorState};
 pub use runtime::RuntimeStatus;
 pub use support::{download, missing_bytes, remove, RUNTIME_ITEM};
 

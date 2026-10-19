@@ -9,7 +9,6 @@ use mangas_core::send::password;
 use mangas_core::send::{email, usb, SendVia};
 
 use super::settings_email::warn_unencrypted;
-use crate::output::outln;
 use crate::Exit;
 
 /// Delivery path picked on the command line.
@@ -31,15 +30,15 @@ impl From<SendArg> for SendVia {
 }
 
 /// Sends `file` and stamps it in the export history. `kindle` is the USB mount point when the
-/// user gave one.
+/// user gave one. Returns the line saying where it went, for the caller to print.
 pub async fn deliver(
     lib: &Library,
     file: &Path,
     title: &str,
     via: SendArg,
     kindle: Option<&Path>,
-) -> anyhow::Result<()> {
-    let to = match via {
+) -> anyhow::Result<String> {
+    let (to, line) = match via {
         SendArg::Email => {
             let store = password::system_store();
             let settings = password::email_settings(lib, &*store)?;
@@ -52,13 +51,13 @@ pub async fn deliver(
                 );
             }
             let sent = email::send_book(&settings, file, title).await?;
-            outln!(
+            let line = format!(
                 "emailed {} ({:.1} MB) to {}",
                 file.display(),
                 mb(sent.bytes),
                 sent.to
-            )?;
-            sent.to
+            );
+            (sent.to, line)
         }
         SendArg::Usb => {
             let kindle = usb::choose(kindle, usb::find_kindles())?;
@@ -72,17 +71,20 @@ pub async fn deliver(
             }
             let copied = copied?;
             if copied.already_there {
-                outln!("already on {}: {}", kindle.name, copied.path.display())?;
-                return Ok(());
+                return Ok(format!(
+                    "already on {}: {}",
+                    kindle.name,
+                    copied.path.display()
+                ));
             }
-            outln!("copied to {} ({})", copied.path.display(), kindle.name)?;
-            kindle.name
+            let line = format!("copied to {} ({})", copied.path.display(), kindle.name);
+            (kindle.name, line)
         }
     };
     if let Err(e) = library::record_sent(lib, file, title, via.into(), &to) {
         eprintln!("warning: could not record the delivery: {e}");
     }
-    Ok(())
+    Ok(line)
 }
 
 fn print_copy(done: u64, total: u64) {
@@ -95,19 +97,21 @@ fn mb(bytes: u64) -> f64 {
 }
 
 /// Sends one written book, saying on stderr straight away when it couldn't be sent, so a
-/// later failure can't hide it. Returns whether it was sent.
+/// later failure can't hide it. Returns [`deliver`]'s line; the error is that message.
 pub async fn try_deliver(
     lib: &Library,
     file: &Path,
     title: &str,
     via: SendArg,
     kindle: Option<&Path>,
-) -> bool {
-    let Err(e) = deliver(lib, file, title, via, kindle).await else {
-        return true;
+) -> Result<String, String> {
+    let e = match deliver(lib, file, title, via, kindle).await {
+        Ok(line) => return Ok(line),
+        Err(e) => e,
     };
-    eprintln!("{} was written but not sent: {e:#}", file.display());
-    false
+    let message = format!("{} was written but not sent: {e:#}", file.display());
+    eprintln!("{message}");
+    Err(message)
 }
 
 /// Exit code 2 when some written books weren't sent (each was named as it failed).
