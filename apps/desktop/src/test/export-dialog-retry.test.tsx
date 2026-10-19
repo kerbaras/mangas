@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ExportDialog } from "@/components/export-dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -114,6 +114,8 @@ describe("export dialog: Retry after a failed delivery", () => {
     fireEvent.click(await enabledButton(/Export book and email/));
     expect(await screen.findByText(/connection refused/)).toBeTruthy();
     fireEvent.mouseDown(screen.getByRole("tab", { name: "Kindle over USB" }));
+    expect(screen.queryByText("Email not sent")).toBeNull();
+    expect(screen.queryByText(/connection refused/)).toBeNull();
     fireEvent.click(await enabledButton(/^Retry copy$/));
     expect(await screen.findByText(/Copied to Kindle: .*Solo v1\.epub/)).toBeTruthy();
     expect(exportVolumes).toHaveBeenCalledOnce();
@@ -130,7 +132,26 @@ describe("export dialog: Retry after a failed delivery", () => {
     expect(screen.getByRole("button", { name: /^Retry$/ })).toBeTruthy();
     fireEvent.mouseDown(screen.getByRole("tab", { name: "Save to folder" }));
     expect(screen.queryByRole("button", { name: /^Retry$/ })).toBeNull();
+    expect(screen.queryByText("Email not sent")).toBeNull();
     expect(sendEmail).toHaveBeenCalledOnce();
+  });
+
+  it("says what runs while the retry sends", async () => {
+    let finish: (value: typeof sent) => void = () => {};
+    const sendEmail = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("connection refused"))
+      .mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)));
+    exportBackend({ sendEmail });
+    render(dialog());
+    fireEvent.mouseDown(await screen.findByRole("tab", { name: "Email to Kindle" }));
+    fireEvent.click(await enabledButton(/Export book and email/));
+    expect(await screen.findByText(/connection refused/)).toBeTruthy();
+    fireEvent.click(await enabledButton(/^Retry email$/));
+    expect(await screen.findByRole("button", { name: "Sending email…" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Export book and email/ })).toBeNull();
+    await act(async () => finish(sent));
+    expect(await screen.findByText(/Emailed Solo v1\.epub/)).toBeTruthy();
   });
 
   it("exports again when the export itself failed", async () => {

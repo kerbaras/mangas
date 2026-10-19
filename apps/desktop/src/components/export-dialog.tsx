@@ -175,7 +175,11 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
         </div>
         <div className="mt-4 flex flex-col gap-3 empty:hidden">
           <ExportProgressPanel state={job.state} onReset={job.reset} />
-          <SendStatus state={send.state} onRetry={sendVia && (() => void send.retry(sendVia))} />
+          <SendStatus
+            state={send.state}
+            via={via}
+            onRetry={sendVia && (() => void send.retry(sendVia))}
+          />
         </div>
         <DialogFooter>
           <Button disabled={busy} onClick={() => onOpenChange(false)}>
@@ -186,7 +190,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
             disabled={busy || !ready}
             onClick={() => void (resend ? send.retry(sendVia) : run())}
           >
-            <Send /> {exportAction(books, via, resend)}
+            <Send /> {exportAction(books, via, resend, sending)}
           </Button>
         </DialogFooter>
       </DialogContent>

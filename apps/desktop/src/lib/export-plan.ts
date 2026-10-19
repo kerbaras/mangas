@@ -29,12 +29,17 @@ export const detectorsUsable = (state: Async<DetectorsStatus>): boolean =>
 /** On by default whenever it can be used. */
 export const detectorsDefault = detectorsUsable;
 
-/** "Export 3 books and copy": the dialog's main button; "Retry email" once only sending failed. */
+/**
+ * "Export 3 books and copy": the dialog's main button; "Retry email" once only sending failed;
+ * what runs ("Sending email…") while a delivery is under way.
+ */
 export function exportAction(
   books: number,
   delivery: "save" | "usb" | "email",
   resend = false,
+  sending = false,
 ): string {
+  if (sending) return delivery === "email" ? "Sending email…" : "Copying to Kindle…";
   if (resend) return delivery === "email" ? "Retry email" : "Retry copy";
   const what = books > 1 ? `${books} books` : "book";
   const then = { save: "", usb: " and copy", email: " and email" }[delivery];
