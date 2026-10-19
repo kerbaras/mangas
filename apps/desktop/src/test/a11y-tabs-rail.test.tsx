@@ -39,7 +39,7 @@ describe("tabs without panels", () => {
 
 describe("Downloads rail name", () => {
   it("includes the badge count", () => {
-    expect(downloadsName({ pending: 3, held: false })).toBe("Downloads, 3 active");
+    expect(downloadsName({ pending: 3, held: false })).toBe("Downloads, 3 pending");
     expect(downloadsName({ pending: 2, held: true })).toBe("Downloads (paused), 2 waiting");
     expect(downloadsName({ pending: 0, held: false })).toBe("Downloads");
     expect(downloadsName({ pending: 0, held: true })).toBe("Downloads (paused)");

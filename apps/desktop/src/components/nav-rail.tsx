@@ -48,10 +48,10 @@ function RailButton({ item, active }: { item: Item; active: boolean }) {
 /** `pending`: running and queued jobs; `held`: the queue is paused or held, so they wait. */
 type Props = { downloads: { pending: number; held: boolean } };
 
-/** "Downloads, 3 active" / "Downloads (paused), 3 waiting": the name says what the badge shows. */
+/** "Downloads, 3 pending" / "Downloads (paused), 3 waiting": the name says what the badge shows. */
 export function downloadsName({ pending, held }: Props["downloads"]): string {
   const label = held ? "Downloads (paused)" : "Downloads";
-  return pending ? `${label}, ${pending} ${held ? "waiting" : "active"}` : label;
+  return pending ? `${label}, ${pending} ${held ? "waiting" : "pending"}` : label;
 }
 
 export function NavRail({ downloads }: Props) {
