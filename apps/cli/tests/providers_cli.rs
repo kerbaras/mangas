@@ -114,7 +114,7 @@ fn a_partial_outage_exits_0() {
     let stdout = String::from_utf8_lossy(&text.stdout);
     assert_eq!(stdout.lines().count(), 6, "{stdout}");
     assert!(
-        stdout.starts_with("mangadex   MangaDex   https://mangadex.org     ready\n"),
+        stdout.starts_with("mangadex    MangaDex    https://mangadex.org     ready\n"),
         "{stdout}"
     );
 }
