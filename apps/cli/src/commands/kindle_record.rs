@@ -20,8 +20,8 @@ pub async fn record_and_send(
     to: Option<(SendArg, Option<&Path>)>,
 ) -> anyhow::Result<Option<String>> {
     let unsent = |e: anyhow::Error| -> anyhow::Error {
-        let via = to.map_or(SendArg::Email, |(via, _)| via);
-        let message = not_sent(&stats.output, via, &e);
+        let (via, kindle) = to.unwrap_or((SendArg::Email, None));
+        let message = not_sent(&stats.output, via, kindle, &e);
         Exit { code: 2, message }.into()
     };
     let lib = match paths::library_db().and_then(|db| Ok(library::open(&db)?)) {

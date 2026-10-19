@@ -96,10 +96,14 @@ export function useSend(onSent?: () => void) {
     [deliver],
   );
 
-  const retry = useCallback(async () => {
-    const left = pending.current;
-    if (left) await deliver(left.books, left.via, left.lines);
-  }, [deliver]);
+  /** Sends what's left again, by `via` when the user picked another way since. */
+  const retry = useCallback(
+    async (via?: Via) => {
+      const left = pending.current;
+      if (left) await deliver(left.books, via ?? left.via, left.lines);
+    },
+    [deliver],
+  );
   const reset = useCallback(() => {
     pending.current = null;
     setState({ kind: "idle" });

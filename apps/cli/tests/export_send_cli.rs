@@ -123,12 +123,11 @@ fn unsent_volumes_are_each_named_and_exit_with_code_2() {
     let err = text(&out.stderr);
     assert_eq!(err.matches("was written but not sent").count(), 2, "{err}");
     assert!(err.contains("2 book(s) were written but not sent"), "{err}");
-    assert_eq!(
-        err.matches("send it again with: mangas send --via usb \"")
-            .count(),
-        2,
-        "{err}"
+    let again = format!(
+        "send it again with: mangas send --via usb --kindle \"{}\" \"",
+        home.path().join("no-kindle").display()
     );
+    assert_eq!(err.matches(&again).count(), 2, "{err}");
 }
 
 /// Email settings with a password kept in the app settings, aimed at a closed port.

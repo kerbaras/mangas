@@ -77,7 +77,9 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const books = files.kind === "ready" ? files.data.length : 0;
   const sending = ["looking", "copying", "emailing"].includes(send.state.kind);
   const busy = job.state.kind === "running" || sending;
-  const resend = written.length > 0 && ["error", "no-device"].includes(send.state.kind);
+  const failed = written.length > 0 && ["error", "no-device"].includes(send.state.kind);
+  const sendVia = via === "save" ? undefined : via;
+  const resend = failed && sendVia !== undefined;
   const ready =
     fresh &&
     named &&
@@ -100,11 +102,12 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
     target.format,
     preset,
     useDetectors,
-    via,
     folder.output,
     target.replace,
   ].join("|");
   useClearOnChange(choice, busy, clearResult);
+  const keepFailed = useCallback(() => !failed && clearResult(), [failed, clearResult]);
+  useClearOnChange(via, busy, keepFailed);
 
   const run = async () => {
     send.reset();
@@ -172,7 +175,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
         </div>
         <div className="mt-4 flex flex-col gap-3 empty:hidden">
           <ExportProgressPanel state={job.state} onReset={job.reset} />
-          <SendStatus state={send.state} onRetry={() => void send.retry()} />
+          <SendStatus state={send.state} onRetry={() => void send.retry(sendVia)} />
         </div>
         <DialogFooter>
           <Button disabled={busy} onClick={() => onOpenChange(false)}>
@@ -181,7 +184,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
           <Button
             variant="primary"
             disabled={busy || !ready}
-            onClick={() => void (resend ? send.retry() : run())}
+            onClick={() => void (resend ? send.retry(sendVia) : run())}
           >
             <Send /> {exportAction(books, via, resend)}
           </Button>
