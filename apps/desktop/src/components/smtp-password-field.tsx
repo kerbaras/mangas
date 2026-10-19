@@ -41,13 +41,15 @@ export function usePasswordStorage(hasPassword: boolean) {
   return [storage, ask, adopt] as const;
 }
 
-/** Clears the saved SMTP password (Kindle settings reset). */
-export async function clearSmtpPassword() {
+/** Clears the saved SMTP password (Kindle settings reset); false when it couldn't (and says so). */
+export async function clearSmtpPassword(): Promise<boolean> {
   try {
     await setSmtpPassword("");
     await loadSettings();
+    return true;
   } catch (e: unknown) {
     notifyError("Couldn't clear the SMTP password", e);
+    return false;
   }
 }
 

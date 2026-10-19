@@ -4,11 +4,12 @@
 use rusqlite::OptionalExtension;
 use serde_json::Value;
 
-use super::resolve::locked;
+use super::resolve::{locked, test_settings};
 use super::settings::{load_settings, save_settings, Saved};
 use super::store::{SecretStore, StoreError};
 use crate::domain::{Error, Result};
-use crate::library::{Library, Settings};
+use crate::library::{get_settings, Library, Settings};
+use crate::send::EmailSettings;
 
 /// Whether the keychain holds a password, remembered so a settings read never has to ask it
 /// (a locked keychain would prompt on every window focus).
@@ -87,5 +88,35 @@ pub fn save_preferences(
         s.kindle_email.password.clear();
         s
     };
-    save_settings(lib, store, base.map(blank).as_ref(), &blank(edited))
+    let mut edited = blank(edited);
+    let base = match base {
+        Some(base) => blank(base),
+        // A full replacement still keeps the saved password: replace over what is stored now,
+        // which also keeps the stored provider sessions like `edit_settings` without a base.
+        None => {
+            let current = blank(&get_settings(lib)?);
+            edited.provider_sessions = current.provider_sessions.clone();
+            current
+        }
+    };
+    save_settings(lib, store, Some(&base), &edited)
+}
+
+/// The settings a test email from the webview uses: the form's `draft`, which never carries the
+/// saved password, with the one still in the settings file (no keychain) unless the user
+/// `typed` one; then like [`test_settings`].
+pub fn draft_test_settings(
+    lib: &Library,
+    store: &dyn SecretStore,
+    draft: &EmailSettings,
+    typed: bool,
+) -> Result<EmailSettings> {
+    if typed {
+        return test_settings(store, draft, true);
+    }
+    let draft = EmailSettings {
+        password: get_settings(lib)?.kindle_email.password,
+        ..draft.clone()
+    };
+    test_settings(store, &draft, false)
 }

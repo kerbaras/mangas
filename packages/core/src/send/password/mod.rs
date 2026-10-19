@@ -13,4 +13,6 @@ pub use settings::{email_settings, load_settings, save_settings, storage, Saved,
 pub use store::{
     retry_keychain, system_store, Keychain, MemoryStore, SecretStore, StoreError, KEYCHAIN_ENV,
 };
-pub use view::{has_password, public_settings, redact, save_preferences, set_password};
+pub use view::{
+    draft_test_settings, has_password, public_settings, redact, save_preferences, set_password,
+};

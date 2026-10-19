@@ -83,16 +83,20 @@ pub async fn send_email(file: PathBuf, title: String) -> Result<email::Sent, Str
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub async fn send_test_email(settings: EmailSettings, typed: bool) -> Result<String, String> {
-    test_email(Arc::from(password::system_store()), settings, typed).await
+    let lib = blocking(open_library).await?;
+    test_email(lib, Arc::from(password::system_store()), settings, typed).await
 }
 
 async fn test_email(
+    lib: library::Library,
     store: Arc<dyn SecretStore>,
     draft: EmailSettings,
     typed: bool,
 ) -> Result<String, String> {
-    let settings =
-        blocking(move || password::test_settings(&*store, &draft, typed).map_err(to_ipc)).await?;
+    let settings = blocking(move || {
+        password::draft_test_settings(&lib, &*store, &draft, typed).map_err(to_ipc)
+    })
+    .await?;
     email::send_test(&settings).await.map_err(to_ipc)
 }
 
@@ -131,7 +135,8 @@ mod tests {
             ..EmailSettings::default()
         };
         let locked = Arc::new(MemoryStore::locked("prompt dismissed"));
-        let err = test_email(locked, draft, false).await.unwrap_err();
+        let lib = library::open_in_memory().unwrap();
+        let err = test_email(lib, locked, draft, false).await.unwrap_err();
         assert!(err.contains("keychain is locked"), "{err}");
         assert!(server.accept().is_err(), "connected to SMTP");
     }
@@ -151,7 +156,8 @@ mod tests {
             ..EmailSettings::default()
         };
         let store = Arc::new(MemoryStore::locked("prompt dismissed"));
-        let _ = test_email(store.clone(), draft, true).await;
+        let fresh = library::open_in_memory().unwrap();
+        let _ = test_email(fresh, store.clone(), draft, true).await;
         assert_eq!(store.calls(), 0);
         let lib = library::open_in_memory().unwrap();
         let base = password::load_settings(&lib, &MemoryStore::default()).unwrap();

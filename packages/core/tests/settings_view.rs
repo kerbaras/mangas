@@ -2,8 +2,8 @@
 
 use mangas_core::library::{self, Settings};
 use mangas_core::send::password::{
-    email_settings, has_password, public_settings, redact, save_preferences, set_password, storage,
-    MemoryStore, Storage,
+    draft_test_settings, email_settings, has_password, public_settings, redact, save_preferences,
+    set_password, storage, MemoryStore, Storage,
 };
 use mangas_core::send::EmailSettings;
 use serde_json::Value;
@@ -121,4 +121,41 @@ fn a_password_already_in_the_keychain_is_found_once_the_user_opens_the_form() {
     assert!(!has_password(&lib, &settings).unwrap());
     assert_eq!(storage(&lib, &store).unwrap(), Storage::Keychain);
     assert!(has_password(&lib, &settings).unwrap());
+}
+
+#[test]
+fn a_settings_replacement_without_a_base_keeps_the_saved_password() {
+    for store in [
+        MemoryStore::unavailable("no secret service"),
+        MemoryStore::default(),
+    ] {
+        let lib = library::open_in_memory().unwrap();
+        set_password(&lib, &store, "kept").unwrap();
+        let mut edited = with_email("");
+        edited.kindle_email.host = "smtp.other.test".into();
+        save_preferences(&lib, &store, None, &edited).unwrap();
+        let sent = email_settings(&lib, &store).unwrap();
+        assert_eq!(sent.host, "smtp.other.test");
+        assert_eq!(sent.password, "kept");
+    }
+}
+
+#[test]
+fn a_test_email_uses_the_saved_password_unless_one_is_typed() {
+    let draft = with_email("").kindle_email;
+    for store in [
+        MemoryStore::unavailable("no secret service"),
+        MemoryStore::default(),
+    ] {
+        let lib = library::open_in_memory().unwrap();
+        set_password(&lib, &store, "saved").unwrap();
+        let untyped = draft_test_settings(&lib, &store, &draft, false).unwrap();
+        assert_eq!(untyped.password, "saved");
+        let typed = EmailSettings {
+            password: "typed".into(),
+            ..draft.clone()
+        };
+        let tested = draft_test_settings(&lib, &store, &typed, true).unwrap();
+        assert_eq!(tested.password, "typed");
+    }
 }
