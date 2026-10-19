@@ -23,7 +23,7 @@ pub struct TokenBucket {
     warned: AtomicBool,
     /// Set once a lock wait timeout has been logged at warning level.
     lock_warned: AtomicBool,
-    /// Until when the file is skipped because another process held its lock too long.
+    /// Until when the file is skipped (another process held its lock too long).
     local_until: std::sync::Mutex<Option<Instant>>,
 }
 
@@ -100,10 +100,11 @@ impl TokenBucket {
         self.local_until().is_some_and(|until| now < until)
     }
 
-    /// Another process held the file lock past [`LOCK_WAIT`]: pace in memory for
-    /// [`LOCAL_AFTER_LOCK_TIMEOUT`], warning the first time per bucket and at debug level after.
+    /// Lock held past [`LOCK_WAIT`]: pace in memory for at least [`LOCAL_AFTER_LOCK_TIMEOUT`].
     fn lock_timed_out(&self, path: &std::path::Path) {
-        *self.local_until() = Some(Instant::now() + LOCAL_AFTER_LOCK_TIMEOUT);
+        let next = Instant::now() + LOCAL_AFTER_LOCK_TIMEOUT;
+        let mut until = self.local_until();
+        *until = Some(until.map_or(next, |until| until.max(next)));
         let (path, wait) = (path.display(), LOCK_WAIT.as_secs());
         let retry = LOCAL_AFTER_LOCK_TIMEOUT.as_secs();
         match self.lock_warned.swap(true, Ordering::Relaxed) {
