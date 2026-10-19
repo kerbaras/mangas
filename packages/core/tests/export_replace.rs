@@ -70,6 +70,12 @@ fn off_writes_a_numbered_copy_and_on_replaces_the_file() {
         assert_eq!(replaced.output, target, "{format}");
         let new = std::fs::read(&target).unwrap();
         assert!(new.starts_with(magic(format)), "{format}: a new book");
+        let mode = |p: &Path| std::fs::metadata(p).unwrap().permissions();
+        assert_eq!(
+            mode(&target),
+            mode(&copy),
+            "{format}: same mode as a new export"
+        );
         let expected = vec![format!("book (2).{format}"), format!("book.{format}")];
         assert_eq!(names(root.path()), expected, "no (3), no temporary file");
     }

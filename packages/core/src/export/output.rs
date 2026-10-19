@@ -40,10 +40,13 @@ fn write_over(path: &Path, fill: impl FnOnce(File) -> Result<()>) -> Result<Path
     let dir = dir.unwrap_or(Path::new("."));
     std::fs::create_dir_all(dir)?;
     let name = path.file_name().unwrap_or_default().to_string_lossy();
-    let tmp = tempfile::Builder::new()
-        .prefix(&format!(".{name}."))
-        .suffix(".part")
-        .tempfile_in(dir)?;
+    let prefix = format!(".{name}.");
+    let mut builder = tempfile::Builder::new();
+    builder.prefix(&prefix).suffix(".part");
+    // Same mode as `File::create` (0666 less the umask), not the temporary file's private 0600.
+    #[cfg(unix)]
+    builder.permissions(std::os::unix::fs::PermissionsExt::from_mode(0o666));
+    let tmp = builder.tempfile_in(dir)?;
     fill(tmp.as_file().try_clone()?)?;
     tmp.persist(path).map_err(|e| Error::from(e.error))?;
     Ok(path.to_path_buf())
