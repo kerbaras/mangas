@@ -49,7 +49,7 @@ Rules: the Tauri layer and the CLI contain no business logic. Everything testabl
   build machine nor the installer carries the runtime. `ml::runtime` pins one official
   microsoft/onnxruntime archive per release target (1.28.3; Intel macOS 1.23.2, the last Intel
   build), downloads it with the models ("Download detector support" in the export dialog or
-  Settings → Export, `mangas ml download`), checks the archive and library SHA-256, keeps only
+  Settings → Detectors, `mangas ml download`), checks the archive and library SHA-256, keeps only
   the library in `models/runtime/<version>/` and calls `ort::init_from` once before the first
   session. Living under `models/`, it moves with the data folder, counts as detector support in
   storage usage, is deleted with the models and stays out of backups. A failed download or load

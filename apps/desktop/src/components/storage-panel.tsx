@@ -23,7 +23,7 @@ const CACHES: Record<CacheKind, { label: string; done: string; hint: string }> =
   models: {
     label: "Delete detector support",
     done: "Detector support deleted",
-    hint: "download it again in Settings → Export or the export dialog",
+    hint: "download it again in Settings → Detectors or the export dialog",
   },
 };
 
@@ -64,7 +64,7 @@ export function StoragePanel() {
       </Field>
       <Field
         label="Caches"
-        hint="The app rebuilds these on its own: covers are fetched again when shown, detector support (ONNX Runtime and models) downloads again from Settings → Export or the export dialog."
+        hint="The app rebuilds these on its own: covers are fetched again when shown, detector support (ONNX Runtime and models) downloads again from Settings → Detectors or the export dialog."
       >
         <div className="flex flex-wrap gap-2">
           {(Object.keys(CACHES) as CacheKind[]).map((cache) => (
