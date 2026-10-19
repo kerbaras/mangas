@@ -44,12 +44,21 @@ fn observe<R: Runtime>(w: &Window<R>) -> Option<Rect> {
 }
 
 fn record<R: Runtime>(w: &Window<R>) {
-    let Some(rect) = observe(w) else {
+    if let Some(rect) = observe(w) {
+        remember(w.app_handle(), w.label(), rect);
+    }
+}
+
+/// Keeps `rect` as `label`'s normal geometry, e.g. where it was placed before it was first shown
+/// (no move or resize event reports that, and a window maximised right away never sends one).
+pub fn remember<R: Runtime>(app: &AppHandle<R>, label: &str, rect: Rect) {
+    let Some(tracked) = app.try_state::<Tracked>() else {
         return;
     };
-    if let Ok(mut all) = w.state::<Tracked>().0.lock() {
-        all.insert(w.label().to_string(), rect);
-    }
+    let Ok(mut all) = tracked.0.lock() else {
+        return;
+    };
+    all.insert(label.to_string(), rect);
 }
 
 fn save<R: Runtime>(app: &AppHandle<R>) {

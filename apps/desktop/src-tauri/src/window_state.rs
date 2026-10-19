@@ -91,7 +91,8 @@ fn place<R: Runtime>(app: &AppHandle<R>, window: &WebviewWindow<R>) {
         .set_size(PhysicalSize::new(to.width, to.height))
         .and_then(|()| window.set_position(PhysicalPosition::new(to.x, to.y)))
         .and_then(|()| if maximized { window.maximize() } else { Ok(()) });
-    if let Err(e) = placed {
-        tracing::warn!("restore window geometry: {e}");
+    match placed {
+        Ok(()) => window_normal::remember(app, MAIN, to),
+        Err(e) => tracing::warn!("restore window geometry: {e}"),
     }
 }
