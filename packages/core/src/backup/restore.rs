@@ -125,14 +125,19 @@ pub fn restore_with(
             (m, state)
         })
         .collect();
+    // Read the settings before any write: an unreadable row refuses the whole restore up front.
+    let current = match &backup.settings {
+        Some(_) if !keep => Some(get_settings(lib)?),
+        _ => None,
+    };
     restore_snapshot(lib, &add, &backup.state)?;
-    match &backup.settings {
-        Some(_) if keep => report.kept_settings = true,
-        Some(restored) => {
-            set_settings(lib, &merge_settings(&get_settings(lib)?, restored))?;
+    match (&backup.settings, current) {
+        (Some(_), _) if keep => report.kept_settings = true,
+        (Some(restored), Some(current)) => {
+            set_settings(lib, &merge_settings(&current, restored))?;
             report.settings = true;
         }
-        None => {}
+        _ => {}
     }
     Ok(report)
 }
