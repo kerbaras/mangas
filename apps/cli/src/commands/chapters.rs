@@ -5,7 +5,7 @@ use mangas_core::domain::{
 use mangas_core::library;
 
 use super::{hint, source_by_name, stored_settings, unknown_group};
-use crate::output::outln;
+use crate::output::{outln, print_json};
 use crate::paths;
 
 #[derive(ClapArgs)]
@@ -23,6 +23,12 @@ pub struct Args {
     /// Only the chapters of this scanlation group (the name in the group column)
     #[arg(long)]
     pub group: Option<String>,
+    /// Print a JSON array of the listed chapters, in list order, with the fields of
+    /// `update --json`: id, manga_id, number, volume, title, language, group, availability
+    /// ({"kind": "available" | "locked" | "external", "url"}), local_path (the folder, null until
+    /// downloaded) and exported_at (RFC 3339, null until exported)
+    #[arg(long)]
+    pub json: bool,
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
@@ -49,6 +55,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let chapters = in_group(chapters, group.as_deref());
     if let (Some(group), true) = (&group, chapters.is_empty()) {
         return Err(unknown_group(group, &id, &args.source));
+    }
+    if args.json {
+        return print_json(&chapters);
     }
     if chapters.is_empty() {
         let langs = languages.join("/");

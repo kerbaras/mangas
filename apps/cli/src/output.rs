@@ -22,6 +22,13 @@ macro_rules! out {
 
 pub(crate) use {out, outln};
 
+/// `value` as pretty-printed JSON on its own line: the one serialiser of every `--json` output
+/// that shares a shape (a chapter in `update --json` is the same object as in `chapters --json`).
+pub fn print_json<T: serde::Serialize + ?Sized>(value: &T) -> anyhow::Result<()> {
+    outln!("{}", serde_json::to_string_pretty(value)?)?;
+    Ok(())
+}
+
 /// Treats a closed stdout as success: the reader (`head`, `grep -m1`) has what it wanted.
 /// Only a top-level `io::Error` counts, so a broken connection inside a provider still fails.
 pub fn ignore_broken_pipe(result: anyhow::Result<()>) -> anyhow::Result<()> {
