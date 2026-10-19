@@ -18,7 +18,7 @@ use crate::domain::Error;
 pub use extract::extract_member;
 pub use install::{check, ensure};
 #[cfg(feature = "ml")]
-pub use load::ensure_loaded;
+pub use load::{ensure_loaded, error_chain, is_loaded, probe};
 pub use specs::RUNTIMES;
 pub use state::clear as forget_failure;
 

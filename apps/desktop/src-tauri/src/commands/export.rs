@@ -4,7 +4,7 @@ use mangas_core::export::kindle::{self, BookMeta, ExportRequest, ExportStats, Pr
 use mangas_core::export::{ExportPreset, Format, Labels};
 use mangas_core::library;
 use mangas_core::ml;
-use mangas_core::smartcut::{Preset, RowPenalizer};
+use mangas_core::smartcut::Preset;
 use tauri::{AppHandle, Emitter};
 
 use super::{open_library, settings_of, to_ipc};
@@ -65,7 +65,7 @@ pub async fn export_chapters(
         .map_err(to_ipc)?;
     let format = Format::resolve(format, Some(&output), resolved.format, &dev).map_err(to_ipc)?;
     let device = dev.id.to_string();
-    let penalizer = penalizer(&app, detectors).await?;
+    let detection = penalizer(&app, detectors).await?;
     let req_dirs = chapter_dirs.clone();
     let req = ExportRequest {
         labels: labels_of(&chapter_dirs),
@@ -86,7 +86,8 @@ pub async fn export_chapters(
     let title = req.title.clone();
     let handle = app.clone();
     // Mapped here, not in the closure, so the error is logged under this command's span.
-    let (stats, dirs) = tauri::async_runtime::spawn_blocking(move || {
+    let penalizer = detection.penalizer;
+    let (mut stats, dirs) = tauri::async_runtime::spawn_blocking(move || {
         let mut on_progress = |p: Progress| emit(&handle, ExportEvent::Export(p));
         kindle::export(&req, penalizer, &mut on_progress).map(|s| (s, req.chapter_dirs))
     })
@@ -94,6 +95,7 @@ pub async fn export_chapters(
     .map_err(to_ipc)?
     .map_err(to_ipc)?;
     record_export(&stats, &dirs, &title, &device);
+    stats.detectors_error = detection.error;
     Ok(stats)
 }
 
@@ -119,12 +121,10 @@ fn series_preset(dirs: &[PathBuf]) -> Option<ExportPreset> {
 }
 
 /// The detector row penalizer when `detectors` is on, reporting runtime/model downloads as events.
-pub(super) async fn penalizer(
-    app: &AppHandle,
-    detectors: bool,
-) -> Result<Option<RowPenalizer>, String> {
+/// Detectors that can't run leave it off with the reason; the cut goes on without them.
+pub(super) async fn penalizer(app: &AppHandle, detectors: bool) -> Result<ml::Penalizer, String> {
     if !detectors {
-        return Ok(None);
+        return Ok(ml::Penalizer::default());
     }
     let cache = models_dir()?;
     let bytes = ml::status(&cache).download_bytes;
@@ -135,10 +135,7 @@ pub(super) async fn penalizer(
         let id = id.to_string();
         emit(app, ExportEvent::ModelDownload { id, done, total });
     };
-    let p = ml::row_penalizer(&cache, &mut on_progress)
-        .await
-        .map_err(to_ipc)?;
-    Ok(Some(p))
+    Ok(ml::penalizer_or_reason(&cache, &mut on_progress).await)
 }
 
 /// Marks the chapters exported and adds the book to the export history. The file is written

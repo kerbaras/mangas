@@ -6,6 +6,7 @@ type Preview = {
   pages: { path: string; width: number; height: number }[];
   more: boolean;
   elapsed_ms: number;
+  detectors_error?: string | null;
 };
 
 export const tauriCutPreview: CutPreviewBackend = {
@@ -19,6 +20,7 @@ export const tauriCutPreview: CutPreviewBackend = {
     return {
       more: p.more,
       elapsed_ms: p.elapsed_ms,
+      detectors_error: p.detectors_error ?? null,
       pages: p.pages.map((page) => ({ ...page, src: convertFileSrc(page.path) })),
     };
   },

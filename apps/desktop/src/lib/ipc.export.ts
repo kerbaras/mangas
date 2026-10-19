@@ -34,4 +34,10 @@ export type ExportRequest = {
   title?: string;
 };
 
-export type ExportResult = { output: string; pages: number; skipped: number };
+export type ExportResult = {
+  output: string;
+  pages: number;
+  skipped: number;
+  /** Why the detectors were asked for but the book was cut without them. */
+  detectors_error?: string | null;
+};

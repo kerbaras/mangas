@@ -29,6 +29,7 @@ sha2 = "0.10"
 uuid = { version = "1", default-features = false, features = ["v5"] }
 futures-util = "0.3"
 ort = { version = "=2.0.0-rc.13", optional = true, default-features = false, features = ["std", "ndarray", "load-dynamic"] }
+libloading = { version = "0.9", optional = true }
 ndarray = { version = "0.17", optional = true }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 url = "2"
@@ -43,7 +44,7 @@ lettre = { version = "0.11", default-features = false, features = ["builder", "h
 default = []
 # Enables the ONNX detectors (ort, `load-dynamic`): the ONNX Runtime library is downloaded at
 # runtime next to the models (see `ml::runtime`), so no build machine needs it.
-ml = ["dep:ort", "dep:ndarray"]
+ml = ["dep:ort", "dep:ndarray", "dep:libloading"]
 cuda = ["ml", "ort/cuda"]
 
 [target.'cfg(all(target_os = "macos", target_arch = "aarch64"))'.dependencies]

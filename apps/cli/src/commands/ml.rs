@@ -29,7 +29,7 @@ enum Command {
 pub async fn run(args: Args) -> anyhow::Result<()> {
     let dir = paths::models()?;
     match args.command.unwrap_or(Command::Status) {
-        Command::Status => print_status(&ml::status(&dir)),
+        Command::Status => print_status(&ml::checked_status(&dir)),
         Command::Download => {
             let mut on_progress = |id: &str, done: u64, total: Option<u64>| {
                 let total = total.map(|t| format!(" of {}", human_size(t)));

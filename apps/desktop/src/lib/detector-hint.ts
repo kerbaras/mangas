@@ -9,6 +9,7 @@ export function detectorHint(state: Async<DetectorsStatus>): string {
   if (!state.data.available)
     return "This build has no detector support; cuts follow gutters and panel edges only.";
   const what = "Speech-bubble and face detectors keep cuts away from dialogue and faces.";
+  if (runtimeFailure(state.data)) return `${what} Off: the ONNX Runtime didn't load.`;
   return state.data.downloaded
     ? `${what} Running on ${state.data.provider}.`
     : `${what} Download them to turn this on.`;

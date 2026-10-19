@@ -26,7 +26,12 @@ pub struct Detectors {
 }
 
 impl Detectors {
+    /// Fails, without touching `ort`, until [`super::runtime::ensure_loaded`] succeeded: a session
+    /// built without a runtime panics inside `ort`.
     pub fn load(bubble_text: &Path, face: &Path) -> Result<Self> {
+        if !super::runtime::is_loaded() {
+            return Err(Error::Other("ONNX Runtime is not loaded".into()));
+        }
         Ok(Detectors {
             bubble_text: Mutex::new(load_session(bubble_text)?),
             face: Mutex::new(load_session(face)?),

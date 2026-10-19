@@ -1,6 +1,6 @@
 //! Device, smart-cut and detector flags shared by the export commands.
 
-use anyhow::{bail, Context};
+use anyhow::bail;
 use clap::Args as ClapArgs;
 use mangas_core::export::kindle::{device, Device, Progress};
 use mangas_core::export::{ExportPreset, Format};
@@ -93,6 +93,7 @@ impl CutArgs {
     }
 
     /// The detector-backed row penalizer when `--detectors` is set, downloading models first.
+    /// Detectors that can't run are reported and left off; the cut goes on without them.
     pub async fn penalizer(&self) -> anyhow::Result<Option<RowPenalizer>> {
         if !self.detectors {
             return Ok(None);
@@ -111,11 +112,12 @@ impl CutArgs {
                 total.map(|t| t.to_string()).unwrap_or_default()
             );
         };
-        let p = ml::row_penalizer(&cache, &mut on_progress)
-            .await
-            .context("detectors")?;
-        eprintln!("detectors: {:?}", ml::status(&cache).execution_provider);
-        Ok(Some(p))
+        let detection = ml::penalizer_or_reason(&cache, &mut on_progress).await;
+        match &detection.error {
+            Some(e) => eprintln!("detectors off, cutting without them: {e}"),
+            None => eprintln!("detectors: {:?}", ml::status(&cache).execution_provider),
+        }
+        Ok(detection.penalizer)
     }
 }
 
