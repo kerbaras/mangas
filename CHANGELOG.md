@@ -4,6 +4,52 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.5.0-rc.1] - 2026-10-19
+
+### Added
+
+- **settings:** Grouped settings with theme, download concurrency, HTTP(S) proxy and per-group reset (#182)
+- **desktop:** Auto-updater with stable and rc channels (#176)
+- **cli:** Add --json to mangas chapters (#212)
+- **desktop:** First-run setup, keyboard shortcuts and remembered window state (#175)
+- **export:** Add a Replace existing files option to the writers, CLI and Export dialog (#217)
+- **cli:** Add --strict-detectors to kindle and export (#215)
+- **send:** Keep the SMTP password in the OS keychain (#174)
+- **cli:** --json report for kindle and export with the detectors state (#232)
+
+### Fixed
+
+- **cli:** Size the chapters id column to the longest id and pad ids like strings (#173)
+- **send:** Give the SMTP handshake its own deadline and cap the upload allowance (#180)
+- Show the release's group on queue rows and count only the saved group's chapters (#181)
+- **providers:** Give MangaDot's whole chapter list its own 90 s timeout (#185)
+- **desktop:** Show chapter failure reasons in an edge-aware tooltip (#177)
+- Polish refused-download messages (no retry hint, word wrap, IPv4-mapped display) (#178)
+- **providers:** Stop waiting on a held rate limit lock after 2 s and pace in memory (#216)
+- Depend on ca-certificates in Linux packages and name missing root certificates (#213)
+- **desktop:** Show the window once the page has its palette (#233)
+- **desktop:** Keep the normal window geometry apart from the maximised flag (#230)
+- **desktop:** Keep Library and Search scroll and filters across Back (#229)
+- **desktop:** Replace native title tooltips with the shared Hint (#228)
+- **desktop:** Readable accent text token for dark mode (#224)
+- **export:** Shorten file names of long titles in core (#225)
+- **cli:** Write kindle -o <folder> inside the folder (#226)
+- **cli:** Providers exits 1 when every provider is unreachable, add --json (#227)
+- **desktop:** Keep screen header actions on one row at 960 px (#241)
+- **desktop:** Show a truncated screen header title in the shared Hint (#243)
+- **download:** Refuse re-downloading imported chapters, offer Open folder (#250)
+- **storage:** Mark data-folder moves so a killed move's partial copy can be listed, removed or replaced (#256)
+- **desktop:** Run detector removal and folder-heavy commands off the UI thread (#255)
+- **storage:** Forget the runtime failure when Storage deletes detector support (#246)
+- **cli:** Size providers table columns to the longest row (#242)
+- **desktop:** Add partial_move to the detector-remove-refresh fixture (#263)
+- **export:** Retry after a failed delivery re-sends the written book instead of re-exporting (#252)
+- **settings:** Keep the SMTP password out of get_settings; write-only field with set_smtp_password (#249)
+- **detectors:** Check detector status in a child process so Windows can remove the runtime (#257)
+- **export:** Resolve the series cover under the settings fallback (#251)
+- **desktop:** Show long Storage titles and the delete label in the shared Hint (#267)
+- **desktop:** Keep the Smart-cut options button on one line (#268)
+- **desktop:** Wrap unbroken tokens in plain error and note lines (#266)
 ## [0.4.0] - 2026-10-19
 
 ### Added
