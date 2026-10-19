@@ -97,8 +97,8 @@ async fn list(json: bool, bases: &[String]) -> anyhow::Result<()> {
             all_unreachable,
         })?;
     } else {
-        for (info, status) in &statuses {
-            outln!("{}", line(info, status))?;
+        for line in table(&statuses) {
+            outln!("{line}")?;
         }
     }
     match all_unreachable {
@@ -158,13 +158,25 @@ fn options(args: OptionsArgs) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn line(info: &ProviderInfo, status: &ProviderStatus) -> String {
-    let hint = match status {
-        ProviderStatus::NeedsSession => " (connect in the app: Settings > Providers)",
-        _ => "",
+/// One line per provider; the id, name and site columns are as wide as their longest value.
+fn table(rows: &[(ProviderInfo, ProviderStatus)]) -> Vec<String> {
+    let width = |field: fn(&ProviderInfo) -> &str| {
+        rows.iter()
+            .map(|(info, _)| field(info).chars().count())
+            .max()
+            .unwrap_or(0)
     };
-    format!(
-        "{:<10} {:<10} {:<24} {status}{hint}",
-        info.id, info.name, info.site
-    )
+    let (id, name, site) = (width(|i| i.id), width(|i| i.name), width(|i| i.site));
+    rows.iter()
+        .map(|(info, status)| {
+            let hint = match status {
+                ProviderStatus::NeedsSession => " (connect in the app: Settings > Providers)",
+                _ => "",
+            };
+            format!(
+                "{:<id$} {:<name$} {:<site$} {status}{hint}",
+                info.id, info.name, info.site
+            )
+        })
+        .collect()
 }
