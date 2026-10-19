@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ErrorAlert } from "@/components/error-alert";
 import { SearchGroupView } from "@/components/search-group";
@@ -38,11 +39,13 @@ function unreachable(reason: string) {
 }
 
 describe("search group failure", () => {
-  it("shows the ca-certificates hint and no Try again without certificates", () => {
+  it("shows the ca-certificates hint and no Try again without certificates", async () => {
     unreachable(NO_CERTS);
     const text = screen.getByText(/Install the ca-certificates package/);
     expect(text.textContent).not.toContain("no CA certificates found");
-    expect(text).toHaveAttribute("title", expect.stringContaining(NO_CERTS));
+    expect(text).not.toHaveAttribute("title");
+    await userEvent.setup().hover(text);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(NO_CERTS);
     expect(text).not.toHaveClass("truncate");
     expect(screen.queryByRole("button", { name: /try again/i })).toBeNull();
   });

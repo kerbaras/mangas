@@ -1,5 +1,6 @@
 import { Cover } from "@/components/cover";
 import { type EntryHandlers, EntryMenu } from "@/components/entry-menu";
+import { Hint } from "@/components/hint";
 import { Badge } from "@/components/ui/badge";
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { statusLabel } from "@/lib/format";
@@ -23,25 +24,23 @@ export function MangaCard({ entry, categories, ...on }: Props) {
           <div className="relative transition-transform group-hover:-translate-y-0.5">
             <Cover manga={entry} />
             {fresh > 0 && (
-              <span
-                title={`${fresh} new since you last opened it`}
-                className="absolute top-1.5 left-1.5 rounded-sm bg-ok px-1 text-caption font-semibold text-canvas tabular-nums shadow-sm"
-              >
-                {fresh} new
-              </span>
+              <Hint hint={`${fresh} new since you last opened it`} focusable={false}>
+                <span className="absolute top-1.5 left-1.5 rounded-sm bg-ok px-1 text-caption font-semibold text-canvas tabular-nums shadow-sm">
+                  {fresh} new
+                </span>
+              </Hint>
             )}
             {unread > 0 && (
-              <span
-                title={`${unread} unread`}
-                className="absolute top-1.5 right-1.5 min-w-5 rounded-sm bg-accent px-1 text-center text-caption font-semibold text-white tabular-nums shadow-sm"
-              >
-                {unread}
-              </span>
+              <Hint hint={`${unread} unread`} focusable={false}>
+                <span className="absolute top-1.5 right-1.5 min-w-5 rounded-sm bg-accent px-1 text-center text-caption font-semibold text-white tabular-nums shadow-sm">
+                  {unread}
+                </span>
+              </Hint>
             )}
           </div>
-          <p className="mt-2 truncate text-body font-medium" title={entry.title}>
-            {entry.title}
-          </p>
+          <Hint hint={entry.title} focusable={false} truncated>
+            <p className="mt-2 truncate text-body font-medium">{entry.title}</p>
+          </Hint>
           <div className="flex items-center gap-1.5 text-caption text-ink-3">
             {isLocal(entry) && <Badge variant="outline">Local</Badge>}
             {!isLocal(entry) && <span className="truncate">{statusLabel[entry.status]}</span>}

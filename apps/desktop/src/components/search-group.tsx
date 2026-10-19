@@ -1,6 +1,7 @@
 import { Link2, Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { RetryButton } from "@/components/error-alert";
+import { Hint } from "@/components/hint";
 import { ProviderIcon } from "@/components/provider-icon";
 import { ProviderStatusBadge } from "@/components/provider-status-badge";
 import { SearchResult } from "@/components/search-result";
@@ -108,9 +109,11 @@ function Unreachable(props: { name: string; reason: string; onRetry: () => void 
   const retry = isFinalError(props.reason) ? undefined : <RetryButton onClick={props.onRetry} />;
   return (
     <Note action={retry}>
-      <span className="min-w-0 break-words" title={tooltip}>
-        Couldn't reach {props.name}: {label}
-      </span>
+      <Hint hint={tooltip}>
+        <span className="min-w-0 break-words">
+          Couldn't reach {props.name}: {label}
+        </span>
+      </Hint>
     </Note>
   );
 }

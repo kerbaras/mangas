@@ -1,5 +1,6 @@
 import { Cover } from "@/components/cover";
 import { type EntryHandlers, EntryMenu } from "@/components/entry-menu";
+import { Hint } from "@/components/hint";
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { mangaKey } from "@/lib/format";
 import { type Category, type LibraryEntry, readingLabel } from "@/lib/ipc.library";
@@ -38,14 +39,16 @@ export function LibraryList({ entries, categories, ...on }: Props) {
                 <td className="pl-4">
                   <Cover manga={e} className="w-7" />
                 </td>
-                <td className="truncate pr-4 font-medium" title={e.title}>
-                  {e.chapters.new > 0 && (
-                    <span className="mr-2 rounded-sm bg-ok px-1 text-caption font-semibold text-canvas tabular-nums">
-                      {e.chapters.new} new
-                    </span>
-                  )}
-                  {e.title}
-                </td>
+                <Hint hint={e.title} focusable={false} truncated>
+                  <td className="truncate pr-4 font-medium">
+                    {e.chapters.new > 0 && (
+                      <span className="mr-2 rounded-sm bg-ok px-1 text-caption font-semibold text-canvas tabular-nums">
+                        {e.chapters.new} new
+                      </span>
+                    )}
+                    {e.title}
+                  </td>
+                </Hint>
                 <td className="truncate text-ink-2">{e.source}</td>
                 <td className="truncate text-ink-2">{readingLabel(e.reading_status)}</td>
                 <td className="text-right text-ink-2 tabular-nums">{e.chapters.total}</td>

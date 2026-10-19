@@ -112,10 +112,12 @@ export const DownloadRow = memo(function DownloadRow({ job, speed }: Props) {
       className="grid h-14 grid-cols-[minmax(0,2fr)_7rem_minmax(0,3fr)_auto] items-center gap-4 border-b border-stroke/60 px-4 [contain-intrinsic-size:auto_56px] [content-visibility:auto]"
     >
       <div className="min-w-0">
-        <p title={jobTitle(job)} className="flex min-w-0 gap-1 text-body font-medium">
-          {job.manga_title && <span className="truncate">{job.manga_title} ·</span>}
-          <span className="shrink-0">Chapter {job.number}</span>
-        </p>
+        <Hint hint={jobTitle(job)} truncated>
+          <p className="flex min-w-0 gap-1 text-body font-medium">
+            {job.manga_title && <span className="truncate">{job.manga_title} ·</span>}
+            <span className="shrink-0">Chapter {job.number}</span>
+          </p>
+        </Hint>
         <p className="truncate text-caption text-ink-3">
           {[job.title, job.group, languageLabel(job.language), job.source]
             .filter(Boolean)

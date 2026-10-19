@@ -31,12 +31,7 @@ export function GroupSelect({ groups, value, onChange }: Props) {
       <SelectContent className="w-auto min-w-[var(--radix-select-trigger-width)] max-w-80">
         <SelectItem value={ALL}>All groups ({total})</SelectItem>
         {options.map((g) => (
-          <SelectItem
-            key={g.name}
-            value={g.name}
-            title={g.name}
-            className="[&>span]:min-w-0 [&>span]:truncate"
-          >
+          <SelectItem key={g.name} value={g.name} className="[&>span]:min-w-0 [&>span]:break-words">
             {g.name} ({g.chapters})
           </SelectItem>
         ))}

@@ -7,7 +7,10 @@ const refused = (address: string) =>
 
 function detail(text: string) {
   render(<Description hint="The image host points at a local or private address." detail={text} />);
-  return screen.getByTitle(text);
+  const body = document.querySelector<HTMLElement>(".max-h-12");
+  if (!body) throw new Error("no detail line");
+  expect(body).not.toHaveAttribute("title");
+  return body;
 }
 
 describe("toast description", () => {

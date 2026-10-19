@@ -1,4 +1,5 @@
 import { BookOpen } from "lucide-react";
+import { Hint } from "@/components/hint";
 import type { Async } from "@/hooks/use-async";
 import type { VolumePlan } from "@/lib/ipc.volumes";
 import { planSummary } from "@/lib/volume-plan";
@@ -36,16 +37,16 @@ export function VolumePreview({ plans, folder, stale = false }: Props) {
             className="flex items-center gap-3 border-b border-stroke px-3 py-2 last:border-b-0"
           >
             <BookOpen className="size-4 shrink-0 text-ink-3" aria-hidden />
-            <span className="min-w-0 flex-1 truncate font-mono text-caption" title={p.file_name}>
-              {p.file_name}
-            </span>
+            <Hint hint={p.file_name} truncated>
+              <span className="min-w-0 flex-1 truncate font-mono text-caption">{p.file_name}</span>
+            </Hint>
             <span className="shrink-0 text-caption text-ink-3 tabular-nums">{planSummary(p)}</span>
           </li>
         ))}
       </ul>
-      <p className="truncate text-caption text-ink-3" title={folder}>
-        Saved to {folder}
-      </p>
+      <Hint hint={folder} truncated>
+        <p className="truncate text-caption text-ink-3">Saved to {folder}</p>
+      </Hint>
     </div>
   );
 }
