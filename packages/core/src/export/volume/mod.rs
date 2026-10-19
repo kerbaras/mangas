@@ -7,6 +7,7 @@ mod meta;
 mod name;
 mod outcome;
 mod plan;
+mod unwritten;
 
 use serde::{Deserialize, Serialize};
 

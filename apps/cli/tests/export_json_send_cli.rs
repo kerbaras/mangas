@@ -162,3 +162,19 @@ fn a_failed_volume_leaves_nothing_and_the_books_after_it_are_listed_not_written(
         "{err}"
     );
 }
+
+#[test]
+fn a_failed_volume_whose_name_is_taken_reports_the_numbered_name_it_would_have_taken() {
+    let home = tempfile::tempdir().unwrap();
+    library_with(home.path(), &[2, 0, 2]);
+    let dir = home.path().join("out");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("Series v2.epub"), b"old").unwrap();
+    let out = export_to_kindle(home.path());
+    assert!(!out.status.success(), "{out:?}");
+    let r = report(&out);
+    let path = |name: &str| dir.join(name).to_str().unwrap().to_string();
+    assert_eq!(r["failed"][0]["path"], path("Series v2 (2).epub"), "{r}");
+    assert_eq!(r["not_written"][0]["path"], path("Series v3.epub"), "{r}");
+    assert_eq!(std::fs::read(dir.join("Series v2.epub")).unwrap(), b"old");
+}

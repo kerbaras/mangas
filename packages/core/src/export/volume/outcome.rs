@@ -9,6 +9,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+use super::unwritten::unwritten_paths;
 use crate::domain::Result;
 use crate::export::kindle::{ExportRequest, ExportStats};
 
@@ -63,18 +64,23 @@ impl VolumeOutcome {
         written: Vec<ExportStats>,
         reason: String,
     ) -> Self {
-        let planned = |r: &ExportRequest| PlannedVolume {
+        let rest = reqs.get(index..).unwrap_or_default();
+        let mut unwritten = rest.iter().zip(unwritten_paths(rest));
+        let failed = unwritten.next().map(|(r, output)| FailedVolume {
             title: r.title.clone(),
-            output: r.output.clone(),
-        };
+            output,
+            reason,
+        });
+        let not_written = unwritten
+            .map(|(r, output)| PlannedVolume {
+                title: r.title.clone(),
+                output,
+            })
+            .collect();
         VolumeOutcome {
             written,
-            failed: reqs.get(index).map(|r| FailedVolume {
-                title: r.title.clone(),
-                output: r.output.clone(),
-                reason,
-            }),
-            not_written: reqs.iter().skip(index + 1).map(planned).collect(),
+            failed,
+            not_written,
         }
     }
 
