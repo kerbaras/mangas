@@ -12,7 +12,7 @@ const SELECT: &str = "SELECT j.id, j.source, c.manga_id, j.chapter_id, j.state, 
         j.error, j.pages_done, j.pages_total, j.not_before, j.owner, j.heartbeat_at,
         j.created_at, j.updated_at, COALESCE(m.title, ''), c.number, c.title, c.language,
         c.local_path, j.force,
-        CASE WHEN (SELECT COUNT(DISTINCT g.scanlation_group) FROM chapter g
+        CASE WHEN (SELECT COUNT(DISTINCT COALESCE(g.scanlation_group, '')) FROM chapter g
                    WHERE g.source = c.source AND g.manga_id = c.manga_id) > 1
              THEN c.scanlation_group END
     FROM download_jobs j

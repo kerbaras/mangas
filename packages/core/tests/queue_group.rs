@@ -21,7 +21,7 @@ fn follow(lib: &Library, id: &str, releases: &[(&str, &str)]) -> Vec<Chapter> {
             manga_id: manga.id.clone(),
             language: "en".into(),
             number: (*number).into(),
-            group: Some((*group).into()),
+            group: (!group.is_empty()).then(|| (*group).into()),
             ..Default::default()
         })
         .collect();
@@ -66,4 +66,23 @@ fn chapter_counts_follow_the_saved_group() {
     assert_eq!((counts(&lib).total, counts(&lib).unread), (2, 2));
     set_chapter_group(&lib, "mangadot", &id, None).unwrap();
     assert_eq!(counts(&lib).total, 3, "All counts every group");
+}
+
+#[test]
+fn a_release_without_a_group_counts_as_a_group_of_its_own() {
+    let lib = open_in_memory().unwrap();
+    let mixed = follow(&lib, "mixed", &[("4", "K Manga"), ("4", "")]);
+    enqueue(&lib, "mangadot", mixed, false).unwrap();
+    let groups: Vec<Option<String>> = list(&lib).unwrap().into_iter().map(|j| j.group).collect();
+    assert_eq!(groups, [Some("K Manga".to_string()), None]);
+}
+
+#[test]
+fn the_saved_groups_release_of_a_known_chapter_is_new() {
+    let lib = open_in_memory().unwrap();
+    let id = MangaId("knight".into());
+    follow(&lib, "knight", &[("1", "B")]);
+    set_chapter_group(&lib, "mangadot", &id, Some("A")).unwrap();
+    follow(&lib, "knight", &[("1", "B"), ("1", "A")]);
+    assert_eq!(list_entries(&lib).unwrap()[0].chapters.new, 1);
 }

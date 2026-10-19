@@ -1,6 +1,6 @@
 //! The releases a title already has, for telling another group's release from a new chapter.
 
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 
 use crate::domain::{Availability, Chapter, MangaId, Result};
 
@@ -28,4 +28,20 @@ pub(crate) fn stored_releases(
         })
     })?;
     Ok(rows.collect::<rusqlite::Result<_>>()?)
+}
+
+/// The group a title is narrowed to (#160), `None` for all groups.
+pub(crate) fn saved_group(
+    conn: &Connection,
+    source: &str,
+    manga_id: &MangaId,
+) -> Result<Option<String>> {
+    let group = conn
+        .query_row(
+            "SELECT chapter_group FROM manga WHERE source = ?1 AND id = ?2",
+            params![source, manga_id.0],
+            |r| r.get(0),
+        )
+        .optional()?;
+    Ok(group.flatten())
 }
