@@ -59,6 +59,25 @@ fn a_failed_load_is_recorded_and_no_session_is_built() {
     assert!(e.to_string().contains("not loaded"), "{e}");
 }
 
+#[test]
+fn the_status_check_skips_a_runtime_without_models_and_one_removed_meanwhile() {
+    let dir = tempfile::tempdir().unwrap();
+    let lib = garbage_runtime(dir.path());
+    std::fs::remove_file(model_path(dir.path(), &FACE_DETECTOR)).unwrap();
+    let runtime = ml::checked_status(dir.path()).runtime;
+    assert!(
+        matches!(runtime, RuntimeStatus::Downloaded { .. }),
+        "{runtime:?}"
+    );
+    std::fs::remove_file(&lib).unwrap();
+    assert!(runtime::ensure_loaded(dir.path()).is_err());
+    let runtime = ml::status(dir.path()).runtime;
+    assert!(
+        matches!(runtime, RuntimeStatus::NotDownloaded { .. }),
+        "{runtime:?}"
+    );
+}
+
 fn chapter(root: &Path) -> std::path::PathBuf {
     let dir = root.join("Chapter 1");
     std::fs::create_dir_all(&dir).unwrap();

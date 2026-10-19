@@ -84,14 +84,17 @@ pub fn status(cache_dir: &Path) -> Status {
 
 /// [`status`] after loading a downloaded runtime, so one that won't load shows as failed with the
 /// loader's message. The desktop's detector status and the CLI's `ml status` both ask this.
+/// Only once the models are there too: Windows keeps a loaded DLL locked until the app quits.
 pub fn checked_status(cache_dir: &Path) -> Status {
+    let now = status(cache_dir);
     #[cfg(feature = "ml")]
-    if matches!(runtime::status(cache_dir), RuntimeStatus::Downloaded { .. }) {
+    if now.downloaded {
         if let Err(e) = runtime::ensure_loaded(cache_dir) {
             tracing::debug!("onnx runtime check: {e}");
         }
+        return status(cache_dir);
     }
-    status(cache_dir)
+    now
 }
 
 #[cfg(feature = "ml")]

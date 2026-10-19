@@ -29,9 +29,15 @@ pub fn ensure_loaded(models_dir: &Path) -> Result<()> {
     };
     match &result {
         Ok(()) => state::clear(),
+        // Removed meanwhile: the runtime is absent, not failed.
+        Err(_) if !installed(models_dir) => {}
         Err(e) => state::record(models_dir, e.to_string()),
     }
     result
+}
+
+fn installed(models_dir: &Path) -> bool {
+    current().is_some_and(|spec| lib_path(models_dir, &spec).is_file())
 }
 
 /// Whether `ort` has a runtime: no session may be built before this is true.

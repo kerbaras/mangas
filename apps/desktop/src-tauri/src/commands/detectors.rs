@@ -184,6 +184,9 @@ mod tests {
         let lib = ml::runtime::lib_path(dir.path(), &spec);
         std::fs::create_dir_all(lib.parent().unwrap()).unwrap();
         std::fs::write(&lib, b"not a library").unwrap();
+        for m in &ml::MODELS {
+            std::fs::write(ml::cache::model_path(dir.path(), m), b"not a model").unwrap();
+        }
         let status = status_in(dir.path().to_path_buf()).await.unwrap();
         assert!(!status.downloaded, "the switch stays off");
         match status.runtime {
