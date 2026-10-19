@@ -14,12 +14,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useImport } from "@/hooks/use-import";
 import { useLibraryView } from "@/hooks/use-library-view";
+import { useScrollMemory } from "@/hooks/use-scroll-memory";
 import { useShelf } from "@/hooks/use-shelf";
 import { mangaKey } from "@/lib/format";
 import type { Category } from "@/lib/ipc.library";
 import { filterEntries, liveView, sortEntries } from "@/lib/library-view";
 import { useNavigation } from "@/lib/navigation";
 import { notifyError } from "@/lib/notify";
+import { rememberLibraryQuery, savedLibraryQuery } from "@/lib/screen-memory";
 import { useUpdates } from "@/lib/updates";
 
 const noCategories: Category[] = [];
@@ -29,7 +31,8 @@ export function LibraryScreen() {
   const shelf = useShelf();
   const { state, reload } = shelf;
   const imports = useImport(reload);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(savedLibraryQuery);
+  const pane = useScrollMemory<HTMLDivElement>("library");
   const [stored, setView] = useLibraryView();
   const [editing, setEditing] = useState(false);
   const { found } = useUpdates();
@@ -73,7 +76,10 @@ export function LibraryScreen() {
             <Input
               type="search"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                rememberLibraryQuery(e.target.value);
+              }}
               placeholder="Filter by title"
               aria-label="Filter by title"
               data-shortcut-search
@@ -96,7 +102,7 @@ export function LibraryScreen() {
           onEditCategories={() => setEditing(true)}
         />
       ) : null}
-      <div className="relative min-h-0 flex-1 overflow-auto overscroll-contain">
+      <div ref={pane} className="relative min-h-0 flex-1 overflow-auto overscroll-contain">
         {state.kind === "loading" && <p className="p-4 text-ink-3">Loading…</p>}
         {state.kind === "error" && (
           <div className="p-4">
