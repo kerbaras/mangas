@@ -56,7 +56,11 @@ pub fn storage(lib: &Library, store: &dyn SecretStore) -> Result<Storage> {
             Storage::Keychain
         }
         Err(StoreError::Locked(_)) => Storage::Locked,
-        Err(StoreError::Unavailable(_)) => Storage::File,
+        Err(StoreError::Unavailable(_)) => {
+            // No keychain and nothing in the file: no password, whatever was guessed before.
+            remember(lib, false)?;
+            Storage::File
+        }
     })
 }
 
