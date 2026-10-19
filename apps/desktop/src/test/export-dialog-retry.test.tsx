@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ExportDialog } from "@/components/export-dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -150,8 +150,13 @@ describe("export dialog: Retry after a failed delivery", () => {
     fireEvent.click(await enabledButton(/^Retry email$/));
     expect(await screen.findByRole("button", { name: "Sending email…" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Export book and email/ })).toBeNull();
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Save to folder" }));
+    expect(screen.getByRole("button", { name: "Sending email…" })).toBeTruthy();
     await act(async () => finish(sent));
-    expect(await screen.findByText(/Emailed Solo v1\.epub/)).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Sending email…" })).toBeNull(),
+    );
+    expect(sendEmail).toHaveBeenCalledTimes(2);
   });
 
   it("exports again when the export itself failed", async () => {

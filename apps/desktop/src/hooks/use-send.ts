@@ -17,6 +17,14 @@ export type SendState =
   | { kind: "done"; via: Via; message: string }
   | { kind: "error"; via: Via; message: string; sent: string };
 
+/** The delivery under way in `state`, if one is. */
+export const runningVia = (state: SendState): Via | undefined =>
+  state.kind === "emailing"
+    ? "email"
+    : ["looking", "copying"].includes(state.kind)
+      ? "usb"
+      : undefined;
+
 /** What a failed delivery still has to send (from the book it failed on) and what it already did. */
 type Pending = { books: Book[]; via: Via; lines: string[] };
 
