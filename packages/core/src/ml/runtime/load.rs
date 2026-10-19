@@ -45,6 +45,12 @@ pub fn is_loaded() -> bool {
     LOADED.lock().is_ok_and(|l| matches!(*l, Loaded::Yes))
 }
 
+/// Whether this process has tried to load the runtime (loaded or broken): from then on its library
+/// is mapped or its `ort` load is final, so checking again here costs nothing new.
+pub fn attempted() -> bool {
+    LOADED.lock().is_ok_and(|l| !matches!(*l, Loaded::No))
+}
+
 fn load(models_dir: &Path, loaded: &mut Loaded) -> Result<()> {
     let spec = current().ok_or_else(super::unsupported)?;
     let path = lib_path(models_dir, &spec);
