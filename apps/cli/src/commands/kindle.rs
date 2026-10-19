@@ -103,7 +103,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     if args.chapters.is_empty() {
         bail!("no chapter directories given");
     }
-    let _reading = storage::hold_for_export(&paths::models()?)?;
+    let _reading = storage::hold_for_export(paths::data_dir)?;
     // Kept from before other formats existed: a Paperwhite EPUB unless the flags or the
     // series preset say otherwise, whatever the stored defaults are.
     let explicit = args.cut.explicit(None)?;

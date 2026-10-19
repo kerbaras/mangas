@@ -84,7 +84,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         return export_preset::manage(&lib, &args.source, &args.manga_id, action, &explicit);
     }
     // Before the chapter folders are looked up: a data-folder move can't start under the export.
-    let _reading = storage::hold_for_export(&paths::models()?)?;
+    let _reading = storage::hold_for_export(paths::data_dir)?;
     let src = volume::load(&lib, &args.source, &args.manga_id, None)?;
     let plans = volume::one_file_each(plans(&args, &src.manga, &src.chapters)?, args.replace);
     if plans.is_empty() {

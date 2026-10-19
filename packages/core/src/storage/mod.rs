@@ -18,7 +18,7 @@ pub use delete::{delete_downloads, Deleted};
 pub use layout::Folders;
 pub use move_dir::{move_data_dir, move_data_dir_with, MoveProgress, Moved};
 pub use partial::{leftover_copy, partial_copy_at, remove_leftover_copy, PartialCopy, MOVE_MARKER};
-pub use reading::hold_for_export;
+pub use reading::{hold_for_export, EXPORT_LEASE, EXPORT_LEASE_FILES};
 pub use relocate::{check_target, rebase};
 pub use size::human_size;
 pub use tree::dir_size;

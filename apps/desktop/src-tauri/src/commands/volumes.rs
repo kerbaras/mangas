@@ -7,12 +7,11 @@ use mangas_core::export::volume::{self, Grouping, VolumeOutcome, VolumePlan};
 use mangas_core::export::{ExportPreset, Format};
 use mangas_core::library;
 use mangas_core::smartcut::Preset;
-use mangas_core::storage;
 use tauri::{AppHandle, Runtime};
 
 use super::covers::cover_file;
-use super::export::{emit, record_export, resolve, ExportEvent};
-use super::penalizer::{models_dir, penalizer};
+use super::export::{emit, hold_for_export, record_export, resolve, ExportEvent};
+use super::penalizer::penalizer;
 use super::{blocking, open_library, settings_or_default, settings_quietly, to_ipc};
 use crate::paths;
 
@@ -82,7 +81,7 @@ pub async fn export_volumes<R: Runtime>(
     replace: Option<bool>,
 ) -> Result<VolumeOutcome, String> {
     // Before the chapter folders are looked up: a data-folder move can't start under the export.
-    let _reading = storage::hold_for_export(&models_dir()?).map_err(to_ipc)?;
+    let _reading = hold_for_export().map_err(to_ipc)?;
     let settings = settings_or_default();
     let output_dir = mangas_core::export::in_export_folder(
         &paths::exports(&settings)?,
