@@ -174,7 +174,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
           />
         </div>
         <div className="mt-4 flex flex-col gap-3 empty:hidden">
-          <ExportProgressPanel state={job.state} onReset={job.reset} />
+          <ExportProgressPanel state={job.state} onRetry={() => void run()} canRetry={ready} />
           <SendStatus
             state={send.state}
             via={via}

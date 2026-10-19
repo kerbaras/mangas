@@ -7,12 +7,16 @@ import { revealFolder } from "@/lib/dialogs";
 import { parentDir } from "@/lib/export-name";
 import { combineResults, exportSummary } from "@/lib/export-summary";
 
+/** Export progress, its failure with "Try again" (`onRetry` exports again), or what it wrote. */
 export function ExportProgressPanel({
   state,
-  onReset,
+  onRetry,
+  canRetry = true,
 }: {
   state: ExportState;
-  onReset: () => void;
+  onRetry: () => void;
+  /** False while the form can't export (names or settings still loading). */
+  canRetry?: boolean;
 }) {
   if (state.kind === "idle") return null;
   if (state.kind === "running") {
@@ -39,7 +43,7 @@ export function ExportProgressPanel({
       >
         <p className="font-medium text-accent-text">Export failed</p>
         <p className="mt-1 text-ink-2 [overflow-wrap:anywhere]">{state.message}</p>
-        <Button size="sm" className="mt-3" onClick={onReset}>
+        <Button size="sm" className="mt-3" disabled={!canRetry} onClick={onRetry}>
           Try again
         </Button>
       </div>
