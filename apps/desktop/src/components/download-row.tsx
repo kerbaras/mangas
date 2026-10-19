@@ -1,5 +1,6 @@
 import { FolderOpen, Pause, Play, RotateCcw, Trash2, X } from "lucide-react";
 import { memo, type ReactNode } from "react";
+import { Hint } from "@/components/hint";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -91,9 +92,9 @@ function Detail({ job, speed }: { job: DownloadJob; speed: number | null }) {
   if (job.state === "done" && job.pages_total > 0)
     return <span className="text-caption text-ink-3">{job.pages_total} pages</span>;
   return text ? (
-    <span title={text} className="truncate text-caption text-ink-2">
-      {text}
-    </span>
+    <Hint hint={text}>
+      <span className="truncate text-caption text-ink-2">{text}</span>
+    </Hint>
   ) : null;
 }
 
@@ -121,9 +122,9 @@ export const DownloadRow = memo(function DownloadRow({ job, speed }: Props) {
       <div className="flex flex-col items-start gap-0.5">
         <span className={cn("text-caption font-medium", TONE[job.state])}>{stateLabel(job)}</span>
         {unlisted && (
-          <Badge variant="outline" title={job.error ?? undefined}>
-            No longer listed
-          </Badge>
+          <Hint hint={job.error}>
+            <Badge variant="outline">No longer listed</Badge>
+          </Hint>
         )}
       </div>
       <div className="flex min-w-0 items-center">

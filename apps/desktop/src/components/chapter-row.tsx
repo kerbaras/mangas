@@ -1,6 +1,7 @@
 import { AlertCircle, Ban, Check, Clock, EyeOff, Pause, Send } from "lucide-react";
 import type { MouseEvent, ReactNode } from "react";
 import { AvailabilityCell } from "@/components/availability-cell";
+import { Hint } from "@/components/hint";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { sourceRef, splitGroup } from "@/lib/chapter-groups";
@@ -19,11 +20,22 @@ type Props = {
   onToggle: (id: string, shift: boolean) => void;
 };
 
+/** The state label; `hint` (an error or retry reason) shows in an edge-aware tooltip. */
+function StateLabel(props: { hint?: string; className: string; children: ReactNode }) {
+  return (
+    <Hint hint={props.hint}>
+      <span className={cn("flex w-fit items-center gap-1 text-caption", props.className)}>
+        {props.children}
+      </span>
+    </Hint>
+  );
+}
+
 function Waiting({ icon, label, title }: { icon: ReactNode; label: string; title?: string }) {
   return (
-    <span className="flex items-center gap-1 text-caption text-ink-3" title={title}>
+    <StateLabel hint={title} className="text-ink-3">
       {icon} {label}
-    </span>
+    </StateLabel>
   );
 }
 
@@ -57,9 +69,9 @@ function StateCell({ chapter, progress }: Pick<Props, "chapter" | "progress">) {
   }
   if (progress?.error) {
     return (
-      <span className="flex items-center gap-1 text-caption text-accent" title={progress.error}>
+      <StateLabel hint={progress.error} className="text-accent">
         <AlertCircle className="size-3.5" /> Failed
-      </span>
+      </StateLabel>
     );
   }
   if (progress?.state === "cancelled" && !chapter.local_path) {
