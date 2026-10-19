@@ -61,7 +61,9 @@ describe("email settings", () => {
     writeSettings({ kindleEmail: WITH_PASSWORD });
     render(<EmailSettingsForm />);
     expect(await screen.findByText("Kept in your system keychain.")).toBeTruthy();
-    act(() => writeSettings({ kindleEmail: EMPTY_EMAIL }));
+    act(() => {
+      writeSettings({ kindleEmail: EMPTY_EMAIL });
+    });
     expect(await screen.findByText("No password saved.")).toBeTruthy();
     expect(screen.queryByText("Kept in your system keychain.")).toBeNull();
   });
