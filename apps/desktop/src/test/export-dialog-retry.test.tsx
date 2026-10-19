@@ -120,6 +120,19 @@ describe("export dialog: Retry after a failed delivery", () => {
     expect(sendUsb.mock.calls.map((c) => c[0])).toEqual(["/k/Solo v1.epub"]);
   });
 
+  it("offers no Retry once the user switches a failed email to Save to folder", async () => {
+    const sendEmail = vi.fn().mockRejectedValueOnce(new Error("connection refused"));
+    exportBackend({ sendEmail });
+    render(dialog());
+    fireEvent.mouseDown(await screen.findByRole("tab", { name: "Email to Kindle" }));
+    fireEvent.click(await enabledButton(/Export book and email/));
+    expect(await screen.findByText(/connection refused/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Retry$/ })).toBeTruthy();
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Save to folder" }));
+    expect(screen.queryByRole("button", { name: /^Retry$/ })).toBeNull();
+    expect(sendEmail).toHaveBeenCalledOnce();
+  });
+
   it("exports again when the export itself failed", async () => {
     const exportVolumes = vi
       .fn()

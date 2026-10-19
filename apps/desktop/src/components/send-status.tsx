@@ -5,8 +5,8 @@ import { Progress } from "@/components/ui/progress";
 import type { SendState } from "@/hooks/use-send";
 import { megabytes } from "@/lib/send-labels";
 
-/** Where a delivery is: looking, copying with progress, Device not found or failed + Retry, done. */
-export function SendStatus({ state, onRetry }: { state: SendState; onRetry: () => void }) {
+/** Where a delivery is: looking, copying with progress, Device not found or failed (+ Retry when given), done. */
+export function SendStatus({ state, onRetry }: { state: SendState; onRetry?: () => void }) {
   switch (state.kind) {
     case "idle":
       return null;
@@ -35,9 +35,11 @@ export function SendStatus({ state, onRetry }: { state: SendState; onRetry: () =
           <AlertTitle>Device not found</AlertTitle>
           <AlertDescription>
             Connect your Kindle with a USB cable and unlock it; it shows up as a drive named Kindle.
-            <Button size="sm" onClick={onRetry} className="mt-1">
-              <RefreshCw /> Retry
-            </Button>
+            {onRetry && (
+              <Button size="sm" onClick={onRetry} className="mt-1">
+                <RefreshCw /> Retry
+              </Button>
+            )}
           </AlertDescription>
         </Alert>
       );
@@ -59,9 +61,11 @@ export function SendStatus({ state, onRetry }: { state: SendState; onRetry: () =
             <AlertTitle>{state.via === "email" ? "Email not sent" : "Copy failed"}</AlertTitle>
             <AlertDescription>
               {state.message}
-              <Button size="sm" onClick={onRetry} className="mt-1">
-                <RefreshCw /> Retry
-              </Button>
+              {onRetry && (
+                <Button size="sm" onClick={onRetry} className="mt-1">
+                  <RefreshCw /> Retry
+                </Button>
+              )}
             </AlertDescription>
           </Alert>
         </>
