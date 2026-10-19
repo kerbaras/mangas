@@ -11,6 +11,7 @@ use crate::output::{outln, print_json};
 use crate::{paths, Exit};
 
 #[derive(ClapArgs)]
+#[command(args_conflicts_with_subcommands = true)]
 pub struct Args {
     #[command(subcommand)]
     action: Option<Action>,
@@ -78,17 +79,25 @@ struct List<'a> {
     all_unreachable: bool,
 }
 
+/// `--base ID=URL` pairs, refusing an unknown id rather than probing the live site instead.
+fn parse_bases(bases: &[String]) -> anyhow::Result<HashMap<String, String>> {
+    let known = mangas_providers::providers();
+    bases
+        .iter()
+        .map(|b| match b.split_once('=') {
+            Some((id, url)) if known.iter().any(|p| p.id == id) => {
+                Ok((id.to_string(), url.to_string()))
+            }
+            Some((id, _)) => anyhow::bail!("--base: unknown provider {id:?}"),
+            None => anyhow::bail!("--base takes ID=URL"),
+        })
+        .collect()
+}
+
 /// Lists the providers with their status: one cheap request each, using the browser session
 /// the desktop app stored (connect from Settings in the app). Fails when none is reachable.
 async fn list(json: bool, bases: &[String]) -> anyhow::Result<()> {
-    let bases = bases
-        .iter()
-        .map(|b| {
-            b.split_once('=')
-                .map(|(id, url)| (id.to_string(), url.to_string()))
-        })
-        .collect::<Option<HashMap<_, _>>>()
-        .ok_or_else(|| anyhow::anyhow!("--base takes ID=URL"))?;
+    let bases = parse_bases(bases)?;
     let statuses = mangas_providers::statuses_at(&stored_settings(), &bases).await;
     let all_unreachable = all_unreachable(statuses.iter().map(|(_, s)| s));
     if json {

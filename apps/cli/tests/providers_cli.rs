@@ -171,3 +171,31 @@ fn no_tls_certificates_exits_1() {
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert_eq!(stdout.matches("unreachable: ").count(), 6, "{stdout}");
 }
+
+#[test]
+fn an_unknown_base_id_is_refused_instead_of_probing_the_live_site() {
+    let home = home();
+    let out = providers(
+        home.path(),
+        &[("mangadx", "http://127.0.0.1:9")],
+        &["--json"],
+    );
+    assert!(!out.status.success(), "{out:?}");
+    assert!(out.stdout.is_empty(), "{out:?}");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("unknown provider \"mangadx\""), "{stderr}");
+}
+
+#[test]
+fn listing_flags_are_refused_before_a_subcommand() {
+    let home = home();
+    let base = "mangadex=http://127.0.0.1:9";
+    for args in [
+        vec!["--json", "check", "mangadex"],
+        vec!["--base", base, "check", "mangadex"],
+    ] {
+        let out = providers(home.path(), &[], &args);
+        assert_eq!(out.status.code(), Some(2), "{args:?}: {out:?}");
+        assert!(out.stdout.is_empty(), "{out:?}");
+    }
+}
