@@ -3,8 +3,9 @@
 
 use serde::Serialize;
 
+use super::resolve::{locked, with_password};
 use super::store::{SecretStore, StoreError};
-use crate::domain::{Error, Result};
+use crate::domain::Result;
 use crate::library::{edit_settings, get_settings, Library, Settings};
 use crate::send::EmailSettings;
 
@@ -42,42 +43,6 @@ pub fn email_settings(lib: &Library, store: &dyn SecretStore) -> Result<EmailSet
     with_password(store, &migrate(lib, store)?.kindle_email)
 }
 
-/// `email` with its password: the one it carries (one still in the settings file), else the
-/// keychain's. Without a user name no password is needed; without a keychain the password is
-/// empty, as before the keychain, and the server says whether it takes that. A locked keychain
-/// (its unlock prompt dismissed) fails the send instead of trying without the password.
-pub fn with_password(store: &dyn SecretStore, email: &EmailSettings) -> Result<EmailSettings> {
-    if !email.password.is_empty() || email.username.trim().is_empty() {
-        return Ok(email.clone());
-    }
-    let password = match store.get() {
-        Ok(secret) => secret.unwrap_or_default(),
-        Err(StoreError::Locked(why)) => return Err(locked(&why)),
-        Err(e) => {
-            tracing::debug!("couldn't read the SMTP password from the system keychain: {e}");
-            String::new()
-        }
-    };
-    Ok(EmailSettings {
-        password,
-        ..email.clone()
-    })
-}
-
-/// The settings a test email uses: the form's `draft`, with the saved password when the user
-/// didn't change it (`typed` false; a locked keychain fails like a send), else exactly as typed,
-/// so a cleared field tests sending without one.
-pub fn test_settings(
-    store: &dyn SecretStore,
-    draft: &EmailSettings,
-    typed: bool,
-) -> Result<EmailSettings> {
-    if typed {
-        return Ok(draft.clone());
-    }
-    with_password(store, draft)
-}
-
 /// Where the password is (or would be) kept: in the file while one is still there, else in
 /// the keychain when it answers.
 pub fn storage(lib: &Library, store: &dyn SecretStore) -> Result<Storage> {
@@ -105,8 +70,18 @@ pub fn save_settings(
     let changed = base.is_none_or(|b| b.kindle_email.password != password);
     let (mut base, mut edited) = (base.cloned(), edited.clone());
     let mut fallback = None;
-    // What to put back if the save fails; unknown (None) when the keychain can't be read.
-    let before = changed.then(|| store.get().ok()).flatten();
+    // The save's one keychain read (a locked keychain prompts once, and a dismissed prompt stops
+    // the save there): what to put back if the save fails, unknown (None) without a keychain.
+    let before = if changed {
+        store.retry();
+        match store.get() {
+            Ok(secret) => Some(secret),
+            Err(StoreError::Locked(why)) => return Err(locked(&why)),
+            Err(_) => None,
+        }
+    } else {
+        None
+    };
     if changed {
         let kept = if password.is_empty() {
             store.delete()
@@ -178,13 +153,6 @@ fn restore(store: &dyn SecretStore, before: Option<&str>) {
     if let Err(e) = undone {
         tracing::warn!("couldn't put the previous SMTP password back in the keychain: {e}");
     }
-}
-
-fn locked(why: &str) -> Error {
-    Error::Send(format!(
-        "The system keychain is locked or can't be read, so the SMTP password isn't available. \
-         Unlock it and try again ({why})"
-    ))
 }
 
 fn reveal(store: &dyn SecretStore) -> String {

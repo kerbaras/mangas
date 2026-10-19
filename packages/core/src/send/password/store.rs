@@ -1,5 +1,6 @@
 //! The one slot the SMTP password lives in: the OS keychain, or memory (tests, keychain off).
 
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
 use super::memo::LockMemo;
@@ -28,6 +29,9 @@ pub trait SecretStore: Send + Sync {
     fn set(&self, secret: &str) -> Result<(), StoreError>;
     /// Removes the secret; removing a missing one is not an error.
     fn delete(&self) -> Result<(), StoreError>;
+    /// Lets the next call prompt to unlock again after a dismissed prompt: only right before a
+    /// read something the user did asked for.
+    fn retry(&self) {}
 }
 
 /// Keychain service and account names. The service is the app identifier, as macOS shows it.
@@ -83,6 +87,10 @@ fn describe(e: keyring::Error) -> StoreError {
 }
 
 impl SecretStore for Keychain {
+    fn retry(&self) {
+        retry_keychain();
+    }
+
     fn get(&self) -> Result<Option<String>, StoreError> {
         KEYCHAIN_LOCK.read(|| match entry()?.get_password() {
             Ok(secret) => Ok(Some(secret)),
@@ -108,6 +116,7 @@ impl SecretStore for Keychain {
 pub struct MemoryStore {
     secret: Mutex<Option<String>>,
     broken: Option<StoreError>,
+    calls: AtomicUsize,
 }
 
 impl MemoryStore {
@@ -116,6 +125,7 @@ impl MemoryStore {
         MemoryStore {
             secret: Mutex::new(Some(secret.to_string())),
             broken: None,
+            calls: AtomicUsize::new(0),
         }
     }
 
@@ -124,6 +134,7 @@ impl MemoryStore {
         MemoryStore {
             secret: Mutex::new(None),
             broken: Some(StoreError::Unavailable(reason.to_string())),
+            calls: AtomicUsize::new(0),
         }
     }
 
@@ -132,6 +143,7 @@ impl MemoryStore {
         MemoryStore {
             secret: Mutex::new(None),
             broken: Some(StoreError::Locked(reason.to_string())),
+            calls: AtomicUsize::new(0),
         }
     }
 
@@ -140,7 +152,13 @@ impl MemoryStore {
         self.secret.lock().ok().and_then(|s| s.clone())
     }
 
+    /// How many reads, writes and removals reached the store (each could prompt to unlock).
+    pub fn calls(&self) -> usize {
+        self.calls.load(Ordering::Relaxed)
+    }
+
     fn slot(&self) -> Result<std::sync::MutexGuard<'_, Option<String>>, StoreError> {
+        self.calls.fetch_add(1, Ordering::Relaxed);
         if let Some(reason) = &self.broken {
             return Err(reason.clone());
         }

@@ -91,11 +91,8 @@ async fn test_email(
     draft: EmailSettings,
     typed: bool,
 ) -> Result<String, String> {
-    let settings = blocking(move || {
-        password::retry_keychain();
-        password::test_settings(&*store, &draft, typed).map_err(to_ipc)
-    })
-    .await?;
+    let settings =
+        blocking(move || password::test_settings(&*store, &draft, typed).map_err(to_ipc)).await?;
     email::send_test(&settings).await.map_err(to_ipc)
 }
 
@@ -164,5 +161,31 @@ mod tests {
         let err = test_email(locked, draft, false).await.unwrap_err();
         assert!(err.contains("keychain is locked"), "{err}");
         assert!(server.accept().is_err(), "connected to SMTP");
+    }
+    #[tokio::test]
+    async fn a_typed_test_email_then_a_save_reach_a_locked_keychain_once() {
+        let port = TcpListener::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port();
+        let draft = EmailSettings {
+            to: "reader@kindle.com".into(),
+            host: "127.0.0.1".into(),
+            port: Some(port),
+            username: "me@example.test".into(),
+            password: "typed".into(),
+            ..EmailSettings::default()
+        };
+        let store = Arc::new(MemoryStore::locked("prompt dismissed"));
+        let _ = test_email(store.clone(), draft, true).await;
+        assert_eq!(store.calls(), 0);
+        let lib = library::open_in_memory().unwrap();
+        let base = password::load_settings(&lib, &MemoryStore::default()).unwrap();
+        let mut edited = base.clone();
+        edited.kindle_email.password = "new-secret".into();
+        let err = password::save_settings(&lib, &*store, Some(&base), &edited).unwrap_err();
+        assert!(err.to_string().contains("keychain is locked"), "{err}");
+        assert_eq!(store.calls(), 1);
     }
 }
