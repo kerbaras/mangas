@@ -60,13 +60,18 @@ export function SmartCutButton(props: Props) {
       {props.saved ? (
         <SeriesPresetHint preset={props.saved} />
       ) : (
-        <p className="text-caption text-ink-3">
+        <p className="min-w-0 text-caption text-ink-3">
           {usable
             ? "Preview the cut and save options for this series."
             : "Pick chapters of one series to preview the cut."}
         </p>
       )}
-      <Button size="sm" disabled={!usable} onClick={() => setOpen(true)}>
+      <Button
+        size="sm"
+        className="shrink-0 whitespace-nowrap"
+        disabled={!usable}
+        onClick={() => setOpen(true)}
+      >
         <Scissors /> Smart-cut options…
       </Button>
       {open && usable && <SmartCutPreview {...props} onClose={() => setOpen(false)} />}
