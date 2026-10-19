@@ -63,7 +63,7 @@ fn no_window(command: &mut Command) {
 fn no_window(_: &mut Command) {}
 
 /// Waits up to `timeout`, then kills the child. Both pipes are drained on their own threads
-/// while it runs, so a chatty child can't fill one and block forever.
+/// while it runs, so a chatty child can't fill one and block forever, nor fill memory.
 fn wait(mut child: Child, timeout: Duration) -> std::io::Result<Output> {
     let stdout = drain(child.stdout.take());
     let stderr = drain(child.stderr.take());
@@ -90,13 +90,18 @@ fn wait(mut child: Child, timeout: Duration) -> std::io::Result<Output> {
     })
 }
 
+/// Output kept per pipe; the rest is read and dropped so the child never blocks on a full pipe.
+const KEPT: u64 = 1 << 20;
+
 type Drain = Option<std::thread::JoinHandle<std::io::Result<Vec<u8>>>>;
 
 fn drain(pipe: Option<impl Read + Send + 'static>) -> Drain {
     pipe.map(|mut pipe| {
         std::thread::spawn(move || {
             let mut bytes = Vec::new();
-            pipe.read_to_end(&mut bytes).map(|_| bytes)
+            (&mut pipe).take(KEPT).read_to_end(&mut bytes)?;
+            std::io::copy(&mut pipe, &mut std::io::sink())?;
+            Ok(bytes)
         })
     })
 }

@@ -93,13 +93,13 @@ fn nothing_installed_starts_no_child() {
 #[test]
 fn a_chatty_child_cant_block_on_a_full_pipe() {
     let child = Command::new("sh")
-        .args(["-c", "head -c 1000000 /dev/zero >&2; echo done"])
+        .args(["-c", "head -c 3000000 /dev/zero >&2; echo done"])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
     let out = wait(child, Duration::from_secs(10)).unwrap();
     assert!(out.status.success());
-    assert_eq!(out.stderr.len(), 1_000_000);
+    assert_eq!(out.stderr.len() as u64, KEPT, "kept only the first MiB");
     assert_eq!(out.stdout, b"done\n");
 }
