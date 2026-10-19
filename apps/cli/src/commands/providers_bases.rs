@@ -1,7 +1,7 @@
 //! `mangas providers --base ID=URL`: probe a provider at a mock server instead of its site.
 
 use std::collections::HashMap;
-use std::net::IpAddr;
+use url::Host;
 
 /// `--base ID=URL` pairs. Refuses an unknown id rather than probing the live site instead, and a
 /// URL off this machine: the probe sends the saved browser session (Comick cookies) to it.
@@ -22,22 +22,19 @@ pub fn parse_bases(bases: &[String]) -> anyhow::Result<HashMap<String, String>> 
         .collect()
 }
 
-/// Whether `url` is http(s) on `localhost` or a loopback address.
-fn is_local(url: &str) -> bool {
-    let Some(rest) = url
-        .strip_prefix("http://")
-        .or_else(|| url.strip_prefix("https://"))
-    else {
+/// Whether `raw` is http(s) on `localhost` or a loopback address, read by the same URL parser
+/// the HTTP client uses (so `\\`, `@` and other authority tricks resolve the same way).
+fn is_local(raw: &str) -> bool {
+    let Ok(url) = url::Url::parse(raw) else {
         return false;
     };
-    let authority = rest.split(['/', '?', '#']).next().unwrap_or_default();
-    let host = authority.rsplit_once('@').map_or(authority, |(_, h)| h);
-    let host = match host.strip_prefix('[') {
-        Some(v6) => v6.split(']').next().unwrap_or_default(),
-        None => host.split(':').next().unwrap_or_default(),
+    let host_is_local = match url.host() {
+        Some(Host::Domain(d)) => d.eq_ignore_ascii_case("localhost"),
+        Some(Host::Ipv4(ip)) => ip.is_loopback(),
+        Some(Host::Ipv6(ip)) => ip.is_loopback(),
+        None => false,
     };
-    host.eq_ignore_ascii_case("localhost")
-        || host.parse::<IpAddr>().is_ok_and(|ip| ip.is_loopback())
+    matches!(url.scheme(), "http" | "https") && host_is_local
 }
 
 #[cfg(test)]
@@ -50,6 +47,7 @@ mod tests {
             "http://127.0.0.1:9",
             "http://localhost:8/x",
             "https://[::1]:7/",
+            "http://localhost\\@evil.example",
         ];
         for url in local {
             assert!(is_local(url), "{url}");
@@ -57,6 +55,7 @@ mod tests {
         let remote = [
             "https://example.com",
             "http://127.0.0.1@evil.example",
+            "http://evil.example\\@localhost",
             "http://10.0.0.1:9",
             "http://localhost.evil.example",
             "ftp://127.0.0.1",
