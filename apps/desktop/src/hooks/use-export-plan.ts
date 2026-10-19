@@ -1,8 +1,8 @@
 import { type Async, useAsync } from "@/hooks/use-async";
 import { useDebounced } from "@/hooks/use-debounced";
-import { type ExportPick, exportFileName, exportTitle } from "@/lib/export-name";
+import { type ExportPick, exportTitle } from "@/lib/export-name";
 import { type BundleMode, groupingOf } from "@/lib/export-plan";
-import { planVolumes, type VolumePlan } from "@/lib/ipc.volumes";
+import { exportFileName, planVolumes, type VolumePlan } from "@/lib/ipc.volumes";
 
 /** Typing in the title or size fields replans once the user pauses. */
 const PLAN_DELAY_MS = 300;
@@ -14,12 +14,12 @@ const settled = (state: Async<Keyed>): Async<VolumePlan[]> =>
   state.kind === "ready" ? { kind: "ready", data: state.data.data } : state;
 
 /** Chapters from several series: one book, the only bundle `export_chapters` writes. */
-export const joinedPlan = (picks: ExportPick[], title: string): VolumePlan => {
+export const joinedPlan = async (picks: ExportPick[], title: string): Promise<VolumePlan> => {
   const name = title.trim() || exportTitle(picks);
   return {
     number: null,
     title: name,
-    file_name: exportFileName(name),
+    file_name: await exportFileName(name),
     chapters: picks.flatMap((p) => p.chapters),
   };
 };
@@ -38,7 +38,7 @@ export function useExportPlan({ open, picks, mode, size, title }: Input) {
     const [pick] = picks;
     const data =
       joined || !pick
-        ? [joinedPlan(picks, planTitle)]
+        ? [await joinedPlan(picks, planTitle)]
         : await planVolumes({
             source: pick.manga.source,
             mangaId: pick.manga.id,

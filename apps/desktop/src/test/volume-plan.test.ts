@@ -36,6 +36,17 @@ describe("volume plan (browser mock)", () => {
     expect(mockPlan("S", chapters, { kind: "single" })[0].title).toBe("S ch 1-4");
   });
 
+  it("shortens a long series like the core, keeping each book's volume or chapters", () => {
+    const names = mockPlan("Ü".repeat(150), chapters, { kind: "by_volume" }).map(
+      (p) => p.file_name,
+    );
+    expect(names).toEqual([
+      `${"Ü".repeat(97)}… v2.epub`,
+      `${"Ü".repeat(96)}… v10.epub`,
+      `${"Ü".repeat(96)}… ch 4.epub`,
+    ]);
+  });
+
   it("summarises a book's chapter range", () => {
     const [v2] = mockPlan("S", chapters, { kind: "by_volume" });
     expect(planSummary(v2)).toBe("Chapters 1–2 · 2 chapters");

@@ -50,6 +50,13 @@ pub fn free_export_names(dir: PathBuf, names: Vec<String>) -> Result<Vec<String>
     mangas_core::export::free_names_in(&dir, &names).map_err(to_ipc)
 }
 
+/// The file name a book titled `title` is written under as `format` (shortened when too long),
+/// for books planned in the UI (chapters of several series joined into one).
+#[tauri::command]
+pub fn export_file_name(title: String, format: Format) -> String {
+    volume::file_name_as(&title, format)
+}
+
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 #[allow(clippy::too_many_arguments)]

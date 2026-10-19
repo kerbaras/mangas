@@ -4,7 +4,7 @@ import type { VolumesBackend } from "./ipc.volumes";
 import { simulateExport } from "./mock-export";
 import { mockExportResult } from "./mock-flags";
 import { markExported } from "./mock-library";
-import { mockPlan } from "./volume-plan";
+import { mockPlan, portable } from "./volume-plan";
 
 type Deps = {
   manga: (source: string, id: string) => Manga | undefined;
@@ -46,5 +46,6 @@ export function mockVolumes(deps: Deps): VolumesBackend {
       return results;
     },
     freeExportNames: async (_dir, names) => names,
+    exportFileName: async (title, format) => withExtension(portable(title), format),
   };
 }

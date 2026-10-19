@@ -5,7 +5,8 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
-use super::{book_meta, file_name, group, render, Grouping, Volume, DEFAULT_TEMPLATE};
+use super::DEFAULT_TEMPLATE;
+use super::{book_meta, file_name, group, render, series_file_name, Grouping, Volume};
 use crate::domain::{parse_number, Chapter, Manga, Result};
 use crate::export::kindle::{Device, ExportRequest};
 use crate::export::{free_names_in, Format};
@@ -43,13 +44,17 @@ pub fn plan(
     volumes
         .into_iter()
         .map(|v: Volume| {
-            let title = match title.map(str::trim).filter(|t| !t.is_empty()) {
-                Some(t) if single => t.to_string(),
-                _ => render(template, &manga.title, &v),
+            let (title, file_name) = match title.map(str::trim).filter(|t| !t.is_empty()) {
+                Some(t) if single => (t.to_string(), file_name(t)),
+                _ => {
+                    let title = render(template, &manga.title, &v);
+                    let name = series_file_name(&title, &manga.title);
+                    (title, name)
+                }
             };
             VolumePlan {
                 number: v.number,
-                file_name: file_name(&title),
+                file_name,
                 title,
                 chapters: v.chapters,
             }

@@ -26,4 +26,5 @@ export const tauriVolumes: VolumesBackend = {
     return stats.map(toExportResult);
   },
   freeExportNames: (dir, names) => invoke("free_export_names", { dir, names }),
+  exportFileName: (title, format) => invoke("export_file_name", { title, format }),
 };

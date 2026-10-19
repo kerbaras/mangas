@@ -14,7 +14,9 @@ use crate::domain::Chapter;
 pub use group::group;
 pub use load::{load, VolumeSource};
 pub use meta::{book_meta, chapter_label};
-pub use name::{file_name, render, DEFAULT_TEMPLATE};
+pub use name::{
+    file_name, file_name_as, render, series_file_name, DEFAULT_TEMPLATE, MAX_STEM_BYTES,
+};
 pub use plan::{find_volume, one_file_each, plan, request, written_names, VolumePlan};
 
 /// How a manga's chapters are split into books.

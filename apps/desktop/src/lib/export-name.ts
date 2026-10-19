@@ -1,5 +1,5 @@
 import { sortChapters } from "./chapters";
-import type { Chapter, ExportFormat, Manga } from "./ipc";
+import type { Chapter, Manga } from "./ipc";
 import { chapterTag, seasonTag } from "./season-tag";
 
 export type ExportPick = { manga: Manga; chapters: Chapter[] };
@@ -22,14 +22,6 @@ export function exportTitle(picks: ExportPick[]): string {
       : `ch ${lo.number}-${hi.number}`;
   return `${first.manga.title} ${range} (${sorted.length} ch)`;
 }
-
-/** A filename-safe version of `title` with the extension of `format`. */
-export const exportFileName = (title: string, format: ExportFormat = "epub"): string =>
-  `${title
-    .replace(/[\\/:*?"<>|]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 120)}.${format}`;
 
 export const joinPath = (dir: string, file: string): string =>
   `${dir.replace(/[\\/]+$/, "")}/${file}`;

@@ -1,8 +1,8 @@
 /** Turns the export dialog's choices into the backend call that writes the books. */
-import { type ExportPick, exportFileName, exportTitle, joinPath } from "./export-name";
+import { type ExportPick, exportTitle, joinPath } from "./export-name";
 import { type BundleMode, groupingOf } from "./export-plan";
 import { type ExportFormat, type ExportResult, exportChapters, type Preset } from "./ipc";
-import { exportVolumes } from "./ipc.volumes";
+import { exportFileName, exportVolumes } from "./ipc.volumes";
 import { storageChanged } from "./storage-changed";
 
 export type ExportChoices = {
@@ -52,14 +52,9 @@ function writeBooks(c: ExportChoices): () => Promise<ExportResult[]> {
   }
   const title = c.title.trim() || exportTitle(c.picks);
   const dirs = c.picks.flatMap((p) => p.chapters.flatMap((ch) => ch.local_path ?? []));
-  return async () => [
-    await exportChapters({
-      chapter_dirs: dirs,
-      ...common,
-      output: c.outputDir
-        ? joinPath(c.outputDir, exportFileName(title, c.format))
-        : exportFileName(title, c.format),
-      title,
-    }),
-  ];
+  return async () => {
+    const file = await exportFileName(title, c.format);
+    const output = c.outputDir ? joinPath(c.outputDir, file) : file;
+    return [await exportChapters({ chapter_dirs: dirs, ...common, output, title })];
+  };
 }
