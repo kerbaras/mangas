@@ -12,7 +12,7 @@ use std::path::Path;
 pub use config::{parse, parse_sender, EmailSettings, Security, Smtp, SMTP_TIMEOUT};
 pub use errors::{explain, Failure};
 pub use message::{book_message, check_size, test_message, MAX_ATTACHMENT_BYTES};
-pub use smtp::send as send_message;
+pub use smtp::{deadlines, send as send_message, Deadlines, MAX_UPLOAD_ALLOWANCE};
 
 use crate::domain::{Error, Result};
 

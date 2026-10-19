@@ -5,7 +5,11 @@
 pub enum Failure {
     /// The server answered with this reply code.
     Reply(u16),
+    /// No answer to the connection, greeting or login.
     Timeout,
+    /// The server stopped answering while the message went out; gave up after this many
+    /// seconds.
+    Stalled(u64),
     Tls,
     /// Couldn't connect, or the connection dropped.
     Connection,
@@ -34,10 +38,22 @@ pub fn explain(failure: Failure, raw: &str, host: &str, port: u16) -> String {
         }
         Failure::Reply(_) => format!("The mail server refused the message ({raw})"),
         Failure::Timeout => format!("The mail server at {at} didn't answer in time"),
+        Failure::Stalled(secs) => format!(
+            "The mail server at {at} stopped answering while the book was being sent; gave up \
+             after {}. Try again later, or copy the book over USB",
+            minutes(secs)
+        ),
         Failure::Tls => format!(
             "Couldn't set up a secure connection to {at}; port 465 uses TLS, 587 uses STARTTLS \
              ({raw})"
         ),
         Failure::Connection => format!("Couldn't reach the mail server at {at} ({raw})"),
+    }
+}
+
+fn minutes(secs: u64) -> String {
+    match secs {
+        0..=89 => format!("{secs} s"),
+        _ => format!("{} min", (secs + 30) / 60),
     }
 }
