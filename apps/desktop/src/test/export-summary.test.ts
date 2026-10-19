@@ -7,7 +7,7 @@ vi.mock("sonner", () => ({ toast }));
 const openLogs = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/ipc.diagnostics", () => ({ openLogs }));
 
-const result = { output: "/books/Solo ch 1.epub", pages: 30, skipped: 0 };
+const result = { output: "/books/Solo ch 1.epub", parts: [], pages: 30, skipped: 0 };
 
 afterEach(() => vi.clearAllMocks());
 
@@ -32,11 +32,21 @@ describe("exportSummary", () => {
   });
 });
 
+describe("exportSummary of a split book", () => {
+  it("says how many parts were written", () => {
+    const parts = ["/books/Solo (part 1).epub", "/books/Solo (part 2).epub"];
+    expect(exportSummary({ ...result, output: parts[0], parts }).title).toBe(
+      "Exported 30 pages in 2 parts, from Solo (part 1).epub",
+    );
+  });
+});
+
 describe("combineResults", () => {
   it("adds up pages and skipped files across books", () => {
-    const books = [result, { output: "/books/Solo v2.epub", pages: 10, skipped: 2 }];
+    const books = [result, { output: "/books/Solo v2.epub", parts: [], pages: 10, skipped: 2 }];
     expect(combineResults(books)).toEqual({
       output: "2 books",
+      parts: [],
       pages: 40,
       skipped: 2,
       detectors_error: null,

@@ -5,7 +5,7 @@ import { notifyExported } from "@/lib/export-summary";
 
 vi.mock("@/lib/ipc.diagnostics", () => ({ openLogs: vi.fn() }));
 
-const result = { output: "/books/Solo ch 1.epub", pages: 30, skipped: 0 };
+const result = { output: "/books/Solo ch 1.epub", parts: [], pages: 30, skipped: 0 };
 
 describe("export toast", () => {
   it("drops the skipped line and Open logs when a clean export replaces a warning", async () => {
