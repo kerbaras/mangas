@@ -44,7 +44,7 @@ pub struct CutArgs {
     pub sharpen: Option<bool>,
     /// JPEG quality of the pages (40–95) [default: the profile's, 90 at 300 dpi]; lower makes
     /// smaller books
-    #[arg(long, value_name = "40-95")]
+    #[arg(long, value_name = "40-95", value_parser = clap::value_parser!(u8).range(40..=95))]
     pub quality: Option<u8>,
     /// Write a book bigger than this many MB as numbered parts, "Title (part 1).epub", ... (45
     /// keeps each part under the 50 MB Send-to-Kindle email limit)
@@ -89,7 +89,7 @@ impl CutArgs {
 
     /// The `--split-mb` part size in bytes.
     pub fn split(&self) -> Option<u64> {
-        self.split_mb.map(|mb| mb * 1_000_000)
+        self.split_mb.map(|mb| mb.saturating_mul(1_000_000))
     }
 
     /// The options given on the command line, as the top layer over a series preset.
@@ -164,5 +164,33 @@ pub fn print_progress(p: Progress) {
         }
         Progress::Pages { done } => eprint!("\r  pages: {done}"),
         Progress::Writing { pages } => eprintln!("\nwriting {pages} pages"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+
+    #[derive(Parser)]
+    struct Cli {
+        #[command(flatten)]
+        cut: super::CutArgs,
+    }
+
+    #[test]
+    fn quality_and_split_are_checked_and_split_is_in_bytes() {
+        let cli = Cli::try_parse_from(["x", "--quality", "60", "--split-mb", "45"]).unwrap();
+        assert_eq!(cli.cut.quality, Some(60));
+        assert_eq!(cli.cut.split(), Some(45_000_000));
+        for bad in [
+            ["--quality", "30"],
+            ["--quality", "96"],
+            ["--split-mb", "0"],
+        ] {
+            assert!(
+                Cli::try_parse_from(["x", bad[0], bad[1]]).is_err(),
+                "{bad:?}"
+            );
+        }
     }
 }
