@@ -56,12 +56,15 @@ pub async fn export_chapters<R: Runtime>(
     output: PathBuf,
     title: Option<String>,
     replace: Option<bool>,
+    quality: Option<u8>,
+    split_mb: Option<u64>,
 ) -> Result<ExportStats, String> {
     let _reading = hold_for_export().map_err(to_ipc)?;
     let explicit = ExportPreset {
         cut_preset: preset,
         format,
         profile: device,
+        jpeg_quality: quality,
         ..Default::default()
     };
     let settings = settings_or_default();
@@ -75,7 +78,7 @@ pub async fn export_chapters<R: Runtime>(
     let detection = penalizer(&app, detectors, &settings).await?;
     let req_dirs = chapter_dirs.clone();
     let req = ExportRequest {
-        split: None,
+        split: split_mb.map(|mb| mb * 1_000_000),
         labels: labels_of(&chapter_dirs),
         // The desktop always sends a generated title, so the chapter's own title wins.
         title_explicit: false,
@@ -134,7 +137,10 @@ fn series_preset(dirs: &[PathBuf]) -> Option<ExportPreset> {
 pub(super) fn record_export(stats: &ExportStats, dirs: &[PathBuf], title: &str, device: &str) {
     let recorded = open_library().and_then(|lib| {
         library::mark_exported(&lib, &stats.exported_chapters(dirs)).map_err(to_ipc)?;
-        library::record_export(&lib, &stats.output, title, device).map_err(to_ipc)
+        for output in stats.outputs() {
+            library::record_export(&lib, &output, title, device).map_err(to_ipc)?;
+        }
+        Ok(())
     });
     if let Err(e) = recorded {
         tracing::warn!("could not record the export: {e}");

@@ -79,6 +79,8 @@ pub async fn export_volumes<R: Runtime>(
     detectors: bool,
     output_dir: Option<PathBuf>,
     replace: Option<bool>,
+    quality: Option<u8>,
+    split_mb: Option<u64>,
 ) -> Result<VolumeOutcome, String> {
     // Before the chapter folders are looked up: a data-folder move can't start under the export.
     let _reading = hold_for_export().map_err(to_ipc)?;
@@ -91,6 +93,7 @@ pub async fn export_volumes<R: Runtime>(
         cut_preset: preset,
         format,
         profile: device,
+        jpeg_quality: quality,
         ..Default::default()
     };
     let series =
@@ -122,6 +125,7 @@ pub async fn export_volumes<R: Runtime>(
             .with_format(format)
             .with_page(resolved.page())
             .with_replace(replace.unwrap_or(false))
+            .with_split(split_mb.map(|mb| mb * 1_000_000))
         })
         .collect();
     let detectors_error = detection.error.clone();
