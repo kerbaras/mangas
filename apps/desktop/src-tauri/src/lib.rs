@@ -4,6 +4,7 @@ mod commands;
 mod first_run;
 mod paths;
 mod window_fit;
+mod window_normal;
 mod window_saved;
 mod window_state;
 
@@ -21,6 +22,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(window_state::plugin())
+        .plugin(window_normal::plugin())
         .manage(commands::app_update::PendingUpdate::default())
         .setup(move |app| {
             window_state::restore(app.handle());

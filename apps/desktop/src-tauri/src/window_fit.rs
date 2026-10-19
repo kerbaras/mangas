@@ -1,7 +1,9 @@
 //! Where a restored window may sit: fully inside one monitor's work area (#137).
 
+use serde::{Deserialize, Serialize};
+
 /// A screen rectangle in physical pixels.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Rect {
     pub x: i32,
     pub y: i32,

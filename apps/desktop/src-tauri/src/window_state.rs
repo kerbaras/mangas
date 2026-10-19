@@ -1,5 +1,6 @@
 //! Remembered window geometry. The window-state plugin saves size, position and the maximised
-//! state; [`restore`] puts the main window back, moved fully on-screen first (#137).
+//! state, `window_normal` the un-maximised rect (#194); [`restore`] puts the main window back,
+//! moved fully on-screen first (#137), then maximises it if it was.
 
 use std::fs;
 
@@ -7,7 +8,7 @@ use tauri::{AppHandle, Manager, Monitor, PhysicalPosition, PhysicalSize, Runtime
 use tauri_plugin_window_state::{StateFlags, DEFAULT_FILENAME};
 
 use crate::window_fit::{fit, opening, Rect};
-use crate::window_saved;
+use crate::{window_normal, window_saved};
 
 const MAIN: &str = "main";
 
@@ -74,10 +75,11 @@ fn place<R: Runtime>(app: &AppHandle<R>, window: &WebviewWindow<R>) {
         .iter()
         .map(work_area)
         .collect();
-    let (from, maximized) = match saved(app) {
-        Some(s) => (Some(s.rect), s.maximized),
-        None => (configured(app, window, &areas), false),
-    };
+    let plugin = saved(app);
+    let maximized = plugin.as_ref().is_some_and(|s| s.maximized);
+    let from = window_normal::saved(app, MAIN)
+        .or(plugin.map(|s| s.rect))
+        .or_else(|| configured(app, window, &areas));
     let Some(from) = from else {
         return;
     };
