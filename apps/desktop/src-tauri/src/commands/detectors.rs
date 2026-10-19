@@ -37,16 +37,19 @@ struct DownloadProgress {
     total: Option<u64>,
 }
 
-/// Tries to load an installed runtime first (off the UI thread), so a broken one shows its error
-/// before any preview or export runs. Nothing installed: no load, no network.
+/// Tries to load an installed runtime first, so a broken one shows its error before any preview
+/// or export runs. Nothing installed: no load, no network.
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub async fn detectors_status() -> Result<ml::Status, String> {
-    status_in(models_dir()?).await
+    let exe = std::env::current_exe().map_err(to_ipc)?;
+    status_in(models_dir()?, exe).await
 }
 
-async fn status_in(dir: PathBuf) -> Result<ml::Status, String> {
-    tauri::async_runtime::spawn_blocking(move || ml::checked_status(&dir))
+/// The load is tried in `exe ml status --json` (this binary as the CLI), off the UI thread, so the
+/// app maps the runtime only for a detector run and Windows can delete it without a restart.
+async fn status_in(dir: PathBuf, exe: PathBuf) -> Result<ml::Status, String> {
+    tauri::async_runtime::spawn_blocking(move || ml::child::probed_status(&dir, &exe))
         .await
         .map_err(|e| e.to_string())
 }
@@ -189,7 +192,9 @@ mod tests {
         for m in &ml::MODELS {
             std::fs::write(ml::cache::model_path(dir.path(), m), b"not a model").unwrap();
         }
-        let status = status_in(dir.path().to_path_buf()).await.unwrap();
+        // No CLI next to a test binary: the in-process fallback must report the same failure.
+        let no_exe = dir.path().join("no-such-exe");
+        let status = status_in(dir.path().to_path_buf(), no_exe).await.unwrap();
         assert!(!status.downloaded, "the switch stays off");
         match status.runtime {
             ml::RuntimeStatus::Failed { reason, .. } => assert!(!reason.is_empty()),
