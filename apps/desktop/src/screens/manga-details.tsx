@@ -39,6 +39,7 @@ import { isChallenge, type Manga } from "@/lib/ipc";
 import { loadChapters } from "@/lib/load-chapters";
 import { notifyError } from "@/lib/notify";
 import { useSettingsKnown } from "@/lib/settings";
+import { useRefreshShortcut } from "@/lib/refresh-shortcut";
 
 type Props = { manga: Manga };
 
@@ -77,6 +78,7 @@ export function MangaDetailsScreen({ manga: card }: Props) {
       reloadShelf();
     }
   }, [refreshed, reloadManga, reloadShelf]);
+  useRefreshShortcut(chapters.reload);
   const downloads = useDownloads();
   const [language, setLanguage] = useState<string | null>(null);
 

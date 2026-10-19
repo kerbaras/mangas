@@ -46,4 +46,5 @@ export type Settings = {
   proxy_mode?: ProxyMode | null;
   /** Kept while another mode is picked, so switching back restores it. */
   proxy_url?: string | null;
+  setup_complete?: boolean | null;
 };

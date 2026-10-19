@@ -57,6 +57,16 @@ pub struct Settings {
     pub proxy_mode: Option<ProxyMode>,
     /// The proxy used in [`ProxyMode::Custom`]; kept while another mode is picked.
     pub proxy_url: Option<String>,
+    /// First-run setup in the desktop app: `Some(false)` on a fresh install until the setup
+    /// sheet is finished or skipped. `None` (an install from before the sheet) counts as done.
+    pub setup_complete: Option<bool>,
+}
+
+impl Settings {
+    /// Whether the desktop app still has to show its first-run setup.
+    pub fn needs_setup(&self) -> bool {
+        self.setup_complete == Some(false)
+    }
 }
 
 /// Cookies and the user agent that obtained them; the HTTP client must send both unchanged.

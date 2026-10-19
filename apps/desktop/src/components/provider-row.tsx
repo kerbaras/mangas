@@ -22,7 +22,10 @@ type Props = {
   onDisconnect: () => void;
 };
 
-/** Name, status and last check; languages, session buttons and the search switch on the right. */
+/**
+ * Name, status and last check; languages, session buttons and the search switch on the right.
+ * In a narrow list (the setup sheet) the controls wrap below rather than squeeze the status.
+ */
 export function ProviderRow({
   provider: p,
   session,
@@ -43,29 +46,42 @@ export function ProviderRow({
     ago: (at) => ago(at, now),
   });
   return (
-    <li className="flex items-center gap-3 px-3 py-2.5">
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
       <ProviderIcon provider={p} className={cn("size-5", !enabled && "opacity-50")} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className={cn("text-body font-medium", !enabled && "text-ink-3")}>{p.name}</p>
-          <ProviderStatusBadge status={status} label={connecting ? "Connecting" : undefined} />
+      <div className="min-w-40 flex-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <p className={cn("min-w-0 truncate text-body font-medium", !enabled && "text-ink-3")}>
+            {p.name}
+          </p>
+          <ProviderStatusBadge
+            status={status}
+            label={connecting ? "Connecting" : undefined}
+            className="shrink-0 whitespace-nowrap"
+          />
         </div>
         <p className="truncate text-caption text-ink-3" title={detail}>
           {detail}
         </p>
       </div>
-      <ProviderLanguages provider={p} />
-      {session && (
-        <Button size="sm" variant="ghost" onClick={on.onDisconnect} disabled={connecting}>
-          <Link2Off /> Disconnect
-        </Button>
-      )}
-      {(p.needs_browser_session ? needsConnect : status?.state === "needs_session") && (
-        <Button size="sm" variant="primary" onClick={on.onConnect} disabled={connecting}>
-          {connecting ? <Loader2 className="animate-spin" /> : <Link2 />} Connect
-        </Button>
-      )}
-      <Switch checked={enabled} onCheckedChange={on.onEnable} aria-label={`Search ${p.name}`} />
+      <div className="ml-auto flex shrink-0 items-center gap-2">
+        <ProviderLanguages provider={p} />
+        {session && (
+          <Button size="sm" variant="ghost" onClick={on.onDisconnect} disabled={connecting}>
+            <Link2Off /> Disconnect
+          </Button>
+        )}
+        {(p.needs_browser_session ? needsConnect : status?.state === "needs_session") && (
+          <Button size="sm" variant="primary" onClick={on.onConnect} disabled={connecting}>
+            {connecting ? <Loader2 className="animate-spin" /> : <Link2 />} Connect
+          </Button>
+        )}
+        <Switch
+          data-nav-item
+          checked={enabled}
+          onCheckedChange={on.onEnable}
+          aria-label={`Search ${p.name}`}
+        />
+      </div>
     </li>
   );
 }

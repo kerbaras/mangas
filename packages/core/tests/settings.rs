@@ -29,6 +29,7 @@ fn settings_round_trip_and_overwrite() {
         update_notifications: Some(false),
         app_update_channel: Some(mangas_core::app_update::Channel::Rc),
         app_update_checks: Some(false),
+        setup_complete: Some(true),
         kindle_email: EmailSettings {
             to: "reader@kindle.com".into(),
             host: "smtp.example.test".into(),
@@ -134,4 +135,18 @@ fn update_checks_default_to_every_six_hours_with_notifications() {
         ..Settings::default()
     };
     assert_eq!((off.update_hours(), off.notify_updates()), (0, false));
+}
+
+#[test]
+fn only_a_fresh_install_needs_setup() {
+    let at = |setup_complete| Settings {
+        setup_complete,
+        ..Settings::default()
+    };
+    assert!(at(Some(false)).needs_setup());
+    assert!(!at(Some(true)).needs_setup());
+    assert!(
+        !at(None).needs_setup(),
+        "installs from before the sheet count as done"
+    );
 }

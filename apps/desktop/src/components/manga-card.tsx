@@ -16,6 +16,7 @@ export function MangaCard({ entry, categories, ...on }: Props) {
       <ContextMenuTrigger asChild>
         <button
           type="button"
+          data-nav-item
           onClick={() => on.onOpen(entry)}
           className="group w-full rounded-md p-1.5 text-left outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent"
         >
