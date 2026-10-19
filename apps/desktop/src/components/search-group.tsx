@@ -108,7 +108,7 @@ function Unreachable(props: { name: string; reason: string; onRetry: () => void 
   const retry = isFinalError(props.reason) ? undefined : <RetryButton onClick={props.onRetry} />;
   return (
     <Note action={retry}>
-      <span className="min-w-0 truncate" title={tooltip}>
+      <span className="min-w-0 break-words" title={tooltip}>
         Couldn't reach {props.name}: {label}
       </span>
     </Note>

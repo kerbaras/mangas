@@ -43,6 +43,7 @@ describe("search group failure", () => {
     const text = screen.getByText(/Install the ca-certificates package/);
     expect(text.textContent).not.toContain("no CA certificates found");
     expect(text).toHaveAttribute("title", expect.stringContaining(NO_CERTS));
+    expect(text).not.toHaveClass("truncate");
     expect(screen.queryByRole("button", { name: /try again/i })).toBeNull();
   });
 
