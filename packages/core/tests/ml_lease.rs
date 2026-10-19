@@ -35,7 +35,7 @@ fn exports_share_the_folder_but_exclude_changes() {
         .err()
         .unwrap()
         .to_string();
-    assert!(err.contains("an export is using detector support"), "{err}");
+    assert!(err.contains("an export is running"), "{err}");
     drop((reading, second));
     let downloading = acquire(dir.path(), Purpose::Download).unwrap();
     let err = share(dir.path()).err().unwrap().to_string();

@@ -5,9 +5,10 @@ use mangas_core::export::{ExportPreset, Format, Labels};
 use mangas_core::library;
 use mangas_core::library::Settings;
 use mangas_core::smartcut::Preset;
+use mangas_core::storage;
 use tauri::{AppHandle, Emitter, Runtime};
 
-use super::penalizer::penalizer;
+use super::penalizer::{models_dir, penalizer};
 use super::{open_library, settings_or_default, to_ipc};
 use crate::paths;
 
@@ -56,6 +57,7 @@ pub async fn export_chapters<R: Runtime>(
     title: Option<String>,
     replace: Option<bool>,
 ) -> Result<ExportStats, String> {
+    let _reading = storage::hold_for_export(&models_dir()?).map_err(to_ipc)?;
     let explicit = ExportPreset {
         cut_preset: preset,
         format,

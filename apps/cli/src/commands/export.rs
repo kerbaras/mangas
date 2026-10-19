@@ -5,7 +5,7 @@ use clap::Args as ClapArgs;
 use mangas_core::export::kindle::{export, ExportStats};
 use mangas_core::export::volume::{self, VolumeOutcome};
 use mangas_core::export::{ExportPreset, Format};
-use mangas_core::library;
+use mangas_core::{library, storage};
 
 use super::cut_args::{print_progress, CutArgs, DEFAULT_PROFILE};
 use super::deliver::{try_deliver, unsent, SendArg};
@@ -83,6 +83,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     if let Some(action) = args.preset {
         return export_preset::manage(&lib, &args.source, &args.manga_id, action, &explicit);
     }
+    // Before the chapter folders are looked up: a data-folder move can't start under the export.
+    let _reading = storage::hold_for_export(&paths::models()?)?;
     let src = volume::load(&lib, &args.source, &args.manga_id, None)?;
     let plans = volume::one_file_each(plans(&args, &src.manga, &src.chapters)?, args.replace);
     if plans.is_empty() {

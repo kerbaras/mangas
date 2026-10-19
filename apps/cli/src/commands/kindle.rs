@@ -8,6 +8,7 @@ use clap::Args as ClapArgs;
 use mangas_core::export::kindle::{export, BookMeta, ExportRequest};
 use mangas_core::export::target::{book_path, is_folder};
 use mangas_core::export::{ExportPreset, Format, PROFILES};
+use mangas_core::storage;
 
 use super::cut_args::{print_progress, CutArgs, DEFAULT_PROFILE};
 use super::deliver::SendArg;
@@ -17,6 +18,7 @@ use super::export_report::Report;
 use super::kindle_library::from_library;
 use super::kindle_record;
 use crate::output::outln;
+use crate::paths;
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -101,6 +103,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     if args.chapters.is_empty() {
         bail!("no chapter directories given");
     }
+    let _reading = storage::hold_for_export(&paths::models()?)?;
     // Kept from before other formats existed: a Paperwhite EPUB unless the flags or the
     // series preset say otherwise, whatever the stored defaults are.
     let explicit = args.cut.explicit(None)?;

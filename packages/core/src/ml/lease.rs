@@ -91,13 +91,14 @@ fn locked(result: std::result::Result<(), TryLockError>, models_dir: &Path) -> R
     }
 }
 
-/// Why the lease is taken: the exclusive owner's purpose, else an export reading the models.
+/// Why the lease is taken: the exclusive owner's purpose, else an export (reading chapters or
+/// the detectors, see [`crate::storage::hold_for_export`]).
 fn busy(models_dir: &Path) -> String {
     let owner = fs::read(models_dir.join(OWNER_FILE))
         .ok()
         .and_then(|bytes| serde_json::from_slice::<Owner>(&bytes).ok());
     let Some(Owner { pid, purpose }) = owner else {
-        return "an export is using detector support; try again when it finishes".into();
+        return "an export is running; try again when it finishes".into();
     };
     let what = match purpose {
         Purpose::Download => "detector support is downloading",
