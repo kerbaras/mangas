@@ -68,7 +68,9 @@ export async function connectThen(source: string, then?: () => void, name = sour
       });
     }
   } catch (e: unknown) {
-    toast.error(`Couldn't connect to ${name}`, { id, description: errorMessage(e) });
+    const info = describeError(errorMessage(e));
+    const description = <Description hint={info.hint} detail={info.detail} />;
+    toast.error(`Couldn't connect to ${name}`, { id, description });
   }
 }
 

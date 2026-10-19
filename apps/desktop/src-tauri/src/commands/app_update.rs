@@ -44,7 +44,7 @@ pub async fn check_app_update(
     let found = updater(&app, channel, offered.clone())?
         .check()
         .await
-        .map_err(to_ipc)?;
+        .map_err(update_error)?;
     let (status, found) = match found {
         Some(update) if !app_update::signed_by(&update.signature, &pubkey) => {
             let version = update.version.clone();
@@ -133,10 +133,19 @@ pub async fn install_app_update(
         .await;
     if let Err(e) = installed {
         *pending.0.lock().map_err(to_ipc)? = Some(update);
-        return Err(to_ipc(e));
+        return Err(update_error(e));
     }
     tracing::info!("installed v{}; relaunching", update.version);
     app.restart()
+}
+
+/// The updater's error, naming missing root certificates like every other connection does.
+fn update_error(e: tauri_plugin_updater::Error) -> String {
+    if mangas_core::domain::missing_root_certificates(&e) {
+        to_ipc(mangas_core::Error::NoRootCertificates)
+    } else {
+        to_ipc(e)
+    }
 }
 
 /// The updater for `channel`; the version it is offered lands in `offered`, so a check that

@@ -4,6 +4,7 @@ import { ProviderRow } from "@/components/provider-row";
 import { Button } from "@/components/ui/button";
 import { useAsync } from "@/hooks/use-async";
 import { useNow } from "@/hooks/use-now";
+import { describeFailure } from "@/lib/errors";
 import { errorMessage } from "@/lib/format";
 import { disconnectProvider, getSettings, listProviders, type ProviderInfo } from "@/lib/ipc";
 import { isEnabled, withEnabled } from "@/lib/provider-prefs";
@@ -44,7 +45,7 @@ export function ProvidersList() {
       void checkStatus(p.id);
       sessions.reload();
     } catch (e: unknown) {
-      setNote(errorMessage(e));
+      setNote(describeFailure(errorMessage(e)).label);
     } finally {
       setConnecting(null);
     }
