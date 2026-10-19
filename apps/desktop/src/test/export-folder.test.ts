@@ -12,11 +12,15 @@ describe("exportFolder", () => {
   it("puts a relative folder under the default export folder", () => {
     expect(exportFolder(kindle, "books")).toBe(`${kindle}/books`);
     expect(exportFolder(kindle, "~/books")).toBe(`${kindle}/~/books`);
+    expect(exportFolder(kindle, " books ")).toBe(`${kindle}/ books `);
+    expect(exportFolder(kindle, "\\books", false)).toBe(`${kindle}/\\books`);
+    expect(exportFolder(kindle, "\\books", true)).toBe(`${kindle}/\\books`);
+    expect(exportFolder(kindle, "C:books", true)).toBe(`${kindle}/C:books`);
   });
 
   it("keeps an absolute folder as typed", () => {
-    expect(exportFolder(kindle, "/mnt/kindle")).toBe("/mnt/kindle");
-    expect(exportFolder(kindle, "C:\\Books")).toBe("C:\\Books");
-    expect(exportFolder(kindle, "\\\\nas\\books")).toBe("\\\\nas\\books");
+    expect(exportFolder(kindle, "/mnt/kindle", false)).toBe("/mnt/kindle");
+    expect(exportFolder(kindle, "C:\\Books", true)).toBe("C:\\Books");
+    expect(exportFolder(kindle, "\\\\nas\\books", true)).toBe("\\\\nas\\books");
   });
 });

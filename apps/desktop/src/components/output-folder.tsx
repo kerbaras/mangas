@@ -4,6 +4,7 @@ import { Field } from "@/components/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { pickFolder } from "@/lib/dialogs";
+import { isWindows } from "@/lib/platform";
 import { useSettings } from "@/lib/settings";
 
 /**
@@ -19,14 +20,13 @@ export function useOutputFolder() {
 }
 
 /**
- * Where the backend writes (`in_export_folder`): an absolute folder as typed, a relative one
- * under the default export folder, none (or blank) the default itself.
+ * Where the backend writes (`in_export_folder`, `Path::is_absolute` per OS): an absolute folder as
+ * typed, a relative one (spaces kept) under the default export folder, a blank one the default.
  */
-export function exportFolder(fallback: string, picked: string | null): string {
-  const dir = picked?.trim() ?? "";
-  if (!dir) return fallback;
-  if (/^([/\\]|[A-Za-z]:[/\\])/.test(dir)) return dir;
-  return fallback ? `${fallback}/${dir}` : dir;
+export function exportFolder(fallback: string, picked: string | null, windows = isWindows()) {
+  if (!picked?.trim()) return fallback;
+  if (windows ? /^([A-Za-z]:|[/\\])[/\\]/.test(picked) : picked.startsWith("/")) return picked;
+  return fallback ? `${fallback}/${picked}` : picked;
 }
 
 type Props = { value: string; fallback: string; onChange: (dir: string) => void };
