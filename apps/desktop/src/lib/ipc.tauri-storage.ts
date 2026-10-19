@@ -10,7 +10,10 @@ export const tauriStorage: StorageBackend = {
   storageUsage: () => invoke("storage_usage"),
   deleteDownloads: (source, mangaId) => invoke("delete_downloads", { source, mangaId }),
   clearCache: (cache) => invoke("clear_cache", { cache }),
-  moveDataDir: (to) => invoke("move_data_dir", { to }),
+  moveDataDir: (to, replacePartial) =>
+    invoke("move_data_dir", { to, replacePartial: replacePartial ?? false }),
+  moveTargetPartial: (to) => invoke("move_target_partial", { to }),
+  removePartialMove: () => invoke("remove_partial_move"),
   onMoveProgress: (cb) =>
     listen(MOVE_EVENT, (e) => cb(e.payload as { copied: number; total: number })),
   exportBackup: (path) => invoke("export_backup", { path }),

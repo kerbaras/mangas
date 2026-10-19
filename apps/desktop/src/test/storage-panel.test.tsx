@@ -15,6 +15,7 @@ const usage: StorageUsage = {
     { source: "mangadex", manga_id: "a", title: "Alpha", chapters: 3, bytes: 400_000_000 },
     { source: "local", manga_id: "l", title: "Scanned", chapters: 1, bytes: 100_000_000 },
   ],
+  partial_move: null,
 };
 
 afterEach(() => setBackend(null));
@@ -43,5 +44,20 @@ describe("storage panel", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Clear cover cache/ }));
     await waitFor(() => expect(clearCache).toHaveBeenCalledWith("covers"));
     await waitFor(() => expect(storageUsage).toHaveBeenCalledTimes(2));
+  });
+
+  it("lists a partial copy a killed move left and removes it", async () => {
+    const left = { ...usage, partial_move: { path: "/mnt/big", bytes: 250_000_000 } };
+    const storageUsage = vi.fn().mockResolvedValueOnce(left).mockResolvedValue(usage);
+    const removePartialMove = vi.fn(async () => left.partial_move);
+    setBackend({ storageUsage, removePartialMove } as unknown as Backend);
+    render(<StoragePanel />);
+    expect(await screen.findByText("A data-folder move was interrupted")).toBeTruthy();
+    expect(screen.getByText("/mnt/big")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Remove/ }));
+    await waitFor(() => expect(removePartialMove).toHaveBeenCalledOnce());
+    await waitFor(() =>
+      expect(screen.queryByText("A data-folder move was interrupted")).toBeNull(),
+    );
   });
 });

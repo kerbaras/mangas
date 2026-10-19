@@ -2,6 +2,7 @@ use std::path::Path;
 
 use serde::Serialize;
 
+use super::partial::{leftover_copy, PartialCopy};
 use super::siblings::chapter_files;
 use super::tree::dir_size;
 use super::Folders;
@@ -29,6 +30,8 @@ pub struct Usage {
     pub library: u64,
     pub logs: u64,
     pub titles: Vec<TitleUsage>,
+    /// What a killed data-folder move left in its target, until it is removed or reused.
+    pub partial_move: Option<PartialCopy>,
 }
 
 /// Sums chapter sizes per title, largest first (then by title, for a stable order).
@@ -76,6 +79,7 @@ pub fn usage(lib: &Library, folders: &Folders) -> Result<Usage> {
         library: database_size(&folders.database),
         logs: dir_size(&folders.logs),
         titles: group_by_title(&chapters),
+        partial_move: leftover_copy(lib, &folders.data_dir)?,
     })
 }
 

@@ -19,6 +19,7 @@ function backend() {
     library: 194_000,
     logs: 0,
     titles: [],
+    partial_move: null,
   });
   const storageUsage = vi.fn(async () => usage());
   const detectorsStatus = vi.fn(async () =>

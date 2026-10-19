@@ -3,37 +3,53 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Field } from "@/components/field";
+import { PartialMoveAlert } from "@/components/partial-move-alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { activeCount, useDownloads } from "@/hooks/use-downloads";
 import { pickFolder } from "@/lib/dialogs";
-import { type MoveProgress, moveDataDir, onMoveProgress } from "@/lib/ipc.storage";
+import {
+  type MoveProgress,
+  moveDataDir,
+  moveTargetPartial,
+  onMoveProgress,
+  type PartialCopy,
+} from "@/lib/ipc.storage";
 import { notifyError } from "@/lib/notify";
 import { loadSettings, useSettings } from "@/lib/settings";
 import { formatBytes, plural } from "@/lib/storage";
 
+type Props = { onMoved: () => void; partial: PartialCopy | null };
+/** A picked folder, with the partial copy a killed move left there (replaced by the move). */
+type Target = { dir: string; partial: PartialCopy | null };
+
 /** The data folder, moved (copy, verify, switch) rather than edited, so chapters follow it. */
-export function DataFolderField({ onMoved }: { onMoved: () => void }) {
+export function DataFolderField({ onMoved, partial }: Props) {
   const [settings] = useSettings();
   const active = activeCount(useDownloads());
   const downloading = active > 0;
-  const [target, setTarget] = useState<string | null>(null);
+  const [target, setTarget] = useState<Target | null>(null);
   const [progress, setProgress] = useState<MoveProgress | null>(null);
 
   const choose = async () => {
     const dir = await pickFolder("Move the data folder to", "~/Mangas");
-    if (dir && dir !== settings.dataDir) setTarget(dir);
+    if (!dir || dir === settings.dataDir) return;
+    try {
+      setTarget({ dir, partial: await moveTargetPartial(dir) });
+    } catch (e: unknown) {
+      notifyError("Couldn't check that folder", e);
+    }
   };
 
-  const move = async (to: string) => {
+  const move = async ({ dir: to, partial: replace }: Target) => {
     setTarget(null);
     setProgress({ copied: 0, total: 0 });
     let unlisten: (() => void) | undefined;
     try {
       unlisten = await onMoveProgress(setProgress);
-      const moved = await moveDataDir(to);
+      const moved = await moveDataDir(to, replace !== null);
       await loadSettings();
       const left = moved.leftovers.length
         ? ` Couldn't delete ${moved.leftovers.join(", ")}; delete it by hand.`
@@ -76,6 +92,7 @@ export function DataFolderField({ onMoved }: { onMoved: () => void }) {
           moveButton
         )}
       </div>
+      {partial && !progress && <PartialMoveAlert copy={partial} onRemoved={onMoved} />}
       {progress && (
         <div className="flex flex-col gap-1">
           <Progress
@@ -91,9 +108,13 @@ export function DataFolderField({ onMoved }: { onMoved: () => void }) {
       )}
       <ConfirmDialog
         open={target !== null}
-        title="Move the data folder?"
-        description={`Chapters and detector models are copied to ${target ?? ""} and checked; only then the app switches to it and deletes the old copies.`}
-        confirm="Move"
+        title={target?.partial ? "Replace the partial copy and move?" : "Move the data folder?"}
+        description={
+          target?.partial
+            ? `${target.dir} holds a partial copy (${formatBytes(target.partial.bytes)}) left by an interrupted move. Everything in its chapters and models folders is deleted, including files added there by hand, then chapters and detector models are copied there again and checked before the app switches to it.`
+            : `Chapters and detector models are copied to ${target?.dir ?? ""} and checked; only then the app switches to it and deletes the old copies.`
+        }
+        confirm={target?.partial ? "Replace and move" : "Move"}
         onConfirm={() => target && void move(target)}
         onCancel={() => setTarget(null)}
       />

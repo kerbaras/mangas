@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 
 use super::layout::DATA_SUBDIRS;
+use super::partial::{mark, prepare_target, unmark};
 use super::relocate::{check_target, rebase};
 use super::tree::{empty_dir, list_files, FileEntry};
 use crate::domain::{Error, Result};
@@ -29,22 +30,38 @@ pub struct Moved {
 /// Moves the data folder: copies `chapters/` and `models/` from `from` to `to`, verifies every
 /// file, then switches the chapter paths and `Settings.data_dir` in one transaction and only
 /// then deletes the old copies. Any failure before the switch removes the partial copy and
-/// leaves the library as it was.
+/// leaves the library as it was; a killed move leaves it marked (see [`super::partial`]),
+/// and a marked target is refused.
 pub fn move_data_dir(
     lib: &Library,
     from: &Path,
     to: &Path,
     on_progress: &mut dyn FnMut(MoveProgress),
 ) -> Result<Moved> {
+    move_data_dir_with(lib, from, to, false, on_progress)
+}
+
+/// [`move_data_dir`]; with `replace_partial`, a partial copy a killed move left in `to` is
+/// deleted first and the move starts over there.
+pub fn move_data_dir_with(
+    lib: &Library,
+    from: &Path,
+    to: &Path,
+    replace_partial: bool,
+    on_progress: &mut dyn FnMut(MoveProgress),
+) -> Result<Moved> {
     // A download in any process (app or CLI) would keep writing into the old folder.
     use crate::download::queue::{hold_queue, MOVE_SETTLE};
-    hold_queue(lib, MOVE_SETTLE, || move_held(lib, from, to, on_progress))
+    hold_queue(lib, MOVE_SETTLE, || {
+        move_held(lib, from, to, replace_partial, on_progress)
+    })
 }
 
 fn move_held(
     lib: &Library,
     from: &Path,
     to: &Path,
+    replace_partial: bool,
     on_progress: &mut dyn FnMut(MoveProgress),
 ) -> Result<Moved> {
     fs::create_dir_all(to)?;
@@ -53,6 +70,7 @@ fn move_held(
     check_target(&from_resolved, &to)?;
     // Not under a detector download or removal in this process or another.
     let lease = lease::acquire(&from_resolved.join("models"), Purpose::Move)?;
+    prepare_target(lib, &from_resolved, &to, replace_partial)?;
     let mut plan = Vec::new();
     for sub in DATA_SUBDIRS {
         if !list_files(&to.join(sub))?.is_empty() {
@@ -70,13 +88,17 @@ fn move_held(
     let total: u64 = plan.iter().flat_map(|(_, f)| f).map(|f| f.bytes).sum();
     let files = plan.iter().map(|(_, f)| f.len()).sum();
     let created: Vec<bool> = DATA_SUBDIRS.iter().map(|s| !to.join(s).exists()).collect();
+    mark(lib, &to, &from_resolved)?;
     let switched = copy_all(&from_resolved, &to, &plan, total, on_progress)
         .and_then(|()| verify(&to, &plan))
         .and_then(|()| switch(lib, &[from, &from_resolved], &to));
-    if let Err(e) = switched {
+    if switched.is_err() {
         discard_copy(&to, &plan, &created);
-        return Err(e);
     }
+    if let Err(e) = unmark(lib, &to) {
+        log::warn!("clear the move marker: {e}");
+    }
+    switched?;
     // Empty the old models while still holding their lock, so a process with the old path can't
     // start a download into them; the lock files go with the folder after.
     if let Err(e) = empty_dir(&from_resolved.join("models"), &lease::LEASE_FILES) {

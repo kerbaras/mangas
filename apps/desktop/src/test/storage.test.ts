@@ -20,6 +20,7 @@ describe("storage helpers", () => {
       library: 30,
       logs: 20,
       titles: [],
+      partial_move: null,
     };
     const segments = usageSegments(usage);
     expect(segments.map((s) => [s.key, s.bytes])).toEqual([
