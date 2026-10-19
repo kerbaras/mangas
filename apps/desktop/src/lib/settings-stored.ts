@@ -39,7 +39,7 @@ export type Settings = {
 export const DEFAULT_CONCURRENCY = 4;
 
 export const DEFAULTS: Settings = {
-  dataDir: "~/.local/share/mangas",
+  dataDir: "",
   defaultDevice: "kindle-paperwhite12",
   defaultPreset: DEFAULT_PRESET,
   defaultFormat: null,

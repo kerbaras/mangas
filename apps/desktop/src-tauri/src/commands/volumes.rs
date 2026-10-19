@@ -12,7 +12,7 @@ use tauri::AppHandle;
 use super::covers::cover_file;
 use super::export::{emit, record_export, resolve, ExportEvent};
 use super::penalizer::penalizer;
-use super::{open_library, to_ipc};
+use super::{open_library, settings_or_default, to_ipc};
 use crate::paths;
 
 fn plans(
@@ -63,8 +63,13 @@ pub async fn export_volumes(
     format: Option<Format>,
     preset: Option<Preset>,
     detectors: bool,
-    output_dir: PathBuf,
+    output_dir: Option<PathBuf>,
 ) -> Result<Vec<ExportStats>, String> {
+    let settings = settings_or_default();
+    let output_dir = match output_dir {
+        Some(dir) => dir,
+        None => paths::exports(&settings)?,
+    };
     let explicit = ExportPreset {
         cut_preset: preset,
         format,
@@ -73,7 +78,7 @@ pub async fn export_volumes(
     };
     let series =
         library::get_export_preset(&open_library()?, &source, &manga_id).map_err(to_ipc)?;
-    let resolved = resolve(&explicit, series.as_ref())?;
+    let resolved = resolve(&explicit, series.as_ref(), &settings);
     let dev = resolved
         .profile_or(paths::DEFAULT_PROFILE)
         .map_err(to_ipc)?;
@@ -83,7 +88,7 @@ pub async fn export_volumes(
     if plans.is_empty() {
         return Err(to_ipc("none of these chapters is downloaded"));
     }
-    let detection = penalizer(&app, detectors).await?;
+    let detection = penalizer(&app, detectors, &settings).await?;
     let cover = cover_file(&src.manga).await;
     let mut written = Vec::with_capacity(plans.len());
     for (index, plan) in plans.iter().enumerate() {

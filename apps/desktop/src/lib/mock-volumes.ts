@@ -36,7 +36,7 @@ export function mockVolumes(deps: Deps): VolumesBackend {
         markExported(deps.cached(), dirs);
         results.push(
           mockExportResult(
-            `${r.outputDir}/${withExtension(book.file_name, r.format)}`,
+            `${r.outputDir ?? "~/.local/share/mangas/kindle"}/${withExtension(book.file_name, r.format)}`,
             book.chapters.length,
           ),
         );

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ExportDialog } from "@/components/export-dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { setBackend } from "@/lib/ipc";
@@ -10,6 +10,8 @@ afterEach(() => {
   setBackend(null);
   writeSettings({ defaultFormat: null, defaultDevice: "kindle-paperwhite12" });
 });
+
+beforeEach(() => writeSettings({ dataDir: "/home/me/.local/share/mangas" }));
 
 const dialog = (onSent?: () => void) => (
   <TooltipProvider>

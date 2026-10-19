@@ -30,7 +30,7 @@ export type VolumeExport = VolumeRequest & {
   format: ExportFormat;
   preset: Preset;
   detectors: boolean;
-  outputDir: string;
+  outputDir: string | null;
 };
 
 export type VolumesBackend = {

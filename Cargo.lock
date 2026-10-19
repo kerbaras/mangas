@@ -2928,6 +2928,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "directories",
+ "image",
  "log",
  "mangas-cli",
  "mangas-core",

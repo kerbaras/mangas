@@ -3,8 +3,9 @@ use std::path::PathBuf;
 use mangas_core::export::kindle::{self, BookMeta, ExportRequest, ExportStats, Progress};
 use mangas_core::export::{ExportPreset, Format, Labels};
 use mangas_core::library;
+use mangas_core::library::Settings;
 use mangas_core::smartcut::Preset;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Runtime};
 
 use super::penalizer::penalizer;
 use super::{open_library, settings_or_default, to_ipc};
@@ -34,7 +35,7 @@ pub(super) enum ExportEvent {
     },
 }
 
-pub(super) fn emit(app: &AppHandle, event: ExportEvent) {
+pub(super) fn emit<R: Runtime>(app: &AppHandle<R>, event: ExportEvent) {
     if let Err(e) = app.emit(EXPORT_EVENT, event) {
         log::warn!("emit {EXPORT_EVENT}: {e}");
     }
@@ -43,8 +44,9 @@ pub(super) fn emit(app: &AppHandle, event: ExportEvent) {
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 #[allow(clippy::too_many_arguments)] // Tauri maps each IPC argument to a parameter.
-pub async fn export_chapters(
-    app: AppHandle,
+/// A relative `output` is a file name in the default export folder ([`paths::exports`]).
+pub async fn export_chapters<R: Runtime>(
+    app: AppHandle<R>,
     chapter_dirs: Vec<PathBuf>,
     device: Option<String>,
     format: Option<Format>,
@@ -59,13 +61,19 @@ pub async fn export_chapters(
         profile: device,
         ..Default::default()
     };
-    let resolved = resolve(&explicit, series_preset(&chapter_dirs).as_ref())?;
+    let settings = settings_or_default();
+    let output = if output.is_relative() {
+        paths::exports(&settings)?.join(output)
+    } else {
+        output
+    };
+    let resolved = resolve(&explicit, series_preset(&chapter_dirs).as_ref(), &settings);
     let dev = resolved
         .profile_or(paths::DEFAULT_PROFILE)
         .map_err(to_ipc)?;
     let format = Format::resolve(format, Some(&output), resolved.format, &dev).map_err(to_ipc)?;
     let device = dev.id.to_string();
-    let detection = penalizer(&app, detectors).await?;
+    let detection = penalizer(&app, detectors, &settings).await?;
     let req_dirs = chapter_dirs.clone();
     let req = ExportRequest {
         labels: labels_of(&chapter_dirs),
@@ -104,9 +112,9 @@ pub async fn export_chapters(
 pub(super) fn resolve(
     explicit: &ExportPreset,
     series: Option<&ExportPreset>,
-) -> Result<ExportPreset, String> {
-    let fallback = ExportPreset::from_settings(&settings_or_default());
-    Ok(ExportPreset::resolve(explicit, series, &fallback))
+    settings: &Settings,
+) -> ExportPreset {
+    ExportPreset::resolve(explicit, series, &ExportPreset::from_settings(settings))
 }
 
 /// The preset of the series every folder belongs to; none when unreadable or mixed.

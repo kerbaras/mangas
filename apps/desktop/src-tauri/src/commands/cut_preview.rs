@@ -68,7 +68,8 @@ pub async fn preview_cut(
     let Some(generation) = started else {
         return Err("cancelled: the options panel closed".into());
     };
-    let preset = options.over(&ExportPreset::from_settings(&settings_or_default()));
+    let settings = settings_or_default();
+    let preset = options.over(&ExportPreset::from_settings(&settings));
     let device = preset.profile_or(paths::DEFAULT_PROFILE).map_err(to_ipc)?;
     let root = paths::cut_previews().map_err(to_ipc)?.join(&panel);
     let req = PreviewRequest {
@@ -79,7 +80,7 @@ pub async fn preview_cut(
         limit: PREVIEW_PAGES,
         out_dir: root.join(generation.to_string()),
     };
-    let detection = penalizer(&app, detectors).await?;
+    let detection = penalizer(&app, detectors, &settings).await?;
     let penalizer = detection.penalizer;
     let watched = panel.clone();
     let cut = tauri::async_runtime::spawn_blocking(move || {

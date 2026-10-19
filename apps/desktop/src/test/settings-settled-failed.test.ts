@@ -51,6 +51,8 @@ describe("a failed first settings load (#99)", () => {
     const placeholder = langs();
     expect(placeholder).not.toBe("es-la");
     expect(details.result.current.manga.description).toBe(placeholder);
+    // The backend's default folder, not a path the frontend made up (`~` was never expanded).
+    expect(readSettings().dataDir).toBe("/data");
 
     await loadSettings();
     await waitFor(() => expect(calls).toHaveLength(4));

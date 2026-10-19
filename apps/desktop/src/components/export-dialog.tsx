@@ -92,7 +92,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
     fresh &&
     named &&
     books > 0 &&
-    folder.output.trim() !== "" &&
+    (folder.picked === null || folder.picked.trim() !== "") &&
     target.devices.kind === "ready" &&
     detectors.status.kind !== "loading" &&
     settled;
@@ -128,7 +128,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
         format: target.format,
         preset,
         detectors: useDetectors,
-        outputDir: folder.output,
+        outputDir: folder.picked,
       }),
     );
     setRuns((n) => n + 1);

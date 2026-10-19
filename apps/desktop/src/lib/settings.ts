@@ -84,10 +84,12 @@ export async function loadSettings(): Promise<void> {
     load = { kind: "loading" };
     notify();
   }
+  // Asked apart from the settings: an unreadable row still leaves the real default folder known.
+  const platform = defaultDataDir().catch(() => DEFAULTS.dataDir);
   try {
-    const [loaded, platform] = await Promise.all([getSettings(), defaultDataDir()]);
+    const [loaded, dir] = await Promise.all([getSettings(), platform]);
     if (gen !== version && load.kind === "ready") return;
-    platformDataDir = platform || DEFAULTS.dataDir;
+    platformDataDir = dir;
     stored = loaded;
     cached = fromStored(loaded, platformDataDir);
     load = { kind: "ready" };
@@ -97,6 +99,8 @@ export async function loadSettings(): Promise<void> {
     if (gen !== version || load.kind === "ready") return;
     load = { kind: "failed", error: errorMessage(e) };
     releasedOnPlaceholders = true;
+    platformDataDir = await platform;
+    cached = { ...cached, dataDir: cached.dataDir || platformDataDir };
   }
   notify();
   firstSettled();
