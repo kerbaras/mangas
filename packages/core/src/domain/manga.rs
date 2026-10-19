@@ -40,7 +40,8 @@ pub struct Manga {
 }
 
 impl std::fmt::Display for MangaId {
+    /// `pad` keeps width and alignment (`{:<36}`) working in CLI tables.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
+        f.pad(&self.0)
     }
 }
