@@ -81,6 +81,8 @@ async fn the_export_lands_in_the_default_export_folder(home: &Path) {
         book,
         None,
         None,
+        None,
+        None,
     )
     .await
     .unwrap();
@@ -118,6 +120,8 @@ async fn relative_folders_land_under_the_default_export_folder(home: &Path) {
         None,
         false,
         book,
+        None,
+        None,
         None,
         None,
     );
@@ -161,6 +165,8 @@ async fn relative_folders_land_under_the_default_export_folder(home: &Path) {
             false,
             Some(PathBuf::from("books")),
             replace,
+            None,
+            None,
         )
     };
     let written = volume(None).await.unwrap().written;
