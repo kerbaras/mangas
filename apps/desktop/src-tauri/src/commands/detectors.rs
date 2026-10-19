@@ -9,7 +9,7 @@ use mangas_core::ml;
 use tauri::{AppHandle, Emitter};
 
 use super::penalizer::models_dir;
-use super::{settings_or_default, to_ipc};
+use super::{blocking, settings_or_default, to_ipc};
 use crate::paths;
 
 /// Download progress: `{ item, done, total }` in bytes, `item` is "onnxruntime" or a model id.
@@ -117,83 +117,18 @@ pub fn cancel_detectors_download() {
     }
 }
 
-/// Deletes the runtime and models; returns the bytes freed.
+/// Deletes the runtime and models off the UI thread; returns the bytes freed.
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
-pub fn remove_detectors() -> Result<u64, String> {
-    ml::remove(&models_dir()?).map_err(to_ipc)
+pub async fn remove_detectors() -> Result<u64, String> {
+    remove_in(models_dir()?).await
+}
+
+/// `ml::remove` holds the on-disk lease and drops it on any return, so a failed delete never
+/// leaves the folder claimed; it runs to the end even when the UI stops waiting.
+async fn remove_in(dir: PathBuf) -> Result<u64, String> {
+    blocking(move || ml::remove(&dir).map_err(to_ipc)).await
 }
 
 #[cfg(test)]
-mod tests {
-    use std::net::TcpListener;
-
-    use super::*;
-
-    /// One test: the claim and the Cancel flag are process-wide.
-    #[tokio::test]
-    async fn cancel_hits_only_the_running_download() {
-        let moving = claim_for_move().expect("free at start");
-        assert!(
-            claim(Holder::Download).is_none(),
-            "a move and a download never overlap"
-        );
-        cancel_detectors_download();
-        assert!(
-            !CANCEL.load(Ordering::SeqCst),
-            "a Cancel during a move is ignored"
-        );
-        drop(moving);
-        cancel_detectors_download();
-        assert!(
-            !CANCEL.load(Ordering::SeqCst),
-            "a Cancel when idle is ignored"
-        );
-
-        // A server that accepts and never answers: the Cancel comes before the first chunk.
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let url = format!("http://{}/ort.tgz", listener.local_addr().unwrap());
-        std::thread::spawn(move || {
-            let _held: Vec<_> = listener.incoming().take(1).collect();
-            std::thread::sleep(Duration::from_secs(30));
-        });
-        let busy = claim(Holder::Download).expect("free after the move");
-        let run = tokio::spawn(async move {
-            let mut ignore = |_, _| {};
-            ml::fetch::fetch(&url, &Default::default(), &mut ignore, &CANCEL).await
-        });
-        cancel_detectors_download();
-        let err = tokio::time::timeout(Duration::from_secs(5), run)
-            .await
-            .expect("Cancel right after start stops the download")
-            .unwrap()
-            .unwrap_err();
-        assert!(err.to_string().contains(ml::fetch::CANCELLED), "{err}");
-        drop(busy);
-        assert!(
-            !CANCEL.load(Ordering::SeqCst),
-            "the next download is not pre-cancelled"
-        );
-        assert!(claim(Holder::Download).is_some(), "freed when dropped");
-    }
-
-    /// A fresh launch with a runtime that won't load reports the failure, not "Running on cpu".
-    #[cfg(feature = "ml")]
-    #[tokio::test]
-    async fn status_reports_a_runtime_that_wont_load() {
-        let dir = tempfile::tempdir().unwrap();
-        let spec = ml::runtime::current().unwrap();
-        let lib = ml::runtime::lib_path(dir.path(), &spec);
-        std::fs::create_dir_all(lib.parent().unwrap()).unwrap();
-        std::fs::write(&lib, b"not a library").unwrap();
-        for m in &ml::MODELS {
-            std::fs::write(ml::cache::model_path(dir.path(), m), b"not a model").unwrap();
-        }
-        let status = status_in(dir.path().to_path_buf()).await.unwrap();
-        assert!(!status.downloaded, "the switch stays off");
-        match status.runtime {
-            ml::RuntimeStatus::Failed { reason, .. } => assert!(!reason.is_empty()),
-            other => panic!("{other:?}"),
-        }
-    }
-}
+mod tests;
