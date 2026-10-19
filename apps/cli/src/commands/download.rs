@@ -45,9 +45,7 @@ pub struct Args {
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
-    if library::is_local(&args.source) {
-        bail!("imported manga have nothing to download: their chapters are already on disk");
-    }
+    queue::ensure_downloadable(&args.source)?;
     let source = source_by_name(&args.source)?;
     let id = MangaId(args.manga_id.clone());
     let lib = Arc::new(library::open(&paths::library_db()?)?);
