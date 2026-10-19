@@ -83,6 +83,7 @@ pub fn run() {
             commands::volumes::plan_volumes,
             commands::volumes::export_volumes,
             commands::volumes::free_export_names,
+            commands::volumes::export_file_name,
             commands::send::find_kindles,
             commands::send::send_usb,
             commands::send::send_email,

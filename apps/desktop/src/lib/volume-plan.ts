@@ -42,13 +42,22 @@ function group(
   return loose.length ? [...volumes, { number: null, chapters: loose }] : volumes;
 }
 
-const portable = (title: string) =>
-  `${
+/** Mirrors `volume::file_name`: a stem over 200 bytes is cut at a character and ends in "…". */
+export function portable(title: string): string {
+  const stem =
     title
       .replace(/[\\/:*?"<>|]+/g, " ")
       .replace(/\s+/g, " ")
-      .trim() || "Manga"
-  }.epub`;
+      .trim() || "Manga";
+  const bytes = (s: string) => new TextEncoder().encode(s).length;
+  if (bytes(stem) <= 200) return `${stem}.epub`;
+  let cut = "";
+  for (const c of stem) {
+    if (bytes(cut + c) > 197) break;
+    cut += c;
+  }
+  return `${cut.trimEnd()}….epub`;
+}
 
 const tag = (c: Chapter) => seasonTag(c) ?? `ch ${c.number}`;
 

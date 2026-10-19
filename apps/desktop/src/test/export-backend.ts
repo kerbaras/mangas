@@ -1,14 +1,16 @@
 import { screen, waitFor } from "@testing-library/react";
 import { expect, vi } from "vitest";
+import { withExtension } from "@/lib/export-plan";
 import {
   type Backend,
   type Chapter,
   type DetectorsStatus,
+  type ExportFormat,
   type Manga,
   setBackend,
 } from "@/lib/ipc";
 import type { VolumeExport, VolumeRequest } from "@/lib/ipc.volumes";
-import { mockPlan } from "@/lib/volume-plan";
+import { mockPlan, portable } from "@/lib/volume-plan";
 
 export const ch = (number: string, volume: string | null): Chapter => ({
   id: `c${number}`,
@@ -65,6 +67,8 @@ export function exportBackend(overrides: Partial<Backend> = {}, detectors = dete
     planVolumes,
     exportVolumes,
     freeExportNames,
+    exportFileName: async (title: string, format: ExportFormat) =>
+      withExtension(portable(title), format),
     listDevices: async () => [
       { id: "kindle-paperwhite12", name: "Paperwhite", width: 1236, height: 1648, format: "epub" },
       { id: "kobo-clara", name: "Kobo Clara", width: 1072, height: 1448, format: "cbz" },

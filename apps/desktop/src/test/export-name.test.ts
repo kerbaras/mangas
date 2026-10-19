@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { exportFileName, exportTitle, joinPath, parentDir } from "@/lib/export-name";
+import { exportTitle, joinPath, parentDir } from "@/lib/export-name";
 import type { Chapter, Manga } from "@/lib/ipc";
+import { exportFileName } from "@/lib/ipc.volumes";
 
 const manga = (title: string): Manga => ({
   id: title.toLowerCase(),
@@ -59,10 +60,12 @@ describe("exportTitle", () => {
 });
 
 describe("paths", () => {
-  it("builds a safe file name with the format extension inside the chosen folder", () => {
-    expect(exportFileName('Re:Zero / "Arc 4"?')).toBe("Re Zero Arc 4.epub");
-    expect(exportFileName("Solo ch 1", "cbz")).toBe("Solo ch 1.cbz");
-    expect(exportFileName("Solo ch 1", "pdf")).toBe("Solo ch 1.pdf");
+  it("builds a safe file name with the format extension inside the chosen folder", async () => {
+    expect(await exportFileName('Re:Zero / "Arc 4"?')).toBe("Re Zero Arc 4.epub");
+    expect(await exportFileName("Solo ch 1", "cbz")).toBe("Solo ch 1.cbz");
+    expect(await exportFileName("Solo ch 1", "pdf")).toBe("Solo ch 1.pdf");
+    const long = await exportFileName("進".repeat(100), "pdf");
+    expect(long).toBe(`${"進".repeat(65)}….pdf`);
     expect(joinPath("/out/", "a.epub")).toBe("/out/a.epub");
     expect(joinPath("C:\\Users\\m\\Kindle", "a.epub")).toBe("C:\\Users\\m\\Kindle/a.epub");
     expect(parentDir("/out/a.epub")).toBe("/out");

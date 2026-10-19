@@ -42,9 +42,13 @@ export type VolumesBackend = {
   exportVolumes(request: VolumeExport): Promise<ExportResult[]>;
   /** The names `names` would be written under in `dir` now: taken ones get ` (2)`, ` (3)`… */
   freeExportNames(dir: string, names: string[]): Promise<string[]>;
+  /** The file name a book titled `title` is written under as `format` (shortened when too long). */
+  exportFileName(title: string, format: ExportFormat): Promise<string>;
 };
 
 export const planVolumes = async (r: VolumeRequest) => (await backend()).planVolumes(r);
 export const exportVolumes = async (r: VolumeExport) => (await backend()).exportVolumes(r);
 export const freeExportNames = async (dir: string, names: string[]) =>
   (await backend()).freeExportNames(dir, names);
+export const exportFileName = async (title: string, format: ExportFormat = "epub") =>
+  (await backend()).exportFileName(title, format);
