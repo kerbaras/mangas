@@ -130,6 +130,7 @@ mangas export <manga-id> --by-volume --format cbz --profile kobo-clara   # one b
 # Detectors
 mangas ml download                  # ONNX Runtime + models, about 190 MB
 mangas kindle <chapter>... --detectors -o out.epub
+mangas kindle <chapter>... --detectors --strict-detectors -o out.epub   # exit 1 if they can't run
 ```
 
 `add`, `chapters` and `download` default `--lang` to the preferred languages (English when none
@@ -153,7 +154,9 @@ little so a whole panel fits. Presets:
 Runtime library and the models are downloaded on first use (or with `mangas ml download`) into
 `models/` and verified by SHA-256. Execution uses CoreML on Apple silicon, CUDA with the opt-in
 `cuda` feature, and the CPU everywhere else (Windows included). Every release has detector
-support; a build from source needs the `ml` cargo feature.
+support; a build from source needs the `ml` cargo feature. When the detectors can't run (no
+runtime, or it won't load), `kindle` and `export` warn and cut without them, exiting 0;
+`--strict-detectors` turns that into exit 1 with the runtime's error, before anything is written.
 
 ## Architecture
 

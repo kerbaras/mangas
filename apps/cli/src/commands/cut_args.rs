@@ -42,9 +42,14 @@ pub struct CutArgs {
     /// Sharpen grey pages [default: the profile's]
     #[arg(long, value_name = "BOOL", num_args = 0..=1, default_missing_value = "true")]
     pub sharpen: Option<bool>,
-    /// Run the ONNX bubble/text/face detectors (needs a build with the `ml` feature)
+    /// Run the ONNX bubble/text/face detectors (needs a build with the `ml` feature). When they
+    /// can't run, the export warns and cuts without them (exit 0)
     #[arg(long)]
     pub detectors: bool,
+    /// With --detectors: when the detectors can't run, fail with exit 1 and the runtime's error
+    /// before anything is written, instead of cutting without them
+    #[arg(long, requires = "detectors")]
+    pub strict_detectors: bool,
 }
 
 #[derive(Clone, Copy, clap::ValueEnum)]
@@ -93,7 +98,8 @@ impl CutArgs {
     }
 
     /// The detector-backed row penalizer when `--detectors` is set, downloading models first.
-    /// Detectors that can't run are reported and left off; the cut goes on without them.
+    /// Detectors that can't run are reported and left off, so the cut goes on without them; with
+    /// `--strict-detectors` that is an error instead.
     pub async fn penalizer(&self) -> anyhow::Result<Option<RowPenalizer>> {
         if !self.detectors {
             return Ok(None);
@@ -118,9 +124,21 @@ impl CutArgs {
         }
         let detection =
             ml::penalizer_or_reason(&cache, &settings.network(), &mut on_progress).await;
+        if missing > 0 {
+            eprintln!();
+        }
         match &detection.error {
+            Some(e) if self.strict_detectors => {
+                bail!("detectors were requested (--strict-detectors) but can't run: {e}")
+            }
             Some(e) => eprintln!("detectors off, cutting without them: {e}"),
-            None => eprintln!("detectors: {:?}", ml::status(&cache).execution_provider),
+            None => eprintln!(
+                "detectors: {}",
+                ml::status(&cache)
+                    .execution_provider
+                    .as_deref()
+                    .unwrap_or("default")
+            ),
         }
         Ok(detection.penalizer)
     }
