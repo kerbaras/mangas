@@ -52,12 +52,7 @@ pub fn with_password(store: &dyn SecretStore, email: &EmailSettings) -> Result<E
     }
     let password = match store.get() {
         Ok(secret) => secret.unwrap_or_default(),
-        Err(StoreError::Locked(why)) => {
-            return Err(Error::Send(format!(
-                "The system keychain is locked or can't be read, so the SMTP password isn't \
-                 available. Unlock it and try again ({why})"
-            )))
-        }
+        Err(StoreError::Locked(why)) => return Err(locked(&why)),
         Err(e) => {
             tracing::debug!("couldn't read the SMTP password from the system keychain: {e}");
             String::new()
@@ -84,7 +79,8 @@ pub fn storage(lib: &Library, store: &dyn SecretStore) -> Result<Storage> {
 
 /// Saves an edit like [`edit_settings`]. A changed password goes to the keychain and the
 /// settings file keeps an empty one; without a keychain it is written to the file and
-/// `fallback` says why. An unchanged password never touches the keychain.
+/// `fallback` says why. A locked keychain fails the save and nothing is written. An unchanged
+/// password never touches the keychain.
 pub fn save_settings(
     lib: &Library,
     store: &dyn SecretStore,
@@ -111,6 +107,8 @@ pub fn save_settings(
                 }
                 edited.kindle_email.password.clear();
             }
+            // A keychain that is there but locked: the password must not end up in plain text.
+            Err(StoreError::Locked(why)) => return Err(locked(&why)),
             Err(e) => {
                 tracing::debug!("SMTP password kept in the settings file: {e}");
                 fallback = Some(e.to_string());
@@ -166,6 +164,13 @@ fn restore(store: &dyn SecretStore, before: Option<&str>) {
     if let Err(e) = undone {
         tracing::warn!("couldn't put the previous SMTP password back in the keychain: {e}");
     }
+}
+
+fn locked(why: &str) -> Error {
+    Error::Send(format!(
+        "The system keychain is locked or can't be read, so the SMTP password isn't available. \
+         Unlock it and try again ({why})"
+    ))
 }
 
 fn reveal(store: &dyn SecretStore) -> String {

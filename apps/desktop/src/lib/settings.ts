@@ -20,7 +20,7 @@ let platformDataDir = DEFAULTS.dataDir;
 
 /** `base` with only the patched fields taken from `cached`: unset defaults stay unset. */
 const edit = (base: Stored, patch: Partial<Settings>): Stored => {
-  const next = toStored(cached, platformDataDir);
+  const next = toStored({ ...cached, ...patch }, platformDataDir);
   const keys = Object.keys(patch) as (keyof Settings)[];
   return { ...base, ...Object.fromEntries(keys.map((k) => [STORED_KEY[k], next[STORED_KEY[k]]])) };
 };
@@ -125,16 +125,10 @@ export async function loadSettings(): Promise<void> {
   firstSettled();
 }
 
-/**
- * Writes through only once loaded, so placeholder defaults never overwrite what is stored.
- * The answer (this edit over what another process stored meanwhile) becomes the new copy.
- */
-export function writeSettings(patch: Partial<Settings>): Promise<boolean> {
-  cached = { ...cached, ...patch };
-  notify();
-  if (load.kind !== "ready") return Promise.resolve(false);
+/** Queues a write of `patch` over what the backend last stored; rejects when it isn't saved. */
+function queue(patch: Partial<Settings>): Promise<void> {
   const gen = ++version;
-  const write = writes.then(async () => {
+  const done = writes.then(async () => {
     const base = stored ?? toStored(cached, platformDataDir);
     const saved = await setSettings(edit(base, patch), base);
     keychainPassword = saved.kindle_email?.password ?? "";
@@ -143,15 +137,33 @@ export function writeSettings(patch: Partial<Settings>): Promise<boolean> {
     cached = fromStored(saved, platformDataDir);
     notify();
   });
-  writes = write.catch((e: unknown) => console.warn("settings not saved", e));
-  return write.then(
+  writes = done.catch(() => {});
+  return done;
+}
+
+/**
+ * Writes through only once loaded, so placeholder defaults never overwrite what is stored.
+ * The answer (this edit over what another process stored meanwhile) becomes the new copy.
+ */
+export function writeSettings(patch: Partial<Settings>): Promise<boolean> {
+  cached = { ...cached, ...patch };
+  notify();
+  if (load.kind !== "ready") return Promise.resolve(false);
+  return queue(patch).then(
     () => true,
-    () => false,
+    (e: unknown) => {
+      console.warn("settings not saved", e);
+      return false;
+    },
   );
 }
 
-/** Resolves once the writes queued so far are answered. */
-export const settingsWritten = (): Promise<void> => writes;
+/** Like `writeSettings`, but shown only once stored; rejects with why when it isn't. */
+export async function saveSettings(patch: Partial<Settings>): Promise<void> {
+  if (load.kind === "ready") return queue(patch);
+  cached = { ...cached, ...patch };
+  notify();
+}
 
 const subscribe = (l: () => void) => {
   listeners.add(l);

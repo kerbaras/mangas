@@ -20,7 +20,7 @@ import {
   type Security,
   sendTestEmail,
 } from "@/lib/ipc.send";
-import { adoptKeychainPassword, settingsWritten, useSettings } from "@/lib/settings";
+import { adoptKeychainPassword, saveSettings, useSettings } from "@/lib/settings";
 
 const SECURITY: { value: Security; label: string }[] = [
   { value: "starttls", label: "STARTTLS" },
@@ -66,7 +66,7 @@ function passwordHint(saved: boolean, storage: PasswordStorage | null): string |
 
 /** Send to Kindle email: edited as a draft, saved with "Save", testable before saving. */
 export function EmailSettingsForm() {
-  const [settings, update] = useSettings();
+  const [settings] = useSettings();
   const [draft, setDraft] = useState<EmailSettings>(settings.kindleEmail);
   const [note, setNote] = useState<Note>(null);
   const [testing, setTesting] = useState(false);
@@ -75,9 +75,14 @@ export function EmailSettingsForm() {
   const set = (patch: Partial<EmailSettings>) => setDraft((d) => ({ ...d, ...patch }));
   const dirty = JSON.stringify(draft) !== saved;
   const [storage, askStorage] = usePasswordStorage();
-  const save = () => {
-    update({ kindleEmail: draft });
-    void settingsWritten().then(() => askStorage(false));
+  const save = async () => {
+    setNote(null);
+    try {
+      await saveSettings({ kindleEmail: draft });
+    } catch (e) {
+      setNote({ ok: false, text: errorMessage(e) });
+    }
+    void askStorage(false);
   };
   const hasPassword = settings.kindleEmail.password !== "";
 
@@ -172,7 +177,7 @@ export function EmailSettingsForm() {
         </Alert>
       )}
       <div className="flex items-center gap-2">
-        <Button variant="primary" disabled={!dirty} onClick={save}>
+        <Button variant="primary" disabled={!dirty} onClick={() => void save()}>
           Save
         </Button>
         <Button disabled={testing || !draft.host.trim()} onClick={() => void test()}>

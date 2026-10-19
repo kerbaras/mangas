@@ -166,3 +166,16 @@ fn a_locked_keychain_is_told_apart_from_no_keychain() {
         Storage::Keychain
     );
 }
+
+#[test]
+fn a_locked_keychain_fails_a_password_save_and_writes_nothing() {
+    let lib = library::open_in_memory().unwrap();
+    let base = load_settings(&lib, &MemoryStore::default()).unwrap();
+    let locked = MemoryStore::locked("prompt dismissed");
+    let err = save_settings(&lib, &locked, Some(&base), &with_email("new-secret"))
+        .unwrap_err()
+        .to_string();
+    assert!(err.starts_with("The system keychain is locked"), "{err}");
+    assert_eq!(stored(&lib), "");
+    assert_eq!(locked.peek(), None);
+}

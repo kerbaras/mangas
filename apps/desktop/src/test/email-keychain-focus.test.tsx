@@ -4,7 +4,7 @@ import { EmailSettingsForm } from "@/components/email-settings";
 import { onAppFocus, watchAppFocus } from "@/lib/app-focus";
 import { type Backend, setBackend } from "@/lib/ipc";
 import { mockBackend } from "@/lib/ipc.mock";
-import { loadSettings } from "@/lib/settings";
+import { loadSettings, readSettings } from "@/lib/settings";
 
 afterEach(() => {
   setBackend(null);
@@ -37,5 +37,27 @@ describe("a locked keychain and window focus", () => {
     expect(emailPassword.mock.calls).toEqual([[true]]);
     off();
     stop();
+  });
+
+  it("fails a save into a locked keychain, keeping the typed password", async () => {
+    const loaded = await mockBackend.getSettings();
+    const locked =
+      "The system keychain is locked or can't be read, so the SMTP password isn't available. Unlock it and try again (prompt dismissed)";
+    const setSettings = vi.fn(async () => {
+      throw new Error(locked);
+    });
+    const emailPassword = vi.fn(async () => ({ password: "", storage: "locked" }));
+    const getSettings = async () => loaded;
+    const defaultDataDir = async () => "/home/me/.local/share/mangas";
+    setBackend({ getSettings, setSettings, defaultDataDir, emailPassword } as unknown as Backend);
+    await loadSettings();
+    render(<EmailSettingsForm />);
+    await screen.findByText("Your system keychain is locked or can't be read.");
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "new-secret" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText(locked)).toBeTruthy();
+    expect(setSettings).toHaveBeenCalledTimes(1);
+    expect(readSettings().kindleEmail.password).toBe("");
+    expect((screen.getByLabelText("Password") as HTMLInputElement).value).toBe("new-secret");
   });
 });
