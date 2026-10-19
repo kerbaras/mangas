@@ -1,11 +1,10 @@
-use std::collections::HashMap;
-
 use clap::{Args as ClapArgs, Subcommand};
 use mangas_core::library::{self, Settings};
 use mangas_core::sources::all_unreachable;
 use mangas_providers::{doctor, options, ProviderInfo, ProviderStatus};
 use serde::Serialize;
 
+use super::providers_bases::parse_bases;
 use super::stored_settings;
 use crate::output::{outln, print_json};
 use crate::{paths, Exit};
@@ -77,21 +76,6 @@ struct Row<'a> {
 struct List<'a> {
     providers: Vec<Row<'a>>,
     all_unreachable: bool,
-}
-
-/// `--base ID=URL` pairs, refusing an unknown id rather than probing the live site instead.
-fn parse_bases(bases: &[String]) -> anyhow::Result<HashMap<String, String>> {
-    let known = mangas_providers::providers();
-    bases
-        .iter()
-        .map(|b| match b.split_once('=') {
-            Some((id, url)) if known.iter().any(|p| p.id == id) => {
-                Ok((id.to_string(), url.to_string()))
-            }
-            Some((id, _)) => anyhow::bail!("--base: unknown provider {id:?}"),
-            None => anyhow::bail!("--base takes ID=URL"),
-        })
-        .collect()
 }
 
 /// Lists the providers with their status: one cheap request each, using the browser session

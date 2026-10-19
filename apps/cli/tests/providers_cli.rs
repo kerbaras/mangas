@@ -170,17 +170,18 @@ fn no_tls_certificates_exits_1() {
 }
 
 #[test]
-fn an_unknown_base_id_is_refused_instead_of_probing_the_live_site() {
+fn an_unknown_id_or_remote_base_is_refused_instead_of_probed() {
     let home = home();
-    let out = providers(
-        home.path(),
-        &[("mangadx", "http://127.0.0.1:9")],
-        &["--json"],
-    );
-    assert!(!out.status.success(), "{out:?}");
-    assert!(out.stdout.is_empty(), "{out:?}");
-    let stderr = String::from_utf8_lossy(&out.stderr);
-    assert!(stderr.contains("unknown provider \"mangadx\""), "{stderr}");
+    let refused = [
+        ("mangadx", "http://127.0.0.1:9", "unknown provider"),
+        ("comick", "https://example.com", "not a local mock server"),
+    ];
+    for (id, base, why) in refused {
+        let out = providers(home.path(), &[(id, base)], &["--json"]);
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert!(!out.status.success() && out.stdout.is_empty(), "{out:?}");
+        assert!(stderr.contains(why), "{stderr}");
+    }
 }
 
 #[test]
