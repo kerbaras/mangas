@@ -1,0 +1,59 @@
+# Scratch-only proof for #210 (not part of the PR): on a real Windows runner, install detector
+# support, check the status the way the app does at launch (a child `mangas ml status --json`),
+# then remove in the same process with no restart and assert the runtime DLL is gone.
+name: windows-detectors-210
+
+on:
+  push:
+    branches: ["devin/*-scratch-windows-210"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: 0
+      CARGO_PROFILE_DEV_DEBUG: 0
+      CARGO_PROFILE_TEST_DEBUG: 0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build the frontend the shipped binary embeds
+        run: pnpm -C apps/desktop build
+      - name: Build the shipped binary (mangas.exe = app + CLI) with detectors
+        run: cargo build -p mangas-desktop --features ml
+      - name: Real CLI on the real binary - install, status, remove
+        shell: pwsh
+        run: |
+          $exe = "target/debug/mangas.exe"
+          & $exe ml download; if ($LASTEXITCODE) { exit 1 }
+          & $exe ml status --json
+          & $exe ml remove; if ($LASTEXITCODE) { exit 1 }
+          & $exe ml status
+      - name: Launch status check in a child, then Remove in the same process (the fix)
+        shell: pwsh
+        run: |
+          $env:MANGAS_EXE = (Resolve-Path target/debug/mangas.exe).Path
+          cargo test -p mangas-cli --features ml --test ml_status_child -- --ignored --exact --nocapture remove_after_the_launch_status_check_needs_no_restart
+      - name: In-process status check, then Remove (the old behaviour, for contrast)
+        shell: pwsh
+        run: |
+          cargo test -p mangas-cli --features ml --test ml_status_child -- --ignored --exact --nocapture an_in_process_check_keeps_the_runtime_mapped
+      - name: Unit and integration tests touched by #210
+        shell: pwsh
+        run: |
+          $env:MANGAS_EXE = (Resolve-Path target/debug/mangas.exe).Path
+          cargo test -p mangas-core --features ml --lib ml::
+          cargo test -p mangas-cli --features ml --test ml_status_child
+          cargo test -p mangas-desktop --features ml --lib commands::detectors
