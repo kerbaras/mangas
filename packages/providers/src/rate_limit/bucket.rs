@@ -90,22 +90,20 @@ impl TokenBucket {
         None
     }
 
-    fn skipping_file(&self, now: Instant) -> bool {
-        let until = self
-            .local_until
+    fn local_until(&self) -> std::sync::MutexGuard<'_, Option<Instant>> {
+        self.local_until
             .lock()
-            .unwrap_or_else(PoisonError::into_inner);
-        until.is_some_and(|until| now < until)
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn skipping_file(&self, now: Instant) -> bool {
+        self.local_until().is_some_and(|until| now < until)
     }
 
     /// Another process held the file lock past [`LOCK_WAIT`]: pace in memory for
     /// [`LOCAL_AFTER_LOCK_TIMEOUT`], warning the first time per bucket and at debug level after.
     fn lock_timed_out(&self, path: &std::path::Path) {
-        let until = Instant::now() + LOCAL_AFTER_LOCK_TIMEOUT;
-        *self
-            .local_until
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner) = Some(until);
+        *self.local_until() = Some(Instant::now() + LOCAL_AFTER_LOCK_TIMEOUT);
         let (path, wait) = (path.display(), LOCK_WAIT.as_secs());
         let retry = LOCAL_AFTER_LOCK_TIMEOUT.as_secs();
         match self.lock_warned.swap(true, Ordering::Relaxed) {
@@ -132,7 +130,8 @@ impl TokenBucket {
     }
 
     /// Holds every caller back for `wait` (a host answered 429): the bucket goes into debt so
-    /// the next token comes after `wait`. Overlapping pauses do not add up.
+    /// the next token comes after `wait`. Overlapping pauses do not add up. A pause taken while
+    /// the file is skipped keeps the bucket in memory until it ends, as the file never saw it.
     pub async fn pause(&self, wait: Duration) {
         let on_file = self.on_file(move |shared, c, r| shared.pause(wait, c, r));
         if on_file.await.is_some() {
@@ -150,6 +149,9 @@ impl TokenBucket {
         );
         state.last = now;
         state.tokens = tokens.min(-wait.as_secs_f64() * per_second);
+        if let Some(until) = self.local_until().as_mut() {
+            *until = (*until).max(now + wait);
+        }
     }
 
     /// Waits until a token is available and consumes it.
