@@ -47,6 +47,20 @@ describe("export dialog: what it shows before and after writing", () => {
     expect(await screen.findByText("Solo v2 (2).pdf")).toBeTruthy();
   });
 
+  it("shows where a relative folder really goes: under the default export folder", async () => {
+    const freeExportNames = vi.fn(async (_dir: string, names: string[]) => names);
+    exportBackend({ freeExportNames });
+    render(dialog());
+    fireEvent.change(await screen.findByLabelText("Output folder"), {
+      target: { value: "books" },
+    });
+    const kindleBooks = "/home/me/.local/share/mangas/kindle/books";
+    expect(await screen.findByText(`Saved to ${kindleBooks}`)).toBeTruthy();
+    await waitFor(() =>
+      expect(freeExportNames).toHaveBeenLastCalledWith(kindleBooks, expect.anything()),
+    );
+  });
+
   it("keeps the books that copied next to the one that failed, and refreshes the history", async () => {
     const kindle = {
       name: "Kindle",

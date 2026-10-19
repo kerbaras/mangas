@@ -12,7 +12,7 @@ use tauri::{AppHandle, Runtime};
 use super::covers::cover_file;
 use super::export::{emit, record_export, resolve, ExportEvent};
 use super::penalizer::penalizer;
-use super::{open_library, settings_or_default, to_ipc};
+use super::{open_library, settings_or_default, settings_quietly, to_ipc};
 use crate::paths;
 
 fn plans(
@@ -46,7 +46,7 @@ pub fn plan_volumes(
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub fn free_export_names(dir: PathBuf, names: Vec<String>) -> Result<Vec<String>, String> {
-    let dir = mangas_core::export::in_export_folder(&paths::exports(&settings_or_default())?, &dir);
+    let dir = mangas_core::export::in_export_folder(&paths::exports(&settings_quietly())?, &dir);
     mangas_core::export::free_names_in(&dir, &names).map_err(to_ipc)
 }
 

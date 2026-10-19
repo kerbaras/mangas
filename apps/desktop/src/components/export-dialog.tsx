@@ -84,7 +84,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
           })),
         }
       : plans;
-  const { files, named } = useFreeNames(planned, folder.output, runs);
+  const { files, named } = useFreeNames(planned, folder.resolved, runs);
   const books = files.kind === "ready" ? files.data.length : 0;
   const sending = ["looking", "copying", "emailing"].includes(send.state.kind);
   const busy = job.state.kind === "running" || sending;
@@ -163,7 +163,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
               </Field>
             )}
             <Field label={books > 1 ? `${books} files` : "File"}>
-              <VolumePreview plans={files} folder={folder.output} stale={!fresh || !named} />
+              <VolumePreview plans={files} folder={folder.resolved} stale={!fresh || !named} />
             </Field>
           </div>
           <ExportOptions

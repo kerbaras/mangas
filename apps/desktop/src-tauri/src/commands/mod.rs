@@ -57,6 +57,13 @@ pub(super) fn settings_or_default() -> Settings {
     settings
 }
 
+/// The stored settings, or the defaults without a warning: for previews that run on every keystroke.
+pub(super) fn settings_quietly() -> Settings {
+    paths::library_db()
+        .map(|db| library::settings_or_default(&db).0)
+        .unwrap_or_default()
+}
+
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub fn list_library() -> Result<Vec<Manga>, String> {

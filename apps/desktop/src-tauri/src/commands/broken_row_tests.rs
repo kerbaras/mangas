@@ -1,8 +1,6 @@
-//! The real commands with the stored settings row broken. One home for the whole test binary:
-//! `XDG_DATA_HOME` is process-wide.
+//! The real commands with the stored settings row broken.
 
-use std::path::PathBuf;
-use std::sync::OnceLock;
+use std::path::{Path, PathBuf};
 
 use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId};
 use mangas_core::export::volume::Grouping;
@@ -14,31 +12,37 @@ use super::volumes::export_volumes;
 use super::{detectors, open_library, settings_of, settings_or_default};
 use crate::paths;
 
-fn broken_home() -> &'static PathBuf {
-    static HOME: OnceLock<PathBuf> = OnceLock::new();
-    HOME.get_or_init(|| {
-        let home = std::env::temp_dir().join(format!("mangas-broken-row-{}", std::process::id()));
-        std::env::set_var("XDG_DATA_HOME", &home);
-        // A dead system proxy: an `ml` build's detector download fails fast through it.
-        std::env::set_var("HTTPS_PROXY", "http://127.0.0.1:9");
-        let db = paths::library_db().unwrap();
-        std::fs::create_dir_all(db.parent().unwrap()).unwrap();
-        drop(library::open(&db).unwrap());
-        let broken = "INSERT OR REPLACE INTO setting (key, value) VALUES ('app', '{broken')";
-        rusqlite::Connection::open(&db)
-            .unwrap()
-            .execute(broken, [])
-            .unwrap();
-        assert!(settings_of(&open_library().unwrap()).is_err());
-        home
-    })
+/// All cases run in one test with one temporary home, removed at the end: `XDG_DATA_HOME` and
+/// the working directory are process-wide.
+#[tokio::test]
+async fn broken_settings_row() {
+    let home = tempfile::tempdir().unwrap();
+    let cwd = std::env::current_dir().unwrap();
+    break_settings(home.path());
+    detectors_stay_usable(home.path()).await;
+    the_export_lands_in_the_default_export_folder(home.path()).await;
+    relative_folders_land_under_the_default_export_folder(home.path()).await;
+    std::env::set_current_dir(cwd).unwrap();
+}
+
+fn break_settings(home: &Path) {
+    std::env::set_var("XDG_DATA_HOME", home);
+    // A dead system proxy: an `ml` build's detector download fails fast through it.
+    std::env::set_var("HTTPS_PROXY", "http://127.0.0.1:9");
+    let db = paths::library_db().unwrap();
+    std::fs::create_dir_all(db.parent().unwrap()).unwrap();
+    drop(library::open(&db).unwrap());
+    let broken = "INSERT OR REPLACE INTO setting (key, value) VALUES ('app', '{broken')";
+    rusqlite::Connection::open(&db)
+        .unwrap()
+        .execute(broken, [])
+        .unwrap();
+    assert!(settings_of(&open_library().unwrap()).is_err());
 }
 
 /// The Export dialog's detector status still loads, and the penalizer gets past the settings to
 /// the default models folder and the system proxy.
-#[tokio::test]
-async fn detectors_stay_usable() {
-    let home = broken_home();
+async fn detectors_stay_usable(home: &Path) {
     let status = detectors::detectors_status().await.unwrap();
     assert_eq!(models_dir().unwrap(), home.join("mangas/models"));
     let mut missing = false;
@@ -58,9 +62,7 @@ async fn detectors_stay_usable() {
 
 /// `export_chapters` with a bare file name writes into the default data folder's `kindle`, never
 /// into a `~` folder under the working directory.
-#[tokio::test]
-async fn the_export_lands_in_the_default_export_folder() {
-    let home = broken_home();
+async fn the_export_lands_in_the_default_export_folder(home: &Path) {
     let chapter = chapter_dir(home, "bare");
     let app = tauri::test::mock_app();
     let book = PathBuf::from("Solo ch 1.epub");
@@ -85,7 +87,7 @@ async fn the_export_lands_in_the_default_export_folder() {
     );
 }
 
-fn chapter_dir(home: &std::path::Path, name: &str) -> PathBuf {
+fn chapter_dir(home: &Path, name: &str) -> PathBuf {
     let dir = home.join("chapters").join(name);
     std::fs::create_dir_all(&dir).unwrap();
     let page = image::RgbImage::from_pixel(64, 96, image::Rgb([200, 200, 200]));
@@ -95,9 +97,7 @@ fn chapter_dir(home: &std::path::Path, name: &str) -> PathBuf {
 
 /// A relative folder typed in the dialog goes under the default export folder in both commands,
 /// even when the app was started from `/` by a launcher.
-#[tokio::test]
-async fn relative_folders_land_under_the_default_export_folder() {
-    let home = broken_home();
+async fn relative_folders_land_under_the_default_export_folder(home: &Path) {
     std::env::set_current_dir("/").unwrap();
     let books = home.join("mangas/kindle/books");
     let app = tauri::test::mock_app();

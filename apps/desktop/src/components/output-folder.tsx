@@ -14,7 +14,19 @@ export function useOutputFolder() {
   const [settings] = useSettings();
   const fallback = settings.dataDir ? `${settings.dataDir}/kindle` : "";
   const [picked, setPicked] = useState<string | null>(null);
-  return { output: picked ?? fallback, picked, fallback, setOutput: setPicked };
+  const resolved = exportFolder(fallback, picked);
+  return { output: picked ?? fallback, picked, fallback, resolved, setOutput: setPicked };
+}
+
+/**
+ * Where the backend writes (`in_export_folder`): an absolute folder as typed, a relative one
+ * under the default export folder, none (or blank) the default itself.
+ */
+export function exportFolder(fallback: string, picked: string | null): string {
+  const dir = picked?.trim() ?? "";
+  if (!dir) return fallback;
+  if (/^([/\\]|[A-Za-z]:[/\\])/.test(dir)) return dir;
+  return fallback ? `${fallback}/${dir}` : dir;
 }
 
 type Props = { value: string; fallback: string; onChange: (dir: string) => void };
