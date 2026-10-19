@@ -27,6 +27,7 @@ contributors and agents: [`AGENTS.md`](AGENTS.md).
 Builds for macOS (arm64, Intel), Windows (x64, arm64) and Linux (x64, arm64) are on the
 [releases page](https://github.com/kerbaras/mangas/releases). Release candidates are marked
 pre-release.
+The Linux builds need glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 37 or later).
 
 The macOS bundle is ad-hoc signed unless the repository has an Apple Developer ID: open the app
 once, then go to System Settings → Privacy & Security and click Open Anyway (right-click → Open
