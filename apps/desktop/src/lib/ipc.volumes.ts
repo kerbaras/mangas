@@ -33,6 +33,10 @@ export type VolumeExport = VolumeRequest & {
   outputDir: string | null;
   /** Write over books already in the folder instead of ` (2)` copies. */
   replace?: boolean;
+  /** JPEG quality of the pages; null keeps the profile's. */
+  quality?: number | null;
+  /** Write a bigger book as numbered parts of at most this many MB. */
+  splitMb?: number | null;
 };
 
 export type VolumesBackend = {
