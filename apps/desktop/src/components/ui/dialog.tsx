@@ -46,7 +46,7 @@ export function DialogDescription({
 }: ComponentProps<typeof DialogPrimitive.Description>) {
   return (
     <DialogPrimitive.Description
-      className={cn("mt-1 text-body text-ink-2", className)}
+      className={cn("mt-1 text-body text-ink-2 [overflow-wrap:anywhere]", className)}
       {...props}
     />
   );

@@ -30,7 +30,7 @@ function CheckResult({ check }: { check: CheckState }) {
   if (check.kind === "failed")
     return (
       <Hint hint={describeFailure(check.error).tooltip}>
-        <p role="alert" className="text-caption text-bad">
+        <p role="alert" className="text-caption text-bad [overflow-wrap:anywhere]">
           {checkFailedLine(check.error)}
         </p>
       </Hint>
@@ -39,7 +39,7 @@ function CheckResult({ check }: { check: CheckState }) {
   const { status } = check;
   if (status.kind === "invalid_signature")
     return (
-      <p role="alert" className="text-caption text-bad">
+      <p role="alert" className="text-caption text-bad [overflow-wrap:anywhere]">
         {statusLine(status)}
       </p>
     );
