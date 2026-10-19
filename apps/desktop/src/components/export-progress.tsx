@@ -38,7 +38,7 @@ export function ExportProgressPanel({
         role="alert"
       >
         <p className="font-medium text-accent-text">Export failed</p>
-        <p className="mt-1 text-ink-2">{state.message}</p>
+        <p className="mt-1 text-ink-2 [overflow-wrap:anywhere]">{state.message}</p>
         <Button size="sm" className="mt-3" onClick={onReset}>
           Try again
         </Button>
@@ -66,7 +66,9 @@ export function ExportProgressPanel({
             {results.length === 1 ? first.output : folder}
           </p>
         </Hint>
-        {warning && <p className="text-caption text-accent-text">{warning}</p>}
+        {warning && (
+          <p className="text-caption text-accent-text [overflow-wrap:anywhere]">{warning}</p>
+        )}
       </div>
       <Button size="sm" onClick={() => revealFolder(folder)}>
         <FolderOpen /> Open folder

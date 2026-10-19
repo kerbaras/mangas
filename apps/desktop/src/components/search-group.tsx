@@ -110,7 +110,7 @@ function Unreachable(props: { name: string; reason: string; onRetry: () => void 
   return (
     <Note action={retry}>
       <Hint hint={tooltip}>
-        <span className="min-w-0 break-words">
+        <span className="min-w-0 [overflow-wrap:anywhere]">
           Couldn't reach {props.name}: {label}
         </span>
       </Hint>

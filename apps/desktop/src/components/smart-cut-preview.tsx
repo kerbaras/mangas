@@ -183,7 +183,11 @@ function SmartCutPreview(props: Props & { onClose: () => void }) {
           <CutPreviewPane state={state} detectorsOff={detectorsOff ?? failed} />
         </div>
         <DialogFooter className="items-center">
-          {note && <span className="mr-auto text-caption text-ink-3">{note}</span>}
+          {note && (
+            <span className="mr-auto min-w-0 text-caption text-ink-3 [overflow-wrap:anywhere]">
+              {note}
+            </span>
+          )}
           <Button onClick={reset}>
             <RotateCcw /> Reset to defaults
           </Button>

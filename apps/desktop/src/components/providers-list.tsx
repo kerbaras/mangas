@@ -78,7 +78,7 @@ export function ProvidersList() {
         ))}
       </ul>
       <div className="flex items-center gap-3">
-        <p className="flex-1 text-caption text-ink-3">{note}</p>
+        <p className="min-w-0 flex-1 text-caption text-ink-3 [overflow-wrap:anywhere]">{note}</p>
         <Button
           size="sm"
           variant="ghost"
