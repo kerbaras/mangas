@@ -25,7 +25,7 @@ async fn a_name_resolving_to_a_private_address_is_refused_at_once() {
         // PAGE_RETRY waits 1 s before its first retry: anything faster made one attempt.
         assert!(started.elapsed() < Duration::from_secs(1), "{ip}: retried");
         assert!(matches!(err, Error::BlockedAddress { .. }), "{err:?}");
-        let ip = ip.parse::<std::net::IpAddr>().unwrap();
+        let ip = mangas_core::download::unmapped(ip.parse().unwrap());
         let expected = format!("refused: cdn.qa.test resolves to a non-public address {ip}");
         assert_eq!(err.to_string(), expected);
     }
@@ -44,6 +44,7 @@ async fn a_private_ip_literal_or_localhost_is_refused_at_once() {
             "169.254.169.254",
         ),
         ("http://[::1]/x.jpg", "[::1]", "::1"),
+        ("http://[::ffff:10.0.0.1]/x.jpg", "10.0.0.1", "10.0.0.1"),
         ("http://localhost:8080/x.jpg", "localhost", "127.0.0.1"),
         ("http://cdn.localhost/x.jpg", "cdn.localhost", "127.0.0.1"),
     ] {
@@ -67,4 +68,15 @@ fn a_refused_address_is_not_retried_by_the_queue() {
         ip: "127.0.0.1".parse().unwrap(),
     };
     assert!(!classify(&err).retryable);
+}
+
+#[test]
+fn an_ipv4_mapped_address_reads_as_ipv4() {
+    use mangas_core::download::unmapped;
+    let shown = |ip: &str| unmapped(ip.parse().unwrap()).to_string();
+    assert_eq!(shown("::ffff:10.0.0.1"), "10.0.0.1");
+    assert_eq!(shown("::ffff:127.0.0.1"), "127.0.0.1");
+    assert_eq!(shown("fd00::1"), "fd00::1");
+    assert_eq!(shown("::1"), "::1");
+    assert_eq!(shown("10.0.0.1"), "10.0.0.1");
 }

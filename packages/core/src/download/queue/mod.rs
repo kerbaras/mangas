@@ -30,7 +30,7 @@ pub use ops::{
     split_for_queue, Enqueued, Target,
 };
 pub use releases::pick_releases;
-pub use retry::{backoff, classify, Failure, RetryPolicy};
+pub use retry::{backoff, classify, is_final_error, Failure, RetryPolicy};
 pub use runner::{run_job, JobRunner};
 pub use schedule::{in_queue_order, is_settled, pick, Limits, Scope};
 pub use settle::{run_until_settled, Settled};

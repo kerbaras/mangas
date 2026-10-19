@@ -5,7 +5,7 @@ use clap::{Args as ClapArgs, Subcommand};
 use mangas_core::download::queue::{self, Action, Job, JobId, JobState, QueueGate, Scope, Target};
 use mangas_core::library;
 
-use super::settled::paused_report;
+use super::settled::{failed_note, paused_report};
 use super::watch::{count, label, run_until_settled};
 use crate::output::outln;
 use crate::paths;
@@ -144,8 +144,8 @@ async fn run_all(lib: Arc<library::Library>) -> anyhow::Result<()> {
         }
         return Err(exit.into());
     }
-    if failed > 0 {
-        bail!("{failed} download(s) failed; `mangas queue retry --all` tries them again");
+    if let Some(note) = failed_note(jobs, "download") {
+        bail!("{note}");
     }
     Ok(())
 }

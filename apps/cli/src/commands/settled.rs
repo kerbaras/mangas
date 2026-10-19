@@ -1,6 +1,6 @@
 //! What a settling download run says when chapters are left undone.
 
-use mangas_core::download::queue::{Job, JobState, Settled};
+use mangas_core::download::queue::{is_final_error, Job, JobState, Settled};
 
 use super::watch::label;
 use crate::exit::Exit;
@@ -40,6 +40,33 @@ pub fn paused_report(settled: &Settled) -> Option<(Vec<String>, Exit)> {
             message,
         },
     ))
+}
+
+/// The note for failed `noun`s. `mangas queue retry --all` is only offered for the ones a retry
+/// can fix: a refused host or a chapter gone from the source fails the same way again.
+pub fn failed_note(jobs: &[Job], noun: &str) -> Option<String> {
+    let failed: Vec<&Job> = jobs
+        .iter()
+        .filter(|j| j.state == JobState::Failed)
+        .collect();
+    let fixed = |j: &&&Job| j.error.as_deref().is_some_and(is_final_error);
+    let (total, stuck) = (failed.len(), failed.iter().filter(fixed).count());
+    let mut note = match total {
+        0 => return None,
+        n => format!("{n} {noun}(s) failed"),
+    };
+    if stuck > 0 {
+        note +=
+            &format!("; {stuck} can't succeed on a retry (refused host or gone from the source)");
+    }
+    match total - stuck {
+        0 => {}
+        n if stuck > 0 => {
+            note += &format!("; retry the other {n} one at a time with `mangas queue retry <id>`")
+        }
+        _ => note += "; `mangas queue retry --all` tries them again",
+    }
+    Some(note)
 }
 
 #[cfg(test)]
@@ -106,5 +133,45 @@ mod tests {
     fn a_run_that_finished_reports_nothing() {
         let jobs = vec![job("1", JobState::Done), job("2", JobState::Failed)];
         assert_eq!(paused_report(&Settled { jobs, paused: true }), None);
+    }
+
+    fn failed(error: String) -> Job {
+        Job {
+            error: Some(error),
+            ..job("1", JobState::Failed)
+        }
+    }
+
+    fn refused() -> String {
+        use mangas_core::domain::Error;
+        use mangas_core::download::queue::classify;
+        let ip = "10.0.0.1".parse().unwrap();
+        classify(&Error::BlockedAddress {
+            host: "cdn".into(),
+            ip,
+        })
+        .message
+    }
+
+    #[test]
+    fn a_refused_download_is_not_offered_a_retry() {
+        let note = failed_note(&[failed(refused())], "chapter").unwrap();
+        assert!(!note.contains("retry --all"), "{note}");
+        assert!(note.contains("1 can't succeed on a retry"), "{note}");
+    }
+
+    #[test]
+    fn retry_is_offered_for_the_failures_it_can_fix() {
+        let jobs = [failed(refused()), failed("network: timed out".into())];
+        let note = failed_note(&jobs, "download").unwrap();
+        assert!(note.starts_with("2 download(s) failed"), "{note}");
+        assert!(note.ends_with("retry the other 1 one at a time with `mangas queue retry <id>`"));
+        assert!(!note.contains("--all"), "{note}");
+        let note = failed_note(&jobs[1..], "chapter").unwrap();
+        assert_eq!(
+            note,
+            "1 chapter(s) failed; `mangas queue retry --all` tries them again"
+        );
+        assert_eq!(failed_note(&[job("1", JobState::Done)], "chapter"), None);
     }
 }
