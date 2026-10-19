@@ -38,8 +38,8 @@ import {
 import { isChallenge, type Manga } from "@/lib/ipc";
 import { loadChapters } from "@/lib/load-chapters";
 import { notifyError } from "@/lib/notify";
-import { useSettingsKnown } from "@/lib/settings";
 import { useRefreshShortcut } from "@/lib/refresh-shortcut";
+import { useSettingsKnown } from "@/lib/settings";
 
 type Props = { manga: Manga };
 
