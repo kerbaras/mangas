@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use mangas_core::library::{self, ExportRecord};
-use mangas_core::send::password::{self, SecretStore, Storage};
+use mangas_core::send::password::{self, SecretStore};
 use mangas_core::send::{email, usb, EmailSettings, KindleVolume, SendVia};
 use tauri::{AppHandle, Emitter};
 
@@ -94,33 +94,6 @@ async fn test_email(
     let settings =
         blocking(move || password::test_settings(&*store, &draft, typed).map_err(to_ipc)).await?;
     email::send_test(&settings).await.map_err(to_ipc)
-}
-
-/// The saved SMTP password and where it is kept.
-#[derive(serde::Serialize)]
-pub struct EmailPassword {
-    password: String,
-    storage: Storage,
-}
-
-/// The saved SMTP password (moved to the keychain first if still in the settings) and where it
-/// is kept. Only for something the user did: with `retry`, a locked keychain prompts to unlock
-/// even after a dismissed prompt; without, it answers `locked` from memory.
-#[tauri::command]
-#[tracing::instrument(level = "error", skip_all)]
-pub async fn email_password(retry: bool) -> Result<EmailPassword, String> {
-    blocking(move || {
-        if retry {
-            password::retry_keychain();
-        }
-        let (lib, store) = (open_library()?, password::system_store());
-        let settings = password::load_settings(&lib, &*store).map_err(to_ipc)?;
-        Ok(EmailPassword {
-            password: settings.kindle_email.password,
-            storage: password::storage(&lib, &*store).map_err(to_ipc)?,
-        })
-    })
-    .await
 }
 
 /// The `limit` most recent exports, newest first.

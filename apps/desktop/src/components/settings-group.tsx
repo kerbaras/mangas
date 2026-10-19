@@ -11,15 +11,18 @@ type Props = {
   resets?: readonly (keyof Settings)[];
   /** What a reset changes, for the confirmation. */
   resetHint?: string;
+  /** What a reset does besides restoring the settings in `resets`. */
+  onReset?: () => void;
   children: ReactNode;
 };
 
 /** One Settings group: title, an optional reset with confirmation, then its fields. */
-export function SettingsGroup({ title, resets = [], resetHint, children }: Props) {
+export function SettingsGroup({ title, resets = [], resetHint, onReset, children }: Props) {
   const [asking, setAsking] = useState(false);
   const reset = () => {
     setAsking(false);
     writeSettings(defaultsOf(resets));
+    onReset?.();
     toast.success(`${title} settings reset`);
   };
   return (

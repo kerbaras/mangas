@@ -5,6 +5,7 @@ import { DetectorSupportSettings } from "@/components/detector-support-settings"
 import { EmailSettingsForm } from "@/components/email-settings";
 import { Field } from "@/components/field";
 import { SettingsGroup } from "@/components/settings-group";
+import { clearSmtpPassword } from "@/components/smtp-password-field";
 import { StoragePanel } from "@/components/storage-panel";
 import { AboutSettings } from "./settings-about";
 import { DownloadsSettings } from "./settings-downloads";
@@ -37,6 +38,7 @@ function KindleSettings() {
       title="Kindle"
       resets={["kindleEmail"]}
       resetHint="The Send to Kindle address and the SMTP account, password included, are cleared."
+      onReset={clearSmtpPassword}
     >
       <Field
         label="Send by email"

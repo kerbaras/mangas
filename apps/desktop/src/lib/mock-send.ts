@@ -21,6 +21,10 @@ const now = () => new Date().toISOString().slice(0, 19).replace("T", " ");
 
 export function mockSend(): SendBackend {
   let looks = 0;
+  let saved = false;
+  const storage = () =>
+    params.has("locked-keychain") ? "locked" : params.has("no-keychain") ? "file" : "keychain";
+  const status = () => ({ has_password: saved, storage: storage(), fallback: null }) as const;
   const listeners = new Set<(p: CopyProgress) => void>();
   const history: ExportRecord[] = [];
   const stamp = (file: string, title: string, via: "email" | "usb", to: string) => {
@@ -71,9 +75,11 @@ export function mockSend(): SendBackend {
       if (params.has("smtp-fail")) throw new Error(SMTP_FAIL);
       return settings.from || settings.username;
     },
-    async emailPassword() {
-      if (params.has("locked-keychain")) return { password: "", storage: "locked" };
-      return { password: "", storage: params.has("no-keychain") ? "file" : "keychain" };
+    smtpPasswordStatus: async () => status(),
+    async setSmtpPassword(password) {
+      if (params.has("locked-keychain")) throw new Error("The system keychain is locked");
+      saved = password !== "";
+      return status();
     },
     async listExports(limit) {
       await wait(100);
