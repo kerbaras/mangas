@@ -1,14 +1,21 @@
 //! The cross-process half of a [`super::TokenBucket`]: its state in a small file, read and
 //! written under an exclusive file lock, so the CLI and the desktop app (or two CLI runs) draw
 //! from one budget per host. The format is `tokens last_unix_millis`; a missing or unreadable
-//! file is a full bucket.
+//! file is a full bucket. A process that hangs while holding the lock must not stall the others:
+//! the lock is waited on for at most [`LOCK_WAIT`], then the call fails with
+//! [`io::ErrorKind::TimedOut`] and the caller paces in memory.
 
-use std::fs::{File, OpenOptions};
+use std::fs::{File, OpenOptions, TryLockError};
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use super::bucket::refill;
+
+/// Longest wait for another process to release the bucket file.
+pub const LOCK_WAIT: Duration = Duration::from_secs(2);
+/// How often a held lock is retried within [`LOCK_WAIT`].
+const LOCK_POLL: Duration = Duration::from_millis(10);
 
 #[derive(Debug, Clone)]
 pub struct SharedState {
@@ -44,15 +51,15 @@ impl SharedState {
         .map(|_| ())
     }
 
-    /// Locks the file, hands `(tokens, elapsed since last write)` to `step`, stores its tokens
-    /// stamped now. The lock is released when the file closes.
+    /// Locks the file (waiting at most [`LOCK_WAIT`]), hands `(tokens, elapsed since last
+    /// write)` to `step`, stores its tokens stamped now. The lock is released when the file closes.
     fn update(
         &self,
         capacity: f64,
         step: impl FnOnce((f64, Duration)) -> (f64, Duration),
     ) -> io::Result<Duration> {
         let mut file = open(&self.path)?;
-        file.lock()?;
+        lock_within(&file, LOCK_WAIT)?;
         let mut text = String::new();
         file.read_to_string(&mut text)?;
         let now = now_millis();
@@ -63,6 +70,22 @@ impl SharedState {
         file.set_len(0)?;
         file.write_all(format!("{tokens} {now}").as_bytes())?;
         Ok(wait)
+    }
+}
+
+/// Takes the exclusive lock, retrying while another holder has it, for at most `wait`.
+fn lock_within(file: &File, wait: Duration) -> io::Result<()> {
+    let deadline = Instant::now() + wait;
+    loop {
+        match file.try_lock() {
+            Ok(()) => return Ok(()),
+            Err(TryLockError::Error(e)) => return Err(e),
+            Err(TryLockError::WouldBlock) if Instant::now() >= deadline => {
+                let held = format!("held by another process for over {}s", wait.as_secs());
+                return Err(io::Error::new(io::ErrorKind::TimedOut, held));
+            }
+            Err(TryLockError::WouldBlock) => std::thread::sleep(LOCK_POLL),
+        }
     }
 }
 
