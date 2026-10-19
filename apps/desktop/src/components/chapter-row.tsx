@@ -1,9 +1,9 @@
 import { AlertCircle, Ban, Check, Clock, EyeOff, Pause, Send } from "lucide-react";
 import type { MouseEvent, ReactNode } from "react";
 import { AvailabilityCell } from "@/components/availability-cell";
+import { Hint } from "@/components/hint";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { sourceRef, splitGroup } from "@/lib/chapter-groups";
 import { isUnavailable } from "@/lib/chapters";
 import { cn } from "@/lib/cn";
@@ -22,22 +22,12 @@ type Props = {
 
 /** The state label; `hint` (an error or retry reason) shows in an edge-aware tooltip. */
 function StateLabel(props: { hint?: string; className: string; children: ReactNode }) {
-  const label = (
-    <span
-      className={cn("flex w-fit items-center gap-1 text-caption", props.className)}
-      tabIndex={props.hint ? 0 : undefined}
-    >
-      {props.children}
-    </span>
-  );
-  if (!props.hint) return label;
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>{label}</TooltipTrigger>
-      <TooltipContent side="top" align="end">
-        {props.hint}
-      </TooltipContent>
-    </Tooltip>
+    <Hint hint={props.hint}>
+      <span className={cn("flex w-fit items-center gap-1 text-caption", props.className)}>
+        {props.children}
+      </span>
+    </Hint>
   );
 }
 
