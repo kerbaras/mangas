@@ -128,6 +128,19 @@ jobs:
           for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
             printf '%s<<%s\n%s\n%s\n' "$name" "$delimiter" "${!name}" "$delimiter" >> "$GITHUB_ENV"
           done
+      - name: Linux binary
+        if: runner.os == 'Linux'
+        run: pnpm -C apps/desktop tauri build --target ${{ matrix.target }} --features ml --no-bundle
+      # Checked before tauri-action, which builds and uploads the installers in one step.
+      - name: Binary glibc within the floor
+        if: runner.os == 'Linux'
+        run: |
+          bin="target/${{ matrix.target }}/release/mangas"
+          need="$(objdump -T "$bin" | grep -o 'GLIBC_[0-9.]*' | cut -d_ -f2 | sort -uV | tail -1)"
+          echo "$bin needs glibc $need, floor $GLIBC_FLOOR"
+          if [[ "$(printf '%s\n' "$need" "$GLIBC_FLOOR" | sort -V | tail -1)" != "$GLIBC_FLOOR" ]]; then
+            echo "::error::$bin needs glibc $need, newer than the $GLIBC_FLOOR floor"; exit 1
+          fi
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -139,12 +152,3 @@ jobs:
           releaseName: Mangas ${{ needs.version.outputs.tag }}
           releaseBody: ${{ steps.notes.outputs.body }}
           prerelease: ${{ contains(needs.version.outputs.tag, '-rc.') }}
-      - name: Binary glibc within the floor
-        if: runner.os == 'Linux'
-        run: |
-          bin="target/${{ matrix.target }}/release/mangas"
-          need="$(objdump -T "$bin" | grep -o 'GLIBC_[0-9.]*' | cut -d_ -f2 | sort -uV | tail -1)"
-          echo "$bin needs glibc $need, floor $GLIBC_FLOOR"
-          if [[ "$(printf '%s\n' "$need" "$GLIBC_FLOOR" | sort -V | tail -1)" != "$GLIBC_FLOOR" ]]; then
-            echo "::error::$bin needs glibc $need, newer than the $GLIBC_FLOOR floor"; exit 1
-          fi
