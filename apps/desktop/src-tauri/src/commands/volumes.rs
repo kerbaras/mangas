@@ -12,7 +12,7 @@ use tauri::{AppHandle, Runtime};
 use super::covers::cover_file;
 use super::export::{emit, record_export, resolve, ExportEvent};
 use super::penalizer::penalizer;
-use super::{open_library, settings_or_default, settings_quietly, to_ipc};
+use super::{blocking, open_library, settings_or_default, settings_quietly, to_ipc};
 use crate::paths;
 
 fn plans(
@@ -45,9 +45,14 @@ pub fn plan_volumes(
 /// the export dialog previews the files the export really writes.
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
-pub fn free_export_names(dir: PathBuf, names: Vec<String>) -> Result<Vec<String>, String> {
-    let dir = mangas_core::export::in_export_folder(&paths::exports(&settings_quietly())?, &dir);
-    mangas_core::export::free_names_in(&dir, &names).map_err(to_ipc)
+pub async fn free_export_names(dir: PathBuf, names: Vec<String>) -> Result<Vec<String>, String> {
+    // Lists the folder on every keystroke, which can be slow on a network drive.
+    blocking(move || {
+        let dir =
+            mangas_core::export::in_export_folder(&paths::exports(&settings_quietly())?, &dir);
+        mangas_core::export::free_names_in(&dir, &names).map_err(to_ipc)
+    })
+    .await
 }
 
 /// The file name a book titled `title` is written under as `format` (shortened when too long),

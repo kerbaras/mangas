@@ -101,11 +101,15 @@ pub async fn preview_cut(
 
 /// Stops the previews of `panel`, which closed: the running one and any that arrive after this.
 #[tauri::command]
-pub fn cancel_cut_preview(panel: String) {
+pub async fn cancel_cut_preview(panel: String) {
+    // Closed before the slow delete, so no preview can start in the folder being removed.
+    with_panels(|p| p.close(panel.clone()));
     if let (true, Ok(root)) = (valid_panel(&panel), paths::cut_previews()) {
-        remove_dir(&root.join(&panel));
+        let dir = root.join(&panel);
+        if let Err(e) = tauri::async_runtime::spawn_blocking(move || remove_dir(&dir)).await {
+            tracing::debug!("closed preview {panel}: {e}");
+        }
     }
-    with_panels(|p| p.close(panel));
 }
 
 fn remove_dir(dir: &Path) {
