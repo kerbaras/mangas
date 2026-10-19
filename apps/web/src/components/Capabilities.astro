@@ -32,7 +32,7 @@ const blocks = [
         <h3>{b.title}</h3>
         <p>{b.text}</p>
         {b.code && (
-          <pre><code>{b.code.map((line) => `$ ${line}`).join("\n")}</code></pre>
+          <pre tabindex="0" aria-label="CLI examples"><code>{b.code.map((line) => `$ ${line}`).join("\n")}</code></pre>
         )}
       </article>
     ))}

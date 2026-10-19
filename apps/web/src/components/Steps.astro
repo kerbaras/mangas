@@ -21,13 +21,13 @@ const steps: Step[] = [
     title: "Export",
     text: "Bundle single chapters or whole volumes into EPUB, CBZ or PDF, sized for Kindle, Kobo, reMarkable or a tablet.",
     shot: "export",
-    alt: "The export dialog: bundle, format, device profile and smart cut.",
+    alt: "The export dialog: bundle, format, device profile, smart cut and detectors.",
   },
   {
     title: "Read",
     text: "Email the book to your Kindle address or copy it over USB.",
     shot: "result",
-    alt: "The exported EPUB, ready to send.",
+    alt: "The Export screen after a send: the EPUB copied to a Kindle over USB, listed under recent exports.",
   },
 ];
 const stageSizes = "(min-width: 1200px) 660px, 56vw";
@@ -105,6 +105,13 @@ const inlineSizes = "100vw";
     font: 12px/1 var(--font-mono);
     letter-spacing: 0.08em;
     color: var(--color-accent);
+  }
+
+  /* The dark accent is 4.46:1 on the canvas; small text needs 4.5:1. */
+  @media (prefers-color-scheme: dark) {
+    .n {
+      color: #e3625a;
+    }
   }
 
   .step h3 {
