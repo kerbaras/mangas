@@ -1,5 +1,6 @@
 //! Detector support (ONNX Runtime + models): status, download with progress and cancel, remove.
 
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
@@ -35,10 +36,18 @@ struct DownloadProgress {
     total: Option<u64>,
 }
 
+/// Tries to load an installed runtime first (off the UI thread), so a broken one shows its error
+/// before any preview or export runs. Nothing installed: no load, no network.
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
-pub fn detectors_status() -> Result<ml::Status, String> {
-    Ok(ml::status(&models_dir()?))
+pub async fn detectors_status() -> Result<ml::Status, String> {
+    status_in(models_dir()?).await
+}
+
+async fn status_in(dir: PathBuf) -> Result<ml::Status, String> {
+    tauri::async_runtime::spawn_blocking(move || ml::checked_status(&dir))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Downloads whatever is missing, emitting [`DETECTORS_EVENT`] at most ten times a second.
@@ -164,5 +173,22 @@ mod tests {
             "the next download is not pre-cancelled"
         );
         assert!(claim(Holder::Download).is_some(), "freed when dropped");
+    }
+
+    /// A fresh launch with a runtime that won't load reports the failure, not "Running on cpu".
+    #[cfg(feature = "ml")]
+    #[tokio::test]
+    async fn status_reports_a_runtime_that_wont_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let spec = ml::runtime::current().unwrap();
+        let lib = ml::runtime::lib_path(dir.path(), &spec);
+        std::fs::create_dir_all(lib.parent().unwrap()).unwrap();
+        std::fs::write(&lib, b"not a library").unwrap();
+        let status = status_in(dir.path().to_path_buf()).await.unwrap();
+        assert!(!status.downloaded, "the switch stays off");
+        match status.runtime {
+            ml::RuntimeStatus::Failed { reason, .. } => assert!(!reason.is_empty()),
+            other => panic!("{other:?}"),
+        }
     }
 }
