@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipWriter};
 
-use super::output::write_new;
+use super::output::write_file;
 use crate::domain::{Error, Result};
 
 pub use exporter::EpubExporter;
@@ -81,13 +81,13 @@ fn entries(book: &Book) -> Vec<PageEntry> {
         .collect()
 }
 
-/// Writes `book` at `path`, or a free ` (n)` variant of it, and returns the file written;
-/// see [`write_new`].
-pub fn write(book: &Book, path: &Path) -> Result<PathBuf> {
+/// Writes `book` at `path` and returns the file written: over an existing file when `replace`,
+/// else under a free ` (n)` variant; see [`write_file`].
+pub fn write(book: &Book, path: &Path, replace: bool) -> Result<PathBuf> {
     if book.pages.is_empty() {
         return Err(Error::Other("epub: no pages".into()));
     }
-    write_new(path, |file| write_zip(book, file))
+    write_file(path, replace, |file| write_zip(book, file))
 }
 
 fn write_zip(book: &Book, file: File) -> Result<()> {

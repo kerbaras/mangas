@@ -3,15 +3,20 @@ import { freeExportNames, type VolumePlan } from "@/lib/ipc.volumes";
 
 /**
  * The planned books under the names the export will really write in `dir`: a name already taken
- * there gets ` (2)`, ` (3)`… as the writer does. `named` is false while the folder is being read;
- * `epoch` rereads it (after an export filled it).
+ * there gets ` (2)`, ` (3)`… as the writer does, unless `replace` writes over it. `named` is false
+ * while the folder is being read; `epoch` rereads it (after an export filled it).
  */
-export function useFreeNames(plans: Async<VolumePlan[]>, dir: string, epoch: number) {
+export function useFreeNames(
+  plans: Async<VolumePlan[]>,
+  dir: string,
+  epoch: number,
+  replace: boolean,
+) {
   const wanted = plans.kind === "ready" ? plans.data.map((p) => p.file_name) : [];
-  const key = [dir, epoch, ...wanted].join("\n");
+  const key = [dir, epoch, replace, ...wanted].join("\n");
   const free = useAsync(async () => {
     const names =
-      dir.trim() && wanted.length > 0
+      !replace && dir.trim() && wanted.length > 0
         ? await freeExportNames(dir, wanted).catch(() => wanted)
         : wanted;
     return { key, names };

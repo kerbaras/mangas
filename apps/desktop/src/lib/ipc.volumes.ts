@@ -31,6 +31,8 @@ export type VolumeExport = VolumeRequest & {
   preset: Preset;
   detectors: boolean;
   outputDir: string | null;
+  /** Write over books already in the folder instead of ` (2)` copies. */
+  replace?: boolean;
 };
 
 export type VolumesBackend = {

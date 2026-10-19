@@ -4,6 +4,7 @@ import { DevicesPending } from "@/components/devices-pending";
 import { Field } from "@/components/field";
 import { FormatPicker } from "@/components/format-picker";
 import { OutputFolder } from "@/components/output-folder";
+import { ReplaceSwitch } from "@/components/replace-switch";
 import { SmartCutButton } from "@/components/smart-cut-preview";
 import { SmartCutSection } from "@/components/smart-cut-section";
 import type { DetectorSupport } from "@/hooks/use-detector-support";
@@ -80,6 +81,7 @@ export function ExportOptions(p: Props) {
         />
       </SmartCutSection>
       <OutputFolder {...p.output} />
+      <ReplaceSwitch on={target.replace} onChange={target.setReplace} />
       <DeliveryPicker value={p.delivery} onChange={p.onDelivery} format={target.format} />
     </div>
   );

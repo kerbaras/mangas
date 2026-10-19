@@ -21,6 +21,7 @@ export const tauriVolumes: VolumesBackend = {
       preset: r.preset,
       detectors: r.detectors,
       outputDir: r.outputDir,
+      replace: r.replace ?? false,
     });
     return stats.map(toExportResult);
   },

@@ -1,4 +1,5 @@
-//! Writing an export file safely: never over an existing file, never a half-written one.
+//! Writing an export file safely: never a half-written one, and over an existing file only when
+//! asked to (then atomically, so a failed export leaves the old file as it was).
 
 use std::collections::HashSet;
 use std::ffi::OsString;
@@ -17,12 +18,43 @@ pub fn in_export_folder(default_dir: &Path, path: &Path) -> PathBuf {
     }
 }
 
+/// Writes `path` with `fill` and returns the file written: over an existing file when `replace`
+/// ([`write_over`]), else under a free name ([`write_new`]).
+pub(crate) fn write_file(
+    path: &Path,
+    replace: bool,
+    fill: impl FnOnce(File) -> Result<()>,
+) -> Result<PathBuf> {
+    match replace {
+        true => write_over(path, fill),
+        false => write_new(path, fill),
+    }
+}
+
+/// Writes `path` (parent directories are created), replacing a file already there. The content
+/// is built in a uniquely named `.part` file in the same folder and renamed over `path` once
+/// complete, so readers see the old file or the new one, never a truncated one; on failure the
+/// temporary file is removed and `path` is untouched.
+fn write_over(path: &Path, fill: impl FnOnce(File) -> Result<()>) -> Result<PathBuf> {
+    let dir = path.parent().filter(|d| !d.as_os_str().is_empty());
+    let dir = dir.unwrap_or(Path::new("."));
+    std::fs::create_dir_all(dir)?;
+    let name = path.file_name().unwrap_or_default().to_string_lossy();
+    let tmp = tempfile::Builder::new()
+        .prefix(&format!(".{name}."))
+        .suffix(".part")
+        .tempfile_in(dir)?;
+    fill(tmp.as_file().try_clone()?)?;
+    tmp.persist(path).map_err(|e| Error::from(e.error))?;
+    Ok(path.to_path_buf())
+}
+
 /// Writes a new file at `path` (parent directories are created) with `fill` and returns the
 /// file written. An existing file is never replaced: the name gets ` (2)`, ` (3)`, ... like a
 /// browser download. The target is claimed with `create_new` (two exports racing for one name
 /// get two files), the content is built in a `.part` file next to it and renamed over the claim
 /// when complete, so the final name never holds a half-written file.
-pub(crate) fn write_new(path: &Path, fill: impl FnOnce(File) -> Result<()>) -> Result<PathBuf> {
+fn write_new(path: &Path, fill: impl FnOnce(File) -> Result<()>) -> Result<PathBuf> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -148,7 +180,7 @@ mod tests {
         }
         let wanted = vec!["Book.epub".to_string()];
         assert_eq!(free_names_in(&dir, &wanted).unwrap(), wanted);
-        let written = write_new(&dir.join("Book.epub"), |_| Ok(()));
+        let written = write_file(&dir.join("Book.epub"), false, |_| Ok(()));
         std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
         assert_eq!(written.unwrap(), dir.join("Book.epub"));
     }

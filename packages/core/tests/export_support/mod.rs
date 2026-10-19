@@ -44,6 +44,7 @@ pub fn run_labelled(
         page: Default::default(),
         title: "Tom & Jerry".into(),
         output: root.path().join(file),
+        replace: false,
         labels,
         title_explicit,
         meta: Default::default(),

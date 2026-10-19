@@ -99,6 +99,7 @@ pub fn request(
         title: plan.title.clone(),
         title_explicit: false,
         output: output_dir.join(&plan.file_name),
+        replace: false,
         meta: book_meta(manga, &volume, cover),
         labels: Default::default(),
     }

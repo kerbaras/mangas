@@ -132,6 +132,7 @@ async fn preview_and_export_cut_without_detectors_that_cant_run() {
         title: "t".into(),
         title_explicit: false,
         output: root.path().join("book.cbz"),
+        replace: false,
         meta: Default::default(),
         labels: Default::default(),
     };

@@ -19,6 +19,8 @@ export type Settings = {
   defaultPreset: Preset;
   /** Export format picked last; null follows what the device reads best. */
   defaultFormat: ExportFormat | null;
+  /** Exports write over a file already in the folder instead of a ` (2)` copy. */
+  replaceExisting: boolean;
   /** Chapter languages in order of preference, never empty. */
   preferredLanguages: string[];
   providerOptions: Record<string, unknown>;
@@ -49,6 +51,7 @@ export const DEFAULTS: Settings = {
   defaultDevice: "kindle-paperwhite12",
   defaultPreset: DEFAULT_PRESET,
   defaultFormat: null,
+  replaceExisting: false,
   preferredLanguages: [DEFAULT_LANGUAGE],
   providerOptions: {},
   providersEnabled: {},
@@ -73,6 +76,7 @@ export const fromStored = (s: Stored, platformDataDir: string): Settings => ({
   defaultDevice: s.default_device || DEFAULTS.defaultDevice,
   defaultPreset: isPreset(s.default_preset) ? s.default_preset : DEFAULTS.defaultPreset,
   defaultFormat: isFormat(s.default_format) ? s.default_format : null,
+  replaceExisting: s.export_replace === true,
   preferredLanguages: s.preferred_languages?.length
     ? s.preferred_languages
     : DEFAULTS.preferredLanguages,
@@ -100,6 +104,7 @@ export const toStored = (s: Settings, platformDataDir: string): Stored => ({
   default_device: unlessDefault(s.defaultDevice, DEFAULTS.defaultDevice),
   default_preset: unlessDefault(s.defaultPreset, DEFAULTS.defaultPreset),
   default_format: s.defaultFormat,
+  export_replace: unlessDefault(s.replaceExisting, false),
   preferred_languages: s.preferredLanguages,
   provider_options: s.providerOptions,
   providers_enabled: s.providersEnabled,
@@ -121,6 +126,7 @@ export const STORED_KEY: { [K in keyof Settings]: keyof Stored } = {
   defaultDevice: "default_device",
   defaultPreset: "default_preset",
   defaultFormat: "default_format",
+  replaceExisting: "export_replace",
   preferredLanguages: "preferred_languages",
   providerOptions: "provider_options",
   providersEnabled: "providers_enabled",

@@ -53,6 +53,9 @@ pub struct Args {
     /// Print the files that would be written and exit
     #[arg(long)]
     pub dry_run: bool,
+    /// Write over books already in the folder instead of next to them as "Title (2)"
+    #[arg(long)]
+    pub replace: bool,
     /// After writing, email each book to the Kindle or copy it to one over USB
     #[arg(long, value_enum)]
     pub send: Option<SendArg>,
@@ -169,7 +172,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             cover.clone(),
         )
         .with_format(format)
-        .with_page(preset.page());
+        .with_page(preset.page())
+        .with_replace(args.replace);
         let stats = export(&req, penalizer.clone(), &mut print_progress)?;
         outln!("{}: {} pages", stats.output.display(), stats.pages)?;
         if stats.skipped > 0 {

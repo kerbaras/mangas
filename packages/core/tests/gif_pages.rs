@@ -73,6 +73,7 @@ fn export_keeps_gif_pages_and_counts_unsupported_files() {
         page: Default::default(),
         title: "Book".into(),
         output: out.clone(),
+        replace: false,
         meta: Default::default(),
         labels: Default::default(),
         title_explicit: false,

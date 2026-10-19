@@ -3,7 +3,10 @@ import { effectiveFormat } from "@/lib/export-formats";
 import { type ExportFormat, listDevices } from "@/lib/ipc";
 import { useSettings } from "@/lib/settings";
 
-/** Device profile and format: the stored defaults, so picking one keeps it for next time. */
+/**
+ * Device profile, format and whether to replace existing files: the stored defaults, so picking
+ * one keeps it for next time.
+ */
 export function useExportTarget() {
   const [settings, update] = useSettings();
   const devices = useAsync(listDevices, []);
@@ -16,6 +19,8 @@ export function useExportTarget() {
     recommended: list.find((d) => d.id === device),
     setDevice: (id: string) => update({ defaultDevice: id }),
     setFormat: (f: ExportFormat) => update({ defaultFormat: f }),
+    replace: settings.replaceExisting,
+    setReplace: (on: boolean) => update({ replaceExisting: on }),
   };
 }
 

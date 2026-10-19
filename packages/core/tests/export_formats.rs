@@ -97,6 +97,7 @@ fn every_format_keeps_an_existing_file() {
             page: Default::default(),
             title: "Again".into(),
             output: stats.output.clone(),
+            replace: false,
             labels: Default::default(),
             title_explicit: false,
             meta: Default::default(),

@@ -20,6 +20,8 @@ export type Settings = {
   default_preset: Preset | null;
   /** Export format picked last; null follows the device profile. */
   default_format?: ExportFormat | null;
+  /** Exports write over an existing file instead of a ` (2)` copy; null = off. */
+  export_replace?: boolean | null;
   provider_sessions: Record<string, ProviderSession>;
   /** Chapter languages, most preferred first (empty = English); options by provider id. */
   preferred_languages?: string[];
