@@ -1,7 +1,7 @@
 /** Choices of the export dialog turned into planner input. Pure. */
 import type { Async } from "@/hooks/use-async";
 import type { Chapter, DetectorsStatus, ExportFormat } from "./ipc";
-import type { Grouping } from "./ipc.volumes";
+import type { Grouping, VolumePlan } from "./ipc.volumes";
 
 /** How the chapters become files: one per chapter, or bundled like the volume planner does. */
 export type BundleMode = Grouping["kind"];
@@ -29,8 +29,13 @@ export const detectorsUsable = (state: Async<DetectorsStatus>): boolean =>
 /** On by default whenever it can be used. */
 export const detectorsDefault = detectorsUsable;
 
-/** "Export 3 books and copy": the dialog's main button. */
-export function exportAction(books: number, delivery: "save" | "usb" | "email"): string {
+/** "Export 3 books and copy": the dialog's main button; "Retry email" once only sending failed. */
+export function exportAction(
+  books: number,
+  delivery: "save" | "usb" | "email",
+  resend = false,
+): string {
+  if (resend) return delivery === "email" ? "Retry email" : "Retry copy";
   const what = books > 1 ? `${books} books` : "book";
   const then = { save: "", usb: " and copy", email: " and email" }[delivery];
   return `Export ${what}${then}`;
@@ -42,4 +47,11 @@ export function pickSummary(picks: { manga: { title: string }; chapters: unknown
   const chapters = `${n} downloaded ${n === 1 ? "chapter" : "chapters"}`;
   if (picks.length === 1) return `${chapters} of ${picks[0].manga.title}`;
   return `${chapters} from ${picks.length} series`;
+}
+
+/** The plans with each file name in `format`'s extension. */
+export function inFormat(plans: Async<VolumePlan[]>, format: ExportFormat): Async<VolumePlan[]> {
+  if (plans.kind !== "ready") return plans;
+  const data = plans.data.map((p) => ({ ...p, file_name: withExtension(p.file_name, format) }));
+  return { kind: "ready", data };
 }

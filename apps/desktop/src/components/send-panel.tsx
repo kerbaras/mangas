@@ -66,7 +66,7 @@ export function SendPanel({ file, onSent }: Props) {
           </button>
         </p>
       )}
-      <SendStatus state={send.state} onRetry={() => void send.usb(file, title)} />
+      <SendStatus state={send.state} onRetry={() => void send.retry()} />
     </div>
   );
 }

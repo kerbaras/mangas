@@ -5,7 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import type { SendState } from "@/hooks/use-send";
 import { megabytes } from "@/lib/send-labels";
 
-/** Where a delivery is: looking, copying with progress, Device not found + Retry, done, failed. */
+/** Where a delivery is: looking, copying with progress, Device not found or failed + Retry, done. */
 export function SendStatus({ state, onRetry }: { state: SendState; onRetry: () => void }) {
   switch (state.kind) {
     case "idle":
@@ -57,7 +57,12 @@ export function SendStatus({ state, onRetry }: { state: SendState; onRetry: () =
           )}
           <Alert variant="destructive">
             <AlertTitle>{state.via === "email" ? "Email not sent" : "Copy failed"}</AlertTitle>
-            <AlertDescription>{state.message}</AlertDescription>
+            <AlertDescription>
+              {state.message}
+              <Button size="sm" onClick={onRetry} className="mt-1">
+                <RefreshCw /> Retry
+              </Button>
+            </AlertDescription>
           </Alert>
         </>
       );

@@ -109,9 +109,23 @@ pub async fn try_deliver(
         Ok(line) => return Ok(line),
         Err(e) => e,
     };
-    let message = format!("{} was written but not sent: {e:#}", file.display());
+    let message = not_sent(file, via, &e);
     eprintln!("{message}");
     Err(message)
+}
+
+/// "<file> was written but not sent: <why>", with the command that sends that same file again:
+/// retrying a delivery never exports the book again.
+pub fn not_sent(file: &Path, via: SendArg, e: &anyhow::Error) -> String {
+    let via = match via {
+        SendArg::Email => "email",
+        SendArg::Usb => "usb",
+    };
+    format!(
+        "{} was written but not sent: {e:#}\n  send it again with: mangas send --via {via} \"{}\"",
+        file.display(),
+        file.display()
+    )
 }
 
 /// Exit code 2 when some written books weren't sent (each was named as it failed).
