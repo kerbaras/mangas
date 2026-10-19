@@ -2,10 +2,9 @@
 import type { ExportFormat, Preset } from "./ipc";
 import type { EmailSettings } from "./ipc.send";
 
-/** Browser session captured for a provider behind a verification wall. */
+/** A provider's saved browser session as the webview sees it: when it was captured. Its cookies
+ * and user agent never leave the backend. */
 export type ProviderSession = {
-  cookies: string;
-  user_agent: string;
   saved_at: string | null;
 };
 

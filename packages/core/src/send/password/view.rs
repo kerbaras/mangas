@@ -1,5 +1,6 @@
-//! What the webview sees of the settings: everything but the SMTP password, which only shows as
-//! `kindle_email.has_password`. A password goes in through [`set_password`] and never comes back.
+//! What the webview sees of the settings: everything but the credentials. The SMTP password only
+//! shows as `kindle_email.has_password`, and a provider session only as its `saved_at`. A password
+//! goes in through [`set_password`] and never comes back; sessions stay with the backend.
 
 use rusqlite::OptionalExtension;
 use serde_json::Value;
@@ -15,13 +16,23 @@ use crate::send::EmailSettings;
 /// (a locked keychain would prompt on every window focus).
 const SAVED_KEY: &str = "smtp_password_saved";
 
-/// `settings` without `kindle_email.password`, with `kindle_email.has_password` instead; every
-/// other key is kept as stored.
+/// `settings` without `kindle_email.password`, with `kindle_email.has_password` instead, and each
+/// provider session cut down to `{ saved_at }` (no cookies or user agent); every other key is
+/// kept as stored.
 pub fn redact(settings: &Settings, has_password: bool) -> Result<Value> {
     let mut value = serde_json::to_value(settings).map_err(|e| Error::Other(e.to_string()))?;
     if let Some(email) = value.get_mut("kindle_email").and_then(Value::as_object_mut) {
         email.remove("password");
         email.insert("has_password".into(), Value::Bool(has_password));
+    }
+    if let Some(sessions) = value
+        .get_mut("provider_sessions")
+        .and_then(Value::as_object_mut)
+    {
+        for session in sessions.values_mut() {
+            let saved_at = session.get("saved_at").cloned().unwrap_or(Value::Null);
+            *session = serde_json::json!({ "saved_at": saved_at });
+        }
     }
     Ok(value)
 }

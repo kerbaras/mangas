@@ -45,6 +45,31 @@ fn the_dto_has_every_settings_key_but_no_password() {
 }
 
 #[test]
+fn provider_sessions_show_only_when_they_were_saved() {
+    let mut settings = with_email("");
+    settings.provider_sessions.insert(
+        "comick".into(),
+        library::ProviderSession {
+            cookies: "cf_clearance=secret-cookie".into(),
+            user_agent: "Secret UA/1.0".into(),
+            saved_at: Some("2026-10-19T12:00:00Z".into()),
+        },
+    );
+    let full = serde_json::to_value(&settings).unwrap();
+    let dto = redact(&settings, false).unwrap();
+    assert_eq!(keys(&dto), keys(&full), "every settings key is kept");
+    assert_eq!(
+        dto["provider_sessions"],
+        serde_json::json!({ "comick": { "saved_at": "2026-10-19T12:00:00Z" } })
+    );
+    let text = dto.to_string();
+    assert!(
+        !text.contains("secret-cookie") && !text.contains("Secret UA"),
+        "{text}"
+    );
+}
+
+#[test]
 fn a_password_set_through_the_keychain_never_shows_in_the_dto() {
     let lib = library::open_in_memory().unwrap();
     library::set_settings(&lib, &with_email("")).unwrap();
