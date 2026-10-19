@@ -95,7 +95,7 @@ export function LibraryScreen() {
           onEditCategories={() => setEditing(true)}
         />
       ) : null}
-      <div className="flex-1 overflow-auto">
+      <div className="relative min-h-0 flex-1 overflow-auto overscroll-contain">
         {state.kind === "loading" && <p className="p-4 text-ink-3">Loading…</p>}
         {state.kind === "error" && (
           <div className="p-4">

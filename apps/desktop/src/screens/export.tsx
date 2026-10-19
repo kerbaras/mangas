@@ -41,7 +41,7 @@ export function ExportScreen({ chapterIds }: Props) {
         </Button>
       </ScreenHeader>
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(280px,2fr)_minmax(360px,3fr)]">
-        <div className="overflow-auto border-r border-stroke p-4">
+        <div className="relative overflow-auto overscroll-contain border-r border-stroke p-4">
           {groups.state.kind === "loading" && (
             <p className="text-ink-3">Looking for downloaded chapters…</p>
           )}
@@ -68,7 +68,7 @@ export function ExportScreen({ chapterIds }: Props) {
             />
           )}
         </div>
-        <div className="flex flex-col gap-4 overflow-auto p-4">
+        <div className="relative flex flex-col gap-4 overflow-auto overscroll-contain p-4">
           <p className="text-caption text-ink-3">
             Pick chapters, then Export opens the export dialog: bundle, format, smart cut and
             delivery. Books written before can be sent again from the list below.

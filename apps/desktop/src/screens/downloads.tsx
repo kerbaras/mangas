@@ -44,7 +44,7 @@ export function DownloadsScreen() {
         )}
       </ScreenHeader>
       <QueueBanner gate={gate} onResume={resumeAll} />
-      <div className="min-h-0 flex-1 overflow-auto pt-4">
+      <div className="relative min-h-0 flex-1 overflow-auto overscroll-contain pt-4">
         {empty ? (
           <EmptyState
             title="No downloads"

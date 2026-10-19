@@ -4,10 +4,17 @@ html,
 body,
 #root {
   height: 100%;
+  overflow: hidden;
 }
 
 body {
   @apply bg-canvas text-ink font-sans text-body antialiased select-none;
+  overscroll-behavior: none;
+}
+
+/* The window never scrolls or rubber-bands (macOS reads html's value, not body's): each screen
+   scrolls its own `relative overscroll-contain` pane, which also keeps sr-only inputs inside. */
+html {
   overscroll-behavior: none;
 }
 
