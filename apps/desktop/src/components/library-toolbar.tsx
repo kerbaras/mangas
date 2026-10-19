@@ -17,6 +17,8 @@ type Props = {
 };
 
 const ALL = "all";
+/** The id of the library's results pane, which the category tabs filter. */
+export const LIBRARY_RESULTS = "library-results";
 
 /** Category tabs on the left; filters, sort and layout on the right. */
 export function LibraryToolbar({ view, entries, categories, onChange, onEditCategories }: Props) {
@@ -29,9 +31,16 @@ export function LibraryToolbar({ view, entries, categories, onChange, onEditCate
           onValueChange={(v) => onChange({ category: v === ALL ? null : Number(v) })}
         >
           <TabsList>
-            <TabsTrigger value={ALL}>All</TabsTrigger>
+            <TabsTrigger value={ALL} aria-controls={LIBRARY_RESULTS}>
+              All
+            </TabsTrigger>
             {categories.map((c) => (
-              <TabsTrigger key={c.id} value={String(c.id)} className="gap-1.5">
+              <TabsTrigger
+                key={c.id}
+                value={String(c.id)}
+                aria-controls={LIBRARY_RESULTS}
+                className="gap-1.5"
+              >
                 {c.name}
                 <span className="text-caption text-ink-3 tabular-nums">{count(c.id)}</span>
               </TabsTrigger>

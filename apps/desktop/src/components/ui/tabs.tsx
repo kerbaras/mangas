@@ -13,9 +13,18 @@ export function TabsList({ className, ...props }: ComponentProps<typeof TabsPrim
   );
 }
 
-export function TabsTrigger({ className, ...props }: ComponentProps<typeof TabsPrimitive.Trigger>) {
+/**
+ * Radix points `aria-controls` at a `TabsContent` panel; the app's tabs pick a filter or a mode
+ * with no such panel, so it is only set when given (the id of what the tab changes).
+ */
+export function TabsTrigger({
+  className,
+  "aria-controls": controls,
+  ...props
+}: ComponentProps<typeof TabsPrimitive.Trigger>) {
   return (
     <TabsPrimitive.Trigger
+      aria-controls={controls}
       className={cn(
         "inline-flex h-7 items-center rounded-sm px-2.5 text-body text-ink-2 transition-colors",
         "hover:text-ink data-[state=active]:bg-surface data-[state=active]:text-ink data-[state=active]:shadow-sm",
