@@ -1,4 +1,4 @@
-import { Link2, Link2Off, Loader2 } from "lucide-react";
+import { Link2, Link2Off } from "lucide-react";
 import { Hint } from "@/components/hint";
 import { ProviderIcon } from "@/components/provider-icon";
 import { ProviderLanguages } from "@/components/provider-languages";
@@ -73,7 +73,7 @@ export function ProviderRow({
         )}
         {(p.needs_browser_session ? needsConnect : status?.state === "needs_session") && (
           <Button size="sm" variant="primary" onClick={on.onConnect} disabled={connecting}>
-            {connecting ? <Loader2 className="animate-spin" /> : <Link2 />} Connect
+            <Link2 /> Connect
           </Button>
         )}
         <Switch
