@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppUpdateBanner } from "@/components/app-update-banner";
 import { NavRail } from "@/components/nav-rail";
+import { SetupSheet } from "@/components/setup/setup-sheet";
+import { ShortcutsSheet } from "@/components/shortcuts-sheet";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DownloadsProvider, useQueue } from "@/hooks/use-downloads";
 import { useLaunchAppUpdate } from "@/hooks/use-launch-app-update";
+import { useShortcuts } from "@/hooks/use-shortcuts";
 import { useTheme } from "@/hooks/use-theme";
 import { useUpdateSchedule } from "@/hooks/use-update-schedule";
 import { onAppFocus, watchAppFocus } from "@/lib/app-focus";
@@ -42,6 +45,9 @@ function Shell({ nav }: { nav: Navigation }) {
   useUpdateSchedule();
   useTheme();
   useLaunchAppUpdate();
+  const [help, setHelp] = useState(false);
+  const openHelp = useCallback(() => setHelp(true), []);
+  useShortcuts(nav, openHelp);
   return (
     <NavigationContext.Provider value={nav}>
       <div className="flex h-full overflow-hidden">
@@ -53,6 +59,8 @@ function Shell({ nav }: { nav: Navigation }) {
           </div>
         </main>
       </div>
+      <SetupSheet />
+      <ShortcutsSheet open={help} onOpenChange={setHelp} />
     </NavigationContext.Provider>
   );
 }

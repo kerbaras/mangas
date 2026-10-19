@@ -6,6 +6,7 @@ use std::{fs, path::Path};
 
 const CAPABILITY: &str = include_str!("../capabilities/default.json");
 const SETUP: &str = include_str!("../src/lib.rs");
+const WINDOW_STATE: &str = include_str!("../src/window_state.rs");
 
 /// Commands a plugin's injected init script calls on every page load, by plugin.
 const INIT_SCRIPT_CALLS: [(&str, &str); 1] =
@@ -95,4 +96,12 @@ fn plugins_with_init_scripts_get_what_the_script_calls() {
             "{plugin}'s init script needs {permission}"
         );
     }
+}
+
+#[test]
+fn the_window_state_plugin_is_granted_in_one_place() {
+    assert!(SETUP.contains("window_state::plugin()"));
+    assert!(WINDOW_STATE.contains("tauri_plugin_window_state::Builder"));
+    assert_eq!(CAPABILITY.matches("\"window-state:").count(), 1);
+    assert!(CAPABILITY.contains("\"window-state:default\""));
 }

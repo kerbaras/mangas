@@ -36,6 +36,7 @@ let settings: Settings = {
   provider_sessions: {},
   preferred_languages: [],
   provider_options: {},
+  setup_complete: mockFlags.fresh ? false : null,
 };
 
 const failSettingsUntil = mockFlags.settingsFail ? Date.now() + 1500 : 0;

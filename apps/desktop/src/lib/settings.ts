@@ -110,21 +110,24 @@ export async function loadSettings(): Promise<void> {
  * Writes through only once loaded, so placeholder defaults never overwrite what is stored.
  * The answer (this edit over what another process stored meanwhile) becomes the new copy.
  */
-export function writeSettings(patch: Partial<Settings>) {
+export function writeSettings(patch: Partial<Settings>): Promise<boolean> {
   cached = { ...cached, ...patch };
   notify();
-  if (load.kind !== "ready") return;
+  if (load.kind !== "ready") return Promise.resolve(false);
   const gen = ++version;
-  writes = writes
-    .then(async () => {
-      const base = stored ?? toStored(cached, platformDataDir);
-      const saved = await setSettings(edit(base, patch), base);
-      stored = saved;
-      if (gen !== version) return;
-      cached = fromStored(saved, platformDataDir);
-      notify();
-    })
-    .catch((e: unknown) => console.warn("settings not saved", e));
+  const write = writes.then(async () => {
+    const base = stored ?? toStored(cached, platformDataDir);
+    const saved = await setSettings(edit(base, patch), base);
+    stored = saved;
+    if (gen !== version) return;
+    cached = fromStored(saved, platformDataDir);
+    notify();
+  });
+  writes = write.catch((e: unknown) => console.warn("settings not saved", e));
+  return write.then(
+    () => true,
+    () => false,
+  );
 }
 
 const subscribe = (l: () => void) => {

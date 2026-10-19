@@ -1,6 +1,6 @@
 import { isTauri } from "./ipc";
 
-const isMacLike = () =>
+export const isMacLike = () =>
   typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 
 export const isWindows = () => typeof navigator !== "undefined" && /Win/.test(navigator.platform);

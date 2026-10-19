@@ -5,7 +5,7 @@ import type { ExportResult } from "./ipc";
  * `?empty` starts with an empty library, `?offline` fails every search with a network error,
  * `?held` holds the download queue as a data-folder move would, `?quiet-queue` starts without
  * the simulated downloads, `?skipped` makes every export leave out two unsupported files, `?down=weebcentral,…` makes those
- * providers unreachable, `?settings-fail` fails settings loads for the first 1.5 s (Retry then works).
+ * providers unreachable, `?fresh` starts as a fresh install (first-run setup), `?settings-fail` fails settings loads for the first 1.5 s (Retry then works).
  * App update flags are listed in `mock-app-update.ts`.
  * Detector flags are listed in `mock-detectors.ts`. Searching for "offline" fails too.
  */
@@ -20,6 +20,7 @@ export const mockFlags = {
   detectorsFail: params.has("detectors-fail"),
   down: (params.get("down") ?? "").split(",").filter(Boolean),
   settingsFail: params.has("settings-fail"),
+  fresh: params.has("fresh"),
   held: params.has("held"),
   update: params.has("update"),
   updateFail: params.has("update-fail"),

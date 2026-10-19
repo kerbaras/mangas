@@ -46,7 +46,9 @@ describe("email settings", () => {
   it("keeps unsaved edits when settings reload with the same saved values", async () => {
     render(<EmailSettingsForm />);
     type("SMTP server", "smtp.example.test");
-    act(() => writeSettings({ kindleEmail: { ...readSettings().kindleEmail } }));
+    act(() => {
+      writeSettings({ kindleEmail: { ...readSettings().kindleEmail } });
+    });
     expect((screen.getByLabelText("SMTP server") as HTMLInputElement).value).toBe(
       "smtp.example.test",
     );

@@ -40,6 +40,8 @@ export type Settings = {
   proxyMode: ProxyMode;
   /** Empty when none was typed; kept while another mode is picked. */
   proxyUrl: string;
+  /** False until first-run setup is finished or skipped; null (older installs) counts as done. */
+  setupComplete: boolean | null;
 };
 
 export const DEFAULT_CONCURRENCY = 4;
@@ -62,6 +64,7 @@ export const DEFAULTS: Settings = {
   downloadConcurrency: DEFAULT_CONCURRENCY,
   proxyMode: "system",
   proxyUrl: "",
+  setupComplete: null,
 };
 
 const THEMES: readonly Theme[] = ["light", "dark", "system"];
@@ -88,6 +91,7 @@ export const fromStored = (s: Stored, platformDataDir: string): Settings => ({
   downloadConcurrency: clampConcurrency(s.download_concurrency ?? DEFAULT_CONCURRENCY),
   proxyMode: s.proxy_mode && PROXY_MODES.includes(s.proxy_mode) ? s.proxy_mode : "system",
   proxyUrl: s.proxy_url ?? "",
+  setupComplete: s.setup_complete ?? null,
 });
 
 /** Defaults are stored as `null`, so the stored settings only hold what was changed. */
@@ -113,6 +117,7 @@ export const toStored = (s: Settings, platformDataDir: string): Stored => ({
   download_concurrency: unlessDefault(s.downloadConcurrency, DEFAULT_CONCURRENCY),
   proxy_mode: unlessDefault(s.proxyMode, DEFAULTS.proxyMode),
   proxy_url: s.proxyUrl.trim() || null,
+  setup_complete: s.setupComplete,
 });
 
 /** The stored field behind each app setting, so a write sends only the fields it changed. */
@@ -134,6 +139,7 @@ export const STORED_KEY: { [K in keyof Settings]: keyof Stored } = {
   downloadConcurrency: "download_concurrency",
   proxyMode: "proxy_mode",
   proxyUrl: "proxy_url",
+  setupComplete: "setup_complete",
 };
 
 /** The defaults of `keys`: a reset writes them, which stores each as unset. */

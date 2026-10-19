@@ -20,6 +20,7 @@ export function SearchResult({ manga, followed, busy, onFollow, onOpen }: Props)
         <div className="flex items-center gap-2">
           <button
             type="button"
+            data-nav-item
             onClick={() => onOpen(manga)}
             className="truncate text-left text-body font-medium hover:underline"
           >

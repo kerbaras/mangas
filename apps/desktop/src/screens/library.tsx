@@ -76,6 +76,7 @@ export function LibraryScreen() {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Filter by title"
               aria-label="Filter by title"
+              data-shortcut-search
               className="w-56 pl-7"
             />
           </div>

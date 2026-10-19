@@ -41,6 +41,7 @@ directories = "6"
 url = "2"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 tauri-plugin-updater = "2.12"
+tauri-plugin-window-state = "2"
 
 [dev-dependencies]
 tauri = { version = "2", features = ["test"] }

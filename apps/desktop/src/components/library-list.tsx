@@ -30,8 +30,10 @@ export function LibraryList({ entries, categories, ...on }: Props) {
           <ContextMenu key={mangaKey(e)}>
             <ContextMenuTrigger asChild>
               <tr
+                data-nav-item
+                tabIndex={-1}
                 onClick={() => on.onOpen(e)}
-                className="h-12 cursor-default border-b border-stroke/60 text-body transition-colors hover:bg-surface-2/60"
+                className="h-12 cursor-default border-b border-stroke/60 text-body transition-colors hover:bg-surface-2/60 outline-none focus-visible:bg-surface-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
               >
                 <td className="pl-4">
                   <Cover manga={e} className="w-7" />

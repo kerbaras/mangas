@@ -1,6 +1,7 @@
 import { Terminal } from "lucide-react";
 import { useState } from "react";
 import { Field } from "@/components/field";
+import { RunSetupAgain } from "@/components/run-setup-again";
 import { SettingsGroup } from "@/components/settings-group";
 import { ThemePicker } from "@/components/theme-picker";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ export function GeneralSettings() {
           {cliNote && <p className="text-caption text-ink-3">{cliNote}</p>}
         </div>
       </Field>
+      <RunSetupAgain />
     </SettingsGroup>
   );
 }

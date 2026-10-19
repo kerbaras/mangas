@@ -120,9 +120,11 @@ export function ChapterRow({ chapter, selected, showSourceId, progress, onToggle
     <tr
       aria-selected={selected}
       aria-disabled={off || undefined}
+      data-nav-item
+      tabIndex={-1}
       onClick={handle}
       className={cn(
-        "h-9 border-b border-stroke/60 text-body transition-colors",
+        "h-9 border-b border-stroke/60 text-body transition-colors outline-none focus-visible:bg-surface-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent",
         off ? "text-ink-3" : "hover:bg-surface-2/60",
         selected && "bg-accent-soft/60 hover:bg-accent-soft",
       )}

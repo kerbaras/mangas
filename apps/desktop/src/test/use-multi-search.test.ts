@@ -87,7 +87,9 @@ describe("useMultiSearch", () => {
     const first = renderHook(() => useMultiSearch("dandadan", ["mangadex"]));
     await waitFor(() => expect(first.result.current.groups.mangadex?.kind).toBe("done"));
     first.unmount();
-    act(() => writeSettings({ preferredLanguages: ["es"] }));
+    act(() => {
+      writeSettings({ preferredLanguages: ["es"] });
+    });
 
     const again = renderHook(() => useMultiSearch("dandadan", ["mangadex"]));
     await waitFor(() => expect(searchAll).toHaveBeenCalledTimes(2));

@@ -1,9 +1,14 @@
 //! Tauri shell. Commands in `commands.rs` are thin: parse, call `mangas_core`, return JSON.
 
 mod commands;
+mod first_run;
 mod paths;
+mod window_fit;
+mod window_saved;
+mod window_state;
 
 pub fn run() {
+    let fresh = first_run::is_fresh_install();
     init_logging();
     match paths::rate_limits() {
         Ok(dir) => mangas_providers::HostLimiters::shared().share_across_processes(dir),
@@ -15,11 +20,16 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(window_state::plugin())
         .manage(commands::app_update::PendingUpdate::default())
-        .setup(|app| {
+        .setup(move |app| {
+            window_state::restore(app.handle());
             allow_covers(app.handle());
             allow_cut_previews(app.handle());
             start_downloads(app.handle());
+            if fresh {
+                first_run::mark_setup_pending();
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

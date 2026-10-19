@@ -66,6 +66,7 @@ export function SearchScreen() {
           <Input
             type="search"
             autoFocus
+            data-shortcut-search
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
