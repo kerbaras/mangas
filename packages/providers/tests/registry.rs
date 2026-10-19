@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use chrono::{TimeZone, Utc};
 use mangas_core::library::{ProviderSession, Settings};
-use mangas_providers::http::{probe_status, session_gate};
+use mangas_providers::http::{answered_gate, probe_status, session_gate};
 use mangas_providers::{info, providers, source, status, Capability, ProviderStatus, Session};
 
 #[test]
@@ -109,4 +109,23 @@ fn probe_results_map_to_status() {
         site: "https://x".into(),
     });
     assert_eq!(probe_status(&challenge), ProviderStatus::NeedsSession);
+}
+
+#[test]
+fn a_session_gate_holds_only_once_the_host_answers() {
+    use mangas_core::domain::{Error, Result};
+    let gate = Some(ProviderStatus::NeedsSession);
+    let answered: Result<()> = Ok(());
+    assert_eq!(answered_gate(gate.clone(), &answered), gate);
+    let wall: Result<()> = Err(Error::Challenge {
+        name: "x".into(),
+        site: "https://x".into(),
+    });
+    assert_eq!(answered_gate(gate.clone(), &wall), gate);
+    assert_eq!(answered_gate(None, &answered), None);
+    let dead: Result<()> = Err(Error::NoRootCertificates);
+    for gate in [gate, None] {
+        let status = answered_gate(gate, &dead);
+        assert!(status.is_some_and(|s| s.is_unreachable()));
+    }
 }

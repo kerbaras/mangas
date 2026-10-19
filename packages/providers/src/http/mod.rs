@@ -25,7 +25,7 @@ pub(crate) use pages::build_http;
 pub use pages::{public_only, Fetched, PageClient, Refusal, DEFAULT_PAGE_RATE, PAGE_RETRY};
 pub use redact::redact_query;
 pub use retry::{edge_error, parse_retry_after, retryable_status, RetryPolicy};
-pub use status::{probe_status, session_gate};
+pub use status::{answered_gate, probe_status, session_gate};
 
 pub const USER_AGENT: &str = concat!(
     "mangas/",

@@ -39,7 +39,7 @@ fn down() -> String {
     format!("http://{}", listener.local_addr().unwrap())
 }
 
-/// A home whose settings hold a Comick session, so Comick is probed too.
+/// A home whose settings hold a Comick session, so Comick is probed with it.
 fn home() -> tempfile::TempDir {
     let home = tempfile::tempdir().unwrap();
     let db = home.path().join("data/mangas/mangas.db");
@@ -142,31 +142,16 @@ fn every_provider_unreachable_exits_1_with_the_rows_still_printed() {
 #[test]
 fn a_session_wall_is_not_an_outage() {
     let home = tempfile::tempdir().unwrap();
-    let gone = down();
-    let bases: Vec<_> = IDS.iter().map(|&id| (id, gone.as_str())).collect();
+    let (gone, comick) = (down(), up());
+    let bases: Vec<_> = IDS
+        .iter()
+        .map(|&id| (id, if id == "comick" { &comick } else { &gone }.as_str()))
+        .collect();
     let out = providers(home.path(), &bases, &["--json"]);
     assert!(out.status.success(), "{out:?}");
-    assert_eq!(json(&out)["all_unreachable"], false);
-}
-
-#[test]
-fn no_tls_certificates_exits_1() {
-    let home = home();
-    let no_certs = home.path().join("no-certs");
-    std::fs::create_dir_all(&no_certs).unwrap();
-    std::fs::write(no_certs.join("none.pem"), "").unwrap();
-    let out = Command::new(env!("CARGO_BIN_EXE_mangas-cli"))
-        .arg("providers")
-        .env("HOME", home.path())
-        .env("XDG_DATA_HOME", home.path().join("data"))
-        .env("SSL_CERT_FILE", no_certs.join("none.pem"))
-        .env("SSL_CERT_DIR", &no_certs)
-        .env_remove("MANGAS_LOG")
-        .output()
-        .unwrap();
-    assert_eq!(out.status.code(), Some(1), "{out:?}");
-    let stdout = String::from_utf8_lossy(&out.stdout);
-    assert_eq!(stdout.matches("unreachable: ").count(), 6, "{stdout}");
+    let report = json(&out);
+    assert_eq!(report["all_unreachable"], false);
+    assert!(states(&report).contains(&("comick".into(), "needs_session".into())));
 }
 
 #[test]
