@@ -2,8 +2,8 @@
 
 use std::path::PathBuf;
 
-use mangas_core::export::kindle::{self, ExportStats, Progress};
-use mangas_core::export::volume::{self, Grouping, VolumePlan};
+use mangas_core::export::kindle::{self, Progress};
+use mangas_core::export::volume::{self, Grouping, VolumeOutcome, VolumePlan};
 use mangas_core::export::{ExportPreset, Format};
 use mangas_core::library;
 use mangas_core::smartcut::Preset;
@@ -79,7 +79,7 @@ pub async fn export_volumes<R: Runtime>(
     detectors: bool,
     output_dir: Option<PathBuf>,
     replace: Option<bool>,
-) -> Result<Vec<ExportStats>, String> {
+) -> Result<VolumeOutcome, String> {
     let settings = settings_or_default();
     let output_dir = mangas_core::export::in_export_folder(
         &paths::exports(&settings)?,
@@ -106,39 +106,45 @@ pub async fn export_volumes<R: Runtime>(
     }
     let detection = penalizer(&app, detectors, &settings).await?;
     let cover = cover_file(&src.manga).await;
-    let mut written = Vec::with_capacity(plans.len());
-    for (index, plan) in plans.iter().enumerate() {
-        let title = plan.title.clone();
-        emit(
-            &app,
-            ExportEvent::Volume {
-                index,
-                total: plans.len(),
-                title,
-            },
-        );
-        let req = volume::request(
-            &src.manga,
-            plan,
-            dev,
-            resolved.cut(),
-            &output_dir,
-            cover.clone(),
-        )
-        .with_format(format)
-        .with_page(resolved.page())
-        .with_replace(replace.unwrap_or(false));
-        let (handle, penalizer) = (app.clone(), detection.penalizer.clone());
-        let (mut stats, dirs) = tauri::async_runtime::spawn_blocking(move || {
-            let mut on_progress = |p: Progress| emit(&handle, ExportEvent::Export(p));
-            kindle::export(&req, penalizer, &mut on_progress).map(|s| (s, req.chapter_dirs))
+    let reqs: Vec<_> = plans
+        .iter()
+        .map(|plan| {
+            volume::request(
+                &src.manga,
+                plan,
+                dev,
+                resolved.cut(),
+                &output_dir,
+                cover.clone(),
+            )
+            .with_format(format)
+            .with_page(resolved.page())
+            .with_replace(replace.unwrap_or(false))
         })
-        .await
-        .map_err(to_ipc)?
-        .map_err(to_ipc)?;
-        record_export(&stats, &dirs, &plan.title, &device);
-        stats.detectors_error = detection.error.clone();
-        written.push(stats);
+        .collect();
+    let detectors_error = detection.error.clone();
+    let mut outcome = tauri::async_runtime::spawn_blocking(move || {
+        let total = reqs.len();
+        volume::export_each(&reqs, |index, req| {
+            let title = req.title.clone();
+            emit(
+                &app,
+                ExportEvent::Volume {
+                    index,
+                    total,
+                    title,
+                },
+            );
+            let mut on_progress = |p: Progress| emit(&app, ExportEvent::Export(p));
+            let stats = kindle::export(req, detection.penalizer.clone(), &mut on_progress)?;
+            record_export(&stats, &req.chapter_dirs, &req.title, &device);
+            Ok(stats)
+        })
+    })
+    .await
+    .map_err(to_ipc)?;
+    for stats in &mut outcome.written {
+        stats.detectors_error = detectors_error.clone();
     }
-    Ok(written)
+    Ok(outcome)
 }

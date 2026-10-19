@@ -47,6 +47,13 @@ export const toExportResult = (s: ExportStats): ExportResult => ({
   detectors_error: s.detectors_error ?? null,
 });
 
+/** Mirrors `mangas_core::export::volume::VolumeOutcome`: a run stops at the first failed book. */
+export type VolumeOutcome = {
+  written: ExportStats[];
+  failed: { title: string; output: string; reason: string } | null;
+  not_written: { title: string; output: string }[];
+};
+
 /** Mirrors `mangas_core::ml::Status`. */
 export type MlStatus = {
   enabled: boolean;

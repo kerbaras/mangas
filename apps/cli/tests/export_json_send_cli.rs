@@ -1,5 +1,6 @@
 //! #218: with `--send`, stdout stays the one JSON object (where each book went is on stderr), and
-//! a volume that fails to export after others were written still prints the report.
+//! a volume that fails to export after others were written still prints the report. #220: the
+//! run stops there, the books before it stay, nothing of it is left and the rest are listed.
 
 use std::path::Path;
 use std::process::{Command, Output};
@@ -10,8 +11,8 @@ use serde_json::Value;
 
 const ID: &str = "series-1";
 
-/// Follows a manga with chapters "1" and "2" downloaded; `pages[i]` pages in chapter i+1.
-fn library_with(home: &Path, pages: [usize; 2]) {
+/// Follows a manga with chapters "1", "2"… downloaded; `pages[i]` pages in chapter i+1.
+fn library_with(home: &Path, pages: &[usize]) {
     let db = home.join("data/mangas/mangas.db");
     std::fs::create_dir_all(db.parent().unwrap()).unwrap();
     let lib = library::open(&db).unwrap();
@@ -29,9 +30,10 @@ fn library_with(home: &Path, pages: [usize; 2]) {
         language: "en".into(),
         ..Default::default()
     };
-    let chapters = [chapter("1"), chapter("2")];
+    let numbers: Vec<String> = (1..=pages.len()).map(|n| n.to_string()).collect();
+    let chapters: Vec<Chapter> = numbers.iter().map(|n| chapter(n)).collect();
     library::upsert_chapters(&lib, "mangadex", &manga.id, "en", &chapters).unwrap();
-    for (c, count) in chapters.iter().zip(pages) {
+    for (c, &count) in chapters.iter().zip(pages) {
         let dir = home.join("chapters").join(&c.number);
         std::fs::create_dir_all(&dir).unwrap();
         for i in 0..count {
@@ -69,7 +71,7 @@ fn report(out: &Output) -> Value {
 #[test]
 fn sent_books_keep_stdout_one_json_object() {
     let home = tempfile::tempdir().unwrap();
-    library_with(home.path(), [2, 2]);
+    library_with(home.path(), &[2, 2]);
     let out = export_to_kindle(home.path());
     assert!(out.status.success(), "{out:?}");
     let r = report(&out);
@@ -110,7 +112,7 @@ fn sent_books_keep_stdout_one_json_object() {
 #[test]
 fn a_later_volume_failing_still_reports_the_books_written() {
     let home = tempfile::tempdir().unwrap();
-    library_with(home.path(), [2, 0]);
+    library_with(home.path(), &[2, 0]);
     let out = export_to_kindle(home.path());
     assert!(!out.status.success(), "{out:?}");
     assert_ne!(
@@ -124,4 +126,39 @@ fn a_later_volume_failing_still_reports_the_books_written() {
     assert_eq!(r["files"][0]["path"], first.to_str().unwrap());
     assert_eq!(r["failed"][0]["path"], second.to_str().unwrap());
     assert!(first.is_file() && !second.exists());
+}
+
+#[test]
+fn a_failed_volume_leaves_nothing_and_the_books_after_it_are_listed_not_written() {
+    let home = tempfile::tempdir().unwrap();
+    library_with(home.path(), &[2, 0, 2]);
+    let out = export_to_kindle(home.path());
+    assert!(!out.status.success(), "{out:?}");
+    let r = report(&out);
+    let dir = home.path().join("out");
+    let [first, second, third] = ["v1", "v2", "v3"].map(|v| dir.join(format!("Series {v}.epub")));
+    assert_eq!(r["files"].as_array().unwrap().len(), 1, "{r}");
+    assert_eq!(r["files"][0]["path"], first.to_str().unwrap());
+    assert_eq!(r["failed"][0]["path"], second.to_str().unwrap());
+    assert_eq!(r["not_written"][0]["path"], third.to_str().unwrap());
+    assert_eq!(
+        r["not_written"][0]["reason"],
+        "not started: an earlier book failed"
+    );
+    let left: Vec<_> = std::fs::read_dir(&dir)
+        .unwrap()
+        .map(|e| e.unwrap().file_name())
+        .collect();
+    assert_eq!(
+        left,
+        [first.file_name().unwrap()],
+        "only the complete book stays"
+    );
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        err.contains("Series v2 failed: ")
+            && err.contains("the 1 book written before it is complete and kept")
+            && err.contains("not written: Series v3"),
+        "{err}"
+    );
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { ExportStopped } from "@/lib/export-stopped";
 import { combineResults, notifyExported } from "@/lib/export-summary";
 import { errorMessage } from "@/lib/format";
 import { type ExportProgress, type ExportResult, onExportProgress } from "@/lib/ipc";
@@ -9,9 +10,9 @@ export type ExportState =
   | { kind: "idle" }
   | { kind: "running"; progress: ExportProgress | null }
   | { kind: "done"; results: ExportResult[] }
-  | { kind: "error"; message: string };
+  | { kind: "error"; message: string }
+  | { kind: "stopped"; stopped: ExportStopped };
 
-/** Sums the books of an export into the one-line toast a single book shows. */
 /** Runs one export job (one or more books) and follows its progress events. */
 export function useExport() {
   const [state, setState] = useState<ExportState>({ kind: "idle" });
@@ -34,7 +35,10 @@ export function useExport() {
     };
   }, []);
 
-  /** Resolves to the written books, or null when the export failed. */
+  /**
+   * Resolves to the written books, or null when the export failed. A run that stopped part-way
+   * resolves to the complete books written before the failure (null when there are none).
+   */
   const run = useCallback(async (job: () => Promise<ExportResult[]>) => {
     running.current = true;
     setState({ kind: "running", progress: null });
@@ -44,6 +48,11 @@ export function useExport() {
       notifyExported(combineResults(results));
       return results;
     } catch (e) {
+      if (e instanceof ExportStopped) {
+        setState({ kind: "stopped", stopped: e });
+        notifyError("Export stopped", e, { id: "export" });
+        return e.results.length ? e.results : null;
+      }
       setState({ kind: "error", message: errorMessage(e) });
       notifyError("Export failed", e, { id: "export" });
       return null;

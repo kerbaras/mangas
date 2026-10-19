@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use anyhow::bail;
 use clap::Args as ClapArgs;
-use mangas_core::export::kindle::export;
-use mangas_core::export::volume;
+use mangas_core::export::kindle::{export, ExportStats};
+use mangas_core::export::volume::{self, VolumeOutcome};
 use mangas_core::export::{ExportPreset, Format};
 use mangas_core::library;
 
@@ -54,8 +54,9 @@ pub struct Args {
     #[arg(long)]
     pub dry_run: bool,
     /// Print one JSON object instead of the lines above: `files` (path, title, chapters, pages,
-    /// skipped_files), `skipped` and `failed` (path, reason) and `detectors` (state "used",
-    /// "skipped" or "off", and the runtime's error as reason)
+    /// skipped_files), `skipped`, `failed` and `not_written` (path, reason; a failed book stops
+    /// the run: the books before it stay, the ones after it are `not_written`)
+    /// and `detectors` (state "used", "skipped" or "off", and the runtime's error as reason)
     #[arg(long, conflicts_with_all = ["dry_run", "preset"])]
     pub json: bool,
     /// Write over books already in the folder instead of next to them as "Title (2)"
@@ -112,36 +113,38 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let (penalizer, detectors) = args.cut.penalizer().await?;
     let mut report = Report::new(detectors);
     let cover = cover_file(&src.manga).await;
-    for (p, name) in plans.iter().zip(&names) {
-        let req = volume::request(
-            &src.manga,
-            p,
-            device,
-            preset.cut(),
-            &args.output_dir,
-            cover.clone(),
-        )
-        .with_format(format)
-        .with_page(preset.page())
-        .with_replace(args.replace);
-        let stats = match export(&req, penalizer.clone(), &mut print_progress) {
+    let reqs: Vec<_> = plans
+        .iter()
+        .map(|p| {
+            volume::request(
+                &src.manga,
+                p,
+                device,
+                preset.cut(),
+                &args.output_dir,
+                cover.clone(),
+            )
+            .with_format(format)
+            .with_page(preset.page())
+            .with_replace(args.replace)
+        })
+        .collect();
+    let mut written = Vec::with_capacity(reqs.len());
+    for (index, req) in reqs.iter().enumerate() {
+        let stats = match export(req, penalizer.clone(), &mut print_progress) {
             Ok(stats) => stats,
-            Err(e) if args.json => {
-                report.fail(&args.output_dir.join(name), e.to_string());
-                report.print()?;
-                return Err(e.into());
+            Err(e) => {
+                let outcome = VolumeOutcome::stopped(&reqs, index, written, e.to_string());
+                report.stopped(&outcome);
+                if args.json {
+                    report.print()?;
+                }
+                bail!(outcome.summary().unwrap_or_else(|| e.to_string()));
             }
-            Err(e) => return Err(e.into()),
         };
         report.add(&stats, &req.title, &req.chapter_dirs);
         if !args.json {
-            outln!("{}: {} pages", stats.output.display(), stats.pages)?;
-        }
-        if stats.skipped > 0 && !args.json {
-            outln!(
-                "skipped {} unsupported file(s), listed in the warnings above",
-                stats.skipped
-            )?;
+            print_written(&stats)?;
         }
         kindle_record::mark_exported(&lib, &stats.exported_chapters(&req.chapter_dirs));
         kindle_record::record_export(&lib, &stats.output, &req.title, device.id);
@@ -154,9 +157,21 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
                 Err(e) => report.fail(&stats.output, e),
             }
         }
+        written.push(stats);
     }
     if args.json {
         report.print()?;
     }
     unsent(report.failed.len())
+}
+
+fn print_written(stats: &ExportStats) -> std::io::Result<()> {
+    outln!("{}: {} pages", stats.output.display(), stats.pages)?;
+    if stats.skipped > 0 {
+        outln!(
+            "skipped {} unsupported file(s), listed in the warnings above",
+            stats.skipped
+        )?;
+    }
+    Ok(())
 }

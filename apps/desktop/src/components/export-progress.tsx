@@ -1,4 +1,5 @@
 import { FolderOpen } from "lucide-react";
+import { ExportStoppedPanel } from "@/components/export-stopped-panel";
 import { Hint } from "@/components/hint";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -49,6 +50,8 @@ export function ExportProgressPanel({
       </div>
     );
   }
+  if (state.kind === "stopped")
+    return <ExportStoppedPanel stopped={state.stopped} onReset={onReset} />;
   const { results } = state;
   const [first] = results;
   const { pages } = combineResults(results);
