@@ -2,10 +2,8 @@ use std::path::PathBuf;
 
 use anyhow::bail;
 use clap::Args as ClapArgs;
-use mangas_core::domain::{Chapter, Manga};
-use mangas_core::download;
 use mangas_core::export::kindle::export;
-use mangas_core::export::volume::{self, find_volume, plan, Grouping, VolumePlan};
+use mangas_core::export::volume;
 use mangas_core::export::{ExportPreset, Format};
 use mangas_core::library;
 
@@ -13,7 +11,9 @@ use super::cut_args::{print_progress, CutArgs, DEFAULT_PROFILE};
 use super::deliver::{try_deliver, unsent, SendArg};
 use super::export_args::FormatArg;
 use super::export_cover::cover_file;
+use super::export_plans::plans;
 use super::export_preset::{self, PresetAction};
+use super::export_report::Report;
 use super::kindle_record;
 use super::{hint, stored_settings};
 use crate::output::outln;
@@ -53,6 +53,11 @@ pub struct Args {
     /// Print the files that would be written and exit
     #[arg(long)]
     pub dry_run: bool,
+    /// Print one JSON object instead of the lines above: `files` (path, title, chapters, pages,
+    /// skipped_files), `skipped` and `failed` (path, reason) and `detectors` (state "used",
+    /// "skipped" or "off", and the runtime's error as reason)
+    #[arg(long, conflicts_with_all = ["dry_run", "preset"])]
+    pub json: bool,
     /// Write over books already in the folder instead of next to them as "Title (2)"
     #[arg(long)]
     pub replace: bool,
@@ -69,59 +74,6 @@ pub struct Args {
     /// flags given with it
     #[arg(long, value_enum, value_name = "ACTION")]
     pub preset: Option<PresetAction>,
-}
-
-/// "1..12" is the same range as "1-12".
-fn selection(spec: &str) -> String {
-    spec.replace("..", "-")
-}
-
-fn plans(args: &Args, manga: &Manga, chapters: &[Chapter]) -> anyhow::Result<Vec<VolumePlan>> {
-    let (chapters, grouping) = match (&args.chapters, args.every) {
-        (Some(spec), _) => (
-            download::select_chapters(chapters, &selection(spec))?,
-            Grouping::Single,
-        ),
-        (None, Some(n)) => (chapters.to_vec(), Grouping::Every(n as usize)),
-        (None, None) if args.by_volume || args.volume.is_some() => {
-            (chapters.to_vec(), Grouping::ByVolume)
-        }
-        (None, None) => (chapters.to_vec(), Grouping::Single),
-    };
-    let all = plan(manga, &chapters, grouping, Some(&args.name), None);
-    let picked = match &args.volume {
-        Some(n) => match find_volume(&all, n) {
-            Some(p) => vec![p.clone()],
-            None => bail!("{}", missing_volume(n, &all)),
-        },
-        None => all,
-    };
-    Ok(match (&args.title, picked.as_slice()) {
-        (Some(title), [one]) => vec![VolumePlan {
-            title: title.clone(),
-            file_name: volume::file_name(title),
-            ..one.clone()
-        }],
-        (Some(_), _) => bail!(
-            "--title names a single book; this export makes {}",
-            picked.len()
-        ),
-        (None, _) => picked,
-    })
-}
-
-fn missing_volume(n: &str, all: &[VolumePlan]) -> String {
-    let known: Vec<&str> = all.iter().filter_map(|p| p.number.as_deref()).collect();
-    if known.is_empty() {
-        format!(
-            "no downloaded chapter is in volume {n} (the source lists no volumes; try --chapters)"
-        )
-    } else {
-        format!(
-            "no downloaded chapter is in volume {n} (downloaded volumes: {})",
-            known.join(", ")
-        )
-    }
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
@@ -142,7 +94,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let device = CutArgs::device_of(&preset, DEFAULT_PROFILE)?;
     let format = Format::resolve(preset.format, None, None, &device)?;
     let names = volume::written_names(&plans, &args.output_dir, format.id(), args.replace)?;
-    for (p, name) in plans.iter().zip(&names) {
+    for (p, name) in plans.iter().zip(&names).filter(|_| !args.json) {
         let (first, last) = (
             &p.chapters[0].number,
             &p.chapters[p.chapters.len() - 1].number,
@@ -157,9 +109,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         return Ok(());
     }
     export_preset::note_series_preset(series.as_ref());
-    let penalizer = args.cut.penalizer().await?;
+    let (penalizer, detectors) = args.cut.penalizer().await?;
+    let mut report = Report::new(detectors);
     let cover = cover_file(&src.manga).await;
-    let mut failed = 0;
     for p in &plans {
         let req = volume::request(
             &src.manga,
@@ -173,8 +125,11 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .with_page(preset.page())
         .with_replace(args.replace);
         let stats = export(&req, penalizer.clone(), &mut print_progress)?;
-        outln!("{}: {} pages", stats.output.display(), stats.pages)?;
-        if stats.skipped > 0 {
+        report.add(&stats, &req.title, &req.chapter_dirs);
+        if !args.json {
+            outln!("{}: {} pages", stats.output.display(), stats.pages)?;
+        }
+        if stats.skipped > 0 && !args.json {
             outln!(
                 "skipped {} unsupported file(s), listed in the warnings above",
                 stats.skipped
@@ -185,10 +140,13 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         if let Some(via) = args.send {
             let file = std::path::absolute(&stats.output)?;
             let kindle = args.kindle.as_deref();
-            if !try_deliver(&lib, &file, &req.title, via, kindle).await {
-                failed += 1;
+            if let Err(e) = try_deliver(&lib, &file, &req.title, via, kindle).await {
+                report.fail(&stats.output, e);
             }
         }
     }
-    unsent(failed)
+    if args.json {
+        report.print()?;
+    }
+    unsent(report.failed.len())
 }

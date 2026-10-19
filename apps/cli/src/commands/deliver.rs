@@ -95,19 +95,20 @@ fn mb(bytes: u64) -> f64 {
 }
 
 /// Sends one written book, saying on stderr straight away when it couldn't be sent, so a
-/// later failure can't hide it. Returns whether it was sent.
+/// later failure can't hide it. The error is that message.
 pub async fn try_deliver(
     lib: &Library,
     file: &Path,
     title: &str,
     via: SendArg,
     kindle: Option<&Path>,
-) -> bool {
+) -> Result<(), String> {
     let Err(e) = deliver(lib, file, title, via, kindle).await else {
-        return true;
+        return Ok(());
     };
-    eprintln!("{} was written but not sent: {e:#}", file.display());
-    false
+    let message = format!("{} was written but not sent: {e:#}", file.display());
+    eprintln!("{message}");
+    Err(message)
 }
 
 /// Exit code 2 when some written books weren't sent (each was named as it failed).

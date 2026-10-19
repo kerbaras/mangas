@@ -7,16 +7,15 @@ use anyhow::bail;
 use clap::Args as ClapArgs;
 use mangas_core::export::kindle::{export, BookMeta, ExportRequest};
 use mangas_core::export::{ExportPreset, Format, PROFILES};
-use mangas_core::library;
 
 use super::cut_args::{print_progress, CutArgs, DEFAULT_PROFILE};
-use super::deliver::{deliver, SendArg};
+use super::deliver::SendArg;
 use super::export_args::FormatArg;
 use super::export_preset::note_series_preset;
+use super::export_report::Report;
 use super::kindle_library::from_library;
 use super::kindle_record;
 use crate::output::outln;
-use crate::{paths, Exit};
 
 #[derive(ClapArgs)]
 pub struct Args {
@@ -46,6 +45,11 @@ pub struct Args {
     /// Print the known e-reader profiles and exit
     #[arg(long, visible_alias = "list-devices")]
     pub list_profiles: bool,
+    /// Print one JSON object instead of the summary line: `files` (path, title, chapters,
+    /// pages, skipped_files), `skipped` and `failed` (path, reason) and `detectors` (state
+    /// "used", "skipped" or "off", and the runtime's error as reason)
+    #[arg(long, conflicts_with = "list_profiles")]
+    pub json: bool,
 }
 
 fn list_profiles() -> anyhow::Result<()> {
@@ -112,7 +116,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .clone()
         .unwrap_or_else(|| PathBuf::from(format!("out.{format}")));
     note_series_preset(saved.as_ref());
-    let penalizer = args.cut.penalizer().await?;
+    let (penalizer, detectors) = args.cut.penalizer().await?;
     let req = ExportRequest {
         chapter_dirs: args.chapters.clone(),
         device: dev,
@@ -134,44 +138,37 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     };
     let started = Instant::now();
     let stats = export(&req, penalizer, &mut print_progress)?;
-    outln!(
-        "{}: {} pages from {} chapters ({} strips, {} source rows); pagination {} ms, filters {} ms, total {} ms",
-        stats.output.display(),
-        stats.pages,
-        req.chapter_dirs.len(),
-        stats.strips,
-        stats.source_rows,
-        stats.pagination_ms,
-        stats.filters_ms,
-        started.elapsed().as_millis()
-    )?;
-    if stats.skipped > 0 {
+    let mut report = Report::new(detectors);
+    report.add(&stats, &req.title, &req.chapter_dirs);
+    if !args.json {
+        outln!(
+            "{}: {} pages from {} chapters ({} strips, {} source rows); pagination {} ms, filters {} ms, total {} ms",
+            stats.output.display(),
+            stats.pages,
+            req.chapter_dirs.len(),
+            stats.strips,
+            stats.source_rows,
+            stats.pagination_ms,
+            stats.filters_ms,
+            started.elapsed().as_millis()
+        )?;
+    }
+    if stats.skipped > 0 && !args.json {
         outln!(
             "skipped {} unsupported file(s), listed in the warnings above",
             stats.skipped
         )?;
     }
-    let not_sent = |e: anyhow::Error| -> anyhow::Error {
-        let message = format!("{} was written but not sent: {e:#}", stats.output.display());
-        Exit { code: 2, message }.into()
-    };
-    let lib = match paths::library_db().and_then(|db| Ok(library::open(&db)?)) {
-        Ok(lib) => lib,
-        Err(e) if args.send.is_some() => return Err(not_sent(e)),
-        Err(e) => {
-            eprintln!("warning: could not open the library: {e}");
-            return Ok(());
-        }
-    };
-    kindle_record::mark_exported(&lib, &stats.exported_chapters(&req.chapter_dirs));
-    kindle_record::record_export(&lib, &stats.output, &req.title, dev.id);
-    let Some(via) = args.send else {
-        return Ok(());
-    };
-    let file = std::path::absolute(&stats.output)?;
-    deliver(&lib, &file, &req.title, via, args.kindle.as_deref())
-        .await
-        .map_err(not_sent)
+    let to = args.send.map(|via| (via, args.kindle.as_deref()));
+    let done =
+        kindle_record::record_and_send(&stats, &req.chapter_dirs, &req.title, dev.id, to).await;
+    if let (Err(e), true) = (&done, args.json) {
+        report.fail(&stats.output, e.to_string());
+    }
+    if args.json {
+        report.print()?;
+    }
+    done
 }
 
 #[cfg(test)]
