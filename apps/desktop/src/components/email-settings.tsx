@@ -49,7 +49,7 @@ function usePasswordStorage(saved: string): PasswordStorage | null {
 /** Where the saved password is, or that there is none. A locked keychain loads as an empty
  * password, so it gets its own wording instead of "none saved". */
 function passwordHint(saved: boolean, storage: PasswordStorage | null): string | undefined {
-  if (storage === "locked") return "In your system keychain, which is locked or can't be read.";
+  if (storage === "locked") return "Your system keychain is locked or can't be read.";
   if (storage === "keychain") return saved ? "Kept in your system keychain." : "No password saved.";
   if (storage === "file") {
     return saved

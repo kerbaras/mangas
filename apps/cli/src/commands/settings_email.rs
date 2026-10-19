@@ -126,10 +126,10 @@ fn print(e: &EmailSettings, storage: Storage) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// The password line: a locked keychain reads as no password, so say it may be there.
+/// The password line: a locked keychain reads as no password, so say it is locked instead.
 fn password_state(empty: bool, storage: Storage) -> &'static str {
     match (empty, storage) {
-        (_, Storage::Locked) => "(in system keychain, locked/unreadable)",
+        (_, Storage::Locked) => "(system keychain is locked or unreadable)",
         (true, _) => "(not set)",
         (false, Storage::Keychain) => "(set, in the system keychain)",
         (false, Storage::File) => "(set, unencrypted in the app settings)",
@@ -142,7 +142,7 @@ mod tests {
 
     #[test]
     fn a_locked_keychain_is_not_reported_as_no_password() {
-        let locked = "(in system keychain, locked/unreadable)";
+        let locked = "(system keychain is locked or unreadable)";
         assert_eq!(password_state(true, Storage::Locked), locked);
         assert_eq!(password_state(true, Storage::Keychain), "(not set)");
         assert_eq!(password_state(true, Storage::File), "(not set)");

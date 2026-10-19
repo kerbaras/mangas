@@ -38,12 +38,12 @@ describe("email settings", () => {
     expect(screen.queryByText("Kept in your system keychain.")).toBeNull();
   });
 
-  it("says a locked keychain may hold the password, without the unencrypted warning", async () => {
+  it("says the keychain is locked, without the unencrypted warning", async () => {
     const emailPasswordStorage = vi.fn(async () => "locked");
     setBackend({ emailPasswordStorage } as unknown as Backend);
     render(<EmailSettingsForm />);
     expect(
-      await screen.findByText("In your system keychain, which is locked or can't be read."),
+      await screen.findByText("Your system keychain is locked or can't be read."),
     ).toBeTruthy();
     expect(screen.queryByText(/No password saved/)).toBeNull();
     expect(screen.queryByText(/stored unencrypted/)).toBeNull();

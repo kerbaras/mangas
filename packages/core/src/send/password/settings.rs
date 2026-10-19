@@ -15,7 +15,7 @@ pub enum Storage {
     Keychain,
     /// Unencrypted in the app settings: there is no keychain to put it in.
     File,
-    /// In the keychain, as far as anyone can tell: it is locked or won't be read.
+    /// The keychain is locked or won't be read, so whether it holds a password is unknown.
     Locked,
 }
 
