@@ -68,7 +68,14 @@ fn home() -> (tempfile::TempDir, PathBuf) {
         language: "en".into(),
         ..Default::default()
     };
-    library::upsert_chapters(&lib, "mangadex", &manga.id, "en", &[chapter.clone()]).unwrap();
+    library::upsert_chapters(
+        &lib,
+        "mangadex",
+        &manga.id,
+        "en",
+        std::slice::from_ref(&chapter),
+    )
+    .unwrap();
     let dir = home.path().join("chapters/1");
     std::fs::create_dir_all(&dir).unwrap();
     for i in 0..2 {
