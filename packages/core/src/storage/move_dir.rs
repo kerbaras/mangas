@@ -69,9 +69,11 @@ fn move_held(
     let to = fs::canonicalize(to)?;
     let from_resolved = fs::canonicalize(from).unwrap_or_else(|_| from.to_path_buf());
     check_target(&from_resolved, &to)?;
-    // Not under a detector download or removal, nor an export, in this process or another.
-    let lease = lease::acquire(&from_resolved.join("models"), Purpose::Move)?;
+    // Not under an export, nor a detector download or removal, in this process or another. The
+    // export lease goes first: a move an export refuses never holds the detector lease the export
+    // may need for its detectors.
     let reading = hold_for_move(&from_resolved)?;
+    let lease = lease::acquire(&from_resolved.join("models"), Purpose::Move)?;
     prepare_target(lib, &from_resolved, &to, replace_partial)?;
     let mut plan = Vec::new();
     for sub in DATA_SUBDIRS {

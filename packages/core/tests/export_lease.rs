@@ -4,8 +4,9 @@
 use std::cell::Cell;
 use std::path::PathBuf;
 
+use mangas_core::library::open_in_memory;
 use mangas_core::ml::lease::{acquire, acquire_at, Purpose};
-use mangas_core::storage::{hold_for_export, EXPORT_LEASE};
+use mangas_core::storage::{hold_for_export, move_data_dir, EXPORT_LEASE};
 use mangas_core::Error;
 
 fn at(dir: PathBuf) -> impl Fn() -> Result<PathBuf, Error> {
@@ -61,4 +62,19 @@ fn a_move_that_switched_the_folder_before_the_lock_gets_the_new_folder_locked() 
     let _reading = hold_for_export(data_dir).unwrap();
     assert!(moving(new.path()).contains("an export is running"));
     assert_eq!(moving(old.path()), "free");
+}
+
+#[test]
+fn a_move_an_export_refuses_never_takes_the_detector_lease() {
+    let (data, to) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let lib = open_in_memory().unwrap();
+    let _reading = hold_for_export(at(data.path().into())).unwrap();
+    // The export is downloading its detectors: a move must be refused by the export lease, before
+    // it ever reaches the detector lease.
+    let _detectors = acquire(&data.path().join("models"), Purpose::Download).unwrap();
+    let err = move_data_dir(&lib, data.path(), &to.path().join("new"), &mut |_| {})
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(err.contains("an export is running"), "{err}");
 }
