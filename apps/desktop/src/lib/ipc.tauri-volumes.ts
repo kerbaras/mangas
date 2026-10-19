@@ -23,6 +23,8 @@ export const tauriVolumes: VolumesBackend = {
       detectors: r.detectors,
       outputDir: r.outputDir,
       replace: r.replace ?? false,
+      quality: r.quality ?? null,
+      splitMb: r.splitMb ?? null,
     });
     return outcomeResults(outcome);
   },

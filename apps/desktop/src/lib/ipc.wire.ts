@@ -121,4 +121,6 @@ export const toExportArgs = (r: ExportRequest): ExportChaptersArgs => ({
   output: r.output,
   ...(r.title ? { title: r.title } : {}),
   replace: r.replace ?? false,
+  quality: r.quality ?? null,
+  splitMb: r.splitMb ?? null,
 });
