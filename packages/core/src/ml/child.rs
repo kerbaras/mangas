@@ -62,9 +62,11 @@ fn no_window(command: &mut Command) {
 #[cfg(not(windows))]
 fn no_window(_: &mut Command) {}
 
-/// Waits up to `timeout`, then kills the child. Its output is a few lines, well under a pipe's
-/// buffer, so reading after the exit can't deadlock.
+/// Waits up to `timeout`, then kills the child. Both pipes are drained on their own threads
+/// while it runs, so a chatty child can't fill one and block forever.
 fn wait(mut child: Child, timeout: Duration) -> std::io::Result<Output> {
+    let stdout = drain(child.stdout.take());
+    let stderr = drain(child.stderr.take());
     let start = Instant::now();
     let status = loop {
         if let Some(status) = child.try_wait()? {
@@ -81,19 +83,31 @@ fn wait(mut child: Child, timeout: Duration) -> std::io::Result<Output> {
         }
         std::thread::sleep(Duration::from_millis(20));
     };
-    let mut stdout = Vec::new();
-    let mut stderr = Vec::new();
-    if let Some(mut out) = child.stdout.take() {
-        out.read_to_end(&mut stdout)?;
-    }
-    if let Some(mut err) = child.stderr.take() {
-        err.read_to_end(&mut stderr)?;
-    }
     Ok(Output {
         status,
-        stdout,
-        stderr,
+        stdout: joined(stdout)?,
+        stderr: joined(stderr)?,
     })
+}
+
+type Drain = Option<std::thread::JoinHandle<std::io::Result<Vec<u8>>>>;
+
+fn drain(pipe: Option<impl Read + Send + 'static>) -> Drain {
+    pipe.map(|mut pipe| {
+        std::thread::spawn(move || {
+            let mut bytes = Vec::new();
+            pipe.read_to_end(&mut bytes).map(|_| bytes)
+        })
+    })
+}
+
+fn joined(drain: Drain) -> std::io::Result<Vec<u8>> {
+    match drain {
+        Some(handle) => handle
+            .join()
+            .map_err(|_| std::io::Error::other("output reader panicked"))?,
+        None => Ok(Vec::new()),
+    }
 }
 
 /// The child's status, or `now` with the runtime failed and the child's own words: a library

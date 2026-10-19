@@ -88,3 +88,18 @@ fn nothing_installed_starts_no_child() {
     let missing = dir.path().join("no-such-exe");
     assert_eq!(probed_status(dir.path(), &missing), status(dir.path()));
 }
+
+#[cfg(unix)]
+#[test]
+fn a_chatty_child_cant_block_on_a_full_pipe() {
+    let child = Command::new("sh")
+        .args(["-c", "head -c 1000000 /dev/zero >&2; echo done"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let out = wait(child, Duration::from_secs(10)).unwrap();
+    assert!(out.status.success());
+    assert_eq!(out.stderr.len(), 1_000_000);
+    assert_eq!(out.stdout, b"done\n");
+}
