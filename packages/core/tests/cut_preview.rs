@@ -4,7 +4,9 @@ use std::path::{Path, PathBuf};
 
 use image::{Rgba, RgbaImage};
 use mangas_core::export::kindle::{
-    device, export, preview, trim::trim_page, ExportRequest, PreviewRequest,
+    device, export, preview,
+    trim::{trim_owned, trim_page},
+    ExportRequest, PreviewRequest,
 };
 use mangas_core::export::{Format, PageSettings};
 use mangas_core::smartcut::Preset;
@@ -138,6 +140,9 @@ fn trimming_crops_blank_borders_but_keeps_the_art() {
         }
     });
     assert_eq!(trim_page(&wide).width(), 400, "at most a quarter per side");
+    for img in [page, blank, wide] {
+        assert_eq!(trim_owned(img.clone()), trim_page(&img));
+    }
 }
 
 #[test]
