@@ -6,6 +6,7 @@ mod paths;
 mod window_fit;
 mod window_saved;
 mod window_state;
+mod window_theme;
 
 pub fn run() {
     let fresh = first_run::is_fresh_install();

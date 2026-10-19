@@ -62,6 +62,7 @@ pub fn restore<R: Runtime>(app: &AppHandle<R>) {
         return;
     };
     place(app, &window);
+    crate::window_theme::paint(&window);
     if let Err(e) = window.show() {
         tracing::error!("show the main window: {e}");
     }
