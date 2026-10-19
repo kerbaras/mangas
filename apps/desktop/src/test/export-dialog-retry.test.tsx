@@ -163,7 +163,7 @@ describe("export dialog: Retry after a failed delivery", () => {
     const exportVolumes = vi
       .fn()
       .mockRejectedValueOnce(new Error("permission denied: /k"))
-      .mockResolvedValueOnce([{ output: "/k/Solo v1.epub", pages: 6, skipped: 0 }]);
+      .mockResolvedValueOnce([{ output: "/k/Solo v1.epub", parts: [], pages: 6, skipped: 0 }]);
     const sendEmail = vi.fn().mockResolvedValue(sent);
     exportBackend({ exportVolumes, sendEmail });
     render(dialog());

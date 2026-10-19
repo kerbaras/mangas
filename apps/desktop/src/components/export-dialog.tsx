@@ -5,6 +5,7 @@ import type { Delivery } from "@/components/delivery-picker";
 import { useEmailBlock } from "@/components/delivery-picker";
 import { ExportOptions } from "@/components/export-options";
 import { ExportProgressPanel } from "@/components/export-progress";
+import { ExportTitleField } from "@/components/export-title-field";
 import { Field } from "@/components/field";
 import { useOutputFolder } from "@/components/output-folder";
 import { SendStatus } from "@/components/send-status";
@@ -16,7 +17,6 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { VolumePreview } from "@/components/volume-preview";
 import { useClearOnChange } from "@/hooks/use-clear-on-change";
 import { useDetectorSupport } from "@/hooks/use-detector-support";
@@ -36,7 +36,9 @@ import {
   initialMode,
   pickSummary,
 } from "@/lib/export-plan";
+import { filesOf } from "@/lib/export-summary";
 import type { ExportResult } from "@/lib/ipc";
+import { NO_SHRINK, type Shrink } from "@/lib/kindle-size";
 import { titleOf } from "@/lib/send-labels";
 
 type Props = {
@@ -60,6 +62,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const [title, setTitle] = useState("");
   const [detectorsOn, setDetectorsOn] = useState<boolean | null>(null);
   const [delivery, setDelivery] = useState<Delivery>("save");
+  const [shrink, setShrink] = useState<Shrink>(NO_SHRINK);
   const [written, setWritten] = useState<Book[]>([]);
   const [runs, setRuns] = useState(0);
   const folder = useOutputFolder();
@@ -104,6 +107,8 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
     useDetectors,
     folder.output,
     target.replace,
+    shrink.quality,
+    shrink.splitMb,
   ].join("|");
   useClearOnChange(choice, busy, clearResult);
   const keepFailed = useCallback(() => !failed && clearResult(), [failed, clearResult]);
@@ -123,12 +128,13 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
         detectors: useDetectors,
         outputDir: folder.picked,
         replace: target.replace,
+        ...shrink,
       }),
     );
     setRuns((n) => n + 1);
     if (!results) return;
     onExported?.(results);
-    const sent = results.map((r) => ({ file: r.output, title: titleOf(r.output) }));
+    const sent = results.flatMap(filesOf).map((file) => ({ file, title: titleOf(file) }));
     setWritten(sent);
     if (via !== "save") await send.deliver(sent, via);
   };
@@ -147,14 +153,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
           <div className="flex min-w-0 flex-col gap-4">
             {!joined && <BundleField mode={mode} onMode={setMode} size={size} onSize={setSize} />}
             {(mode === "single" || books === 1) && (
-              <Field label="Title" htmlFor="export-title" hint="Also the file name.">
-                <Input
-                  id="export-title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder={plans.kind === "ready" ? (plans.data[0]?.title ?? "") : ""}
-                />
-              </Field>
+              <ExportTitleField value={title} onChange={setTitle} plans={plans} />
             )}
             <Field label={books > 1 ? `${books} files` : "File"}>
               <VolumePreview plans={files} folder={folder.resolved} stale={!fresh || !named} />
@@ -168,6 +167,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
             detectors={useDetectors}
             onDetectors={setDetectorsOn}
             output={{ value: folder.output, fallback: folder.fallback, onChange: folder.setOutput }}
+            size={{ plans: files, value: shrink, onChange: setShrink }}
             delivery={via}
             onDelivery={setDelivery}
             cut={{ ...cut, chapters }}

@@ -95,9 +95,18 @@ describe("toExportResult", () => {
     };
     expect(toExportResult(stats)).toEqual({
       output: "/b.epub",
+      parts: [],
       pages: 29,
       skipped: 1,
       detectors_error: null,
     });
+  });
+  it("keeps every part path of a split book, in order", () => {
+    const parts = [
+      { path: "/b (part 1).epub", pages: 90 },
+      { path: "/b (part 2).epub", pages: 80 },
+    ];
+    const stats = { pages: 170, skipped: 0, output: "/b (part 1).epub", parts };
+    expect(toExportResult(stats as never).parts).toEqual(["/b (part 1).epub", "/b (part 2).epub"]);
   });
 });

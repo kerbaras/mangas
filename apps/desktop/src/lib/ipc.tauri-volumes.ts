@@ -30,4 +30,5 @@ export const tauriVolumes: VolumesBackend = {
   },
   freeExportNames: (dir, names) => invoke("free_export_names", { dir, names }),
   exportFileName: (title, format) => invoke("export_file_name", { title, format }),
+  estimateExport: (r) => invoke("estimate_export", { ...r }),
 };

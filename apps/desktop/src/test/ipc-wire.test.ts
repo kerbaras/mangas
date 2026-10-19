@@ -41,7 +41,23 @@ describe("export request", () => {
       detectors: false,
       output: "/out",
       replace: false,
+      quality: null,
+      splitMb: null,
     });
+  });
+
+  it("passes the JPEG quality and part size", () => {
+    const args = toExportArgs({
+      chapter_dirs: [],
+      device: "d",
+      format: "epub",
+      preset: "balanced",
+      detectors: false,
+      output: "/o",
+      quality: 60,
+      splitMb: 45,
+    });
+    expect(args).toMatchObject({ quality: 60, splitMb: 45 });
   });
 
   it("passes the replace choice", () => {

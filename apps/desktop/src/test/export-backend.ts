@@ -58,6 +58,7 @@ export function exportBackend(overrides: Partial<Backend> = {}, detectors = dete
   const exportVolumes = vi.fn(async (r: VolumeExport) =>
     (await planVolumes(r)).map((p) => ({
       output: `/k/${p.file_name.replace(/\.epub$/, `.${r.format}`)}`,
+      parts: [] as string[],
       pages: 6,
       skipped: 0,
     })),

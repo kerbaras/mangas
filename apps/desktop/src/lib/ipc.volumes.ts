@@ -39,6 +39,17 @@ export type VolumeExport = VolumeRequest & {
   splitMb?: number | null;
 };
 
+/** What `estimate_export` is asked: one book's chapters with the dialog's choices. */
+export type EstimateRequest = {
+  chapterDirs: string[];
+  device: string;
+  preset: Preset;
+  quality: number | null;
+};
+
+/** Mirrors `mangas_core::export::kindle::Estimate`. */
+export type Estimate = { pages: number; bytes: number };
+
 export type VolumesBackend = {
   /** The books an export would write, in order, from the downloaded chapters among the ids. */
   planVolumes(request: VolumeRequest): Promise<VolumePlan[]>;
@@ -51,6 +62,8 @@ export type VolumesBackend = {
   freeExportNames(dir: string, names: string[]): Promise<string[]>;
   /** The file name a book titled `title` is written under as `format` (shortened when too long). */
   exportFileName(title: string, format: ExportFormat): Promise<string>;
+  /** About how many pages and bytes the book would be, from a few pages encoded for real. */
+  estimateExport(request: EstimateRequest): Promise<Estimate>;
 };
 
 export const planVolumes = async (r: VolumeRequest) => (await backend()).planVolumes(r);
@@ -59,3 +72,4 @@ export const freeExportNames = async (dir: string, names: string[]) =>
   (await backend()).freeExportNames(dir, names);
 export const exportFileName = async (title: string, format: ExportFormat = "epub") =>
   (await backend()).exportFileName(title, format);
+export const estimateExport = async (r: EstimateRequest) => (await backend()).estimateExport(r);

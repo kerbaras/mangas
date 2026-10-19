@@ -3,10 +3,12 @@ import { DeviceSelect } from "@/components/device-select";
 import { DevicesPending } from "@/components/devices-pending";
 import { Field } from "@/components/field";
 import { FormatPicker } from "@/components/format-picker";
+import { KindleSizeField } from "@/components/kindle-size-field";
 import { OutputFolder } from "@/components/output-folder";
 import { ReplaceSwitch } from "@/components/replace-switch";
 import { SmartCutButton } from "@/components/smart-cut-preview";
 import { SmartCutSection } from "@/components/smart-cut-section";
+import type { Async } from "@/hooks/use-async";
 import type { DetectorSupport } from "@/hooks/use-detector-support";
 import type { ExportTarget } from "@/hooks/use-export-target";
 import type { Series } from "@/hooks/use-series-preset";
@@ -14,6 +16,8 @@ import { chapterLabel } from "@/lib/chapters";
 import { formatLabel } from "@/lib/export-formats";
 import type { Chapter, Preset } from "@/lib/ipc";
 import type { ExportPreset } from "@/lib/ipc.cut-preview";
+import type { VolumePlan } from "@/lib/ipc.volumes";
+import type { Shrink } from "@/lib/kindle-size";
 
 type Props = {
   target: ExportTarget;
@@ -23,6 +27,8 @@ type Props = {
   detectors: boolean;
   onDetectors: (on: boolean) => void;
   output: { value: string; fallback: string; onChange: (dir: string) => void };
+  /** The planned books, sized against the Send-to-Kindle limit, and how to shrink them. */
+  size: { plans: Async<VolumePlan[]>; value: Shrink; onChange: (s: Shrink) => void };
   delivery: Delivery;
   onDelivery: (d: Delivery) => void;
   /** The series whose smart-cut options can be previewed and saved (none: several series). */
@@ -80,6 +86,7 @@ export function ExportOptions(p: Props) {
           onSaved={p.cut.onSaved}
         />
       </SmartCutSection>
+      <KindleSizeField {...p.size} device={target.device} preset={p.preset} />
       <OutputFolder {...p.output} />
       <ReplaceSwitch on={target.replace} onChange={target.setReplace} />
       <DeliveryPicker value={p.delivery} onChange={p.onDelivery} format={target.format} />

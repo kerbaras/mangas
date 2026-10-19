@@ -16,12 +16,16 @@ export function exportSummary({ output, parts, pages, skipped, detectors_error }
     detectors_error && `Cut without detectors: ${detectors_error}`,
   ].filter(Boolean);
   return {
-    title: parts.length > 1
-      ? `Exported ${count(pages, "page")} in ${parts.length} parts, from ${fileName(parts[0])}`
-      : `Exported ${count(pages, "page")} to ${fileName(output)}`,
+    title:
+      parts.length > 1
+        ? `Exported ${count(pages, "page")} in ${parts.length} parts, from ${fileName(parts[0])}`
+        : `Exported ${count(pages, "page")} to ${fileName(output)}`,
     warning: warnings.length ? warnings.join(". ") : null,
   };
 }
+
+/** Every file a result wrote: its parts when the book was split, else the one book. */
+export const filesOf = (r: ExportResult): string[] => (r.parts.length > 0 ? r.parts : [r.output]);
 
 /** Several books reported as one: pages and skipped files add up. */
 export const combineResults = (results: ExportResult[]): ExportResult => ({
