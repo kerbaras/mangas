@@ -89,6 +89,7 @@ describe("export dialog: Retry after a failed delivery", () => {
     expect(await screen.findByText("Copy failed")).toBeTruthy();
     fireEvent.click(await enabledButton(/^Retry copy$/));
     expect(await screen.findByText(/Copied to Kindle: .*Solo v2\.epub/)).toBeTruthy();
+    expect(screen.getByText(/Copied to Kindle: .*Solo v1\.epub/)).toBeTruthy();
     expect(exportVolumes).toHaveBeenCalledOnce();
     expect(sendUsb.mock.calls.map((c) => c[0])).toEqual([
       "/k/Solo v1.epub",

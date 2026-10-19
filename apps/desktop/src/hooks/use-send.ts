@@ -17,8 +17,8 @@ export type SendState =
   | { kind: "done"; via: Via; message: string }
   | { kind: "error"; via: Via; message: string; sent: string };
 
-/** What a failed delivery still has to send: the books from the one that failed on. */
-type Pending = { books: Book[]; via: Via };
+/** What a failed delivery still has to send (from the book it failed on) and what it already did. */
+type Pending = { books: Book[]; via: Via; lines: string[] };
 
 /**
  * One delivery at a time, of one or more books: email, or a USB copy. `retry` sends again only
@@ -47,11 +47,11 @@ export function useSend(onSent?: () => void) {
 
   /** Sends the books one after another; a USB copy first looks for one mounted Kindle. */
   const deliver = useCallback(
-    async (books: Book[], via: Via) => {
-      const lines: string[] = [];
-      pending.current = { books, via };
+    async (books: Book[], via: Via, earlier: string[] = []) => {
+      const lines = [...earlier];
+      pending.current = { books, via, lines: [...lines] };
       const sentOne = (i: number) => {
-        pending.current = { books: books.slice(i + 1), via };
+        pending.current = { books: books.slice(i + 1), via, lines: [...lines] };
       };
       try {
         if (via === "usb") {
@@ -79,7 +79,7 @@ export function useSend(onSent?: () => void) {
         onSent?.();
       } catch (e) {
         setState({ kind: "error", via, message: errorMessage(e), sent: lines.join("\n") });
-        if (lines.length > 0) onSent?.();
+        if (lines.length > earlier.length) onSent?.();
       } finally {
         device.current = null;
       }
@@ -98,7 +98,7 @@ export function useSend(onSent?: () => void) {
 
   const retry = useCallback(async () => {
     const left = pending.current;
-    if (left) await deliver(left.books, left.via);
+    if (left) await deliver(left.books, left.via, left.lines);
   }, [deliver]);
   const reset = useCallback(() => {
     pending.current = null;
