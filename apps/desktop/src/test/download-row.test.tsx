@@ -17,6 +17,32 @@ function bar(job: DownloadJob, speed: number | null = null) {
   return indicator?.className ?? "";
 }
 
+describe("DownloadRow failure", () => {
+  const row = (error: string) =>
+    render(
+      <TooltipProvider>
+        <ul>
+          <DownloadRow job={makeJob({ state: "failed", error })} speed={null} />
+        </ul>
+      </TooltipProvider>,
+    );
+
+  it("shows the ca-certificates hint and no Retry when the system has no certificates", () => {
+    row(
+      "network: no CA certificates found on this system, so secure connections can't be checked; install the ca-certificates package (e.g. `sudo apt install ca-certificates`)",
+    );
+    expect(screen.getByText(/Install the ca-certificates package/)).toBeTruthy();
+    expect(screen.queryByText(/no CA certificates found/)).toBeNull();
+    expect(screen.queryByRole("button", { name: /retry/i })).toBeNull();
+  });
+
+  it("keeps Retry for an unreachable host", () => {
+    row("network: error sending request: dns error: no such host");
+    expect(screen.getByText(/Couldn't reach|connection/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /retry/i })).toBeTruthy();
+  });
+});
+
 describe("DownloadRow progress", () => {
   it("does not pulse or animate a paused row with no page count", () => {
     const classes = bar(makeJob({ state: "paused" }));

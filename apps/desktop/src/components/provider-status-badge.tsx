@@ -1,6 +1,7 @@
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/cn";
+import { describeFailure } from "@/lib/errors";
 import type { ProviderStatus } from "@/lib/ipc";
 import { statusBadge, type Tone } from "@/lib/providers";
 
@@ -15,7 +16,8 @@ type Props = { status: ProviderStatus | undefined; label?: string; className?: s
 /** Ready / Needs connection / Unreachable with a coloured dot; a spinner while checking. */
 export function ProviderStatusBadge({ status, label, className }: Props) {
   const badge = statusBadge(status);
-  const reason = status?.state === "unreachable" ? status.reason : undefined;
+  const reason =
+    status?.state === "unreachable" ? describeFailure(status.reason).tooltip : undefined;
   return (
     <Badge variant="outline" title={reason} className={cn("font-normal", className)}>
       {badge.tone === "pending" ? (

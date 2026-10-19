@@ -22,7 +22,10 @@ pub enum Error {
     #[error("library: {0}")]
     Library(#[from] rusqlite::Error),
     #[error("network: {0}")]
-    Network(#[from] reqwest::Error),
+    Network(#[source] reqwest::Error),
+    /// No HTTP or TLS client can be built: the system has no root certificates.
+    #[error("network: {}", super::tls::NO_ROOT_CERTIFICATES)]
+    NoRootCertificates,
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
     #[error("image: {0}")]
@@ -35,6 +38,16 @@ pub enum Error {
     Send(String),
     #[error("{0}")]
     Other(String),
+}
+
+impl From<reqwest::Error> for Error {
+    fn from(e: reqwest::Error) -> Self {
+        if super::tls::missing_root_certificates(&e) {
+            Error::NoRootCertificates
+        } else {
+            Error::Network(e)
+        }
+    }
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

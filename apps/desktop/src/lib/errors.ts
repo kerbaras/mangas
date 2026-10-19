@@ -1,4 +1,5 @@
 import { isChallenge } from "./ipc";
+import { NO_ROOT_CERTIFICATES } from "./ipc.downloads";
 
 export type ErrorInfo = {
   /** A sentence a user can act on, when the error kind is known. */
@@ -28,9 +29,23 @@ export function describeError(message: string): ErrorInfo {
       detail,
       challenge: true,
     };
+  if (detail.includes(NO_ROOT_CERTIFICATES))
+    return {
+      hint: "This system has no CA certificates, so secure connections can't be checked. Install the ca-certificates package.",
+      detail,
+      challenge: false,
+    };
   const lower = detail.toLowerCase();
   const match = HINTS.find(([prefix]) => lower.startsWith(prefix));
   return { hint: match?.[1] ?? null, detail, challenge: false };
+}
+
+/** A failure for a short label and its tooltip: the readable hint when known, else the raw text. */
+export function describeFailure(message: string): { label: string; tooltip: string } {
+  const { hint, detail } = describeError(message);
+  return hint
+    ? { label: hint, tooltip: `${hint} (${detail})` }
+    : { label: detail, tooltip: detail };
 }
 
 /** Text for "Copy error" and the log: what crashed and where. */

@@ -2,7 +2,7 @@
 import { toast } from "sonner";
 import { describeError } from "./errors";
 import { errorMessage } from "./format";
-import { REFUSED } from "./ipc.downloads";
+import { isFinalError, REFUSED } from "./ipc.downloads";
 import { connectAndWait } from "./providers";
 
 /**
@@ -68,12 +68,16 @@ export async function connectThen(source: string, then?: () => void, name = sour
       });
     }
   } catch (e: unknown) {
-    toast.error(`Couldn't connect to ${name}`, { id, description: errorMessage(e) });
+    const info = describeError(errorMessage(e));
+    const description = <Description hint={info.hint} detail={info.detail} />;
+    toast.error(`Couldn't connect to ${name}`, { id, description });
   }
 }
 
-export function notifyError(title: string, error: unknown, { source, retry, id }: Options = {}) {
+export function notifyError(title: string, error: unknown, options: Options = {}) {
   const info = describeError(errorMessage(error));
+  const { source, id } = options;
+  const retry = isFinalError(info.detail) ? undefined : options.retry;
   const description = <Description hint={info.hint} detail={info.detail} />;
   if (info.challenge && source) {
     toast.warning(title, {

@@ -1,5 +1,5 @@
 /** How the Downloads screen groups and labels jobs. Pure. */
-import { type DownloadJob, isRefused, isUnlisted, type JobState } from "./ipc.downloads";
+import { type DownloadJob, isFinalError, isUnlisted, type JobState } from "./ipc.downloads";
 
 export type SectionKey = "active" | "queued" | "failed" | "completed";
 
@@ -79,7 +79,7 @@ export function jobActions(job: DownloadJob): JobAction[] {
       return ["cancel"];
     case "failed":
     case "cancelled":
-      return isUnlisted(job) || isRefused(job.error) ? ["dismiss"] : ["retry", "dismiss"];
+      return isUnlisted(job) || isFinalError(job.error ?? "") ? ["dismiss"] : ["retry", "dismiss"];
     case "done":
       return job.local_path ? ["open", "dismiss"] : ["dismiss"];
   }

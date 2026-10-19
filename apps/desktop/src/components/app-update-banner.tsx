@@ -9,6 +9,8 @@ import {
   useAppUpdate,
 } from "@/lib/app-update";
 import { progressLine, progressPercent } from "@/lib/app-update-labels";
+import { describeFailure } from "@/lib/errors";
+import { isFinalError } from "@/lib/ipc.downloads";
 
 /** "Mangas vX is available": dismissible until Restart to update, then download progress. */
 export function AppUpdateBanner() {
@@ -32,7 +34,9 @@ export function AppUpdateBanner() {
             <span>{progressLine(install.progress)}</span>
           </div>
         ) : install.kind === "failed" ? (
-          <span className="text-bad">Update failed: {install.error}</span>
+          <span className="text-bad" title={describeFailure(install.error).tooltip}>
+            Update failed: {describeFailure(install.error).label}
+          </span>
         ) : (
           "Restart to update. Downloads in progress pick up where they left off."
         )}
@@ -43,14 +47,16 @@ export function AppUpdateBanner() {
             Not now
           </Button>
         )}
-        <Button
-          size="sm"
-          variant="primary"
-          disabled={running}
-          onClick={() => void installAppUpdate()}
-        >
-          {install.kind === "failed" ? "Try again" : "Restart to update"}
-        </Button>
+        {!(install.kind === "failed" && isFinalError(install.error)) && (
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={running}
+            onClick={() => void installAppUpdate()}
+          >
+            {install.kind === "failed" ? "Try again" : "Restart to update"}
+          </Button>
+        )}
       </div>
     </Alert>
   );

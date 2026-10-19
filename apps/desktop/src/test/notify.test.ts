@@ -23,4 +23,18 @@ describe("notifyError", () => {
     vi.advanceTimersByTime(TOAST_EXIT_MS);
     expect(retry).toHaveBeenCalledOnce();
   });
+
+  it("offers no Retry for a failure a retry cannot fix, and keeps it for an unreachable host", () => {
+    const retry = vi.fn();
+    notifyError(
+      "Download failed",
+      new Error(
+        "network: no CA certificates found on this system, so secure connections can't be checked; install the ca-certificates package (e.g. `sudo apt install ca-certificates`)",
+      ),
+      { retry, id: "d" },
+    );
+    notifyError("Download failed", new Error("network: dns error: no such host"), { retry });
+    expect(error.mock.calls[0]?.[1].action).toBeUndefined();
+    expect(error.mock.calls[1]?.[1].action?.label).toBe("Retry");
+  });
 });

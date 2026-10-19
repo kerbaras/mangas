@@ -1,5 +1,6 @@
 /** The toast closing a manual update check. */
 import { toast } from "sonner";
+import { describeFailure } from "./errors";
 import { summaryLine, type UpdateRun } from "./ipc.updates";
 import { connectThen } from "./notify";
 
@@ -25,9 +26,17 @@ export function toastRun(run: UpdateRun) {
   toast.warning(title, {
     id: ID,
     duration: 10_000,
-    description: `Not checked: ${run.failures.map((f) => f.title).join(", ")} (${providers.join(", ")})`,
+    description: [
+      `Not checked: ${run.failures.map((f) => f.title).join(", ")} (${providers.join(", ")})`,
+      ...reasons(run),
+    ].join(". "),
     action: challenged
       ? { label: "Connect", onClick: () => void connectThen(challenged.source) }
       : null,
   });
 }
+
+/** Why the titles weren't checked: each distinct reason once, readable hint first. */
+const reasons = (run: UpdateRun) => [
+  ...new Set(run.failures.map((f) => describeFailure(f.error).label).filter(Boolean)),
+];

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { errorMessage } from "@/lib/format";
 import { type SearchGroup, searchAll } from "@/lib/ipc";
+import { isFinalError } from "@/lib/ipc.downloads";
 import { recordStatus } from "@/lib/provider-status";
 import type { GroupState } from "@/lib/search-groups";
 import { cachedResults, rememberResults } from "@/lib/search-session";
@@ -11,6 +12,12 @@ const failed = (provider: string, reason: string): SearchGroup => ({
   status: { state: "unreachable", reason },
   items: [],
 });
+
+/** A kept group worth asking again: still searching, or failed in a way only a fix outside the
+ * app can change (e.g. installing certificates), which has no Try again. */
+const askAgain = (state: GroupState | undefined) =>
+  state?.kind !== "done" ||
+  (state.group.status.state === "unreachable" && isFinalError(state.group.status.reason));
 
 /**
  * Searches each provider in its own call so groups show up as they answer instead of waiting
@@ -69,7 +76,7 @@ export function useMultiSearch(query: string, ids: string[]) {
     const ids = key.split(",").filter(Boolean);
     setGroups(cached ?? {});
     if (!q) return;
-    for (const id of ids) if (cached?.[id]?.kind !== "done") searchOne(q, id, gen);
+    for (const id of ids) if (askAgain(cached?.[id])) searchOne(q, id, gen);
   }, [query, key, prefs, searchOne]);
 
   // Every groups change past the reset above belongs to `current`: stale answers are dropped.

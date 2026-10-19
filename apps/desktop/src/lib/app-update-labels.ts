@@ -1,3 +1,4 @@
+import { describeFailure } from "./errors";
 /** Wording for app updates; the CLI's `Status::line` says the same. */
 import type { AppUpdateChannel, AppUpdateStatus, InstallProgress } from "./ipc.app-update";
 
@@ -16,7 +17,8 @@ export function statusLine(s: AppUpdateStatus): string {
   }
 }
 
-export const checkFailedLine = (error: string) => `Couldn't check for updates: ${error}`;
+export const checkFailedLine = (error: string) =>
+  `Couldn't check for updates: ${describeFailure(error).label}`;
 
 const megabytes = (bytes: number) => `${(bytes / 1_000_000).toFixed(1)} MB`;
 

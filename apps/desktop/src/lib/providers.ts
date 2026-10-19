@@ -1,3 +1,4 @@
+import { describeFailure } from "./errors";
 import { connectProvider, getSettings, type ProviderStatus } from "./ipc";
 
 const POLL_MS = 2000;
@@ -54,7 +55,7 @@ export function providerDetail(d: Detail): string {
         : `connected${d.savedAt ? ` ${new Date(d.savedAt).toLocaleDateString()}` : ""}`,
     );
   if (d.status?.state === "needs_session" && d.savedAt !== undefined) parts.push("session expired");
-  if (d.status?.state === "unreachable") parts.push(d.status.reason);
+  if (d.status?.state === "unreachable") parts.push(describeFailure(d.status.reason).label);
   parts.push(d.checkedAt === undefined ? "checking…" : `checked ${d.ago(d.checkedAt)}`);
   return parts.join(" · ");
 }

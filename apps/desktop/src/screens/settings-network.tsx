@@ -5,8 +5,8 @@ import { Field } from "@/components/field";
 import { SettingsGroup } from "@/components/settings-group";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { errorMessage } from "@/lib/format";
 import { type ProxyMode, testProxy } from "@/lib/ipc";
+import { notifyError } from "@/lib/notify";
 import { proxyUrlError } from "@/lib/proxy-url";
 import { useSettings } from "@/lib/settings";
 
@@ -33,11 +33,10 @@ export function NetworkSettings() {
     setTesting(true);
     try {
       const status = await testProxy(settings.proxyMode, draft.trim());
-      if (status.state === "unreachable")
-        toast.error("Proxy test failed", { description: status.reason });
+      if (status.state === "unreachable") notifyError("Proxy test failed", status.reason);
       else toast.success("Proxy works", { description: "MangaDex answered through it." });
     } catch (e: unknown) {
-      toast.error("Proxy test failed", { description: errorMessage(e) });
+      notifyError("Proxy test failed", e);
     } finally {
       setTesting(false);
     }

@@ -66,6 +66,14 @@ describe("downloads sections", () => {
     expect(jobActions(makeJob({ state: "failed", error: UNLISTED }))).toEqual(["dismiss"]);
     const refused = "refused: cdn.example resolves to a non-public address 10.1.2.3";
     expect(jobActions(makeJob({ state: "failed", error: refused }))).toEqual(["dismiss"]);
+    const noCerts =
+      "network: no CA certificates found on this system, so secure connections can't be checked; install the ca-certificates package (e.g. `sudo apt install ca-certificates`)";
+    expect(jobActions(makeJob({ state: "failed", error: noCerts }))).toEqual(["dismiss"]);
+    const unreachable = "network: error sending request: dns error: no such host";
+    expect(jobActions(makeJob({ state: "failed", error: unreachable }))).toEqual([
+      "retry",
+      "dismiss",
+    ]);
     expect(jobActions(makeJob({ state: "done", local_path: "/d/7" }))).toEqual(["open", "dismiss"]);
   });
 

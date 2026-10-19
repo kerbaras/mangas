@@ -14,6 +14,7 @@ import {
   speedLabel,
   stateLabel,
 } from "@/lib/download-sections";
+import { describeFailure } from "@/lib/errors";
 import { languageLabel } from "@/lib/format";
 import {
   cancelDownload,
@@ -91,11 +92,13 @@ function Detail({ job, speed }: { job: DownloadJob; speed: number | null }) {
   const text = job.error && !isUnlisted(job) ? job.error : null;
   if (job.state === "done" && job.pages_total > 0)
     return <span className="text-caption text-ink-3">{job.pages_total} pages</span>;
-  return text ? (
-    <Hint hint={text}>
-      <span className="truncate text-caption text-ink-2">{text}</span>
+  if (!text) return null;
+  const { label, tooltip } = describeFailure(text);
+  return (
+    <Hint hint={tooltip}>
+      <span className="truncate text-caption text-ink-2">{label}</span>
     </Hint>
-  ) : null;
+  );
 }
 
 type Props = { job: DownloadJob; speed: number | null };

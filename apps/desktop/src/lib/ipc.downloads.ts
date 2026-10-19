@@ -78,9 +78,15 @@ export const isUnlisted = (job: Pick<DownloadJob, "error">) =>
 export const REFUSED = "resolves to a non-public address";
 export const isRefused = (error: string | null | undefined) =>
   (error?.startsWith("refused:") && error.includes(REFUSED)) ?? false;
-/** A failure a retry cannot fix: the source no longer has the chapter, or its host is refused. */
+/** `mangas_core::Error::NoRootCertificates`: a network error no connection check can fix. */
+export const NO_ROOT_CERTIFICATES = "no CA certificates found";
+/** A failure a retry cannot fix: the source no longer has the chapter, its host is refused, or
+ * the system has no root certificates. */
 export const isFinalError = (error: string) =>
-  error.includes(UNLISTED) || error.startsWith("not found") || isRefused(error);
+  error.includes(UNLISTED) ||
+  error.startsWith("not found") ||
+  isRefused(error) ||
+  error.includes(NO_ROOT_CERTIFICATES);
 
 export type DownloadsBackend = {
   /** Every job in queue order. */

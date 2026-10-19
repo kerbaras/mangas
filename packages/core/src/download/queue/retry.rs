@@ -37,7 +37,8 @@ pub struct Failure {
     pub retryable: bool,
 }
 
-/// Errors that need the user (a browser check, a locked chapter, a full or read-only disk) or
+/// Errors that need the user (a browser check, a locked chapter, a full or read-only disk, no root
+/// certificates on the system) or
 /// that will not change (gone from the source: not found, HTTP 404/410) fail at once; network
 /// trouble is retried.
 pub fn classify(error: &Error) -> Failure {
@@ -52,6 +53,7 @@ pub fn classify(error: &Error) -> Failure {
             error,
             Error::Challenge { .. }
                 | Error::BlockedAddress { .. }
+                | Error::NoRootCertificates
                 | Error::Unavailable { .. }
                 | Error::NotFound(_)
                 | Error::Io(_)
@@ -78,4 +80,20 @@ fn is_gone(message: &str) -> bool {
     ["HTTP 404", "HTTP 410"]
         .iter()
         .any(|code| message.contains(code))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn missing_root_certificates_fail_at_once() {
+        let failure = classify(&Error::NoRootCertificates);
+        assert!(!failure.retryable);
+        assert!(
+            failure.message.contains("ca-certificates"),
+            "{}",
+            failure.message
+        );
+    }
 }

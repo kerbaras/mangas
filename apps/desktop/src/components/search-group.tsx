@@ -5,8 +5,10 @@ import { ProviderIcon } from "@/components/provider-icon";
 import { ProviderStatusBadge } from "@/components/provider-status-badge";
 import { SearchResult } from "@/components/search-result";
 import { Button } from "@/components/ui/button";
+import { describeFailure } from "@/lib/errors";
 import { mangaKey } from "@/lib/format";
 import type { Manga, ProviderInfo } from "@/lib/ipc";
+import { isFinalError } from "@/lib/ipc.downloads";
 import { connectThen } from "@/lib/notify";
 import { forgetStatus } from "@/lib/provider-status";
 import { type GroupState, shown } from "@/lib/search-groups";
@@ -80,11 +82,7 @@ export function SearchGroupView({
         </Note>
       )}
       {group?.status.state === "unreachable" && (
-        <Note action={<RetryButton onClick={onRetry} />}>
-          <span className="min-w-0 truncate" title={group.status.reason}>
-            Couldn't reach {p.name}: {group.status.reason}
-          </span>
-        </Note>
+        <Unreachable name={p.name} reason={group.status.reason} onRetry={onRetry} />
       )}
       {group?.status.state === "ready" && items.length === 0 && <Note>No results here.</Note>}
       {items.length > 0 && (
@@ -102,6 +100,18 @@ export function SearchGroupView({
         </ul>
       )}
     </section>
+  );
+}
+
+function Unreachable(props: { name: string; reason: string; onRetry: () => void }) {
+  const { label, tooltip } = describeFailure(props.reason);
+  const retry = isFinalError(props.reason) ? undefined : <RetryButton onClick={props.onRetry} />;
+  return (
+    <Note action={retry}>
+      <span className="min-w-0 break-words" title={tooltip}>
+        Couldn't reach {props.name}: {label}
+      </span>
+    </Note>
   );
 }
 

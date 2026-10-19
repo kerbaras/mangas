@@ -82,6 +82,25 @@ describe("useMultiSearch", () => {
     expect(searchAll).toHaveBeenLastCalledWith("berserk", ["mangadex"]);
   });
 
+  it("asks again on remount for a provider that failed for good, keeps the rest", async () => {
+    const noCerts = "network: no CA certificates found on this system";
+    const searchAll = vi.fn(async (_q: string, only: string[]) =>
+      only.map((id) =>
+        id === "tapas"
+          ? { provider: id, status: { state: "unreachable" as const, reason: noCerts }, items: [] }
+          : answer(id),
+      ),
+    );
+    setBackend({ searchAll } as unknown as Backend);
+    const first = renderHook(() => useMultiSearch("dandadan", ["mangadex", "tapas"]));
+    await waitFor(() => expect(first.result.current.groups.tapas?.kind).toBe("done"));
+    first.unmount();
+
+    renderHook(() => useMultiSearch("dandadan", ["mangadex", "tapas"]));
+    await waitFor(() => expect(searchAll).toHaveBeenCalledTimes(3));
+    expect(searchAll).toHaveBeenLastCalledWith("dandadan", ["tapas"]);
+  });
+
   it("searches again after the chapter languages change", async () => {
     const searchAll = backend();
     const first = renderHook(() => useMultiSearch("dandadan", ["mangadex"]));

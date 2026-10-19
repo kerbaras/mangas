@@ -7,10 +7,11 @@ const LISTED: usize = 3;
 
 /// `failed` holds the 1-based index and error of every page that could not be fetched. A
 /// browser verification wins over the count: the app turns it into a "Connect" prompt. A
-/// refused address comes next: it is final, so the queue must not retry the chapter.
+/// refused address or a system without root certificates comes next: both are final, so the queue
+/// must not retry the chapter.
 pub fn incomplete(mut failed: Vec<(usize, Error)>, total: usize) -> Error {
     let challenge = |e: &Error| matches!(e, Error::Challenge { .. });
-    let blocked = |e: &Error| matches!(e, Error::BlockedAddress { .. });
+    let blocked = |e: &Error| matches!(e, Error::BlockedAddress { .. } | Error::NoRootCertificates);
     let first = |wanted: &dyn Fn(&Error) -> bool| failed.iter().position(|(_, e)| wanted(e));
     if let Some(at) = first(&challenge).or_else(|| first(&blocked)) {
         return failed.swap_remove(at).1;
@@ -37,4 +38,18 @@ pub fn missing_on_disk(missing: usize, total: usize) -> Error {
     Error::Other(format!(
         "incomplete chapter: {missing} of {total} pages missing on disk"
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn missing_root_certificates_win_over_the_count() {
+        let failed = vec![
+            (1, Error::Other("timed out".into())),
+            (2, Error::NoRootCertificates),
+        ];
+        assert!(matches!(incomplete(failed, 9), Error::NoRootCertificates));
+    }
 }
