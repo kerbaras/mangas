@@ -105,7 +105,7 @@ pub(crate) fn wipe_for_reuse(dir: &Path) -> Result<()> {
         foreign.sort();
         return Err(Error::Other(format!(
             "{} holds other files besides the partial copy ({}); remove the partial copy from \
-             the storage status and choose an empty folder",
+             the storage status, then move there again",
             dir.display(),
             foreign.join(", ")
         )));
