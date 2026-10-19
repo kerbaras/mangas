@@ -2,6 +2,7 @@ import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { Hint } from "@/components/hint";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useForgetDownloads } from "@/hooks/use-downloads";
@@ -49,7 +50,9 @@ export function TitleUsageList({ titles, onChange }: Props) {
           <li key={`${t.source}:${t.manga_id}`} className="flex items-center gap-3 px-3 py-2">
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <div className="flex items-baseline justify-between gap-3">
-                <span className="truncate text-body">{t.title}</span>
+                <Hint hint={t.title} truncated>
+                  <span className="truncate text-body">{t.title}</span>
+                </Hint>
                 <span className="shrink-0 text-caption tabular-nums text-ink-3">
                   {chaptersLabel(t.chapters)} · {formatBytes(t.bytes)}
                 </span>
@@ -57,15 +60,16 @@ export function TitleUsageList({ titles, onChange }: Props) {
               <Progress value={t.bytes} max={largest} aria-label={`${t.title} disk usage`} />
             </div>
             {t.source !== "local" && (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={`Delete the downloads of ${t.title}`}
-                title="Delete downloads"
-                onClick={() => setPending(t)}
-              >
-                <Trash2 />
-              </Button>
+              <Hint hint="Delete downloads" focusable={false}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Delete the downloads of ${t.title}`}
+                  onClick={() => setPending(t)}
+                >
+                  <Trash2 />
+                </Button>
+              </Hint>
             )}
           </li>
         ))}
