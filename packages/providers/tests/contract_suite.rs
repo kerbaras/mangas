@@ -101,19 +101,23 @@ async fn status_probe_maps_responses() {
 }
 
 /// #219: a missing required session decides the status only once the host answers; a host
-/// that can't be reached is unreachable, so a dead network isn't hidden behind "needs session".
+/// that can't be reached (or fails with a 5xx) is unreachable, so an outage isn't hidden behind
+/// "needs session".
 #[tokio::test]
 async fn missing_required_session_needs_session_only_when_the_host_answers() {
     let server = answering(ResponseTemplate::new(200)).await;
+    let failing = answering(ResponseTemplate::new(500)).await;
     let dead = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let dead = format!("http://{}", dead.local_addr().unwrap());
     for info in providers().into_iter().filter(|p| p.needs_browser_session) {
         let source = source_at(info.id, &Settings::default(), &server.uri()).unwrap();
         let status = source.status().await;
         assert_eq!(status, ProviderStatus::NeedsSession, "{}", info.id);
-        let source = source_at(info.id, &Settings::default(), &dead).unwrap();
-        let status = source.status().await;
-        assert!(status.is_unreachable(), "{}: {status:?}", info.id);
+        for base in [failing.uri(), dead.clone()] {
+            let source = source_at(info.id, &Settings::default(), &base).unwrap();
+            let status = source.status().await;
+            assert!(status.is_unreachable(), "{} at {base}: {status:?}", info.id);
+        }
     }
 }
 

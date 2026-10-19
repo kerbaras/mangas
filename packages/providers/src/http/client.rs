@@ -130,7 +130,7 @@ impl SiteClient {
             }
             Err(e) => Err(e),
         };
-        match answered_gate(gate, &reply) {
+        match answered_gate(gate, reply.as_ref().map(|r| r.status)) {
             Some(status) => status,
             None => probe_status(&reply.and_then(|r| self.ok_body(probe, r))),
         }
