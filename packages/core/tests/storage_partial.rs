@@ -170,3 +170,19 @@ fn a_partial_copy_next_to_unrelated_files_is_refused_even_with_force() {
     assert!(usage(&lib, &f).unwrap().partial_move.is_some());
     assert_ne!(get_settings(&lib).unwrap().data_dir.as_deref(), to.to_str());
 }
+
+#[test]
+fn a_move_elsewhere_waits_until_the_partial_copy_is_removed() {
+    let tmp = tempfile::tempdir().unwrap();
+    let f = folders(tmp.path());
+    let lib = library_with_two_chapters(&f);
+    let first = tmp.path().join("first");
+    killed_move(&lib, tmp.path(), &first);
+    let second = tmp.path().join("second");
+    let err = move_data_dir(&lib, &f.data_dir, &second, &mut |_| {}).unwrap_err();
+    assert!(err.to_string().contains("first"), "{err}");
+    assert!(usage(&lib, &f).unwrap().partial_move.is_some());
+    remove_leftover_copy(&lib, &f.data_dir).unwrap().unwrap();
+    move_data_dir(&lib, &f.data_dir, &second, &mut |_| {}).unwrap();
+    assert!(!second.join(MOVE_MARKER).exists());
+}

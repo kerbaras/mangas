@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 
 use super::layout::DATA_SUBDIRS;
-use super::partial::{is_marked, mark, unmark, wipe_for_reuse};
+use super::partial::{mark, prepare_target, unmark};
 use super::relocate::{check_target, rebase};
 use super::tree::{empty_dir, list_files, FileEntry};
 use crate::domain::{Error, Result};
@@ -70,16 +70,7 @@ fn move_held(
     check_target(&from_resolved, &to)?;
     // Not under a detector download or removal in this process or another.
     let lease = lease::acquire(&from_resolved.join("models"), Purpose::Move)?;
-    if is_marked(&to) {
-        if !replace_partial {
-            return Err(Error::Other(format!(
-                "{} holds a partial copy left by an interrupted move; move again replacing it \
-                 (--force), or remove it from the storage status",
-                to.display()
-            )));
-        }
-        wipe_for_reuse(&to)?;
-    }
+    prepare_target(lib, &from_resolved, &to, replace_partial)?;
     let mut plan = Vec::new();
     for sub in DATA_SUBDIRS {
         if !list_files(&to.join(sub))?.is_empty() {

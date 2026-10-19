@@ -61,9 +61,9 @@ pub fn leftover_copy(lib: &Library, data_dir: &Path) -> Result<Option<PartialCop
 /// Deletes the partial copy [`leftover_copy`] lists: the app's subfolders in it and the marker;
 /// anything else in that folder stays. Refused while a move runs.
 pub fn remove_leftover_copy(lib: &Library, data_dir: &Path) -> Result<Option<PartialCopy>> {
-    let Some(copy) = leftover_copy(lib, data_dir)? else {
+    if leftover_copy(lib, data_dir)?.is_none() {
         return Ok(None);
-    };
+    }
     // Held briefly so a move can't start copying into the folder while it's emptied.
     let now = now_ms();
     if !take_queue_hold(lib, now, now + 60_000)? {
@@ -71,9 +71,50 @@ pub fn remove_leftover_copy(lib: &Library, data_dir: &Path) -> Result<Option<Par
             "a data-folder move is in progress; try again when it's done".into(),
         ));
     }
-    let wiped = wipe(Path::new(&copy.path)).and_then(|()| set_pending_move(lib, None));
+    let wiped = wipe_recorded(lib, data_dir);
     crate::library::set_queue_held_until(lib, 0)?;
-    wiped.map(|()| Some(copy))
+    wiped
+}
+
+/// Read again under the hold: a move that finished since the listing cleared its record.
+fn wipe_recorded(lib: &Library, data_dir: &Path) -> Result<Option<PartialCopy>> {
+    let Some(target) = pending_move(lib)? else {
+        return Ok(None);
+    };
+    let target = Path::new(&target);
+    let Some(copy) = partial_copy_at(target).filter(|_| !same_dir(target, data_dir)) else {
+        return Ok(None);
+    };
+    wipe(target)?;
+    set_pending_move(lib, None)?;
+    Ok(Some(copy))
+}
+
+/// Readies `to` for a move from `from`: a partial copy there is wiped when `replace_partial`
+/// allows it. Refused while another folder still holds a listed partial copy, so starting a
+/// new move never hides it from the storage status.
+pub(crate) fn prepare_target(lib: &Library, from: &Path, to: &Path, replace: bool) -> Result<()> {
+    if let Some(other) = pending_move(lib)? {
+        let other = Path::new(&other);
+        if is_marked(other) && !same_dir(other, to) && !same_dir(other, from) {
+            return Err(Error::Other(format!(
+                "{} still holds a partial copy left by an interrupted move; remove it from the \
+                 storage status first",
+                other.display()
+            )));
+        }
+    }
+    if !is_marked(to) {
+        return Ok(());
+    }
+    if !replace {
+        return Err(Error::Other(format!(
+            "{} holds a partial copy left by an interrupted move; move again replacing it \
+             (--force), or remove it from the storage status",
+            to.display()
+        )));
+    }
+    wipe_for_reuse(to)
 }
 
 pub(crate) fn is_marked(dir: &Path) -> bool {
@@ -82,8 +123,15 @@ pub(crate) fn is_marked(dir: &Path) -> bool {
 
 /// Marks `to` as a move target before anything is copied into it.
 pub(crate) fn mark(lib: &Library, to: &Path, from: &Path) -> Result<()> {
-    fs::write(to.join(MOVE_MARKER), format!("{}\n", from.display()))?;
-    set_pending_move(lib, Some(&to.to_string_lossy()))
+    // Recorded first: a record without a marker is dropped by the next listing, while a marker
+    // without a record would block the folder with nothing offering to remove it.
+    set_pending_move(lib, Some(&to.to_string_lossy()))?;
+    let marked = fs::write(to.join(MOVE_MARKER), format!("{}\n", from.display()));
+    if let Err(e) = marked {
+        set_pending_move(lib, None)?;
+        return Err(e.into());
+    }
+    Ok(())
 }
 
 /// Clears the mark once the copy is either the data folder or gone.
@@ -93,7 +141,7 @@ pub(crate) fn unmark(lib: &Library, to: &Path) -> Result<()> {
 }
 
 /// Wipes a marked folder for a new move, unless it also holds files that aren't the app's.
-pub(crate) fn wipe_for_reuse(dir: &Path) -> Result<()> {
+fn wipe_for_reuse(dir: &Path) -> Result<()> {
     let mut foreign = Vec::new();
     for entry in fs::read_dir(dir)? {
         let name = entry?.file_name().to_string_lossy().into_owned();
