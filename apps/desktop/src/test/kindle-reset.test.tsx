@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type Backend, setBackend } from "@/lib/ipc";
 import { EMPTY_EMAIL } from "@/lib/ipc.send";
-import { writeSettings } from "@/lib/settings";
+import { loadSettings, writeSettings } from "@/lib/settings";
 import { GROUPS } from "@/screens/settings-groups";
 
 const toast = vi.hoisted(() => ({ success: vi.fn(), warning: vi.fn(), error: vi.fn() }));
@@ -25,7 +25,10 @@ async function confirmReset() {
 }
 
 afterEach(() => {
-  setBackend(null);
+  // Back to a load in flight: a failed reload in one test (these backends have no
+  // get_settings) would otherwise make the next test's edits a no-op.
+  setBackend({ getSettings: () => new Promise(() => {}) } as unknown as Backend);
+  void loadSettings();
   writeSettings({ kindleEmail: EMPTY_EMAIL });
   vi.clearAllMocks();
 });

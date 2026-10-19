@@ -23,8 +23,10 @@ export function SettingsGroup({ title, resets = [], resetHint, onReset, children
   const [asking, setAsking] = useState(false);
   const reset = async () => {
     setAsking(false);
-    if (!(await writeSettings(defaultsOf(resets)))) {
-      const load = readSettingsLoad();
+    const saved = await writeSettings(defaultsOf(resets));
+    const load = readSettingsLoad();
+    // While loading, the reset is kept in memory like any other edit.
+    if (!saved && load.kind !== "loading") {
       const why = load.kind === "failed" ? load.error : "settings not saved; try again";
       notifyError(`Couldn't reset ${title.toLowerCase()} settings`, why);
       return;
