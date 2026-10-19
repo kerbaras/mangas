@@ -18,15 +18,22 @@ const failed = (provider: string, reason: string): SearchGroup => ({
  * answer is recorded as that provider's status. The last query's groups are kept in
  * `search-session` under the query, provider list and search settings, so coming back to the same
  * search shows them again; only providers still searching when the screen was left are asked
- * again, and changed languages or provider options search afresh.
+ * again, and changed languages, provider options or proxy search afresh.
  */
 export function useMultiSearch(query: string, ids: string[]) {
   const [groups, setGroups] = useState<Record<string, GroupState>>({});
   const generation = useRef(0);
   const latest = useRef<Record<string, number>>({});
-  const [{ preferredLanguages, providerLanguages, providerOptions }] = useSettings();
+  const [{ preferredLanguages, providerLanguages, providerOptions, proxyMode, proxyUrl }] =
+    useSettings();
   const key = ids.join(",");
-  const prefs = JSON.stringify([preferredLanguages, providerLanguages, providerOptions]);
+  const prefs = JSON.stringify([
+    preferredLanguages,
+    providerLanguages,
+    providerOptions,
+    proxyMode,
+    proxyUrl,
+  ]);
   const current = useRef({ query: "", key: "" });
 
   const searchOne = useCallback((q: string, id: string, gen: number) => {

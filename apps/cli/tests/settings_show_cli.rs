@@ -60,7 +60,7 @@ fn show_marks_defaults_and_json_holds_only_changes() {
         serde_json::json!({
             "download_concurrency": 6,
             "proxy_mode": "custom",
-            "proxy_url": "http://me:pw@127.0.0.1:8888"
+            "proxy_url": "http://me:***@127.0.0.1:8888/"
         })
     );
 }

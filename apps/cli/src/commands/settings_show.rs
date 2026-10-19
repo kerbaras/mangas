@@ -8,7 +8,7 @@ use crate::paths;
 
 #[derive(ClapArgs)]
 pub struct ShowArgs {
-    /// Print the stored JSON (only what was changed; sessions and the SMTP password left out)
+    /// Print the stored JSON (only what was changed; sessions left out, passwords masked)
     #[arg(long)]
     json: bool,
 }
@@ -31,6 +31,10 @@ pub fn run(args: ShowArgs) -> anyhow::Result<()> {
 fn shareable(settings: &Settings) -> Settings {
     let mut out = Settings {
         provider_sessions: Default::default(),
+        proxy_url: settings
+            .proxy_url
+            .as_deref()
+            .map(mangas_providers::http::shown_proxy),
         ..settings.clone()
     };
     if !out.kindle_email.password.is_empty() {

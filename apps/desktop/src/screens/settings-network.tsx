@@ -1,5 +1,5 @@
 import { PlugZap } from "lucide-react";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { toast } from "sonner";
 import { Field } from "@/components/field";
 import { SettingsGroup } from "@/components/settings-group";
@@ -21,6 +21,8 @@ export function NetworkSettings() {
   const [settings, update] = useSettings();
   const name = useId();
   const [draft, setDraft] = useState(settings.proxyUrl);
+  // A reset or another process changing the stored address replaces the draft.
+  useEffect(() => setDraft(settings.proxyUrl), [settings.proxyUrl]);
   const [testing, setTesting] = useState(false);
   const custom = settings.proxyMode === "custom";
   const error = custom ? proxyUrlError(draft) : null;
