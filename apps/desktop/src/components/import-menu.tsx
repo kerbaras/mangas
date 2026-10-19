@@ -1,5 +1,5 @@
 import { FileArchive, FolderInput, Import, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { HeaderAction } from "@/components/header-action";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,9 +14,11 @@ export function ImportMenu({ busy, onPick }: Props) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button size="sm" disabled={busy}>
-          {busy ? <Loader2 className="animate-spin" /> : <Import />} Import
-        </Button>
+        <HeaderAction
+          icon={busy ? <Loader2 className="animate-spin" /> : <Import />}
+          label="Import"
+          disabled={busy}
+        />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onSelect={() => onPick("folder")}>
