@@ -77,7 +77,7 @@ export function SearchScreen() {
           />
         </div>
       </div>
-      <div className="flex-1 overflow-auto px-4 py-3">
+      <div className="relative min-h-0 flex-1 overflow-auto overscroll-contain px-4 py-3">
         <div className="mx-auto max-w-2xl">
           {noneEnabled && (
             <EmptyState

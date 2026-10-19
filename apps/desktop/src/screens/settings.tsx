@@ -60,7 +60,7 @@ function SettingsForm() {
   return (
     <section className="flex h-full flex-col">
       <ScreenHeader title="Settings" />
-      <div className="flex-1 overflow-auto p-4">
+      <div className="relative min-h-0 flex-1 overflow-auto overscroll-contain p-4">
         <div className="mx-auto flex max-w-2xl flex-col gap-8">
           <Group title="Storage">
             <StoragePanel />
