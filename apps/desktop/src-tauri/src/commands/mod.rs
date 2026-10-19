@@ -48,15 +48,13 @@ pub(super) fn settings_of(lib: &Library) -> Result<Settings, String> {
     library::get_settings(lib).map_err(to_ipc)
 }
 
-/// The stored settings, or the defaults with a logged warning when they can't be read.
+/// The stored settings, or the defaults when they can't be read, logging the warning once.
 pub(super) fn settings_or_default() -> Settings {
     let (settings, warning) = match paths::library_db() {
         Ok(db) => library::settings_or_default(&db),
         Err(e) => (Settings::default(), Some(e)),
     };
-    if let Some(warning) = warning {
-        log::warn!("{warning}");
-    }
+    library::log_fallback(warning);
     settings
 }
 

@@ -141,6 +141,7 @@ export function writeSettings(patch: Partial<Settings>): Promise<boolean> {
 /** Like `writeSettings`, but shown only once stored; rejects with why when it isn't. */
 export async function saveSettings(patch: Partial<Settings>): Promise<void> {
   if (load.kind === "ready") return queue(patch);
+  if (load.kind === "failed") throw new Error(load.error);
   cached = { ...cached, ...patch };
   notify();
 }

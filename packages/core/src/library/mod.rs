@@ -20,6 +20,7 @@ mod manga_repo;
 mod pending_move;
 mod reading_status;
 mod refresh;
+mod settings_fallback;
 mod settings_merge;
 mod settings_prefs;
 mod settings_repo;
@@ -62,15 +63,15 @@ pub use manga_repo::{get_manga, list_manga, remove_manga, upsert_manga};
 pub use pending_move::{pending_move, set_pending_move};
 pub use reading_status::{set_reading_status, ReadingStatus};
 pub use refresh::{refresh_from_source, Refreshed};
+pub use settings_fallback::{
+    log_fallback, readable_settings, settings_or_default, settings_or_default_in,
+};
 pub use settings_merge::merge_edit;
 pub use settings_prefs::{
     proxy_url, Network, ProxyMode, Theme, CONCURRENCY_RANGE, DEFAULT_CONCURRENCY, DEFAULT_LANGUAGE,
     DEFAULT_UPDATE_HOURS,
 };
-pub use settings_repo::{
-    edit_settings, get_settings, readable_settings, set_settings, settings_or_default,
-    settings_or_default_in, ProviderSession, Settings,
-};
+pub use settings_repo::{edit_settings, get_settings, set_settings, ProviderSession, Settings};
 pub use snapshot::{
     read_snapshot, restore_snapshot, CategoryState, ChapterState, LibrarySnapshot, TitleState,
 };
