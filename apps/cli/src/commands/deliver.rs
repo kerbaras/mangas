@@ -5,7 +5,7 @@ use std::io::Write;
 use std::path::Path;
 
 use mangas_core::library::{self, Library};
-use mangas_core::send::password::{self, Storage};
+use mangas_core::send::password;
 use mangas_core::send::{email, usb, SendVia};
 
 use super::settings_email::warn_unencrypted;
@@ -43,7 +43,8 @@ pub async fn deliver(
         SendArg::Email => {
             let store = password::system_store();
             let settings = password::email_settings(lib, &*store)?;
-            if !settings.password.is_empty() && password::storage(lib, &*store)? == Storage::File {
+            let in_file = !library::get_settings(lib)?.kindle_email.password.is_empty();
+            if in_file {
                 let why = store.get().err();
                 warn_unencrypted(
                     why.as_deref()

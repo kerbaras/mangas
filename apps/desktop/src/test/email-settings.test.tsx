@@ -38,6 +38,14 @@ describe("email settings", () => {
     expect(screen.queryByText("Kept in your system keychain.")).toBeNull();
   });
 
+  it("only claims no password is saved when the keychain answered", async () => {
+    const emailPasswordStorage = vi.fn(async () => "file");
+    setBackend({ emailPasswordStorage } as unknown as Backend);
+    render(<EmailSettingsForm />);
+    expect(await screen.findByText("No password in the app settings.")).toBeTruthy();
+    expect(screen.queryByText("No password saved.")).toBeNull();
+  });
+
   it("says no password is saved once it is cleared", async () => {
     const emailPasswordStorage = vi.fn(async () => "keychain");
     setBackend({ emailPasswordStorage } as unknown as Backend);

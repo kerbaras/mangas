@@ -46,9 +46,11 @@ function usePasswordStorage(saved: string): PasswordStorage | null {
   return storage;
 }
 
-/** Where the saved password is, or that there is none. */
+/** Where the saved password is, or that there is none. A keychain that can't be read gives
+ * an empty password, so "none saved" is only said when the keychain answered. */
 function passwordHint(saved: boolean, storage: PasswordStorage | null): string | undefined {
-  if (!saved) return "No password saved.";
+  if (!saved && storage === "keychain") return "No password saved.";
+  if (!saved) return storage === "file" ? "No password in the app settings." : undefined;
   if (storage === "keychain") return "Kept in your system keychain.";
   if (storage === "file") return "Kept in the app settings (no system keychain).";
   return undefined;
