@@ -4,7 +4,9 @@
 use std::path::PathBuf;
 use std::process::Command;
 
-use mangas_core::ml::{self, child, RuntimeStatus, Status};
+#[cfg(feature = "ml")]
+use mangas_core::ml::RuntimeStatus;
+use mangas_core::ml::{self, child, Status};
 
 /// The CLI under test; `MANGAS_EXE` points it at the shipped `mangas` binary instead.
 fn exe() -> PathBuf {
