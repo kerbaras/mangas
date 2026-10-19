@@ -19,6 +19,7 @@ import {
 } from "@/lib/app-update";
 import { checkFailedLine, statusLine } from "@/lib/app-update-labels";
 import { appVersion } from "@/lib/app-version";
+import { describeFailure } from "@/lib/errors";
 import type { AppUpdateChannel } from "@/lib/ipc.app-update";
 import { useSettings } from "@/lib/settings";
 
@@ -27,7 +28,11 @@ function CheckResult({ check }: { check: CheckState }) {
   if (check.kind === "checking") return <p className="text-caption text-ink-2">Checking…</p>;
   if (check.kind === "failed")
     return (
-      <p role="alert" className="text-caption text-bad">
+      <p
+        role="alert"
+        className="text-caption text-bad"
+        title={describeFailure(check.error).tooltip}
+      >
         {checkFailedLine(check.error)}
       </p>
     );
