@@ -2,7 +2,7 @@ import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { DownloadsProvider } from "@/hooks/use-downloads";
+import { BATCH_MS, DownloadsProvider } from "@/hooks/use-downloads";
 import { type Backend, setBackend } from "@/lib/ipc";
 import { type DownloadJob, type QueueEvent, UNLISTED } from "@/lib/ipc.downloads";
 import { DownloadsScreen } from "@/screens/downloads";
@@ -84,7 +84,7 @@ describe("Downloads screen", () => {
     expect(backend.resumeDownload).toHaveBeenCalledWith(null);
     await act(async () => {
       emit({ kind: "gate", paused: false, held: true });
-      await new Promise((r) => setTimeout(r, 150));
+      await new Promise((r) => setTimeout(r, BATCH_MS + 50));
     });
     expect(screen.queryByText("Queue paused")).toBeNull();
     expect(screen.getByText("Queue held while the data folder moves")).toBeInTheDocument();

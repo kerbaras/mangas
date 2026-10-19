@@ -1,5 +1,5 @@
 import { AlertCircle, Ban, Check, Clock, EyeOff, Pause, Send } from "lucide-react";
-import type { MouseEvent, ReactNode } from "react";
+import { type MouseEvent, memo, type ReactNode } from "react";
 import { AvailabilityCell } from "@/components/availability-cell";
 import { Hint } from "@/components/hint";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -112,7 +112,14 @@ function GroupName({ name }: { name: string }) {
   );
 }
 
-export function ChapterRow({ chapter, selected, showSourceId, progress, onToggle }: Props) {
+/** Memoised: a progress batch re-renders only the rows whose download moved, not every chapter. */
+export const ChapterRow = memo(function ChapterRow({
+  chapter,
+  selected,
+  showSourceId,
+  progress,
+  onToggle,
+}: Props) {
   const off = isUnavailable(chapter);
   const handle = (e: MouseEvent) => {
     if (!off) onToggle(chapter.id, e.shiftKey);
@@ -164,4 +171,4 @@ export function ChapterRow({ chapter, selected, showSourceId, progress, onToggle
       </td>
     </tr>
   );
-}
+});

@@ -9,7 +9,10 @@ type Props = ComponentProps<typeof ProgressPrimitive.Root> & {
   animated?: boolean;
 };
 
-/** Indeterminate (no value, pulsing third while `animated`) until `max` is known (not 0). */
+/**
+ * Indeterminate (no value, pulsing third while `animated`) until `max` is known (not 0). The fill
+ * scales instead of changing width, so a moving bar never triggers layout.
+ */
 export function Progress({ className, value, max = 100, animated = true, ...props }: Props) {
   const known = max > 0;
   const idle = known ? 0 : 33;
@@ -23,11 +26,11 @@ export function Progress({ className, value, max = 100, animated = true, ...prop
     >
       <ProgressPrimitive.Indicator
         className={cn(
-          "h-full bg-accent",
-          animated && "transition-[width] duration-200",
+          "h-full w-full origin-left bg-accent will-change-transform",
+          animated && "transition-transform duration-200",
           animated && !known && "animate-pulse",
         )}
-        style={{ width: `${pct}%` }}
+        style={{ transform: `scaleX(${pct / 100})` }}
       />
     </ProgressPrimitive.Root>
   );

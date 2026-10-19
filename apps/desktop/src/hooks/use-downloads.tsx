@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -62,8 +63,15 @@ const DownloadsContext = createContext<DownloadMap>(new Map());
 type Forget = (match: (chapterId: string) => boolean) => void;
 const ForgetContext = createContext<Forget>(() => {});
 
-/** Progress events come several times a second per job; the UI folds them at most this often. */
-export const BATCH_MS = 100;
+/** Progress events come several times a second per job; the UI folds them about 4 times a second. */
+export const BATCH_MS = 250;
+
+/** The previous object when nothing changed, so memoised rows of idle chapters skip the batch. */
+function unchanged(before: DownloadProgress | undefined, now: DownloadProgress): DownloadProgress {
+  if (!before) return now;
+  const keys = Object.keys(now) as (keyof DownloadProgress)[];
+  return keys.every((k) => before[k] === now[k]) ? before : now;
+}
 
 /** Jobs from earlier runs carry their own label, so their toasts and logs name the chapter. */
 function remember(job: DownloadJob) {
@@ -130,10 +138,13 @@ export function DownloadsProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const previous = useRef<DownloadMap>(new Map());
   const progress = useMemo(() => {
     const out = new Map<string, DownloadProgress>();
     for (const [chapter, job] of jobsByChapter(queue.jobs))
-      if (!forgotten.has(chapter)) out.set(chapter, toDownloadProgress(job));
+      if (!forgotten.has(chapter))
+        out.set(chapter, unchanged(previous.current.get(chapter), toDownloadProgress(job)));
+    previous.current = out;
     return out;
   }, [queue.jobs, forgotten]);
 
