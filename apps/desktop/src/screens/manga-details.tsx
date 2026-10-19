@@ -1,12 +1,11 @@
-import { Download, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ChallengePrompt } from "@/components/challenge-prompt";
+import { ChapterActions } from "@/components/chapter-actions";
 import { ChaptersTable } from "@/components/chapters-table";
 import { Cover } from "@/components/cover";
 import { DescriptionSkeleton } from "@/components/description-skeleton";
 import { ErrorAlert } from "@/components/error-alert";
-import { ExportButton } from "@/components/export-button";
 import { GroupSelect } from "@/components/group-select";
 import { LanguageTabs } from "@/components/language-tabs";
 import { LibraryControls } from "@/components/library-controls";
@@ -14,7 +13,6 @@ import { MangaMeta } from "@/components/manga-meta";
 import { NoChapters } from "@/components/no-chapters";
 import { ScreenHeader } from "@/components/screen-header";
 import { StatusBadge } from "@/components/status-badge";
-import { Button } from "@/components/ui/button";
 import { useAsync } from "@/hooks/use-async";
 import { useChapterDownload } from "@/hooks/use-chapter-download";
 import { useChapterGroup } from "@/hooks/use-chapter-group";
@@ -25,12 +23,8 @@ import { useMangaDetails } from "@/hooks/use-manga-details";
 import { filterByGroup, groupsOf } from "@/lib/chapter-groups";
 import {
   chapterSummary,
-  exportable,
-  exportTargets,
   filterByLanguage,
-  isUnavailable,
   languagesOf,
-  pickSelected,
   selectableIds,
   selectionSummary,
   sortChapters,
@@ -102,9 +96,6 @@ export function MangaDetailsScreen({ manga: card }: Props) {
   const visibleIds = useMemo(() => selectableIds(visible), [visible]);
   const { selected, onToggle, onToggleAll, clear } = useChapterSelection(visibleIds);
 
-  const toDownload = pickSelected(pool, selected).filter((c) => !isUnavailable(c));
-  const toExport = exportable(pool, selected);
-
   const download = useChapterDownload({ source, mangaId: id, title: manga.title }, clear);
   return (
     <section className="flex h-full flex-col">
@@ -149,26 +140,14 @@ export function MangaDetailsScreen({ manga: card }: Props) {
           <LanguageTabs languages={languages} value={lang} onChange={setLanguage} />
         )}
         <span className="text-caption text-ink-3">{selectionSummary(pool, selected, visible)}</span>
-        <div className="ml-auto flex gap-2">
-          <ExportButton
-            manga={manga}
-            chapters={exportTargets(pool, visible, selected)}
-            onExported={chapters.reload}
-          />
-          {toExport.length > 0 && (
-            <Button size="sm" onClick={() => void download(toExport, true)}>
-              <RotateCcw /> Download again
-            </Button>
-          )}
-          <Button
-            size="sm"
-            variant="primary"
-            disabled={toDownload.length === 0}
-            onClick={() => void download(toDownload)}
-          >
-            <Download /> Download selected
-          </Button>
-        </div>
+        <ChapterActions
+          manga={manga}
+          pool={pool}
+          visible={visible}
+          selected={selected}
+          onExported={chapters.reload}
+          download={download}
+        />
       </div>
       <div className="relative min-h-0 flex-1 overflow-auto overscroll-contain">
         {chapters.state.kind === "loading" && <p className="p-4 text-ink-3">Loading chapters…</p>}

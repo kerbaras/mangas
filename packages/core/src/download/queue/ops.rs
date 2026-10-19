@@ -34,6 +34,18 @@ pub fn split_for_queue(
     (to_queue, on_disk, unavailable)
 }
 
+/// Imported chapters have no provider to fetch pages from: queueing one (or downloading it
+/// again) is refused with a message for the user, before any source is looked up.
+pub fn ensure_downloadable(source: &str) -> Result<()> {
+    if library::is_local(source) {
+        return Err(Error::Other(
+            "imported chapters can't be downloaded: they are already on disk (open their folder instead)"
+                .into(),
+        ));
+    }
+    Ok(())
+}
+
 /// Queues the library chapters `chapters` of `source`. Whether one is on disk is read from the
 /// library, so a list fresh from the source still skips what was downloaded before.
 pub fn enqueue(
@@ -42,6 +54,7 @@ pub fn enqueue(
     chapters: Vec<Chapter>,
     force: bool,
 ) -> Result<Enqueued> {
+    ensure_downloadable(source)?;
     let chapters = still_on_disk(with_stored_paths(lib, source, chapters)?);
     let (to_queue, on_disk, unavailable) = split_for_queue(chapters, force);
     let ids: Vec<_> = to_queue.iter().map(|c| c.id.clone()).collect();

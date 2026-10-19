@@ -47,6 +47,7 @@ pub async fn download_chapters(
     chapter_ids: Vec<String>,
     force: Option<bool>,
 ) -> Result<DownloadReport, String> {
+    queue::ensure_downloadable(&source).map_err(to_ipc)?;
     let queue = downloads.queue()?;
     let lib = queue.library();
     let src = source_by_name(&source)?;

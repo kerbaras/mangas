@@ -143,3 +143,13 @@ async fn forcing_a_running_chapter_restarts_it_as_a_full_download() {
     let first = fetched.iter().filter(|u| *u == "https://cdn/1").count();
     assert_eq!((first, fetched.len()), (2, 8), "{fetched:?}");
 }
+
+#[test]
+fn imported_chapters_are_never_queued_even_forced() {
+    let lib = library::open_in_memory().unwrap();
+    let chapters = follow(&lib, library::LOCAL_SOURCE, 1);
+    let err = queue::enqueue(&lib, library::LOCAL_SOURCE, chapters, true).unwrap_err();
+    assert!(err.to_string().contains("already on disk"), "{err}");
+    assert!(queue::list(&lib).unwrap().is_empty());
+    assert!(queue::ensure_downloadable("mangadex").is_ok());
+}

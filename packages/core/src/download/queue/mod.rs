@@ -26,8 +26,8 @@ pub use hold::{hold_queue, hold_queue_at, MOVE_SETTLE};
 pub use job::{GateStatus, Job, JobId, JobState, QueueGate};
 pub use lease::{holds_lease, lease_expired, mark_stale, Clock, LEASE_MS, STALL_MS};
 pub use ops::{
-    clear_finished, control, dismiss, enqueue, find, gate_status, list, now_ms, reclaim_orphans,
-    split_for_queue, Enqueued, Target,
+    clear_finished, control, dismiss, enqueue, ensure_downloadable, find, gate_status, list,
+    now_ms, reclaim_orphans, split_for_queue, Enqueued, Target,
 };
 pub use releases::pick_releases;
 pub use retry::{backoff, classify, is_final_error, Failure, RetryPolicy};
