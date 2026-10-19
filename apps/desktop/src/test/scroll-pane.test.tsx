@@ -1,9 +1,10 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { setBackend } from "@/lib/ipc";
 import { mockBackend } from "@/lib/ipc.mock";
 import { loadSettings } from "@/lib/settings";
 import { SettingsScreen } from "@/screens/settings";
+import { GROUPS } from "@/screens/settings-groups";
 
 afterEach(() => setBackend(null));
 
@@ -14,11 +15,24 @@ describe("settings scroll pane", () => {
     setBackend(mockBackend);
     await loadSettings();
     render(<SettingsScreen />);
-    await screen.findByText("Cut preset");
-    const pane = document.querySelector(".overflow-auto");
-    expect(pane).toHaveClass("relative", "min-h-0", "flex-1", "overscroll-contain");
-    const hidden = [...document.querySelectorAll(".sr-only")];
-    expect(hidden.length).toBeGreaterThan(0);
-    for (const el of hidden) expect(pane?.contains(el)).toBe(true);
+    const nav = await screen.findByRole("navigation", { name: "Settings groups" });
+    const pane = nav.nextElementSibling;
+    expect(pane).toHaveClass(
+      "relative",
+      "min-w-0",
+      "flex-1",
+      "overflow-y-auto",
+      "overscroll-contain",
+    );
+    let hidden = 0;
+    for (const g of GROUPS) {
+      fireEvent.click(screen.getByRole("button", { name: g.label }));
+      await screen.findByRole("button", { name: g.label, current: "page" });
+      for (const el of document.querySelectorAll(".sr-only")) {
+        expect(pane?.contains(el)).toBe(true);
+        hidden += 1;
+      }
+    }
+    expect(hidden).toBeGreaterThan(0);
   });
 });
