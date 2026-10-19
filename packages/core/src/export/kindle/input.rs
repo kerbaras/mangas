@@ -43,7 +43,7 @@ pub fn decode(path: &Path) -> Result<RgbaImage> {
     Ok(image::ImageReader::open(path)?
         .with_guessed_format()?
         .decode()?
-        .to_rgba8())
+        .into_rgba8())
 }
 
 pub(super) fn chapter_title(dir: &Path, index: usize) -> String {

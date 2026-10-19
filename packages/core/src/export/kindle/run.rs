@@ -9,14 +9,18 @@ use image::RgbaImage;
 use rayon::prelude::*;
 
 use super::input::{chapter_files, decode, ChapterFiles};
+use super::margins::strip_margins;
 use super::process::{process_page, ImageSettings};
 use super::request::{ExportStats, Progress};
-use super::trim::{crop_sides, narrower, side_margins, trim_page};
+use super::trim::{crop_sides, trim_page};
 use super::Device;
 use crate::domain::{Error, Result};
 use crate::export::epub::PageImage;
 use crate::export::PageSettings;
 use crate::smartcut::{is_long_strip, Options, RowPenalizer, StripPaginator};
+
+/// Full-size scans decoded at once: most of the multi-core speed-up at a bounded peak memory.
+const WINDOW: usize = 4;
 
 pub(super) struct Run<'a> {
     pub settings: ImageSettings,
@@ -57,32 +61,6 @@ fn empty_stats() -> ExportStats {
     }
 }
 
-/// Side margins blank in every image of a width, so strip chunks keep stitching together.
-/// Margin scans look at this many files at most, spread over the chapter, so a preview of a long
-/// chapter doesn't decode every image first (and export and preview still agree).
-const MARGIN_SAMPLE: usize = 24;
-
-fn margin_sample(files: &[PathBuf]) -> Vec<&PathBuf> {
-    let step = files.len().div_ceil(MARGIN_SAMPLE).max(1);
-    files.iter().step_by(step).collect()
-}
-
-fn strip_margins(files: &[PathBuf]) -> Result<HashMap<u32, (u32, u32)>> {
-    let found: Vec<(u32, Option<(u32, u32)>)> = margin_sample(files)
-        .par_iter()
-        .map(|f| decode(f).map(|img| (img.width(), side_margins(&img))))
-        .collect::<Result<_>>()?;
-    let mut by_width: HashMap<u32, Option<(u32, u32)>> = HashMap::new();
-    for (w, m) in found {
-        let entry = by_width.entry(w).or_insert(m);
-        *entry = narrower(*entry, m);
-    }
-    Ok(by_width
-        .into_iter()
-        .filter_map(|(w, m)| m.map(|m| (w, m)))
-        .collect())
-}
-
 impl<'a> Run<'a> {
     pub fn new(spec: RunSpec<'a>, progress: &'a mut dyn FnMut(Progress)) -> Run<'a> {
         let dev = spec.device;
@@ -104,17 +82,28 @@ impl<'a> Run<'a> {
         }
     }
 
-    fn full(&self) -> bool {
-        self.limit.is_some_and(|n| self.pages.len() >= n)
+    /// Full counting `queued` pages not emitted yet.
+    fn full_with(&self, queued: usize) -> bool {
+        self.limit.is_some_and(|n| self.pages.len() + queued >= n)
     }
 
-    fn emit_pages(&mut self, rendered: Vec<RgbaImage>) -> Result<()> {
+    /// Trims (when asked) and emits regular pages, in order.
+    fn emit_regular(&mut self, batch: Vec<RgbaImage>) -> Result<()> {
+        if batch.is_empty() {
+            return Ok(());
+        }
+        self.emit_pages(batch, self.trim)
+    }
+
+    /// Each page is dropped as soon as it is encoded, so a window holds few full-size copies.
+    fn emit_pages(&mut self, rendered: Vec<RgbaImage>, trim: bool) -> Result<()> {
         let t = Instant::now();
         let settings = self.settings;
         let encoded: Vec<PageImage> = rendered
-            .par_iter()
+            .into_par_iter()
             .map(|img| {
-                process_page(img, &settings).map(|e| PageImage {
+                let img = if trim { trim_page(&img) } else { img };
+                process_page(&img, &settings).map(|e| PageImage {
                     jpeg: e.jpeg,
                     width: e.width,
                     height: e.height,
@@ -136,14 +125,14 @@ impl<'a> Run<'a> {
         self.stats.pagination_ms += t.elapsed().as_millis();
         self.stats.strips += 1;
         self.stats.source_rows += img.height() as usize;
-        self.emit_pages(pages.into_iter().map(|p| p.image).collect())
+        self.emit_pages(pages.into_iter().map(|p| p.image).collect(), false)
     }
 
     fn flush_strip(&mut self) -> Result<()> {
         let t = Instant::now();
         let pages = self.paginator.flush()?;
         self.stats.pagination_ms += t.elapsed().as_millis();
-        self.emit_pages(pages.into_iter().map(|p| p.image).collect())
+        self.emit_pages(pages.into_iter().map(|p| p.image).collect(), false)
     }
 
     pub fn chapter(&mut self, dir: &Path) -> Result<()> {
@@ -170,28 +159,43 @@ impl<'a> Run<'a> {
             HashMap::new()
         };
         let dev = self.device;
-        for (i, file) in files.iter().enumerate() {
-            if (self.cancelled)() {
-                return Err(Error::Other("cancelled".into()));
+        // Regular pages are independent: decode and process a window of them in parallel.
+        let window = rayon::current_num_threads().clamp(1, WINDOW);
+        for (c, chunk) in files.chunks(window).enumerate() {
+            let images: Vec<RgbaImage> = chunk
+                .par_iter()
+                .map(|file| {
+                    let img = decode(file)?;
+                    Ok(match margins.get(&img.width()) {
+                        Some(&m) => crop_sides(&img, m),
+                        None => img,
+                    })
+                })
+                .collect::<Result<_>>()?;
+            let mut regular = Vec::new();
+            for (k, img) in images.into_iter().enumerate() {
+                if (self.cancelled)() {
+                    return Err(Error::Other("cancelled".into()));
+                }
+                if self.full_with(regular.len()) {
+                    self.emit_regular(regular)?;
+                    self.stopped_early = true;
+                    return Ok(());
+                }
+                let (w, h) = (img.width(), img.height());
+                if is_long_strip(w, h, dev.width, dev.height) || self.paginator.has_pending(w) {
+                    self.emit_regular(std::mem::take(&mut regular))?;
+                    self.feed_strip(&img, c * window + k + 1 == files.len())?;
+                    continue;
+                }
+                if regular.is_empty() {
+                    self.flush_strip()?;
+                }
+                regular.push(img);
             }
-            if self.full() {
-                self.stopped_early = true;
-                return Ok(());
-            }
-            let mut img = decode(file)?;
-            if let Some(&m) = margins.get(&img.width()) {
-                img = crop_sides(&img, m);
-            }
-            let (w, h) = (img.width(), img.height());
-            if is_long_strip(w, h, dev.width, dev.height) || self.paginator.has_pending(w) {
-                self.feed_strip(&img, i + 1 == files.len())?;
-                continue;
-            }
-            self.flush_strip()?;
-            let page = if self.trim { trim_page(&img) } else { img };
-            self.emit_pages(vec![page])?;
+            self.emit_regular(regular)?;
         }
-        if self.full() {
+        if self.full_with(0) {
             self.stopped_early = self.paginator.has_pending_any();
             return Ok(());
         }
