@@ -110,7 +110,8 @@ pub(crate) fn prepare_target(lib: &Library, from: &Path, to: &Path, replace: boo
     if !replace {
         return Err(Error::Other(format!(
             "{} holds a partial copy left by an interrupted move; move again replacing it \
-             (--force), or remove it from the storage status",
+             (--force deletes everything in its chapters/ and models/), or remove it from the \
+             storage status",
             to.display()
         )));
     }

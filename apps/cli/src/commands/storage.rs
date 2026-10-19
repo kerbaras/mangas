@@ -34,7 +34,8 @@ enum Command {
     /// Move chapters and detector models to another folder and use it from now on
     Move {
         dir: PathBuf,
-        /// Delete a partial copy an interrupted move left in DIR and move there again
+        /// Reuse DIR when it holds a partial copy an interrupted move left: everything in its
+        /// chapters/ and models/ is deleted (files added there by hand too), then the move runs
         #[arg(long)]
         force: bool,
     },
@@ -124,7 +125,7 @@ fn print_usage(usage: &Usage) -> anyhow::Result<()> {
     if let Some(copy) = &usage.partial_move {
         outln!(
             "\nPartial copy   {} ({}), left by an interrupted move\n  \
-             remove it: mangas storage remove-partial; or reuse it: mangas storage move --force <dir>",
+             remove it: mangas storage remove-partial; or reuse it, deleting everything in its chapters/ and models/: mangas storage move --force <dir>",
             copy.path,
             human_size(copy.bytes)
         )?;
