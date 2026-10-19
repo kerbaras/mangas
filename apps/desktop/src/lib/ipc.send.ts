@@ -30,6 +30,7 @@ export const EMPTY_EMAIL: EmailSettings = {
 /** Mirrors `mangas_core::send::password::Storage`: where the SMTP password is kept. */
 /** `locked`: a keychain that is locked or won't be read, so the password may be in it. */
 export type PasswordStorage = "keychain" | "file" | "locked";
+export type EmailPassword = { password: string; storage: PasswordStorage };
 
 export const DEFAULT_PORT: Record<Security, number> = { starttls: 587, tls: 465, none: 25 };
 
@@ -66,8 +67,11 @@ export type SendBackend = {
   sendEmail(file: string, title: string): Promise<SentEmail>;
   /** Sends a test message with `settings` (saved or not); resolves to the address it went to. */
   sendTestEmail(settings: EmailSettings): Promise<string>;
-  /** The system keychain, or the settings file on a computer without one. */
-  emailPasswordStorage(): Promise<PasswordStorage>;
+  /**
+   * The saved password and where it is kept. May bring up the keychain's unlock prompt, so
+   * only for something the user did; `retry` prompts again after a dismissed one.
+   */
+  emailPassword(retry: boolean): Promise<EmailPassword>;
   listExports(limit: number): Promise<ExportRecord[]>;
 };
 
@@ -79,5 +83,5 @@ export const onCopyProgress = async (cb: (p: CopyProgress) => void) =>
 export const sendEmail = async (file: string, title: string) =>
   (await backend()).sendEmail(file, title);
 export const sendTestEmail = async (s: EmailSettings) => (await backend()).sendTestEmail(s);
-export const emailPasswordStorage = async () => (await backend()).emailPasswordStorage();
+export const emailPassword = async (retry: boolean) => (await backend()).emailPassword(retry);
 export const listExports = async (limit: number) => (await backend()).listExports(limit);

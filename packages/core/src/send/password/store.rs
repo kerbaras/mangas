@@ -2,6 +2,8 @@
 
 use std::sync::Mutex;
 
+use super::memo::LockMemo;
+
 /// Why the keychain didn't answer; the text is the platform's own description.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StoreError {
@@ -35,6 +37,16 @@ const ACCOUNT: &str = "smtp-password";
 /// Setting this variable to `off` (or `0`) makes [`system_store`] act as if there were no
 /// keychain: the password stays in the app settings. Tests use it to keep off the real one.
 pub const KEYCHAIN_ENV: &str = "MANGAS_KEYCHAIN";
+
+/// The keychain said it is locked (or its unlock prompt was dismissed): later reads in this
+/// process answer that without prompting, until [`retry_keychain`].
+static KEYCHAIN_LOCK: LockMemo = LockMemo::new();
+
+/// Lets the next keychain read prompt to unlock again: call it only for something the user did
+/// (opened the email settings, clicked the password field, sent a book).
+pub fn retry_keychain() {
+    KEYCHAIN_LOCK.forget();
+}
 
 /// macOS Keychain, Windows Credential Manager or the Secret Service (GNOME Keyring, KWallet).
 pub struct Keychain;
@@ -72,22 +84,22 @@ fn describe(e: keyring::Error) -> StoreError {
 
 impl SecretStore for Keychain {
     fn get(&self) -> Result<Option<String>, StoreError> {
-        match entry()?.get_password() {
+        KEYCHAIN_LOCK.read(|| match entry()?.get_password() {
             Ok(secret) => Ok(Some(secret)),
             Err(keyring::Error::NoEntry) => Ok(None),
             Err(e) => Err(describe(e)),
-        }
+        })
     }
 
     fn set(&self, secret: &str) -> Result<(), StoreError> {
-        entry()?.set_password(secret).map_err(describe)
+        KEYCHAIN_LOCK.write(|| entry()?.set_password(secret).map_err(describe))
     }
 
     fn delete(&self) -> Result<(), StoreError> {
-        match entry()?.delete_credential() {
+        KEYCHAIN_LOCK.write(|| match entry()?.delete_credential() {
             Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
             Err(e) => Err(describe(e)),
-        }
+        })
     }
 }
 

@@ -73,6 +73,25 @@ export async function settingsSettled(): Promise<void> {
 }
 
 /**
+ * The SMTP password the email settings read from the keychain (`emailPassword`). Reloads never
+ * read it (a locked keychain would prompt on every focus), so they keep this one in its place.
+ */
+let keychainPassword = "";
+const withPassword = (s: Stored): Stored =>
+  s.kindle_email && !s.kindle_email.password && keychainPassword
+    ? { ...s, kindle_email: { ...s.kindle_email, password: keychainPassword } }
+    : s;
+
+/** Fills in the password the email settings read from the keychain. */
+export function adoptKeychainPassword(password: string) {
+  keychainPassword = password;
+  if (!password || cached.kindleEmail.password) return;
+  if (stored) stored = withPassword(stored);
+  cached = { ...cached, kindleEmail: { ...cached.kindleEmail, password } };
+  notify();
+}
+
+/**
  * Hydrates from the backend; the platform data dir replaces the `~` placeholder default. Never
  * throws: a failure is kept in `readSettingsLoad()` for the Settings screen to show and retry,
  * unless settings already loaded: an older answer never replaces a newer one, and a failed
@@ -90,8 +109,8 @@ export async function loadSettings(): Promise<void> {
     const [loaded, dir] = await Promise.all([getSettings(), platform]);
     if (gen !== version && load.kind === "ready") return;
     platformDataDir = dir;
-    stored = loaded;
-    cached = fromStored(loaded, platformDataDir);
+    stored = withPassword(loaded);
+    cached = fromStored(stored, platformDataDir);
     load = { kind: "ready" };
     if (releasedOnPlaceholders) known++;
     releasedOnPlaceholders = false;
@@ -118,6 +137,7 @@ export function writeSettings(patch: Partial<Settings>): Promise<boolean> {
   const write = writes.then(async () => {
     const base = stored ?? toStored(cached, platformDataDir);
     const saved = await setSettings(edit(base, patch), base);
+    keychainPassword = saved.kindle_email?.password ?? "";
     stored = saved;
     if (gen !== version) return;
     cached = fromStored(saved, platformDataDir);
@@ -129,6 +149,9 @@ export function writeSettings(patch: Partial<Settings>): Promise<boolean> {
     () => false,
   );
 }
+
+/** Resolves once the writes queued so far are answered. */
+export const settingsWritten = (): Promise<void> => writes;
 
 const subscribe = (l: () => void) => {
   listeners.add(l);

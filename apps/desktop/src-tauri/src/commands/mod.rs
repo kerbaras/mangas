@@ -87,16 +87,13 @@ pub fn default_data_dir() -> Result<String, String> {
         .into_owned())
 }
 
-/// The settings, SMTP password filled in from the keychain (`send::password`). Async so a
-/// keychain that asks to be unlocked never blocks the window.
+/// The settings as stored. The window reloads them each time it is focused, so this never
+/// reads the keychain (a locked one would prompt to unlock every time): a password kept there
+/// comes empty, and the email settings ask for it with `send::email_password`.
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub async fn get_settings() -> Result<Settings, String> {
-    blocking(|| {
-        let store = password::system_store();
-        password::load_settings(&open_library()?, &*store).map_err(to_ipc)
-    })
-    .await
+    blocking(|| settings_of(&open_library()?)).await
 }
 
 /// Preferences edited in the UI on a copy loaded as `base`, saved over whatever another

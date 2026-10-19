@@ -1,5 +1,5 @@
 import { Send, TriangleAlert } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Field } from "@/components/field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -15,12 +15,12 @@ import { errorMessage } from "@/lib/format";
 import {
   DEFAULT_PORT,
   type EmailSettings,
-  emailPasswordStorage,
+  emailPassword,
   type PasswordStorage,
   type Security,
   sendTestEmail,
 } from "@/lib/ipc.send";
-import { useSettings } from "@/lib/settings";
+import { adoptKeychainPassword, settingsWritten, useSettings } from "@/lib/settings";
 
 const SECURITY: { value: Security; label: string }[] = [
   { value: "starttls", label: "STARTTLS" },
@@ -30,20 +30,25 @@ const SECURITY: { value: Security; label: string }[] = [
 
 type Note = { ok: boolean; text: string } | null;
 
-/** Where the saved password is kept; asked again after each save. */
-function usePasswordStorage(saved: string): PasswordStorage | null {
+/**
+ * Where the saved password is kept, and the password itself from the keychain. Reading it may
+ * bring up the keychain's unlock prompt, so only the user's actions do: opening this form, a
+ * click in a locked password field (`ask(true)`: prompt again) and a save (`ask(false)`).
+ * Window focus never does.
+ */
+function usePasswordStorage() {
   const [storage, setStorage] = useState<PasswordStorage | null>(null);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: a save can move the password
-  useEffect(() => {
-    let live = true;
-    emailPasswordStorage()
-      .then((s) => live && setStorage(s))
-      .catch(() => live && setStorage("file"));
-    return () => {
-      live = false;
-    };
-  }, [saved]);
-  return storage;
+  const ask = useCallback(async (retry: boolean) => {
+    try {
+      const found = await emailPassword(retry);
+      if (found.storage === "keychain") adoptKeychainPassword(found.password);
+      setStorage(found.storage);
+    } catch {
+      setStorage("file");
+    }
+  }, []);
+  useEffect(() => void ask(true), [ask]);
+  return [storage, ask] as const;
 }
 
 /** Where the saved password is, or that there is none. A locked keychain loads as an empty
@@ -69,7 +74,11 @@ export function EmailSettingsForm() {
   useEffect(() => setDraft(JSON.parse(saved) as EmailSettings), [saved]);
   const set = (patch: Partial<EmailSettings>) => setDraft((d) => ({ ...d, ...patch }));
   const dirty = JSON.stringify(draft) !== saved;
-  const storage = usePasswordStorage(saved);
+  const [storage, askStorage] = usePasswordStorage();
+  const save = () => {
+    update({ kindleEmail: draft });
+    void settingsWritten().then(() => askStorage(false));
+  };
   const hasPassword = settings.kindleEmail.password !== "";
 
   const test = async () => {
@@ -144,7 +153,11 @@ export function EmailSettingsForm() {
           {text("username", "smtp-user", { autoComplete: "off" })}
         </Field>
         <Field label="Password" htmlFor="smtp-password" hint={passwordHint(hasPassword, storage)}>
-          {text("password", "smtp-password", { type: "password", autoComplete: "off" })}
+          {text("password", "smtp-password", {
+            type: "password",
+            autoComplete: "off",
+            onFocus: () => storage === "locked" && void askStorage(true),
+          })}
         </Field>
       </div>
       {storage === "file" && hasPassword && (
@@ -159,7 +172,7 @@ export function EmailSettingsForm() {
         </Alert>
       )}
       <div className="flex items-center gap-2">
-        <Button variant="primary" disabled={!dirty} onClick={() => update({ kindleEmail: draft })}>
+        <Button variant="primary" disabled={!dirty} onClick={save}>
           Save
         </Button>
         <Button disabled={testing || !draft.host.trim()} onClick={() => void test()}>

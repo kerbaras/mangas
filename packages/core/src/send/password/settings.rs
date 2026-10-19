@@ -4,7 +4,7 @@
 use serde::Serialize;
 
 use super::store::{SecretStore, StoreError};
-use crate::domain::Result;
+use crate::domain::{Error, Result};
 use crate::library::{edit_settings, get_settings, Library, Settings};
 use crate::send::EmailSettings;
 
@@ -43,14 +43,28 @@ pub fn email_settings(lib: &Library, store: &dyn SecretStore) -> Result<EmailSet
 }
 
 /// `email` with its password: the one it carries (one still in the settings file), else the
-/// keychain's. Without a user name no password is needed; a keychain that can't be read gives
-/// an empty one, as before the keychain, and the server says whether it takes that.
+/// keychain's. Without a user name no password is needed; without a keychain the password is
+/// empty, as before the keychain, and the server says whether it takes that. A locked keychain
+/// (its unlock prompt dismissed) fails the send instead of trying without the password.
 pub fn with_password(store: &dyn SecretStore, email: &EmailSettings) -> Result<EmailSettings> {
     if !email.password.is_empty() || email.username.trim().is_empty() {
         return Ok(email.clone());
     }
+    let password = match store.get() {
+        Ok(secret) => secret.unwrap_or_default(),
+        Err(StoreError::Locked(why)) => {
+            return Err(Error::Send(format!(
+                "The system keychain is locked or can't be read, so the SMTP password isn't \
+                 available. Unlock it and try again ({why})"
+            )))
+        }
+        Err(e) => {
+            tracing::debug!("couldn't read the SMTP password from the system keychain: {e}");
+            String::new()
+        }
+    };
     Ok(EmailSettings {
-        password: reveal(store),
+        password,
         ..email.clone()
     })
 }

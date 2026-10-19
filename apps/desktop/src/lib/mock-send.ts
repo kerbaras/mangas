@@ -71,9 +71,9 @@ export function mockSend(): SendBackend {
       if (params.has("smtp-fail")) throw new Error(SMTP_FAIL);
       return settings.from || settings.username;
     },
-    async emailPasswordStorage() {
-      if (params.has("locked-keychain")) return "locked";
-      return params.has("no-keychain") ? "file" : "keychain";
+    async emailPassword() {
+      if (params.has("locked-keychain")) return { password: "", storage: "locked" };
+      return { password: "", storage: params.has("no-keychain") ? "file" : "keychain" };
     },
     async listExports(limit) {
       await wait(100);

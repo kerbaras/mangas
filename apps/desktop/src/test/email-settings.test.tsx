@@ -12,13 +12,15 @@ afterEach(() => {
 
 const WITH_PASSWORD = { ...EMPTY_EMAIL, username: "me", password: "app-password" };
 
+const keychain = (storage: string, password = "") =>
+  vi.fn(async (_retry: boolean) => ({ password, storage }));
+
 const type = (label: string, value: string) =>
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
 describe("email settings", () => {
   it("says the password is in the keychain when there is one", async () => {
-    const emailPasswordStorage = vi.fn(async () => "keychain");
-    setBackend({ emailPasswordStorage } as unknown as Backend);
+    setBackend({ emailPassword: keychain("keychain") } as unknown as Backend);
     writeSettings({ kindleEmail: WITH_PASSWORD });
     render(<EmailSettingsForm />);
     expect(await screen.findByText("Kept in your system keychain.")).toBeTruthy();
@@ -27,8 +29,7 @@ describe("email settings", () => {
   });
 
   it("warns that the password is stored unencrypted without a keychain", async () => {
-    const emailPasswordStorage = vi.fn(async () => "file");
-    setBackend({ emailPasswordStorage } as unknown as Backend);
+    setBackend({ emailPassword: keychain("file") } as unknown as Backend);
     writeSettings({ kindleEmail: WITH_PASSWORD });
     render(<EmailSettingsForm />);
     expect(
@@ -39,8 +40,7 @@ describe("email settings", () => {
   });
 
   it("says the keychain is locked, without the unencrypted warning", async () => {
-    const emailPasswordStorage = vi.fn(async () => "locked");
-    setBackend({ emailPasswordStorage } as unknown as Backend);
+    setBackend({ emailPassword: keychain("locked") } as unknown as Backend);
     render(<EmailSettingsForm />);
     expect(
       await screen.findByText("Your system keychain is locked or can't be read."),
@@ -50,22 +50,47 @@ describe("email settings", () => {
   });
 
   it("only warns about unencrypted storage when a password sits in the settings", async () => {
-    const emailPasswordStorage = vi.fn(async () => "file");
-    setBackend({ emailPasswordStorage } as unknown as Backend);
+    setBackend({ emailPassword: keychain("file") } as unknown as Backend);
     render(<EmailSettingsForm />);
     expect(await screen.findByText(/No password saved. Without a system keychain/)).toBeTruthy();
     expect(screen.queryByText(/stored unencrypted/)).toBeNull();
   });
 
   it("says no password is saved once it is cleared", async () => {
-    const emailPasswordStorage = vi.fn(async () => "keychain");
-    setBackend({ emailPasswordStorage } as unknown as Backend);
+    setBackend({ emailPassword: keychain("keychain") } as unknown as Backend);
     writeSettings({ kindleEmail: WITH_PASSWORD });
     render(<EmailSettingsForm />);
     expect(await screen.findByText("Kept in your system keychain.")).toBeTruthy();
     act(() => writeSettings({ kindleEmail: EMPTY_EMAIL }));
     expect(await screen.findByText("No password saved.")).toBeTruthy();
     expect(screen.queryByText("Kept in your system keychain.")).toBeNull();
+  });
+
+  it("shows the password read from the keychain", async () => {
+    setBackend({ emailPassword: keychain("keychain", "from-keychain") } as unknown as Backend);
+    render(<EmailSettingsForm />);
+    expect(await screen.findByText("Kept in your system keychain.")).toBeTruthy();
+    expect((screen.getByLabelText("Password") as HTMLInputElement).value).toBe("from-keychain");
+  });
+
+  it("asks a locked keychain again on a click in the password field", async () => {
+    const emailPassword = keychain("locked");
+    setBackend({ emailPassword } as unknown as Backend);
+    render(<EmailSettingsForm />);
+    await screen.findByText("Your system keychain is locked or can't be read.");
+    expect(emailPassword.mock.calls).toEqual([[true]]);
+    fireEvent.focus(screen.getByLabelText("Password"));
+    await waitFor(() => expect(emailPassword.mock.calls).toEqual([[true], [true]]));
+  });
+
+  it("checks where a saved password went without prompting again", async () => {
+    const emailPassword = keychain("locked");
+    setBackend({ emailPassword } as unknown as Backend);
+    render(<EmailSettingsForm />);
+    await screen.findByText("Your system keychain is locked or can't be read.");
+    type("Password", "new-secret");
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(emailPassword.mock.calls).toEqual([[true], [false]]));
   });
 
   it("tests the unsaved draft and saves it on Save", async () => {

@@ -58,11 +58,13 @@ pub async fn send_usb(
     Ok(copied)
 }
 
-/// Emails `file` to the Kindle address in the settings.
+/// Emails `file` to the Kindle address in the settings. The user asked for it, so a locked
+/// keychain prompts to unlock once; dismissed, the send fails with that.
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub async fn send_email(file: PathBuf, title: String) -> Result<email::Sent, String> {
     let settings = blocking(|| {
+        password::retry_keychain();
         let store = password::system_store();
         password::email_settings(&open_library()?, &*store).map_err(to_ipc)
     })
@@ -82,13 +84,29 @@ pub async fn send_test_email(settings: EmailSettings) -> Result<String, String> 
     email::send_test(&settings).await.map_err(to_ipc)
 }
 
-/// Where the SMTP password is kept: the system keychain, or the settings file without one.
+/// The saved SMTP password and where it is kept.
+#[derive(serde::Serialize)]
+pub struct EmailPassword {
+    password: String,
+    storage: Storage,
+}
+
+/// The saved SMTP password (moved to the keychain first if still in the settings) and where it
+/// is kept. Only for something the user did: with `retry`, a locked keychain prompts to unlock
+/// even after a dismissed prompt; without, it answers `locked` from memory.
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
-pub async fn email_password_storage() -> Result<Storage, String> {
-    blocking(|| {
-        let store = password::system_store();
-        password::storage(&open_library()?, &*store).map_err(to_ipc)
+pub async fn email_password(retry: bool) -> Result<EmailPassword, String> {
+    blocking(move || {
+        if retry {
+            password::retry_keychain();
+        }
+        let (lib, store) = (open_library()?, password::system_store());
+        let settings = password::load_settings(&lib, &*store).map_err(to_ipc)?;
+        Ok(EmailPassword {
+            password: settings.kindle_email.password,
+            storage: password::storage(&lib, &*store).map_err(to_ipc)?,
+        })
     })
     .await
 }

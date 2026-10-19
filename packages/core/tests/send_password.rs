@@ -142,6 +142,18 @@ fn a_carried_password_wins_and_a_missing_one_comes_from_the_keychain() {
 }
 
 #[test]
+fn a_locked_keychain_fails_the_send_instead_of_sending_without_a_password() {
+    let locked = MemoryStore::locked("prompt dismissed");
+    let err = with_password(&locked, &email("")).unwrap_err().to_string();
+    assert!(err.starts_with("The system keychain is locked"), "{err}");
+    assert!(err.ends_with("(prompt dismissed)"), "{err}");
+    assert_eq!(
+        with_password(&locked, &email("typed")).unwrap().password,
+        "typed"
+    );
+}
+
+#[test]
 fn a_locked_keychain_is_told_apart_from_no_keychain() {
     let lib = library::open_in_memory().unwrap();
     library::set_settings(&lib, &with_email("")).unwrap();
