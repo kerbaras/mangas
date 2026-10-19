@@ -23,6 +23,21 @@ pub fn missing_root_certificates(err: &(dyn StdError + 'static)) -> bool {
     false
 }
 
+/// Whether the system store holds any root certificate (the one a webview checks too).
+pub fn system_has_root_certificates() -> bool {
+    !rustls_native_certs::load_native_certs().certs.is_empty()
+}
+
+/// Why a page failed TLS in a webview (the Connect window): the missing store when the system
+/// has no roots, else the certificate problem WebKit reported for `host`.
+pub fn webview_tls_failure(host: &str, problem: &str, has_roots: bool) -> String {
+    if has_roots {
+        format!("network: the certificate of {host} couldn't be verified ({problem})")
+    } else {
+        NO_ROOT_CERTIFICATES.to_string()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -37,5 +52,18 @@ mod tests {
         assert!(missing_root_certificates(&Outer(inner)));
         let other = Outer(std::io::Error::other("connection refused"));
         assert!(!missing_root_certificates(&other));
+    }
+
+    #[test]
+    fn webview_tls_failure_names_the_empty_store_or_the_certificate() {
+        assert_eq!(
+            webview_tls_failure("comick.io", "unknown CA", false),
+            NO_ROOT_CERTIFICATES
+        );
+        let bad = webview_tls_failure("comick.io", "expired", true);
+        assert_eq!(
+            bad,
+            "network: the certificate of comick.io couldn't be verified (expired)"
+        );
     }
 }

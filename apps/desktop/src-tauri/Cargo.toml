@@ -50,6 +50,10 @@ rusqlite = { version = "0.40", features = ["bundled"] }
 tempfile = "3"
 tracing-subscriber = { workspace = true }
 
+# The Connect window's page-load failures (`connect_window`); the version wry already uses.
+[target.'cfg(target_os = "linux")'.dependencies]
+webkit2gtk = "2.0"
+
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_System_Console"] }
 

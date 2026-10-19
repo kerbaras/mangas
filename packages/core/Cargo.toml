@@ -41,6 +41,8 @@ flate2 = "1"
 tar = { version = "0.4", default-features = false }
 pdf-writer = "0.15"
 lettre = { version = "0.11", default-features = false, features = ["builder", "hostname", "smtp-transport", "tokio1", "tokio1-rustls", "aws-lc-rs", "rustls-platform-verifier"] }
+# Tells a webview TLS failure caused by an empty system store from a bad certificate.
+rustls-native-certs = "0.8"
 tempfile = "3"
 # OS keychain for the SMTP password: macOS Keychain, Windows Credential Manager, Secret Service
 # over zbus on Linux (pure Rust, no libdbus).

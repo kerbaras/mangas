@@ -4,6 +4,7 @@ pub mod app_update;
 #[cfg(all(test, target_os = "linux"))]
 mod broken_row_tests;
 pub mod catalog;
+mod connect_window;
 pub mod covers;
 pub mod cut_preview;
 pub mod detectors;

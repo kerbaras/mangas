@@ -66,6 +66,8 @@ export type Backend = AppUpdateBackend &
     /** Opens the provider's site in a window; the session is stored once the check is passed. */
     connectProvider(id: string): Promise<void>;
     disconnectProvider(id: string): Promise<void>;
+    /** Fires when a Connect window closes or its page fails to load (TLS, DNS). */
+    onProviderConnectEnd(cb: (end: ConnectEnd) => void): Promise<Unlisten>;
     /** One cheap request with the stored session: ready, needs a session, or unreachable. */
     providerStatus(id: string): Promise<ProviderStatus>;
     /** MangaDex's status probe through a proxy setting that isn't saved yet. */
@@ -121,6 +123,13 @@ export const installCli = async () => (await backend()).installCli();
 export const listProviders = async () => (await backend()).listProviders();
 export const connectProvider = async (id: string) => (await backend()).connectProvider(id);
 export const disconnectProvider = async (id: string) => (await backend()).disconnectProvider(id);
+export const onProviderConnectEnd = async (cb: (end: ConnectEnd) => void) =>
+  (await backend()).onProviderConnectEnd(cb);
+
+/** Mirrors `commands::connect_window::ConnectEnd`. */
+export type ConnectEnd =
+  | { kind: "closed"; provider: string }
+  | { kind: "failed"; provider: string; reason: string };
 export const providerStatus = async (id: string) => (await backend()).providerStatus(id);
 export const testProxy = async (mode: ProxyMode, url: string) =>
   (await backend()).testProxy(mode, url);

@@ -18,4 +18,7 @@ pub use chapter_tag::{chapter_tag, season_tag, toc_label};
 pub use error::{Error, Result};
 pub use manga::{Manga, MangaId, MangaStatus};
 pub use season_label::season_label;
-pub use tls::{missing_root_certificates, NO_ROOT_CERTIFICATES};
+pub use tls::{
+    missing_root_certificates, system_has_root_certificates, webview_tls_failure,
+    NO_ROOT_CERTIFICATES,
+};

@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import type {
   Backend,
   Chapter,
+  ConnectEnd,
   Device,
   ImportReport,
   Manga,
@@ -55,6 +56,7 @@ export const tauriBackend: Backend = {
   listProviders: () => invoke<ProviderInfo[]>("list_providers"),
   connectProvider: (provider) => invoke<void>("connect_provider", { provider }),
   disconnectProvider: (provider) => invoke<void>("disconnect_provider", { provider }),
+  onProviderConnectEnd: (cb) => listen<ConnectEnd>("provider-connect", (e) => cb(e.payload)),
   providerStatus: (provider) => invoke<ProviderStatus>("provider_status", { provider }),
   testProxy: (mode, url) => invoke<ProviderStatus>("test_proxy", { mode, url }),
   searchAll: (query, providers) =>
