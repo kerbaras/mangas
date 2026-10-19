@@ -103,3 +103,57 @@ fn a_chatty_child_cant_block_on_a_full_pipe() {
     assert_eq!(out.stderr.len() as u64, KEPT, "kept only the first MiB");
     assert_eq!(out.stdout, b"done\n");
 }
+
+#[test]
+fn the_card_gets_the_first_line_of_the_childs_error_cut_short() {
+    let reason = |s: Status| match s.runtime {
+        RuntimeStatus::Failed { reason, .. } => reason,
+        other => panic!("{other:?}"),
+    };
+    let junk = "\n\n  error: ".to_owned() + &"x".repeat(3 << 20) + "\nsecond line\n";
+    let said = reason(from_child(installed(), output(3, "", &junk)));
+    assert!(
+        said.ends_with(&format!("): {}… see log", "x".repeat(SHOWN))),
+        "{said}"
+    );
+    assert!(
+        said.chars().count() < SHOWN + 60,
+        "{} chars",
+        said.chars().count()
+    );
+    let two = reason(from_child(
+        installed(),
+        output(3, "", "error: dlopen failed\nat x\n"),
+    ));
+    assert!(two.ends_with("): dlopen failed… see log"), "{two}");
+    let wide = "é".repeat(SHOWN + 5);
+    let said = reason(from_child(installed(), output(3, "", &wide)));
+    assert!(
+        said.ends_with(&format!("{}… see log", "é".repeat(SHOWN))),
+        "{said}"
+    );
+}
+
+/// A real child spewing several MiB of junk on stderr: the message stays one short line.
+#[cfg(unix)]
+#[test]
+fn a_child_spewing_megabytes_of_junk_gets_a_short_message() {
+    let child = Command::new("sh")
+        .args(["-c", "head -c 3000000 /dev/zero | tr '\\0' 'j' >&2; exit 3"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let out = wait(child, Duration::from_secs(10));
+    match from_child(installed(), out).runtime {
+        RuntimeStatus::Failed { reason, .. } => {
+            assert!(
+                reason.chars().count() < SHOWN + 60,
+                "{} chars",
+                reason.len()
+            );
+            assert!(reason.ends_with("j… see log"), "{reason}");
+        }
+        other => panic!("{other:?}"),
+    }
+}

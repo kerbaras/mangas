@@ -1,5 +1,6 @@
-//! `ml status --json` run as a child process is the desktop's launch status check (#210): the app
-//! never maps the ONNX Runtime for a status, so Windows can delete it without a restart.
+//! `ml status --json` run as a child process is how the desktop answers its first detector-status
+//! request (#210): the app never maps the ONNX Runtime for a status, so Windows can delete it
+//! without a restart.
 
 use std::path::PathBuf;
 use std::process::Command;
@@ -80,7 +81,7 @@ fn downloaded() -> tempfile::TempDir {
 #[cfg(feature = "ml")]
 #[test]
 #[ignore = "downloads ~190 MB; run alone (`--ignored --exact`), as the Windows CI job does"]
-fn remove_after_the_launch_status_check_needs_no_restart() {
+fn remove_after_a_child_status_check_needs_no_restart() {
     let dir = downloaded();
     let lib = ml::runtime::lib_path(dir.path(), &ml::runtime::current().unwrap());
     let status = child::probed_status(dir.path(), &exe());

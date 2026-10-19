@@ -24,7 +24,7 @@ enum Command {
         /// Print the status as JSON (the shape the desktop app shows)
         #[arg(long)]
         json: bool,
-        /// Check this models folder instead of the data folder's; the app's launch check
+        /// Check this models folder instead of the data folder's; the app's detector-status check
         #[arg(long, hide = true)]
         models_dir: Option<PathBuf>,
     },
