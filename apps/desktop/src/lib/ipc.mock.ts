@@ -19,6 +19,7 @@ import { simulateExport } from "./mock-export";
 import { mockExportResult, mockFlags } from "./mock-flags";
 import { mockImport } from "./mock-import";
 import { markExported, mockLibrary } from "./mock-library";
+import { mockProviderSessions } from "./mock-provider-sessions";
 import { emitJob, simulatedQueue } from "./mock-queue-sim";
 import { mockSearch } from "./mock-search";
 import { mockSend } from "./mock-send";
@@ -92,40 +93,12 @@ export const mockBackend: Backend = {
     await wait(200);
     return "/usr/local/bin/mangas";
   },
-  listProviders: async () => providers,
-  async connectProvider(id) {
-    await wait(800);
-    settings = {
-      ...settings,
-      provider_sessions: {
-        ...settings.provider_sessions,
-        [id]: { saved_at: new Date().toISOString() },
-      },
-    };
-  },
-  async disconnectProvider(id) {
-    const { [id]: _, ...rest } = settings.provider_sessions;
-    settings = { ...settings, provider_sessions: rest };
-  },
-  async providerStatus(id) {
-    await wait(300);
-    const info = providers.find((p) => p.id === id);
-    if (!info) return { state: "unreachable", reason: `not found: source '${id}'` };
-    if (info.needs_browser_session && !settings.provider_sessions[id])
-      return { state: "needs_session" };
-    return { state: "ready" };
-  },
-  async testProxy(mode, url) {
-    await wait(400);
-    if (mode === "custom" && !/^https?:\/\/[^/]+/.test(url))
-      return { state: "unreachable", reason: `invalid proxy URL "${url}"` };
-    if (url.includes(":9"))
-      return {
-        state: "unreachable",
-        reason: `network: couldn't connect through the proxy ${url}: connection refused`,
-      };
-    return { state: "ready" };
-  },
+  ...mockProviderSessions(providers, {
+    get: () => settings,
+    set: (next) => {
+      settings = next;
+    },
+  }),
   async searchAll(query, only) {
     await wait(300 + Math.random() * 600);
     return mockSearch(query, only, settings);
