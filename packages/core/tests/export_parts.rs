@@ -58,11 +58,23 @@ fn a_book_over_the_part_size_is_written_as_numbered_parts_under_it() {
     let stats = run(&request(root.path(), PageSettings::default(), Some(max)));
     assert!(stats.parts.len() >= 2, "{:?}", stats.parts);
     assert_eq!(stats.output, stats.parts[0].path);
-    assert_eq!(stats.parts.iter().map(|p| p.pages).sum::<usize>(), stats.pages);
+    assert_eq!(
+        stats.parts.iter().map(|p| p.pages).sum::<usize>(),
+        stats.pages
+    );
     for (i, part) in stats.parts.iter().enumerate() {
-        let name = part.path.file_name().unwrap().to_string_lossy().into_owned();
+        let name = part
+            .path
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
         assert_eq!(name, format!("Big (part {}).epub", i + 1));
-        assert!(size(&part.path) <= max, "{name}: {} > {max}", size(&part.path));
+        assert!(
+            size(&part.path) <= max,
+            "{name}: {} > {max}",
+            size(&part.path)
+        );
     }
     assert!(!root.path().join("Big (2).epub").exists());
 }
@@ -70,7 +82,11 @@ fn a_book_over_the_part_size_is_written_as_numbered_parts_under_it() {
 #[test]
 fn a_book_under_the_part_size_stays_one_file() {
     let root = tempfile::tempdir().unwrap();
-    let stats = run(&request(root.path(), PageSettings::default(), Some(u64::MAX)));
+    let stats = run(&request(
+        root.path(),
+        PageSettings::default(),
+        Some(u64::MAX),
+    ));
     assert!(stats.parts.is_empty());
     assert_eq!(stats.outputs(), vec![root.path().join("Big.epub")]);
 }

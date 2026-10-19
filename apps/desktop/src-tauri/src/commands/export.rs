@@ -137,8 +137,8 @@ fn series_preset(dirs: &[PathBuf]) -> Option<ExportPreset> {
 pub(super) fn record_export(stats: &ExportStats, dirs: &[PathBuf], title: &str, device: &str) {
     let recorded = open_library().and_then(|lib| {
         library::mark_exported(&lib, &stats.exported_chapters(dirs)).map_err(to_ipc)?;
-        for output in stats.outputs() {
-            library::record_export(&lib, &output, title, device).map_err(to_ipc)?;
+        for (output, title) in stats.titled_outputs(title) {
+            library::record_export(&lib, &output, &title, device).map_err(to_ipc)?;
         }
         Ok(())
     });

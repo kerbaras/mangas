@@ -2,7 +2,6 @@
 //! through the smart cutter (stitched across files); regular pages are scaled to fit.
 
 use super::cover::cover_page;
-use std::ops::Range;
 use super::input::{book_id, chapter_title};
 use super::parts::{chapters_in, part_path, part_title, split_points};
 use super::request::{ExportRequest, ExportStats, Part, Progress};
@@ -11,6 +10,7 @@ use crate::domain::{Error, Result};
 use crate::export::epub::{ChapterEntry, PageImage};
 use crate::export::Meta;
 use crate::smartcut::RowPenalizer;
+use std::ops::Range;
 
 /// Runs the export. `penalizer` adds detector-based cut costs; `progress` receives events.
 pub fn export(
@@ -83,7 +83,9 @@ pub fn export(
         .filter(|r| r.len() > 1);
     let exporter = req.format.exporter();
     match ranges {
-        None => run.stats.output = exporter.export(run.pages, &meta, &dev, &req.output, req.replace)?,
+        None => {
+            run.stats.output = exporter.export(run.pages, &meta, &dev, &req.output, req.replace)?
+        }
         Some(ranges) => {
             run.stats.parts = write_parts(req, run.pages, &meta, &ranges)?;
             run.stats.output = run.stats.parts[0].path.clone();
@@ -111,7 +113,11 @@ fn write_parts(
         };
         let rest = pages.split_off(range.len());
         let out = part_path(&req.output, n);
-        match req.format.exporter().export(pages, &part, &req.device, &out, req.replace) {
+        match req
+            .format
+            .exporter()
+            .export(pages, &part, &req.device, &out, req.replace)
+        {
             Ok(path) => written.push(Part {
                 path,
                 pages: range.len(),

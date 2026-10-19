@@ -33,8 +33,8 @@ pub async fn record_and_send(
         }
     };
     mark_exported(&lib, &stats.exported_chapters(dirs));
-    let outputs = stats.outputs();
-    for output in &outputs {
+    let outputs = stats.titled_outputs(title);
+    for (output, title) in &outputs {
         record_export(&lib, output, title, device);
     }
     let Some((via, kindle)) = to else {
@@ -42,7 +42,7 @@ pub async fn record_and_send(
     };
     // Every part is tried; the first that fails is the error, the others were said on stderr.
     let (mut lines, mut failed) = (Vec::new(), None);
-    for output in &outputs {
+    for (output, title) in &outputs {
         let file = std::path::absolute(output)?;
         match deliver(&lib, &file, title, via, kindle).await {
             Ok(line) => lines.push(line),

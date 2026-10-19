@@ -80,9 +80,18 @@ impl Report {
         };
         match total {
             0 => self.files.push(file(&stats.output, stats.pages, None)),
-            _ => self.files.extend(stats.parts.iter().enumerate().map(|(i, p)| {
-                file(&p.path, p.pages, Some(PartNo { index: i + 1, total }))
-            })),
+            _ => self
+                .files
+                .extend(stats.parts.iter().enumerate().map(|(i, p)| {
+                    file(
+                        &p.path,
+                        p.pages,
+                        Some(PartNo {
+                            index: i + 1,
+                            total,
+                        }),
+                    )
+                })),
         }
         self.skipped
             .extend(stats.empty_chapters.iter().map(|dir| Item {

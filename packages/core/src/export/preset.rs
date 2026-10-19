@@ -138,7 +138,9 @@ impl ExportPreset {
         }
         let (lo, hi) = JPEG_QUALITY;
         if let Some(q) = self.jpeg_quality.filter(|q| !(lo..=hi).contains(q)) {
-            return Err(Error::Other(format!("JPEG quality {q} is outside {lo}–{hi}")));
+            return Err(Error::Other(format!(
+                "JPEG quality {q} is outside {lo}–{hi}"
+            )));
         }
         if let Some(p) = &self.profile {
             self.profile_or(p)?;

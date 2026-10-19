@@ -30,7 +30,10 @@ pub fn estimate(
     cut: Options,
     page: PageSettings,
 ) -> Result<Estimate> {
-    let pages: usize = chapter_dirs.iter().map(|d| page_count(d, &device, &page)).sum();
+    let pages: usize = chapter_dirs
+        .iter()
+        .map(|d| page_count(d, &device, &page))
+        .sum();
     let mut ignore = |_| {};
     let spec = RunSpec {
         device,

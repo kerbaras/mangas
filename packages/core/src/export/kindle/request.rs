@@ -131,6 +131,23 @@ impl ExportStats {
         }
     }
 
+    /// Each file written with the title it goes by: "Title (part 2 of 3)" for a part, else
+    /// `title`. What the history records and an email's subject.
+    pub fn titled_outputs(&self, title: &str) -> Vec<(PathBuf, String)> {
+        let total = self.parts.len();
+        match total {
+            0 => vec![(self.output.clone(), title.to_string())],
+            _ => (self.parts.iter().enumerate())
+                .map(|(i, p)| {
+                    (
+                        p.path.clone(),
+                        super::parts::part_title(title, i + 1, total),
+                    )
+                })
+                .collect(),
+        }
+    }
+
     /// The requested chapter folders that made it into the book.
     pub fn exported_chapters<'a>(&self, dirs: &'a [PathBuf]) -> Vec<&'a Path> {
         dirs.iter()

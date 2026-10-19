@@ -54,10 +54,11 @@ pub struct Args {
     /// Print the files that would be written and exit
     #[arg(long)]
     pub dry_run: bool,
-    /// Print one JSON object instead of the lines above: `files` (path, title, chapters, pages, bytes, part {index, total} when split,
-    /// skipped_files), `skipped`, `failed` and `not_written` (path, reason; a failed book stops
-    /// the run: the books before it stay, the ones after it are `not_written`)
-    /// and `detectors` (state "used", "skipped" or "off", and the runtime's error as reason)
+    /// Print one JSON object instead of the lines above: `files` (path, title, chapters, pages,
+    /// bytes, part {index, total} when written in parts, skipped_files), `skipped`, `failed` and
+    /// `not_written` (path, reason; a failed book stops the run: the books before it stay, the
+    /// ones after it are `not_written`) and `detectors` (state "used", "skipped" or "off", and the
+    /// runtime's error as reason)
     #[arg(long, conflicts_with_all = ["dry_run", "preset"])]
     pub json: bool,
     /// Write over books already in the folder instead of next to them as "Title (2)"
@@ -153,12 +154,12 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         }
         warn_too_big(&outputs);
         kindle_record::mark_exported(&lib, &stats.exported_chapters(&req.chapter_dirs));
-        for output in &outputs {
-            kindle_record::record_export(&lib, output, &req.title, device.id);
+        for (output, title) in &stats.titled_outputs(&req.title) {
+            kindle_record::record_export(&lib, output, title, device.id);
             let Some(via) = args.send else { continue };
             let file = std::path::absolute(output)?;
             let kindle = args.kindle.as_deref();
-            match try_deliver(&lib, &file, &req.title, via, kindle).await {
+            match try_deliver(&lib, &file, title, via, kindle).await {
                 Ok(sent) if args.json => eprintln!("{sent}"),
                 Ok(sent) => outln!("{sent}")?,
                 Err(e) => report.fail(output, e),

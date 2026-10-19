@@ -37,6 +37,28 @@ pub fn too_big(file: &Path, size: u64) -> Option<String> {
 pub fn written_pages(stats: &ExportStats) -> Vec<(PathBuf, usize)> {
     match stats.parts.is_empty() {
         true => vec![(stats.output.clone(), stats.pages)],
-        false => stats.parts.iter().map(|p| (p.path.clone(), p.pages)).collect(),
+        false => stats
+            .parts
+            .iter()
+            .map(|p| (p.path.clone(), p.pages))
+            .collect(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_a_file_over_the_email_limit_gets_a_warning() {
+        let file = Path::new("/k/Big.epub");
+        assert_eq!(too_big(file, 50_000_000), None);
+        assert_eq!(
+            too_big(file, 96_400_000).as_deref(),
+            Some(
+                "warning: /k/Big.epub is 96.4 MB, over the 50 MB Send-to-Kindle email limit; \
+                 write it in parts with --split-mb 45 or make it smaller with --quality 70"
+            )
+        );
     }
 }
