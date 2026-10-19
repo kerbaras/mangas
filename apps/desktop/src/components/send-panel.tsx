@@ -59,7 +59,7 @@ export function SendPanel({ file, onSent }: Props) {
           Email needs your Kindle address and a mail server.{" "}
           <button
             type="button"
-            className="text-accent underline-offset-2 hover:underline"
+            className="text-accent-text underline-offset-2 hover:underline"
             onClick={() => nav.go({ screen: "settings" })}
           >
             Set up email

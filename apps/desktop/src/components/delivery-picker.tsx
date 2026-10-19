@@ -29,7 +29,7 @@ export function DeliveryPicker({ value, onChange, format }: Props) {
       {block.reason}{" "}
       <button
         type="button"
-        className="text-accent underline-offset-2 hover:underline"
+        className="text-accent-text underline-offset-2 hover:underline"
         onClick={() => nav.go({ screen: "settings" })}
       >
         Set up email

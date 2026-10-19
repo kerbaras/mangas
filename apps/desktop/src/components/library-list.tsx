@@ -55,7 +55,7 @@ export function LibraryList({ entries, categories, ...on }: Props) {
                 <td className="text-right text-ink-2 tabular-nums">{e.chapters.downloaded}</td>
                 <td className="text-right tabular-nums">
                   {e.chapters.unread > 0 ? (
-                    <span className="font-semibold text-accent">{e.chapters.unread}</span>
+                    <span className="font-semibold text-accent-text">{e.chapters.unread}</span>
                   ) : (
                     <span className="text-ink-3">—</span>
                   )}

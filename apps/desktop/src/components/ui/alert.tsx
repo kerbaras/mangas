@@ -8,7 +8,7 @@ const alert = cva(
     variants: {
       variant: {
         default: "border-stroke bg-surface text-ink",
-        destructive: "border-accent/40 bg-accent-soft/40 text-accent",
+        destructive: "border-accent/40 bg-accent-soft/40 text-accent-text",
       },
     },
     defaultVariants: { variant: "default" },
