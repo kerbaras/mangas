@@ -8,7 +8,8 @@ use mangas_core::sources::ProviderStatus;
 
 use crate::session::Session;
 
-/// The status known without a request: a required session that is missing or past its TTL.
+/// The session's verdict: a required session that is missing or past its TTL. It holds only once
+/// the host answers ([`answered_gate`]).
 pub fn session_gate(
     needs_session: bool,
     session: Option<&Session>,
@@ -32,5 +33,21 @@ pub fn probe_status<T>(result: &Result<T>) -> ProviderStatus {
         Err(e) => ProviderStatus::Unreachable {
             reason: e.to_string(),
         },
+    }
+}
+
+/// A session gate holds only once the host has answered (a reply or a verification page): a host
+/// that can't be reached is unreachable whether or not a session is saved. A 5xx reply is the host
+/// failing, so it gives no verdict and the reply decides (unreachable either way).
+pub fn answered_gate(
+    gate: Option<ProviderStatus>,
+    reply: std::result::Result<u16, &Error>,
+) -> Option<ProviderStatus> {
+    match reply {
+        Ok(status) if status >= 500 => None,
+        Ok(_) | Err(Error::Challenge { .. }) => gate,
+        Err(e) => Some(ProviderStatus::Unreachable {
+            reason: e.to_string(),
+        }),
     }
 }

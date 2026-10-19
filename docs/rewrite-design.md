@@ -94,7 +94,8 @@ Rules: the Tauri layer and the CLI contain no business logic. Everything testabl
   `Error::Challenge` / `NeedsSession`, so Connect stays the fallback. Its HTML pages stay
   challenged for non-browser clients even with a session, so it reads everything from the API.
 - **`Session`**: cookies + user agent + `saved_at` from the settings; `ClientConfig.session_ttl`
-  makes older sessions report `NeedsSession` without a request.
+  makes older sessions report `NeedsSession` once the host answers the probe (a host that
+  can't be reached is `Unreachable`, session or not).
 - **Preferences**: `Settings.preferred_languages` (generic, never empty via
   `Settings::languages()`) and `Settings.provider_options[<id>]`, a JSON value each provider
   deserialises into its own typed options with defaults (e.g. `mangadex::MangaDexOptions`:
@@ -187,7 +188,8 @@ Every registered provider goes through the same contract suite
      own host
    - a Cloudflare page becomes `Error::Challenge`
    - the status probe maps 200, a challenge and 500 to Ready, NeedsSession and Unreachable;
-     a missing required session gives NeedsSession without a request
+     a missing required session gives NeedsSession when the host answers, Unreachable when
+     it doesn't
 
    A registered provider without a manifest fails the suite.
 4. Live: add `<id>_live_contract` / `<id>_live_check` to `tests/live.rs` if CI can reach the

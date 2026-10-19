@@ -1,15 +1,25 @@
 use clap::{Args as ClapArgs, Subcommand};
 use mangas_core::library::{self, Settings};
+use mangas_core::sources::all_unreachable;
 use mangas_providers::{doctor, options, ProviderInfo, ProviderStatus};
+use serde::Serialize;
 
+use super::providers_bases::parse_bases;
 use super::stored_settings;
-use crate::output::outln;
-use crate::paths;
+use crate::output::{outln, print_json};
+use crate::{paths, Exit};
 
 #[derive(ClapArgs)]
+#[command(args_conflicts_with_subcommands = true)]
 pub struct Args {
     #[command(subcommand)]
     action: Option<Action>,
+    /// Print one JSON object: `providers` (id, name, site, state, reason) and `all_unreachable`
+    #[arg(long)]
+    json: bool,
+    /// Probe a provider at another base URL (mock servers in tests), e.g. mangadex=http://host
+    #[arg(long = "base", value_name = "ID=URL", hide = true)]
+    bases: Vec<String>,
 }
 
 #[derive(Subcommand)]
@@ -47,19 +57,59 @@ struct OptionsArgs {
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
     match args.action {
-        None => list().await,
+        None => list(args.json, &args.bases).await,
         Some(Action::Check(args)) => check(args).await,
         Some(Action::Options(args)) => options(args),
     }
 }
 
+#[derive(Serialize)]
+struct Row<'a> {
+    id: &'a str,
+    name: &'a str,
+    site: &'a str,
+    #[serde(flatten)]
+    status: &'a ProviderStatus,
+}
+
+#[derive(Serialize)]
+struct List<'a> {
+    providers: Vec<Row<'a>>,
+    all_unreachable: bool,
+}
+
 /// Lists the providers with their status: one cheap request each, using the browser session
-/// the desktop app stored (connect from Settings in the app).
-async fn list() -> anyhow::Result<()> {
-    for (info, status) in mangas_providers::statuses(&stored_settings()).await {
-        outln!("{}", line(&info, &status))?;
+/// the desktop app stored (connect from Settings in the app). Fails when none is reachable.
+async fn list(json: bool, bases: &[String]) -> anyhow::Result<()> {
+    let bases = parse_bases(bases)?;
+    let statuses = mangas_providers::statuses_at(&stored_settings(), &bases).await;
+    let all_unreachable = all_unreachable(statuses.iter().map(|(_, s)| s));
+    if json {
+        let providers = statuses.iter().map(|(i, status)| Row {
+            id: i.id,
+            name: i.name,
+            site: i.site,
+            status,
+        });
+        let providers = providers.collect();
+        print_json(&List {
+            providers,
+            all_unreachable,
+        })?;
+    } else {
+        for (info, status) in &statuses {
+            outln!("{}", line(info, status))?;
+        }
     }
-    Ok(())
+    match all_unreachable {
+        true => Err(Exit {
+            code: 1,
+            message: "no provider is reachable: check the network, proxy and TLS certificates"
+                .into(),
+        }
+        .into()),
+        false => Ok(()),
+    }
 }
 
 /// Prints one line per step and fails (non-zero exit) unless every step passed.

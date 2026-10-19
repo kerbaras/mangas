@@ -13,8 +13,8 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use super::{
-    probe_status, redact_query, session_gate, ClientConfig, HostPolicy, Reply, RetryPolicy,
-    USER_AGENT,
+    answered_gate, probe_status, redact_query, session_gate, ClientConfig, HostPolicy, Reply,
+    RetryPolicy, USER_AGENT,
 };
 use crate::rate_limit::{HostLimiters, TokenBucket};
 use crate::session::Session;
@@ -116,14 +116,12 @@ impl SiteClient {
         self.decode(path, &text)
     }
 
-    /// One GET of `probe` (no retries) unless the session state already decides it.
+    /// One GET of `probe` (no retries). A missing or expired session decides the status only
+    /// once the host answers.
     pub async fn status(&self, probe: &str) -> ProviderStatus {
-        let info = &self.config.info;
-        let session = self.policy.session();
+        let needs = self.config.info.needs_browser_session;
         let ttl = self.config.session_ttl;
-        if let Some(status) = session_gate(info.needs_browser_session, session, ttl, Utc::now()) {
-            return status;
-        }
+        let gate = session_gate(needs, self.policy.session(), ttl, Utc::now());
         let reply = match self.parse(&self.url(probe), &[]) {
             Ok(url) => {
                 let request = Outgoing::new(Method::GET, url, None);
@@ -132,7 +130,10 @@ impl SiteClient {
             }
             Err(e) => Err(e),
         };
-        probe_status(&reply.and_then(|r| self.ok_body(probe, r)))
+        match answered_gate(gate, reply.as_ref().map(|r| r.status)) {
+            Some(status) => status,
+            None => probe_status(&reply.and_then(|r| self.ok_body(probe, r))),
+        }
     }
 
     fn challenge(&self) -> Error {

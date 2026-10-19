@@ -20,6 +20,7 @@ mod kindle_titles;
 pub mod list;
 pub mod ml;
 pub mod providers;
+mod providers_bases;
 pub mod queue;
 pub mod remove;
 pub mod search;

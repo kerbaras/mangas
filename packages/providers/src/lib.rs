@@ -27,6 +27,6 @@ pub use mangas_core::sources::{Header, PageUrls, ProviderStatus, Source};
 pub use provider::{Capability, Provider, ProviderInfo};
 pub use queue_runner::{QueueRunner, RootFor};
 pub use rate_limit::{host_key, HostLimiters, TokenBucket};
-pub use registry::{info, providers, source, source_at, status, statuses};
+pub use registry::{info, providers, source, source_at, status, statuses, statuses_at};
 pub use search::{search_enabled, searchable};
 pub use session::Session;
