@@ -1,6 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import { type ReactNode, type RefObject, useEffect, useRef, useState } from "react";
 import { HeaderCompact } from "@/components/header-action";
+import { Hint } from "@/components/hint";
 import { Button } from "@/components/ui/button";
 import { WindowControls } from "@/components/window-controls";
 import { useNavigation } from "@/lib/navigation";
@@ -45,11 +46,16 @@ export function ScreenHeader({ title, subtitle, back, children }: Props) {
         </Button>
       )}
       <div data-tauri-drag-region className="flex min-w-0 items-baseline gap-2">
-        <h1 data-tauri-drag-region className="truncate text-body-lg font-semibold">
-          {title}
-        </h1>
+        <Hint hint={typeof title === "string" ? title : null} truncated>
+          <h1 data-tauri-drag-region className="truncate text-body-lg font-semibold">
+            {title}
+          </h1>
+        </Hint>
         {subtitle && (
-          <span data-tauri-drag-region className="truncate text-caption text-ink-3">
+          <span
+            data-tauri-drag-region
+            className="shrink-0 whitespace-nowrap text-caption text-ink-3"
+          >
             {subtitle}
           </span>
         )}
