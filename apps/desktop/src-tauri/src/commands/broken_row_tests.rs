@@ -4,10 +4,13 @@
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
+use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId};
+use mangas_core::export::volume::Grouping;
 use mangas_core::library;
 
 use super::export::{export_chapters, ExportEvent};
 use super::penalizer::{detector_penalizer, models_dir};
+use super::volumes::export_volumes;
 use super::{detectors, open_library, settings_of, settings_or_default};
 use crate::paths;
 
@@ -58,10 +61,7 @@ async fn detectors_stay_usable() {
 #[tokio::test]
 async fn the_export_lands_in_the_default_export_folder() {
     let home = broken_home();
-    let chapter = home.join("chapter-1");
-    std::fs::create_dir_all(&chapter).unwrap();
-    let page = image::RgbImage::from_pixel(64, 96, image::Rgb([200, 200, 200]));
-    page.save(chapter.join("000.png")).unwrap();
+    let chapter = chapter_dir(home, "bare");
     let app = tauri::test::mock_app();
     let book = PathBuf::from("Solo ch 1.epub");
     let stats = export_chapters(
@@ -83,4 +83,79 @@ async fn the_export_lands_in_the_default_export_folder() {
         !PathBuf::from("~").exists(),
         "no `~` folder in the working directory"
     );
+}
+
+fn chapter_dir(home: &std::path::Path, name: &str) -> PathBuf {
+    let dir = home.join("chapters").join(name);
+    std::fs::create_dir_all(&dir).unwrap();
+    let page = image::RgbImage::from_pixel(64, 96, image::Rgb([200, 200, 200]));
+    page.save(dir.join("000.png")).unwrap();
+    dir
+}
+
+/// A relative folder typed in the dialog goes under the default export folder in both commands,
+/// even when the app was started from `/` by a launcher.
+#[tokio::test]
+async fn relative_folders_land_under_the_default_export_folder() {
+    let home = broken_home();
+    std::env::set_current_dir("/").unwrap();
+    let books = home.join("mangas/kindle/books");
+    let app = tauri::test::mock_app();
+
+    let book = PathBuf::from("books/Mixed.epub");
+    let dirs = vec![chapter_dir(home, "mixed")];
+    let stats = export_chapters(
+        app.handle().clone(),
+        dirs,
+        None,
+        None,
+        None,
+        false,
+        book,
+        None,
+    );
+    assert_eq!(stats.await.unwrap().output, books.join("Mixed.epub"));
+
+    let lib = open_library().unwrap();
+    let manga = Manga {
+        id: MangaId("solo".into()),
+        source: "mangadex".into(),
+        title: "Solo".into(),
+        ..Default::default()
+    };
+    let chapter = Chapter {
+        id: ChapterId("solo-1".into()),
+        manga_id: manga.id.clone(),
+        language: "en".into(),
+        number: "1".into(),
+        ..Default::default()
+    };
+    library::upsert_manga(&lib, &manga).unwrap();
+    library::upsert_chapters(
+        &lib,
+        "mangadex",
+        &manga.id,
+        "en",
+        std::slice::from_ref(&chapter),
+    )
+    .unwrap();
+    library::mark_downloaded(&lib, "mangadex", &chapter.id, &chapter_dir(home, "solo")).unwrap();
+    let written = export_volumes(
+        app.handle().clone(),
+        "mangadex".into(),
+        "solo".into(),
+        vec!["solo-1".into()],
+        Grouping::Single,
+        None,
+        None,
+        Some(mangas_core::export::Format::Epub),
+        None,
+        false,
+        Some(PathBuf::from("books")),
+    )
+    .await
+    .unwrap();
+    assert_eq!(written.len(), 1);
+    assert_eq!(written[0].output.parent(), Some(books.as_path()));
+    assert!(written[0].output.is_file());
 }

@@ -44,8 +44,7 @@ pub(super) fn emit<R: Runtime>(app: &AppHandle<R>, event: ExportEvent) {
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 #[allow(clippy::too_many_arguments)] // Tauri maps each IPC argument to a parameter.
-/// A bare file name as `output` goes in the default export folder ([`paths::exports`]); any other
-/// path is used as given, like `export_volumes`'s `output_dir`.
+/// A relative `output` goes under the default export folder ([`paths::exports`]).
 pub async fn export_chapters<R: Runtime>(
     app: AppHandle<R>,
     chapter_dirs: Vec<PathBuf>,
@@ -63,11 +62,7 @@ pub async fn export_chapters<R: Runtime>(
         ..Default::default()
     };
     let settings = settings_or_default();
-    let output = if output.parent().is_some_and(|p| p.as_os_str().is_empty()) {
-        paths::exports(&settings)?.join(output)
-    } else {
-        output
-    };
+    let output = mangas_core::export::in_export_folder(&paths::exports(&settings)?, &output);
     let resolved = resolve(&explicit, series_preset(&chapter_dirs).as_ref(), &settings);
     let dev = resolved
         .profile_or(paths::DEFAULT_PROFILE)

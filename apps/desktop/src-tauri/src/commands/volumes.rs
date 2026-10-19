@@ -7,7 +7,7 @@ use mangas_core::export::volume::{self, Grouping, VolumePlan};
 use mangas_core::export::{ExportPreset, Format};
 use mangas_core::library;
 use mangas_core::smartcut::Preset;
-use tauri::AppHandle;
+use tauri::{AppHandle, Runtime};
 
 use super::covers::cover_file;
 use super::export::{emit, record_export, resolve, ExportEvent};
@@ -46,14 +46,16 @@ pub fn plan_volumes(
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub fn free_export_names(dir: PathBuf, names: Vec<String>) -> Result<Vec<String>, String> {
+    let dir = mangas_core::export::in_export_folder(&paths::exports(&settings_or_default())?, &dir);
     mangas_core::export::free_names_in(&dir, &names).map_err(to_ipc)
 }
 
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn export_volumes(
-    app: AppHandle,
+/// A relative `output_dir`, or none, goes under the default export folder ([`paths::exports`]).
+pub async fn export_volumes<R: Runtime>(
+    app: AppHandle<R>,
     source: String,
     manga_id: String,
     chapter_ids: Vec<String>,
@@ -66,10 +68,10 @@ pub async fn export_volumes(
     output_dir: Option<PathBuf>,
 ) -> Result<Vec<ExportStats>, String> {
     let settings = settings_or_default();
-    let output_dir = match output_dir {
-        Some(dir) => dir,
-        None => paths::exports(&settings)?,
-    };
+    let output_dir = mangas_core::export::in_export_folder(
+        &paths::exports(&settings)?,
+        &output_dir.unwrap_or_default(),
+    );
     let explicit = ExportPreset {
         cut_preset: preset,
         format,
