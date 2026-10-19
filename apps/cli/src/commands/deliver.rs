@@ -45,7 +45,7 @@ pub async fn deliver(
             let settings = password::email_settings(lib, &*store)?;
             let in_file = !library::get_settings(lib)?.kindle_email.password.is_empty();
             if in_file {
-                let why = store.get().err();
+                let why = store.get().err().map(|e| e.to_string());
                 warn_unencrypted(
                     why.as_deref()
                         .unwrap_or("the system keychain didn't take it"),

@@ -140,3 +140,17 @@ fn a_carried_password_wins_and_a_missing_one_comes_from_the_keychain() {
     // A blank-password account still reaches the server, as it did before the keychain.
     assert_eq!(with_password(&broken, &email("")).unwrap().password, "");
 }
+
+#[test]
+fn a_locked_keychain_is_told_apart_from_no_keychain() {
+    let lib = library::open_in_memory().unwrap();
+    library::set_settings(&lib, &with_email("")).unwrap();
+    let locked = MemoryStore::locked("collection is locked");
+    assert_eq!(storage(&lib, &locked).unwrap(), Storage::Locked);
+    let missing = MemoryStore::unavailable("no secret service");
+    assert_eq!(storage(&lib, &missing).unwrap(), Storage::File);
+    assert_eq!(
+        storage(&lib, &MemoryStore::default()).unwrap(),
+        Storage::Keychain
+    );
+}

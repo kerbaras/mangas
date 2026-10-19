@@ -28,7 +28,8 @@ export const EMPTY_EMAIL: EmailSettings = {
 };
 
 /** Mirrors `mangas_core::send::password::Storage`: where the SMTP password is kept. */
-export type PasswordStorage = "keychain" | "file";
+/** `locked`: a keychain that is locked or won't be read, so the password may be in it. */
+export type PasswordStorage = "keychain" | "file" | "locked";
 
 export const DEFAULT_PORT: Record<Security, number> = { starttls: 587, tls: 465, none: 25 };
 

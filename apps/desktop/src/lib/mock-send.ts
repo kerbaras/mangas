@@ -1,7 +1,8 @@
 /**
  * Browser stand-in for the Send to Kindle commands. `?no-kindle` hides the USB Kindle until
  * the second look (Retry then finds it); `?smtp-fail` makes every email fail as a wrong
- * password would; `?no-keychain` keeps the password in the settings file.
+ * password would; `?no-keychain` keeps the password in the settings file, `?locked-keychain`
+ * reports a keychain that won't open.
  */
 import type { Unlisten } from "./ipc";
 import type { CopyProgress, ExportRecord, SendBackend } from "./ipc.send";
@@ -71,6 +72,7 @@ export function mockSend(): SendBackend {
       return settings.from || settings.username;
     },
     async emailPasswordStorage() {
+      if (params.has("locked-keychain")) return "locked";
       return params.has("no-keychain") ? "file" : "keychain";
     },
     async listExports(limit) {

@@ -121,11 +121,34 @@ fn print(e: &EmailSettings, storage: Storage) -> anyhow::Result<()> {
     outln!("username  {}", e.username)?;
     outln!(
         "password  {}",
-        match (e.password.is_empty(), storage) {
-            (true, _) => "(not set)",
-            (false, Storage::Keychain) => "(set, in the system keychain)",
-            (false, Storage::File) => "(set, unencrypted in the app settings)",
-        }
+        password_state(e.password.is_empty(), storage)
     )?;
     Ok(())
+}
+
+/// The password line: a locked keychain reads as no password, so say it may be there.
+fn password_state(empty: bool, storage: Storage) -> &'static str {
+    match (empty, storage) {
+        (_, Storage::Locked) => "(in system keychain, locked/unreadable)",
+        (true, _) => "(not set)",
+        (false, Storage::Keychain) => "(set, in the system keychain)",
+        (false, Storage::File) => "(set, unencrypted in the app settings)",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_locked_keychain_is_not_reported_as_no_password() {
+        let locked = "(in system keychain, locked/unreadable)";
+        assert_eq!(password_state(true, Storage::Locked), locked);
+        assert_eq!(password_state(true, Storage::Keychain), "(not set)");
+        assert_eq!(password_state(true, Storage::File), "(not set)");
+        assert_eq!(
+            password_state(false, Storage::File),
+            "(set, unencrypted in the app settings)"
+        );
+    }
 }

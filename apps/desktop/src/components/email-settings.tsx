@@ -46,13 +46,16 @@ function usePasswordStorage(saved: string): PasswordStorage | null {
   return storage;
 }
 
-/** Where the saved password is, or that there is none. A keychain that can't be read gives
- * an empty password, so "none saved" is only said when the keychain answered. */
+/** Where the saved password is, or that there is none. A locked keychain loads as an empty
+ * password, so it gets its own wording instead of "none saved". */
 function passwordHint(saved: boolean, storage: PasswordStorage | null): string | undefined {
-  if (!saved && storage === "keychain") return "No password saved.";
-  if (!saved) return storage === "file" ? "No password in the app settings." : undefined;
-  if (storage === "keychain") return "Kept in your system keychain.";
-  if (storage === "file") return "Kept in the app settings (no system keychain).";
+  if (storage === "locked") return "In your system keychain, which is locked or can't be read.";
+  if (storage === "keychain") return saved ? "Kept in your system keychain." : "No password saved.";
+  if (storage === "file") {
+    return saved
+      ? "Kept in the app settings (no system keychain)."
+      : "No password saved. Without a system keychain it will be kept in the app settings.";
+  }
   return undefined;
 }
 
@@ -67,6 +70,7 @@ export function EmailSettingsForm() {
   const set = (patch: Partial<EmailSettings>) => setDraft((d) => ({ ...d, ...patch }));
   const dirty = JSON.stringify(draft) !== saved;
   const storage = usePasswordStorage(saved);
+  const hasPassword = settings.kindleEmail.password !== "";
 
   const test = async () => {
     setTesting(true);
@@ -139,15 +143,11 @@ export function EmailSettingsForm() {
         <Field label="User name" htmlFor="smtp-user">
           {text("username", "smtp-user", { autoComplete: "off" })}
         </Field>
-        <Field
-          label="Password"
-          htmlFor="smtp-password"
-          hint={passwordHint(settings.kindleEmail.password !== "", storage)}
-        >
+        <Field label="Password" htmlFor="smtp-password" hint={passwordHint(hasPassword, storage)}>
           {text("password", "smtp-password", { type: "password", autoComplete: "off" })}
         </Field>
       </div>
-      {storage === "file" && (
+      {storage === "file" && hasPassword && (
         <Alert>
           <TriangleAlert />
           <AlertTitle>No system keychain: the password is stored unencrypted</AlertTitle>

@@ -2,13 +2,30 @@
 
 use std::sync::Mutex;
 
-/// A single secret. Errors are the platform's own description of what failed.
+/// Why the keychain didn't answer; the text is the platform's own description.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StoreError {
+    /// There is a keychain but it won't open: locked, or its unlock prompt was dismissed.
+    Locked(String),
+    /// No keychain to use: none on this computer, turned off, or it failed.
+    Unavailable(String),
+}
+
+impl std::fmt::Display for StoreError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StoreError::Locked(why) | StoreError::Unavailable(why) => f.write_str(why),
+        }
+    }
+}
+
+/// A single secret.
 pub trait SecretStore: Send + Sync {
     /// The stored secret; `None` when there is none.
-    fn get(&self) -> Result<Option<String>, String>;
-    fn set(&self, secret: &str) -> Result<(), String>;
+    fn get(&self) -> Result<Option<String>, StoreError>;
+    fn set(&self, secret: &str) -> Result<(), StoreError>;
     /// Removes the secret; removing a missing one is not an error.
-    fn delete(&self) -> Result<(), String>;
+    fn delete(&self) -> Result<(), StoreError>;
 }
 
 /// Keychain service and account names. The service is the app identifier, as macOS shows it.
@@ -39,19 +56,22 @@ pub fn system_store() -> Box<dyn SecretStore> {
     }
 }
 
-fn entry() -> Result<keyring::Entry, String> {
+fn entry() -> Result<keyring::Entry, StoreError> {
     keyring::Entry::new(SERVICE, ACCOUNT).map_err(describe)
 }
 
-fn describe(e: keyring::Error) -> String {
+fn describe(e: keyring::Error) -> StoreError {
     match e {
-        keyring::Error::NoDefaultStore => "no system keychain on this computer".to_string(),
-        e => e.to_string(),
+        keyring::Error::NoDefaultStore => {
+            StoreError::Unavailable("no system keychain on this computer".to_string())
+        }
+        e @ keyring::Error::NoStorageAccess(_) => StoreError::Locked(e.to_string()),
+        e => StoreError::Unavailable(e.to_string()),
     }
 }
 
 impl SecretStore for Keychain {
-    fn get(&self) -> Result<Option<String>, String> {
+    fn get(&self) -> Result<Option<String>, StoreError> {
         match entry()?.get_password() {
             Ok(secret) => Ok(Some(secret)),
             Err(keyring::Error::NoEntry) => Ok(None),
@@ -59,11 +79,11 @@ impl SecretStore for Keychain {
         }
     }
 
-    fn set(&self, secret: &str) -> Result<(), String> {
+    fn set(&self, secret: &str) -> Result<(), StoreError> {
         entry()?.set_password(secret).map_err(describe)
     }
 
-    fn delete(&self) -> Result<(), String> {
+    fn delete(&self) -> Result<(), StoreError> {
         match entry()?.delete_credential() {
             Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
             Err(e) => Err(describe(e)),
@@ -75,7 +95,7 @@ impl SecretStore for Keychain {
 #[derive(Default)]
 pub struct MemoryStore {
     secret: Mutex<Option<String>>,
-    broken: Option<String>,
+    broken: Option<StoreError>,
 }
 
 impl MemoryStore {
@@ -87,11 +107,19 @@ impl MemoryStore {
         }
     }
 
-    /// A store whose every call fails with `reason`.
+    /// A store whose every call fails with `reason`, as without a keychain.
     pub fn unavailable(reason: &str) -> Self {
         MemoryStore {
             secret: Mutex::new(None),
-            broken: Some(reason.to_string()),
+            broken: Some(StoreError::Unavailable(reason.to_string())),
+        }
+    }
+
+    /// A store whose every call fails with `reason`, as a locked keychain.
+    pub fn locked(reason: &str) -> Self {
+        MemoryStore {
+            secret: Mutex::new(None),
+            broken: Some(StoreError::Locked(reason.to_string())),
         }
     }
 
@@ -100,27 +128,27 @@ impl MemoryStore {
         self.secret.lock().ok().and_then(|s| s.clone())
     }
 
-    fn slot(&self) -> Result<std::sync::MutexGuard<'_, Option<String>>, String> {
+    fn slot(&self) -> Result<std::sync::MutexGuard<'_, Option<String>>, StoreError> {
         if let Some(reason) = &self.broken {
             return Err(reason.clone());
         }
         self.secret
             .lock()
-            .map_err(|_| "secret store poisoned".to_string())
+            .map_err(|_| StoreError::Unavailable("secret store poisoned".to_string()))
     }
 }
 
 impl SecretStore for MemoryStore {
-    fn get(&self) -> Result<Option<String>, String> {
+    fn get(&self) -> Result<Option<String>, StoreError> {
         Ok(self.slot()?.clone())
     }
 
-    fn set(&self, secret: &str) -> Result<(), String> {
+    fn set(&self, secret: &str) -> Result<(), StoreError> {
         *self.slot()? = Some(secret.to_string());
         Ok(())
     }
 
-    fn delete(&self) -> Result<(), String> {
+    fn delete(&self) -> Result<(), StoreError> {
         *self.slot()? = None;
         Ok(())
     }

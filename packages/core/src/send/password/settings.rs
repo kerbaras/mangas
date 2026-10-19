@@ -3,7 +3,7 @@
 
 use serde::Serialize;
 
-use super::store::SecretStore;
+use super::store::{SecretStore, StoreError};
 use crate::domain::Result;
 use crate::library::{edit_settings, get_settings, Library, Settings};
 use crate::send::EmailSettings;
@@ -15,6 +15,8 @@ pub enum Storage {
     Keychain,
     /// Unencrypted in the app settings: there is no keychain to put it in.
     File,
+    /// In the keychain, as far as anyone can tell: it is locked or won't be read.
+    Locked,
 }
 
 /// A saved edit: the settings as stored, password filled in, and the keychain error when the
@@ -61,7 +63,8 @@ pub fn storage(lib: &Library, store: &dyn SecretStore) -> Result<Storage> {
     }
     Ok(match store.get() {
         Ok(_) => Storage::Keychain,
-        Err(_) => Storage::File,
+        Err(StoreError::Locked(_)) => Storage::Locked,
+        Err(StoreError::Unavailable(_)) => Storage::File,
     })
 }
 
@@ -96,7 +99,7 @@ pub fn save_settings(
             }
             Err(e) => {
                 tracing::debug!("SMTP password kept in the settings file: {e}");
-                fallback = Some(e);
+                fallback = Some(e.to_string());
             }
         }
     } else {

@@ -8,4 +8,4 @@ mod store;
 pub use settings::{
     email_settings, load_settings, save_settings, storage, with_password, Saved, Storage,
 };
-pub use store::{system_store, Keychain, MemoryStore, SecretStore, KEYCHAIN_ENV};
+pub use store::{system_store, Keychain, MemoryStore, SecretStore, StoreError, KEYCHAIN_ENV};
