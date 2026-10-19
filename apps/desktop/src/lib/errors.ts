@@ -1,4 +1,5 @@
 import { isChallenge } from "./ipc";
+import { NO_ROOT_CERTIFICATES } from "./ipc.downloads";
 
 export type ErrorInfo = {
   /** A sentence a user can act on, when the error kind is known. */
@@ -27,6 +28,12 @@ export function describeError(message: string): ErrorInfo {
       hint: "This site asks for a browser check. Connect once and the app reuses the session.",
       detail,
       challenge: true,
+    };
+  if (detail.includes(NO_ROOT_CERTIFICATES))
+    return {
+      hint: "This system has no CA certificates, so secure connections can't be checked. Install the ca-certificates package.",
+      detail,
+      challenge: false,
     };
   const lower = detail.toLowerCase();
   const match = HINTS.find(([prefix]) => lower.startsWith(prefix));
