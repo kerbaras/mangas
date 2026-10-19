@@ -86,3 +86,18 @@ fn the_saved_groups_release_of_a_known_chapter_is_new() {
     follow(&lib, "knight", &[("1", "B"), ("1", "A")]);
     assert_eq!(list_entries(&lib).unwrap()[0].chapters.new, 1);
 }
+
+#[test]
+fn another_groups_rerelease_stays_old_when_the_view_widens_to_all() {
+    let lib = open_in_memory().unwrap();
+    let id = MangaId("knight".into());
+    let mut releases = follow(&lib, "knight", &[("1", "B")]);
+    set_chapter_group(&lib, "mangadot", &id, Some("A")).unwrap();
+    releases.push(Chapter {
+        id: ChapterId("knight-1-B-v2".into()),
+        ..releases[0].clone()
+    });
+    upsert_chapters(&lib, "mangadot", &id, "en", &releases).unwrap();
+    set_chapter_group(&lib, "mangadot", &id, None).unwrap();
+    assert_eq!(list_entries(&lib).unwrap()[0].chapters.new, 0);
+}

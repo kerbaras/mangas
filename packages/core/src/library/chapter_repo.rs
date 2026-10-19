@@ -1,6 +1,6 @@
 use rusqlite::{params, Row};
 
-use super::stored_releases::{saved_group, stored_releases};
+use super::stored_releases::KnownReleases;
 use super::{language_sync, Library};
 use crate::domain::{
     already_have, sort_by_number, Availability, Chapter, ChapterId, MangaId, Result,
@@ -39,10 +39,7 @@ pub fn upsert_chapters(
             params![source, manga_id.0],
         )?;
         let seen_before = language_sync::synced_before(&tx, source, manga_id, language)?;
-        // Another group's release of a chapter already stored is not a new chapter, unless the
-        // title is narrowed to the group releasing it.
-        let group = saved_group(&tx, source, manga_id)?;
-        let stored = stored_releases(&tx, source, manga_id, Some(language), group.as_deref())?;
+        let known = KnownReleases::load(&tx, source, manga_id, language)?;
         let mut stmt = tx.prepare(
             "INSERT INTO chapter
                 (id, manga_id, source, title, language, volume, number, scanlation_group,
@@ -68,7 +65,7 @@ pub fn upsert_chapters(
                 c.group,
                 availability,
                 external_url,
-                seen_before && !already_have(&stored, c),
+                seen_before && !already_have(known.for_release(c), c),
             ])?;
         }
         // A chapter the source lists again is no longer "unlisted": its job retries normally
