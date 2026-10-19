@@ -23,7 +23,7 @@ export function ErrorAlert({ title, message, onRetry, className }: Props) {
       <AlertTitle>{title}</AlertTitle>
       <AlertDescription>
         {hint && <p>{hint}</p>}
-        <p className="break-words text-caption text-ink-3">{detail}</p>
+        <p className="text-caption text-ink-3">{detail}</p>
         {onRetry && !isFinalError(message) && <RetryButton onClick={onRetry} className="mt-2" />}
       </AlertDescription>
     </Alert>

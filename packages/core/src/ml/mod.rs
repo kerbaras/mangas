@@ -3,6 +3,7 @@
 //! (ONNX Runtime via `ort`); the pure parts (NMS, tiling, row penalties, cache) always build.
 
 pub mod cache;
+pub mod child;
 pub mod fetch;
 pub mod lease;
 pub mod models;
@@ -85,7 +86,8 @@ pub fn status(cache_dir: &Path) -> Status {
 }
 
 /// [`status`] after loading a downloaded runtime, so one that won't load shows as failed with the
-/// loader's message. The desktop's detector status and the CLI's `ml status` both ask this.
+/// loader's message. The CLI's `ml status` asks this; the desktop asks it in a child process
+/// ([`child::probed_status`]).
 /// Only once the models are there too: Windows keeps a loaded DLL locked until the app quits.
 pub fn checked_status(cache_dir: &Path) -> Status {
     let now = status(cache_dir);

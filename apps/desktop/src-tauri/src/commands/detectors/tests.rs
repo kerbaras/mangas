@@ -61,7 +61,9 @@ async fn status_reports_a_runtime_that_wont_load() {
     for m in &ml::MODELS {
         std::fs::write(ml::cache::model_path(dir.path(), m), b"not a model").unwrap();
     }
-    let status = status_in(dir.path().to_path_buf()).await.unwrap();
+    // No CLI next to a test binary: the in-process fallback must report the same failure.
+    let no_exe = dir.path().join("no-such-exe");
+    let status = status_in(dir.path().to_path_buf(), no_exe).await.unwrap();
     assert!(!status.downloaded, "the switch stays off");
     match status.runtime {
         ml::RuntimeStatus::Failed { reason, .. } => assert!(!reason.is_empty()),
