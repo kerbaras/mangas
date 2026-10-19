@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
+import { Hint } from "@/components/hint";
 import { ProviderRow } from "@/components/provider-row";
 import { ProviderStatusBadge } from "@/components/provider-status-badge";
 import { SearchGroupView } from "@/components/search-group";
@@ -78,5 +79,23 @@ describe("failure reasons use the shared Hint, not a native title", () => {
     expect(document.querySelector("[title]")).toBeNull();
     await userEvent.setup().hover(screen.getByText("Unreachable"));
     expect(await screen.findByRole("tooltip")).toHaveTextContent(REASON);
+  });
+});
+
+describe("truncated text inside a control", () => {
+  it("opens when the control gets keyboard focus", async () => {
+    const user = userEvent.setup();
+    render(
+      <button type="button">
+        <Hint hint="A very long manga title" focusable={false} truncated>
+          <p>A very long…</p>
+        </Hint>
+      </button>,
+    );
+    const p = screen.getByText("A very long…");
+    Object.defineProperty(p, "scrollWidth", { configurable: true, value: 200 });
+    Object.defineProperty(p, "clientWidth", { configurable: true, value: 100 });
+    await user.tab();
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("A very long manga title");
   });
 });
