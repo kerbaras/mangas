@@ -1,0 +1,89 @@
+---
+import Strip from "./Strip.astro";
+
+const presets = [
+  { name: "balanced", note: "Default. Shrinks a page up to 10% so cuts land in the gutters." },
+  { name: "fewest-cuts", note: "Shrinks up to 25%: fewer cuts through art, smaller text." },
+  { name: "no-shrink", note: "Native size. Repeats a few rows instead when a cut crosses art." },
+];
+---
+
+<section class="smart" aria-labelledby="smart-title">
+  <div class="wrap layout">
+    <div class="copy" data-reveal>
+      <p class="label">Smart cut</p>
+      <h2 id="smart-title" class="display">Long strips, cut where the panels end.</h2>
+      <p class="lede">
+        Webtoons are one tall image per chapter. Smart cut splits them at the gaps between panels
+        instead of at a fixed height. When a cut has to cross art, it repeats a few rows on the next
+        page or shrinks the page a little so the panel fits.
+      </p>
+      <dl class="presets">
+        {presets.map((p) => (
+          <div>
+            <dt><code>{p.name}</code></dt>
+            <dd>{p.note}</dd>
+          </div>
+        ))}
+      </dl>
+      <p class="text-body text-ink-2">
+        An optional speech-bubble and face detector adds to the cut cost. Preview the pages before
+        you export.
+      </p>
+    </div>
+    <Strip />
+  </div>
+</section>
+
+<style>
+  .smart {
+    padding-block: 112px;
+    border-top: 1px solid var(--color-stroke);
+  }
+
+  .layout {
+    display: grid;
+    gap: 56px;
+    align-items: center;
+  }
+
+  .copy {
+    display: grid;
+    gap: 24px;
+  }
+
+  .display {
+    font-size: clamp(44px, 6vw, 72px);
+    max-width: 12ch;
+  }
+
+  .presets {
+    display: grid;
+    gap: 14px;
+    border-top: 1px solid var(--color-stroke);
+    padding-top: 20px;
+  }
+
+  .presets div {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 16px;
+  }
+
+  code {
+    font: 13px/22px var(--font-mono);
+    color: var(--color-accent-text);
+  }
+
+  dd {
+    font-size: 15px;
+    color: var(--color-ink-2);
+  }
+
+  @media (min-width: 1024px) {
+    .layout {
+      grid-template-columns: 1fr 1fr;
+      gap: 96px;
+    }
+  }
+</style>

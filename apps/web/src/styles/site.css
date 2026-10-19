@@ -1,31 +1,44 @@
 /* The desktop app's tokens (colours, Fluent 2 type ramp, radii), so site and app match. */
 @import "../../../desktop/src/styles/tokens.css";
+@import "./motion.css";
+
+/* Archivo, instanced to wdth 62–100 / wght 500–800 and subset to Latin (30 KB). */
+@font-face {
+  font-family: "Archivo";
+  src: url("../fonts/archivo.woff2") format("woff2");
+  font-weight: 500 800;
+  font-stretch: 62% 100%;
+  font-display: swap;
+}
 
 @theme {
-  /* Fluent 2 display sizes, for the hero only. */
-  --text-large-title: 40px;
-  --text-large-title--line-height: 52px;
-  --text-display: 68px;
-  --text-display--line-height: 76px;
+  --font-display: "Archivo", ui-sans-serif, system-ui, sans-serif;
   /* The download button keeps the light accent in both schemes: white text on the dark-mode
      accent is under 4.5:1. */
   --color-cta: #b3261e;
   --color-cta-hover: #9a1f18;
+  /* Red text under 24px: the dark accent is 4.46:1 on the canvas, AA needs 4.5:1. */
+  --color-accent-text: var(--color-accent);
+  --color-tone: rgb(27 27 26 / 0.08);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --color-cta-hover: #c4342b;
+    --color-accent-text: #e3625a;
+    --color-tone: rgb(242 242 240 / 0.1);
   }
 }
 
 @layer base {
   html {
     color-scheme: light dark;
+    scroll-behavior: smooth;
   }
 
   body {
     @apply bg-canvas text-ink font-sans text-body-lg antialiased;
+    overflow-x: clip;
   }
 
   :focus-visible {
@@ -38,9 +51,57 @@
   }
 }
 
+@layer components {
+  .wrap {
+    @apply mx-auto w-full max-w-[1200px] px-5 sm:px-8;
+  }
+
+  /* Condensed display face: big, tight, sentence case. */
+  .display {
+    font-family: var(--font-display);
+    font-stretch: 62%;
+    font-weight: 760;
+    line-height: 0.92;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+
+  .label {
+    @apply font-mono text-caption tracking-[0.08em] text-ink-2 uppercase;
+  }
+
+  .lede {
+    @apply max-w-[38ch] text-[17px]/[25px] text-ink-2 sm:text-subtitle;
+  }
+
+  /* Screentone: the dot pattern printed manga uses for grey. */
+  .tone {
+    background-image: radial-gradient(var(--color-tone) 1.2px, transparent 1.4px);
+    background-size: 7px 7px;
+  }
+
+  .btn {
+    @apply inline-flex min-h-12 items-center gap-2 rounded-full px-6 text-body-lg font-semibold no-underline transition-colors;
+  }
+
+  .btn-primary {
+    @apply bg-cta text-white hover:bg-cta-hover;
+  }
+
+  .btn-ghost {
+    @apply border border-stroke bg-surface text-ink hover:border-ink-3;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   * {
     /* biome-ignore lint/complexity/noImportantStyles: reduced motion must beat utility classes */
     transition: none !important;
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must beat utility classes */
+    animation: none !important;
   }
 }

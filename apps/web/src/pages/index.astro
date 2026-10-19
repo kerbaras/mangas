@@ -1,9 +1,12 @@
 ---
+import Capabilities from "../components/Capabilities.astro";
+import CutBand from "../components/CutBand.astro";
 import Downloads from "../components/Downloads.astro";
-import Features from "../components/Features.astro";
 import Footer from "../components/Footer.astro";
 import Hero from "../components/Hero.astro";
-import Screenshot from "../components/Screenshot.astro";
+import Nav from "../components/Nav.astro";
+import SmartCut from "../components/SmartCut.astro";
+import Steps from "../components/Steps.astro";
 import Base from "../layouts/Base.astro";
 ---
 
@@ -11,14 +14,20 @@ import Base from "../layouts/Base.astro";
   title="Mangas: a manga library that exports to Kindle"
   description="Desktop app for macOS, Windows and Linux. Follow manga and webtoons, download new chapters, cut long strips into pages and send EPUBs to your Kindle."
 >
-  <main class="mx-auto flex max-w-[1088px] flex-col gap-16 px-6 pt-16 pb-10 sm:gap-20 sm:pt-24">
+  <Nav />
+  <main>
     <Hero />
-    <Screenshot />
-    <Features />
+    <CutBand />
+    <Steps />
+    <SmartCut />
+    <Capabilities />
     <Downloads />
-    <Footer />
   </main>
+  <Footer />
   <script>
     import "../lib/download";
+    import { start } from "../lib/motion";
+
+    start(document);
   </script>
 </Base>
