@@ -4,7 +4,7 @@
 use mangas_core::diagnostics::{self, ProviderStatus, Report};
 use serde::Serialize;
 
-use super::{open_library, settings_of, to_ipc};
+use super::{settings_or_default, to_ipc};
 use crate::paths;
 
 #[derive(Serialize)]
@@ -17,7 +17,7 @@ pub struct Diagnostics {
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub fn diagnostics() -> Result<Diagnostics, String> {
-    let settings = settings_of(&open_library()?)?;
+    let settings = settings_or_default();
     // "Open logs folder" only opens existing folders, and logging may never have created it.
     let data = paths::default_data_dir()?;
     let log_dir = mangas_core::logging::ensure_log_dir(&data)

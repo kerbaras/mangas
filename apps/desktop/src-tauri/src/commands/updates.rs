@@ -9,7 +9,7 @@ use tauri::{AppHandle, State};
 use tauri_plugin_notification::NotificationExt;
 
 use super::downloads::Downloads;
-use super::{errors::to_ipc, open_library, settings_of};
+use super::{errors::to_ipc, open_library, settings_quietly};
 
 /// A check's report with its totals, for the toast.
 #[derive(Serialize)]
@@ -36,7 +36,8 @@ pub async fn check_updates(
         .await
         .map_err(to_ipc)?;
     let queued = queue_new(&downloads, &report)?;
-    if background && settings_of(&lib)?.notify_updates() {
+    // Quiet: `check_updates` already warned about a broken settings row.
+    if background && settings_quietly().notify_updates() {
         if let Some((title, body)) = updates::notification(&report) {
             notify(&app, &title, &body);
         }

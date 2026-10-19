@@ -3,13 +3,13 @@
 
 use mangas_core::domain::Result;
 use mangas_core::library::updates::{self, SourceFor, UpdatePolicy, UpdateReport};
-use mangas_core::library::{get_settings, Library, Settings};
+use mangas_core::library::{readable_settings, Library, Settings};
 
 use crate::{languages_for, registry};
 
 /// Runs a check with the providers configured as the user set them up.
 pub async fn check_updates(lib: &Library, policy: &UpdatePolicy) -> Result<UpdateReport> {
-    let settings = get_settings(lib)?;
+    let settings = readable_settings(lib);
     let resolve = |id: &str| -> Result<SourceFor> {
         Ok(SourceFor {
             source: registry::source(id, &settings)?,
@@ -25,7 +25,7 @@ pub async fn check_updates_at(
     policy: &UpdatePolicy,
     base: &str,
 ) -> Result<UpdateReport> {
-    let settings = get_settings(lib)?;
+    let settings = readable_settings(lib);
     let resolve = |id: &str| -> Result<SourceFor> {
         Ok(SourceFor {
             source: registry::source_at(id, &settings, base)?,

@@ -3,10 +3,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { EmailSettingsForm } from "@/components/email-settings";
 import { type Backend, setBackend } from "@/lib/ipc";
 import { EMPTY_EMAIL } from "@/lib/ipc.send";
-import { readSettings, writeSettings } from "@/lib/settings";
+import { loadSettings, readSettings, writeSettings } from "@/lib/settings";
 
 afterEach(() => {
-  setBackend(null);
+  // Back to a load in flight: a failed reload in one test (these backends have no
+  // get_settings) would otherwise make the next test's edits a no-op.
+  setBackend({ getSettings: () => new Promise(() => {}) } as unknown as Backend);
+  void loadSettings();
   writeSettings({ kindleEmail: EMPTY_EMAIL });
 });
 

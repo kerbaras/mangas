@@ -9,14 +9,14 @@ use mangas_core::storage::{
 };
 use tauri::{AppHandle, Emitter};
 
-use super::{open_library, settings_of, to_ipc};
+use super::{open_library, settings_or_default, to_ipc};
 use crate::paths;
 
 /// Progress of [`move_data_dir`]: `{ copied, total }` in bytes.
 pub const MOVE_EVENT: &str = "storage://move";
 
 fn folders() -> Result<Folders, String> {
-    let settings = settings_of(&open_library()?)?;
+    let settings = settings_or_default();
     Ok(Folders {
         data_dir: paths::data_dir(&settings)?,
         database: paths::library_db()?,

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use mangas_core::library::{self, ImportReport, ImportRequest};
 
-use super::{open_library, settings_of, to_ipc};
+use super::{open_library, settings_or_default, to_ipc};
 use crate::paths;
 
 /// Imports chapter folders / `.cbz` files (or one series folder) as a `local` manga. Pages are
@@ -15,7 +15,7 @@ pub async fn import_local(
     language: String,
 ) -> Result<ImportReport, String> {
     let lib = open_library()?;
-    let root = paths::downloads(&settings_of(&lib)?).map_err(to_ipc)?;
+    let root = paths::downloads(&settings_or_default()).map_err(to_ipc)?;
     let req = ImportRequest {
         paths,
         title,

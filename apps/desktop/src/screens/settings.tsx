@@ -5,31 +5,42 @@ import { cn } from "@/lib/cn";
 import { loadSettings, useSettingsLoad } from "@/lib/settings";
 import { GROUPS, type GroupId } from "./settings-groups";
 
-/** The form only once the stored settings are in; a failed load shows why, with a retry. */
+/**
+ * The form once the stored settings answered. A failed load shows why, with a retry, above the
+ * form on the defaults: the panels that only read (providers, storage, diagnostics) still work,
+ * and nothing is saved over the unreadable settings.
+ */
 export function SettingsScreen() {
   const load = useSettingsLoad();
-  if (load.kind === "ready") return <SettingsForm />;
+  if (load.kind === "loading") {
+    return (
+      <section className="flex h-full flex-col">
+        <ScreenHeader title="Settings" />
+      </section>
+    );
+  }
+  return <SettingsForm failed={load.kind === "failed" ? load.error : undefined} />;
+}
+
+function LoadFailed({ error }: { error: string }) {
   return (
-    <section className="flex h-full flex-col">
-      <ScreenHeader title="Settings" />
-      <div className="p-4">
-        {load.kind === "failed" && (
-          <ErrorAlert
-            title="Couldn't load your settings"
-            message={load.error}
-            onRetry={() => void loadSettings()}
-            className="mx-auto max-w-2xl"
-          />
-        )}
-      </div>
-    </section>
+    <div className="mb-5 flex flex-col gap-2">
+      <ErrorAlert
+        title="Couldn't load your settings"
+        message={error}
+        onRetry={() => void loadSettings()}
+      />
+      <p className="text-caption text-ink-2">
+        Showing the defaults. Changes aren&apos;t saved until your settings load.
+      </p>
+    </div>
   );
 }
 
 /** The group picked last, so coming back to Settings opens it again. */
 let lastGroup: GroupId = "general";
 
-function SettingsForm() {
+function SettingsForm({ failed }: { failed?: string }) {
   const [current, setCurrent] = useState<GroupId>(lastGroup);
   const pick = (id: GroupId) => {
     lastGroup = id;
@@ -62,6 +73,7 @@ function SettingsForm() {
         </nav>
         <div className="relative min-w-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5">
           <div className="mx-auto max-w-2xl">
+            {failed !== undefined && <LoadFailed error={failed} />}
             <group.Body />
           </div>
         </div>

@@ -124,8 +124,11 @@ function queue(patch: Partial<Settings>): Promise<void> {
 /**
  * Writes through only once loaded, so placeholder defaults never overwrite what is stored.
  * The answer (this edit over what another process stored meanwhile) becomes the new copy.
+ * After a failed load nothing changes, not even in memory, so the app never runs on values it
+ * couldn't store.
  */
 export function writeSettings(patch: Partial<Settings>): Promise<boolean> {
+  if (load.kind === "failed") return Promise.resolve(false);
   cached = { ...cached, ...patch };
   notify();
   if (load.kind !== "ready") return Promise.resolve(false);
@@ -141,6 +144,7 @@ export function writeSettings(patch: Partial<Settings>): Promise<boolean> {
 /** Like `writeSettings`, but shown only once stored; rejects with why when it isn't. */
 export async function saveSettings(patch: Partial<Settings>): Promise<void> {
   if (load.kind === "ready") return queue(patch);
+  if (load.kind === "failed") throw new Error(load.error);
   cached = { ...cached, ...patch };
   notify();
 }

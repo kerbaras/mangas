@@ -46,7 +46,7 @@ pub fn exports(settings: &Settings) -> Result<PathBuf, String> {
 
 /// Cover cache: next to the library database, whatever `data_dir` says.
 pub fn covers() -> Result<PathBuf, String> {
-    Ok(default_data_dir()?.join("covers"))
+    Ok(mangas_core::covers::dir(&default_data_dir()?))
 }
 
 /// The profile when neither the request nor the stored settings name one (same as the CLI).

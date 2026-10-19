@@ -2,11 +2,10 @@ use mangas_core::domain::{Chapter, Manga, MangaId};
 use mangas_core::library::{self, Refreshed};
 use mangas_core::sources::SearchGroup;
 
-use super::{open_library, settings_of, source_by_name, to_ipc};
+use super::{open_library, settings_or_default, source_by_name, to_ipc};
 
 /// Searches the enabled providers (narrowed to `providers` when not empty), one group each. A
-/// provider that fails or needs a session reports it in its group; the call itself only fails
-/// when the settings cannot be read.
+/// provider that fails or needs a session reports it in its group.
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub async fn search_all(
@@ -14,7 +13,7 @@ pub async fn search_all(
     limit: usize,
     providers: Vec<String>,
 ) -> Result<Vec<SearchGroup>, String> {
-    let settings = settings_of(&open_library()?)?;
+    let settings = settings_or_default();
     Ok(mangas_providers::search_enabled(&settings, &query, limit, &providers).await)
 }
 

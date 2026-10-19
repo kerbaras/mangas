@@ -1,5 +1,8 @@
 //! The real commands with the stored settings row broken.
 
+mod cover;
+mod reads;
+
 use std::path::{Path, PathBuf};
 
 use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId};
@@ -22,6 +25,8 @@ async fn broken_settings_row() {
     detectors_stay_usable(home.path()).await;
     the_export_lands_in_the_default_export_folder(home.path()).await;
     relative_folders_land_under_the_default_export_folder(home.path()).await;
+    cover::the_export_embeds_the_cached_series_cover(home.path()).await;
+    reads::reads_use_the_defaults_and_writes_refuse(home.path()).await;
     std::env::set_current_dir(cwd).unwrap();
 }
 
