@@ -15,7 +15,9 @@ pub struct Args {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Show how much space each folder and each title takes (the default)
+    /// Show how much space each folder and each title takes, and what an interrupted move left
+    /// behind (the default)
+    #[command(visible_alias = "status")]
     Usage,
     /// Delete a title's downloaded chapters; the title and its chapter list stay
     Delete {
@@ -30,7 +32,14 @@ enum Command {
         cache: Target,
     },
     /// Move chapters and detector models to another folder and use it from now on
-    Move { dir: PathBuf },
+    Move {
+        dir: PathBuf,
+        /// Delete a partial copy an interrupted move left in DIR and move there again
+        #[arg(long)]
+        force: bool,
+    },
+    /// Delete the partial copy an interrupted move left (see `mangas storage status`)
+    RemovePartial,
 }
 
 #[derive(Clone, Copy, ValueEnum)]
@@ -73,8 +82,9 @@ pub fn run(args: Args) -> anyhow::Result<()> {
             }
             Ok(())
         }
-        Command::Move { dir } => {
-            let moved = storage::move_data_dir(&lib, &folders.data_dir, &dir, &mut |_| {})?;
+        Command::Move { dir, force } => {
+            let from = &folders.data_dir;
+            let moved = storage::move_data_dir_with(&lib, from, &dir, force, &mut |_| {})?;
             outln!(
                 "Moved {} ({}) to {}",
                 super::plural(moved.files, "file", "files"),
@@ -86,6 +96,14 @@ pub fn run(args: Args) -> anyhow::Result<()> {
             }
             Ok(())
         }
+        Command::RemovePartial => match storage::remove_leftover_copy(&lib, &folders.data_dir)? {
+            Some(copy) => outln!(
+                "Removed the partial copy in {} ({})",
+                copy.path,
+                human_size(copy.bytes)
+            ),
+            None => outln!("No interrupted move left a partial copy"),
+        },
     }
 }
 
@@ -99,6 +117,14 @@ fn print_usage(usage: &Usage) -> anyhow::Result<()> {
     ];
     for (label, bytes) in rows {
         outln!("{label:<17}{:>10}", human_size(bytes))?;
+    }
+    if let Some(copy) = &usage.partial_move {
+        outln!(
+            "\nPartial copy   {} ({}), left by an interrupted move\n  \
+             remove it: mangas storage remove-partial; or reuse it: mangas storage move --force <dir>",
+            copy.path,
+            human_size(copy.bytes)
+        )?;
     }
     if !usage.titles.is_empty() {
         outln!()?;

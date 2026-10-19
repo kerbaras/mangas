@@ -17,7 +17,7 @@ describe("DataFolderField", () => {
   it("says how many downloads block the move", () => {
     render(
       <TooltipProvider>
-        <DataFolderField onMoved={() => {}} />
+        <DataFolderField onMoved={() => {}} partial={null} />
       </TooltipProvider>,
     );
     expect(screen.getByText(/^2 downloads queued or running/)).toBeTruthy();

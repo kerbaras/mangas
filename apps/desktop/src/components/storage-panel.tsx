@@ -47,7 +47,7 @@ export function StoragePanel() {
 
   return (
     <>
-      <DataFolderField onMoved={usage.reload} />
+      <DataFolderField onMoved={usage.reload} partial={ready?.partial_move ?? null} />
       <Field label="Disk usage">
         {usage.state.kind === "error" && (
           <ErrorAlert

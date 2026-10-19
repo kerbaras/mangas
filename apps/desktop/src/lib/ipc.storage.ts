@@ -20,7 +20,12 @@ export type StorageUsage = {
   library: number;
   logs: number;
   titles: TitleUsage[];
+  /** What a killed data-folder move left in its target, until removed or reused. */
+  partial_move: PartialCopy | null;
 };
+
+/** Mirrors `mangas_core::storage::PartialCopy`: the app's subfolders in an interrupted move's target. */
+export type PartialCopy = { path: string; bytes: number };
 
 export type CacheKind = "covers" | "models";
 export type Cleared = { files: number; bytes: number };
@@ -47,8 +52,15 @@ export type StorageBackend = {
   /** Deletes a title's downloaded chapters; the title and its chapter list stay. */
   deleteDownloads(source: string, mangaId: string): Promise<Deleted>;
   clearCache(cache: CacheKind): Promise<Cleared>;
-  /** Copies chapters and models to `to`, verifies them, then switches; progress via `onMoveProgress`. */
-  moveDataDir(to: string): Promise<Moved>;
+  /**
+   * Copies chapters and models to `to`, verifies them, then switches; progress via
+   * `onMoveProgress`. `replacePartial` first deletes a partial copy a killed move left there.
+   */
+  moveDataDir(to: string, replacePartial?: boolean): Promise<Moved>;
+  /** The partial copy a killed move left in `to`, which moving there replaces. */
+  moveTargetPartial(to: string): Promise<PartialCopy | null>;
+  /** Deletes the partial copy listed in `StorageUsage.partial_move`. */
+  removePartialMove(): Promise<PartialCopy | null>;
   onMoveProgress(cb: (p: MoveProgress) => void): Promise<Unlisten>;
   exportBackup(path: string): Promise<BackupSummary>;
   /** Reads a mangas backup or a HaruNeko bookmarks export. */
@@ -59,7 +71,10 @@ export const storageUsage = async () => (await backend()).storageUsage();
 export const deleteDownloads = async (source: string, mangaId: string) =>
   (await backend()).deleteDownloads(source, mangaId);
 export const clearCache = async (cache: CacheKind) => (await backend()).clearCache(cache);
-export const moveDataDir = async (to: string) => (await backend()).moveDataDir(to);
+export const moveDataDir = async (to: string, replacePartial = false) =>
+  (await backend()).moveDataDir(to, replacePartial);
+export const moveTargetPartial = async (to: string) => (await backend()).moveTargetPartial(to);
+export const removePartialMove = async () => (await backend()).removePartialMove();
 export const onMoveProgress = async (cb: (p: MoveProgress) => void) =>
   (await backend()).onMoveProgress(cb);
 export const exportBackup = async (path: string) => (await backend()).exportBackup(path);

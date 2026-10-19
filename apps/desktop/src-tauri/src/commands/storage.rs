@@ -4,7 +4,9 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use mangas_core::backup::{self, ExportSummary, Preferences, Restored};
-use mangas_core::storage::{self, Cache, Cleared, Deleted, Folders, MoveProgress, Moved, Usage};
+use mangas_core::storage::{
+    self, Cache, Cleared, Deleted, Folders, MoveProgress, Moved, PartialCopy, Usage,
+};
 use tauri::{AppHandle, Emitter};
 
 use super::{open_library, settings_of, to_ipc};
@@ -53,11 +55,32 @@ pub async fn clear_cache(cache: Cache) -> Result<Cleared, String> {
     blocking(move || storage::clear_cache(&folders()?, cache).map_err(to_ipc)).await
 }
 
-/// Copies the data folder to `to`, verifies it and switches to it, emitting [`MOVE_EVENT`]
-/// at most ten times a second.
+/// The partial copy an interrupted move left in `to`, which a move there would replace.
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
-pub async fn move_data_dir(app: AppHandle, to: String) -> Result<Moved, String> {
+pub async fn move_target_partial(to: String) -> Result<Option<PartialCopy>, String> {
+    blocking(move || Ok(storage::partial_copy_at(&PathBuf::from(to)))).await
+}
+
+/// Deletes the partial copy an interrupted move left (listed in [`storage_usage`]).
+#[tauri::command]
+#[tracing::instrument(level = "error", skip_all)]
+pub async fn remove_partial_move() -> Result<Option<PartialCopy>, String> {
+    blocking(|| {
+        storage::remove_leftover_copy(&open_library()?, &folders()?.data_dir).map_err(to_ipc)
+    })
+    .await
+}
+
+/// Copies the data folder to `to`, verifies it and switches to it, emitting [`MOVE_EVENT`]
+/// at most ten times a second. `replace_partial` deletes a partial copy a killed move left there.
+#[tauri::command]
+#[tracing::instrument(level = "error", skip_all)]
+pub async fn move_data_dir(
+    app: AppHandle,
+    to: String,
+    replace_partial: Option<bool>,
+) -> Result<Moved, String> {
     let Some(busy) = super::detectors::claim_for_move() else {
         return Err("detector support is downloading; wait for it or cancel it, then move".into());
     };
@@ -75,7 +98,8 @@ pub async fn move_data_dir(app: AppHandle, to: String) -> Result<Moved, String> 
                 }
             }
         };
-        storage::move_data_dir(&lib, &from, &PathBuf::from(to), &mut report).map_err(to_ipc)
+        let (to, replace) = (PathBuf::from(to), replace_partial.unwrap_or(false));
+        storage::move_data_dir_with(&lib, &from, &to, replace, &mut report).map_err(to_ipc)
     })
     .await
 }

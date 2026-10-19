@@ -35,6 +35,7 @@ export function mockStorage({ library, dataDir, setDataDir }: Host): StorageBack
         library: 2.1 * MB,
         logs: 0.6 * MB,
         titles: list,
+        partial_move: null,
       };
     },
     async deleteDownloads(source, mangaId) {
@@ -58,6 +59,8 @@ export function mockStorage({ library, dataDir, setDataDir }: Host): StorageBack
       setDataDir(to);
       return { data_dir: to, files: 1240, bytes: total, leftovers: [] };
     },
+    moveTargetPartial: async () => null,
+    removePartialMove: async () => null,
     onMoveProgress: async (cb): Promise<Unlisten> => {
       listeners.add(cb);
       return () => listeners.delete(cb);

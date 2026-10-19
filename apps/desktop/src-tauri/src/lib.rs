@@ -100,6 +100,8 @@ pub fn run() {
             commands::storage::delete_downloads,
             commands::storage::clear_cache,
             commands::storage::move_data_dir,
+            commands::storage::move_target_partial,
+            commands::storage::remove_partial_move,
             commands::storage::export_backup,
             commands::storage::import_backup,
             commands::updates::check_updates,
