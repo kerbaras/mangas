@@ -49,7 +49,7 @@ pub fn folders() -> anyhow::Result<Folders> {
     Ok(Folders {
         data_dir: data_dir()?,
         database: library_db()?,
-        covers: app.join("covers"),
+        covers: mangas_core::covers::dir(&app),
         logs: mangas_core::logging::log_dir(&app),
     })
 }

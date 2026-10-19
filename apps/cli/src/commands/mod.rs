@@ -51,8 +51,7 @@ pub fn source_by_name(name: &str) -> anyhow::Result<Arc<dyn Source>> {
 /// App settings, or the defaults when the library cannot be read.
 pub fn stored_settings() -> Settings {
     paths::library_db()
-        .and_then(|db| Ok(library::open(&db)?))
-        .and_then(|lib| Ok(library::get_settings(&lib)?))
+        .map(|db| library::settings_or_default(&db).0)
         .unwrap_or_default()
 }
 

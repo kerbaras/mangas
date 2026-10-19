@@ -12,10 +12,16 @@ pub use check::{decoded_extension, image_extension, looks_intact};
 pub use evict::{to_evict, Entry};
 pub use key::{content_tag, file_name, file_stem, stored_tag};
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::domain::Result;
 use crate::download::PageFetcher;
+
+/// The cover cache folder: in the platform data dir next to the library database, so neither the
+/// data folder setting nor the defaults used when the settings can't be read move it.
+pub fn dir(platform_dir: &Path) -> PathBuf {
+    platform_dir.join("covers")
+}
 
 /// Local file of the cover at `url` for manga `source`/`manga_id`: the cached copy, or one
 /// fetched with `fetcher` and stored. Fetch errors and bodies that are not complete images are
