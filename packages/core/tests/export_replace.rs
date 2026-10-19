@@ -178,5 +178,13 @@ fn replace_numbers_books_planned_under_one_file_name() {
     };
     assert_eq!(names(one_file_each(plans.clone(), false)), ["Book.epub"; 3]);
     let own = ["Book.epub", "Book (2).epub", "Book (3).epub"];
-    assert_eq!(names(one_file_each(plans, true)), own);
+    assert_eq!(names(one_file_each(plans.clone(), true)), own);
+    let mut taken = plans;
+    taken[2].file_name = "Book (2).epub".into();
+    let own = ["Book.epub", "Book (2).epub", "Book (2) (2).epub"];
+    assert_eq!(
+        names(one_file_each(taken, true)),
+        own,
+        "a planned (2) is not reused"
+    );
 }

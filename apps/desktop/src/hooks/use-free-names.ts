@@ -18,7 +18,9 @@ export function useFreeNames(
     const names =
       !replace && dir.trim() && wanted.length > 0
         ? await freeExportNames(dir, wanted).catch(() => wanted)
-        : wanted;
+        : replace
+          ? ownNames(wanted)
+          : wanted;
     return { key, names };
   }, [key]);
   const names =
@@ -26,4 +28,24 @@ export function useFreeNames(
   if (plans.kind !== "ready" || !names) return { files: plans, named: names !== null };
   const data = plans.data.map((p, i) => ({ ...p, file_name: names[i] ?? p.file_name }));
   return { files: { kind: "ready", data } as Async<VolumePlan[]>, named: true };
+}
+
+/** The names `volume::one_file_each` writes with replace on: a repeat gets ` (2)`, ` (3)`… */
+export function ownNames(names: string[]): string[] {
+  const used = new Set<string>();
+  return names.map((name) => {
+    for (let n = 1; ; n++) {
+      const candidate = numbered(name, n);
+      if (!used.has(candidate.toLowerCase())) {
+        used.add(candidate.toLowerCase());
+        return candidate;
+      }
+    }
+  });
+}
+
+function numbered(name: string, n: number): string {
+  if (n === 1) return name;
+  const dot = name.lastIndexOf(".");
+  return dot > 0 ? `${name.slice(0, dot)} (${n})${name.slice(dot)}` : `${name} (${n})`;
 }
