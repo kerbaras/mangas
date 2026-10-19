@@ -16,7 +16,7 @@ export function VolumePreview({ plans, folder, stale = false }: Props) {
   if (plans.kind === "loading") return <p className="text-caption text-ink-3">Planning books…</p>;
   if (plans.kind === "error")
     return (
-      <p className="text-caption text-accent-text" role="alert">
+      <p className="text-caption text-accent-text [overflow-wrap:anywhere]" role="alert">
         Couldn't plan the books: {plans.message}
       </p>
     );

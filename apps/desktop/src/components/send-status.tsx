@@ -56,7 +56,10 @@ export function SendStatus({ state, via, onRetry }: Props) {
       );
     case "done":
       return (
-        <p role="status" className="whitespace-pre-line text-caption text-ink-2">
+        <p
+          role="status"
+          className="whitespace-pre-line text-caption text-ink-2 [overflow-wrap:anywhere]"
+        >
           {state.message}
         </p>
       );
@@ -89,7 +92,10 @@ function failedVia(state: SendState): Via | undefined {
 
 function Sent({ lines }: { lines: string }) {
   return (
-    <p role="status" className="whitespace-pre-line text-caption text-ink-2">
+    <p
+      role="status"
+      className="whitespace-pre-line text-caption text-ink-2 [overflow-wrap:anywhere]"
+    >
       {lines}
     </p>
   );

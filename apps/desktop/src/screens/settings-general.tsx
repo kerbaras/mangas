@@ -37,7 +37,7 @@ export function GeneralSettings() {
           <Button onClick={linkCli} className="self-start">
             <Terminal /> Install `mangas` command
           </Button>
-          {cliNote && <p className="text-caption text-ink-3">{cliNote}</p>}
+          {cliNote && <p className="text-caption text-ink-3 [overflow-wrap:anywhere]">{cliNote}</p>}
         </div>
       </Field>
       <RunSetupAgain />
