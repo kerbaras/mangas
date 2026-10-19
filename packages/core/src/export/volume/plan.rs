@@ -6,9 +6,9 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 
 use super::{book_meta, file_name, group, render, Grouping, Volume, DEFAULT_TEMPLATE};
-use crate::domain::{parse_number, Chapter, Manga};
+use crate::domain::{parse_number, Chapter, Manga, Result};
 use crate::export::kindle::{Device, ExportRequest};
-use crate::export::Format;
+use crate::export::{free_names_in, Format};
 use crate::smartcut::Options;
 
 /// One EPUB to write: its title, file name and downloaded chapters in reading order.
@@ -79,6 +79,28 @@ pub fn one_file_each(plans: Vec<VolumePlan>, replace: bool) -> Vec<VolumePlan> {
             ..p
         })
         .collect()
+}
+
+/// The file names `plans` are written under in `dir` as `ext` files: the planned names when
+/// replacing (see [`one_file_each`]), else the first free ` (n)` name for each, as the writer
+/// picks them one book after another.
+pub fn written_names(
+    plans: &[VolumePlan],
+    dir: &Path,
+    ext: &str,
+    replace: bool,
+) -> Result<Vec<String>> {
+    let wanted: Vec<String> = plans
+        .iter()
+        .map(|p| {
+            let name = Path::new(&p.file_name).with_extension(ext);
+            name.to_string_lossy().into_owned()
+        })
+        .collect();
+    match replace {
+        true => Ok(wanted),
+        false => free_names_in(dir, &wanted),
+    }
 }
 
 /// `name` for `n` = 1, else `stem (n).ext`.

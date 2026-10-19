@@ -141,17 +141,15 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let preset = ExportPreset::resolve(&explicit, series.as_ref(), &fallback);
     let device = CutArgs::device_of(&preset, DEFAULT_PROFILE)?;
     let format = Format::resolve(preset.format, None, None, &device)?;
-    for p in &plans {
+    let names = volume::written_names(&plans, &args.output_dir, format.id(), args.replace)?;
+    for (p, name) in plans.iter().zip(&names) {
         let (first, last) = (
             &p.chapters[0].number,
             &p.chapters[p.chapters.len() - 1].number,
         );
         outln!(
             "{}  ({} chapters, {first}–{last})",
-            args.output_dir
-                .join(&p.file_name)
-                .with_extension(format.id())
-                .display(),
+            args.output_dir.join(name).display(),
             p.chapters.len()
         )?;
     }
