@@ -97,6 +97,24 @@ fn a_series_too_long_to_keep_any_of_it_cuts_the_end() {
 }
 
 #[test]
+fn a_long_template_without_the_longer_series_cuts_the_end() {
+    let series = "S".repeat(300);
+    let template = format!("Book {}", "x".repeat(250));
+    let plans = plan(
+        &manga(&series),
+        &[ch("1", None)],
+        Grouping::Single,
+        Some(&template),
+        None,
+    );
+    let name = &plans[0].file_name;
+    assert_eq!(
+        *name,
+        format!("Book {}….epub", "x".repeat(MAX_STEM_BYTES - 8))
+    );
+}
+
+#[test]
 fn written_names_number_the_shortened_name() {
     let dir = tempfile::tempdir().unwrap();
     let series = "Ω".repeat(200);

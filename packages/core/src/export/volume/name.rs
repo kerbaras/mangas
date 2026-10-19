@@ -100,9 +100,10 @@ fn portable(title: &str) -> String {
 
 /// `stem` cut to [`MAX_STEM_BYTES`]: inside its first `series`, else at the end.
 fn shorten(stem: &str, series: &str) -> String {
-    let at = stem.find(series).filter(|_| !series.is_empty());
-    let rest = stem.len() - series.len();
-    if let Some(at) = at.filter(|_| rest + ELLIPSIS.len() < MAX_STEM_BYTES) {
+    // Exact whenever `series` is found in `stem`; only then is it used.
+    let rest = stem.len().saturating_sub(series.len());
+    let fits = |_: &usize| !series.is_empty() && rest + ELLIPSIS.len() < MAX_STEM_BYTES;
+    if let Some(at) = stem.find(series).filter(fits) {
         let kept = prefix(series, MAX_STEM_BYTES - rest - ELLIPSIS.len()).trim_end();
         let (before, after) = (&stem[..at], &stem[at + series.len()..]);
         return format!("{before}{kept}{ELLIPSIS}{after}");
