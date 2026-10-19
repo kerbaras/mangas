@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::format::Backup;
 use super::titles::title_state;
 use crate::domain::{Manga, MangaId, Result};
-use crate::library::{get_settings, is_local, list_manga, restore_snapshot, set_settings};
+use crate::library::{edit_settings, get_settings, is_local, list_manga, restore_snapshot};
 use crate::library::{Library, Settings};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
@@ -134,7 +134,8 @@ pub fn restore_with(
     match (&backup.settings, current) {
         (Some(_), _) if keep => report.kept_settings = true,
         (Some(restored), Some(current)) => {
-            set_settings(lib, &merge_settings(&current, restored))?;
+            // Applied over what is stored now, so edits made meanwhile in another process survive.
+            edit_settings(lib, Some(&current), &merge_settings(&current, restored))?;
             report.settings = true;
         }
         _ => {}
