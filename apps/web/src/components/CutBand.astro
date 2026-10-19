@@ -1,0 +1,36 @@
+---
+// The separator: a screentone band with the smart-cut line drawn across it as you scroll.
+---
+
+<div class="band tone" aria-hidden="true">
+  <div class="snip" data-snip><span class="blade">✂</span></div>
+</div>
+
+<style>
+  .band {
+    position: relative;
+    height: 128px;
+    overflow: hidden;
+    border-block: 1px solid var(--color-stroke);
+  }
+
+  /* A full-width dashed line with the scissors at its right end; motion.css slides it in. */
+  .snip {
+    position: absolute;
+    inset-inline: 0;
+    top: 50%;
+    border-top: 1.5px dashed var(--color-accent);
+  }
+
+  .blade {
+    position: absolute;
+    right: 16px;
+    top: -14px;
+    padding: 0 6px;
+    background: var(--color-canvas);
+    color: var(--color-accent);
+    font-size: 18px;
+    line-height: 26px;
+    rotate: 180deg;
+  }
+</style>

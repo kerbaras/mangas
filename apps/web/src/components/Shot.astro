@@ -1,0 +1,46 @@
+---
+import { type ShotName, shot } from "../lib/shots";
+
+// One app screenshot, light or dark with the OS scheme. `crop` swaps in a readable part of the
+// window on phones, where the whole window would be too small to read.
+type Props = { name: ShotName; alt: string; sizes: string; crop?: boolean; eager?: boolean };
+const { name, alt, sizes, crop = false, eager = false } = Astro.props;
+const light = shot(name, "light");
+const dark = shot(name, "dark");
+const phone = "(max-width: 767px)";
+---
+
+<picture>
+  {
+    crop && (
+      <source
+        media={`${phone} and (prefers-color-scheme: dark)`}
+        srcset={dark.crop.src}
+        width={dark.crop.width}
+        height={dark.crop.height}
+      />
+    )
+  }
+  {
+    crop && (
+      <source
+        media={phone}
+        srcset={light.crop.src}
+        width={light.crop.width}
+        height={light.crop.height}
+      />
+    )
+  }
+  <source media="(prefers-color-scheme: dark)" srcset={dark.srcset} sizes={sizes} />
+  <img
+    src={light.small.src}
+    srcset={light.srcset}
+    sizes={sizes}
+    width={light.small.width}
+    height={light.small.height}
+    alt={alt}
+    loading={eager ? "eager" : "lazy"}
+    fetchpriority={eager ? "high" : "auto"}
+    decoding="async"
+  />
+</picture>

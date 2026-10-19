@@ -1,0 +1,105 @@
+---
+// Our own drawn strip (no scans): a tall webtoon strip on the left, cut at the gutters, and the
+// pages it becomes on the right. Gutters sit at y = 330 and 690 of the 1040-tall strip.
+const cuts = [330, 690];
+const pages = [
+  [0, 330],
+  [330, 690],
+  [690, 1040],
+];
+---
+
+<div class="strip" aria-label="A tall strip cut at the gaps between panels into three pages." role="img">
+  <svg class="source" viewBox="-30 0 300 1040" aria-hidden="true">
+    <defs>
+      <pattern id="dots" width="6" height="6" patternUnits="userSpaceOnUse">
+        <circle cx="3" cy="3" r="1.1" fill="currentColor" opacity="0.35"></circle>
+      </pattern>
+      <symbol id="art" viewBox="0 0 240 1040">
+        <rect width="240" height="1040" fill="var(--color-surface)"></rect>
+        <g fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="12" y="14" width="216" height="140" rx="2"></rect>
+          <rect x="12" y="168" width="216" height="150" rx="2"></rect>
+          <rect x="12" y="342" width="216" height="200" rx="2"></rect>
+          <rect x="12" y="556" width="216" height="122" rx="2"></rect>
+          <rect x="12" y="702" width="216" height="324" rx="2"></rect>
+        </g>
+        <rect x="13" y="15" width="214" height="80" fill="url(#dots)"></rect>
+        <circle cx="170" cy="62" r="22" fill="var(--color-surface)" stroke="currentColor" stroke-width="2"></circle>
+        <path d="M12 120 L80 92 L130 112 L228 84" fill="none" stroke="currentColor" stroke-width="2"></path>
+        <ellipse cx="86" cy="218" rx="54" ry="26" fill="var(--color-surface)" stroke="currentColor" stroke-width="2"></ellipse>
+        <path d="M100 242 L112 268 L80 243" fill="var(--color-surface)" stroke="currentColor" stroke-width="2"></path>
+        <rect x="64" y="210" width="44" height="4" rx="2" fill="currentColor"></rect>
+        <rect x="70" y="222" width="32" height="4" rx="2" fill="currentColor"></rect>
+        <g stroke="currentColor" stroke-width="1.5" opacity="0.7">
+          <path d="M120 352 L40 532 M140 352 L90 532 M160 352 L140 532 M180 352 L190 532 M200 352 L226 470"></path>
+        </g>
+        <circle cx="120" cy="452" r="40" fill="var(--color-surface)" stroke="currentColor" stroke-width="2.5"></circle>
+        <rect x="13" y="557" width="214" height="120" fill="url(#dots)"></rect>
+        <ellipse cx="150" cy="616" rx="48" ry="24" fill="var(--color-surface)" stroke="currentColor" stroke-width="2"></ellipse>
+        <rect x="130" y="610" width="40" height="4" rx="2" fill="currentColor"></rect>
+        <path d="M12 940 Q120 860 228 940" fill="none" stroke="currentColor" stroke-width="2"></path>
+        <circle cx="120" cy="820" r="54" fill="url(#dots)" stroke="currentColor" stroke-width="2"></circle>
+        <rect x="13" y="944" width="214" height="81" fill="url(#dots)"></rect>
+      </symbol>
+    </defs>
+    <use href="#art" width="240" height="1040"></use>
+    {cuts.map((y, i) => (
+      <g class="cut" style={`--i:${i}`}>
+        <line x1="-24" x2="264" y1={y} y2={y}></line>
+      </g>
+    ))}
+  </svg>
+  <div class="pages">
+    {pages.map(([top, bottom], i) => (
+      <svg class="page" style={`--i:${i}`} viewBox={`-12 ${top - 12} 264 ${bottom - top + 24}`} aria-hidden="true">
+        <use href="#art" width="240" height="1040"></use>
+      </svg>
+    ))}
+  </div>
+</div>
+
+<style>
+  .strip {
+    display: grid;
+    width: 100%;
+    max-width: 480px;
+    justify-self: center;
+    grid-template-columns: 0.8fr 1fr;
+    gap: 40px;
+    align-items: center;
+    color: var(--color-ink);
+  }
+
+  .source {
+    width: 100%;
+    height: auto;
+  }
+
+  .cut line {
+    stroke: var(--color-accent);
+    stroke-width: 2.5;
+    stroke-dasharray: 8 6;
+  }
+
+  .cut {
+    transform-box: fill-box;
+    transform-origin: left center;
+  }
+
+  .pages {
+    display: grid;
+    gap: 16px;
+  }
+
+  /* Each page is a 3:4 e-reader screen with its slice of the strip fitted inside. */
+  .page {
+    width: 100%;
+    max-width: 220px;
+    aspect-ratio: 3 / 4;
+    border: 1px solid var(--color-stroke);
+    border-radius: 6px;
+    background: var(--color-canvas);
+    box-shadow: 0 16px 40px -24px rgb(0 0 0 / 0.4);
+  }
+</style>

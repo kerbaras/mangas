@@ -1,0 +1,55 @@
+---
+import AppWindow from "./AppWindow.astro";
+import Shot from "./Shot.astro";
+
+const sizes = "(min-width: 1024px) 620px, 86vw";
+---
+
+<div class="spread tone" data-hero-spread>
+  <AppWindow title="Library" class="back" data-depth="back">
+    <Shot name="library" sizes={sizes} alt="The library: followed series with covers and new-chapter badges." eager />
+  </AppWindow>
+  <AppWindow title="Details" class="front">
+    <Shot name="details" sizes={sizes} alt="A title's chapters, filterable by scanlation group and language." eager />
+  </AppWindow>
+  <span class="gutter" aria-hidden="true"></span>
+</div>
+
+<style>
+  .spread {
+    position: relative;
+    aspect-ratio: 16 / 11;
+    border-radius: 20px;
+  }
+
+  .spread :global(.app-window) {
+    position: absolute;
+    width: 84%;
+  }
+
+  .spread :global(.back) {
+    left: 0;
+    top: 4%;
+    rotate: -2.5deg;
+  }
+
+  .spread :global(.front) {
+    right: -3%;
+    top: 30%;
+    rotate: 1.5deg;
+  }
+
+  .gutter {
+    position: absolute;
+    left: -2%;
+    right: -6%;
+    top: 24%;
+    border-top: 1.5px dashed var(--color-accent);
+  }
+
+  @media (max-width: 1023px) {
+    .spread :global(.front) {
+      right: 0;
+    }
+  }
+</style>

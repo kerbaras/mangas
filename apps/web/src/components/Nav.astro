@@ -1,0 +1,17 @@
+---
+import { icon, REPO } from "../brand";
+---
+
+<header class="wrap flex h-16 items-center justify-between">
+  <a href="#top" class="flex items-center gap-2.5 text-body-lg font-semibold no-underline">
+    <img src={icon.src} alt="" width="28" height="28" class="size-7 rounded-md" />
+    Mangas
+  </a>
+  <nav aria-label="Page">
+    <ul class="label flex gap-7">
+      <li class="max-sm:hidden"><a href="#how" class="hover:text-ink">How it works</a></li>
+      <li class="max-sm:hidden"><a href="#downloads" class="hover:text-ink">Download</a></li>
+      <li><a href={REPO} class="hover:text-ink">GitHub</a></li>
+    </ul>
+  </nav>
+</header>

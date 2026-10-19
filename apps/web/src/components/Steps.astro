@@ -1,0 +1,163 @@
+---
+import type { ShotName } from "../lib/shots";
+import AppWindow from "./AppWindow.astro";
+import Shot from "./Shot.astro";
+
+type Step = { title: string; text: string; shot: ShotName; alt: string };
+const steps: Step[] = [
+  {
+    title: "Follow",
+    text: "Search MangaDex, MangaDot, WeebCentral, Tapas, Comick and Webtoons at once. Follow a title and Mangas checks it for new chapters.",
+    shot: "library",
+    alt: "The library with followed titles and new-chapter badges.",
+  },
+  {
+    title: "Download",
+    text: "Filter chapters by scanlation group and language, then download. The queue is shared with the CLI and picks up where it left off after a restart.",
+    shot: "details",
+    alt: "A title's chapter list with group and language filters.",
+  },
+  {
+    title: "Export",
+    text: "Bundle single chapters or whole volumes into EPUB, CBZ or PDF, sized for Kindle, Kobo, reMarkable or a tablet.",
+    shot: "export",
+    alt: "The export dialog: bundle, format, device profile and smart cut.",
+  },
+  {
+    title: "Read",
+    text: "Email the book to your Kindle address or copy it over USB.",
+    shot: "result",
+    alt: "The exported EPUB, ready to send.",
+  },
+];
+const stageSizes = "(min-width: 1200px) 660px, 56vw";
+const inlineSizes = "100vw";
+---
+
+<section id="how" class="wrap how" aria-labelledby="how-title" data-steps>
+  <h2 id="how-title" class="label">How it works</h2>
+  <div class="layout">
+    <div class="stage">
+      <AppWindow title="Mangas" class="sticky">
+        <div class="frames">
+          {steps.map((s, i) => (
+            <div class="frame" data-frame={i} data-current={i === 0 ? "" : undefined}>
+              <Shot name={s.shot} alt={s.alt} sizes={stageSizes} />
+            </div>
+          ))}
+        </div>
+      </AppWindow>
+    </div>
+    <ol class="steps">
+      {steps.map((s, i) => (
+        <li class="step" data-step={i}>
+          <span class="n">{String(i + 1).padStart(2, "0")}</span>
+          <h3 class="display">{s.title}</h3>
+          <p>{s.text}</p>
+          <AppWindow title={s.title} class="inline">
+            <Shot name={s.shot} alt={s.alt} sizes={inlineSizes} crop />
+          </AppWindow>
+        </li>
+      ))}
+    </ol>
+  </div>
+</section>
+
+<style>
+  .how {
+    padding-block: 112px;
+  }
+
+  .layout {
+    margin-top: 40px;
+  }
+
+  .stage {
+    display: none;
+  }
+
+  .steps {
+    display: grid;
+    gap: 64px;
+    list-style: none;
+    padding: 0;
+  }
+
+  .step {
+    display: grid;
+    gap: 12px;
+    border-top: 1px solid var(--color-stroke);
+    padding-top: 20px;
+    transition:
+      opacity 240ms ease,
+      border-color 240ms ease;
+  }
+
+  .n {
+    font: 12px/1 var(--font-mono);
+    letter-spacing: 0.08em;
+    color: var(--color-accent);
+  }
+
+  .step h3 {
+    font-size: clamp(36px, 4vw, 48px);
+  }
+
+  .step p {
+    max-width: 36ch;
+    color: var(--color-ink-2);
+  }
+
+  .step :global(.inline) {
+    margin-top: 12px;
+  }
+
+  .frames {
+    display: grid;
+  }
+
+  .frame {
+    grid-area: 1 / 1;
+    opacity: 0;
+    transition: opacity 240ms ease;
+  }
+
+  .frame[data-current] {
+    opacity: 1;
+  }
+
+  /* The sticky stage needs room and motion; otherwise each step shows its own screenshot. */
+  @media (min-width: 900px) and (prefers-reduced-motion: no-preference) {
+    :global(html:is([data-motion="css"], [data-motion="io"])) .layout {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 72px;
+    }
+
+    :global(html:is([data-motion="css"], [data-motion="io"])) .stage {
+      display: block;
+    }
+
+    :global(html:is([data-motion="css"], [data-motion="io"])) .stage :global(.sticky) {
+      position: sticky;
+      top: calc(50vh - 240px);
+    }
+
+    :global(html:is([data-motion="css"], [data-motion="io"])) .step {
+      min-height: 72vh;
+      align-content: start;
+    }
+
+    :global(html:is([data-motion="css"], [data-motion="io"])) .step:not([data-current]) {
+      opacity: 0.38;
+    }
+
+    :global(html:is([data-motion="css"], [data-motion="io"])) .step[data-current] {
+      border-top-color: var(--color-accent);
+    }
+
+    :global(html:is([data-motion="css"], [data-motion="io"])) .step :global(.inline) {
+      display: none;
+    }
+  }
+</style>

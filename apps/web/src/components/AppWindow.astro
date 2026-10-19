@@ -1,0 +1,52 @@
+---
+// A neutral window frame around an app screenshot (the screenshots are the client area only).
+type Props = { title: string; class?: string };
+const { title, class: className } = Astro.props;
+---
+
+<figure class:list={["app-window", className]}>
+  <div class="bar" aria-hidden="true"><i></i><i></i><i></i><span>{title}</span></div>
+  <slot />
+</figure>
+
+<style>
+  .app-window {
+    overflow: hidden;
+    border: 1px solid var(--color-stroke);
+    border-radius: 12px;
+    background: var(--color-surface);
+    box-shadow:
+      0 1px 0 rgb(0 0 0 / 0.04),
+      0 30px 80px -30px rgb(0 0 0 / 0.35);
+  }
+
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 32px;
+    padding: 0 14px;
+    border-bottom: 1px solid var(--color-stroke);
+  }
+
+  .bar i {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--color-stroke);
+  }
+
+  .bar span {
+    flex: 1;
+    margin-right: 51px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--color-ink-2);
+  }
+
+  .app-window :global(img) {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+</style>

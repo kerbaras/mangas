@@ -1,0 +1,83 @@
+---
+const blocks = [
+  {
+    title: "Six sources, one search",
+    text: "MangaDex, MangaDot, WeebCentral, Tapas, Comick and Webtoons. Comick sits behind a browser check, so you connect it once in Settings.",
+  },
+  {
+    title: "A library that keeps up",
+    text: "Follow titles and Mangas checks them for new chapters. Downloads run through a queue that picks up where it left off after a restart.",
+  },
+  {
+    title: "Books for your reader",
+    text: "EPUB, CBZ or PDF, single chapters or whole volumes, sized for Kindle, Kobo, reMarkable or a tablet. Email them to your Kindle or copy them over USB.",
+  },
+  {
+    title: "One executable, also a CLI",
+    text: "The mangas binary opens the app with no arguments and runs the CLI with them. Both share the library, the queue and the settings.",
+    code: ['mangas search "solo leveling"', "mangas download <manga-id> --chapters 1-5", "mangas kindle <chapter>... -o out.epub"],
+  },
+];
+---
+
+<section class="wrap caps" aria-labelledby="caps-title">
+  <h2 id="caps-title" class="label">What else it does</h2>
+  <div class="grid">
+    {blocks.map((b) => (
+      <article data-reveal>
+        <h3>{b.title}</h3>
+        <p>{b.text}</p>
+        {b.code && (
+          <pre><code>{b.code.map((line) => `$ ${line}`).join("\n")}</code></pre>
+        )}
+      </article>
+    ))}
+  </div>
+</section>
+
+<style>
+  .caps {
+    padding-block: 112px;
+  }
+
+  .grid {
+    display: grid;
+    gap: 48px 64px;
+    margin-top: 40px;
+  }
+
+  article {
+    display: grid;
+    align-content: start;
+    gap: 10px;
+    border-top: 1px solid var(--color-stroke);
+    padding-top: 20px;
+  }
+
+  h3 {
+    font-size: 20px;
+    line-height: 28px;
+    font-weight: 600;
+  }
+
+  p {
+    max-width: 44ch;
+    color: var(--color-ink-2);
+  }
+
+  pre {
+    margin-top: 6px;
+    overflow-x: auto;
+    border: 1px solid var(--color-stroke);
+    border-radius: 8px;
+    background: var(--color-surface);
+    padding: 14px 16px;
+    font: 13px/22px var(--font-mono);
+  }
+
+  @media (min-width: 768px) {
+    .grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+</style>
