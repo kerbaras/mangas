@@ -10,7 +10,8 @@
   .band {
     position: relative;
     height: 128px;
-    overflow: hidden;
+    /* clip, not hidden: a hidden box is a scroll container and would own the view() timeline. */
+    overflow: clip;
     border-block: 1px solid var(--color-stroke);
   }
 

@@ -88,9 +88,12 @@ const inlineSizes = "100vw";
     gap: 12px;
     border-top: 1px solid var(--color-stroke);
     padding-top: 20px;
-    transition:
-      opacity 240ms ease,
-      border-color 240ms ease;
+    transition: border-color 240ms ease;
+  }
+
+  .n,
+  .step h3 {
+    transition: color 240ms ease;
   }
 
   .n {
@@ -148,8 +151,9 @@ const inlineSizes = "100vw";
       align-content: start;
     }
 
-    :global(html:is([data-motion="css"], [data-motion="io"])) .step:not([data-current]) {
-      opacity: 0.38;
+    /* Inactive steps step back in colour, not opacity, so their text keeps its contrast. */
+    :global(html:is([data-motion="css"], [data-motion="io"])) .step:not([data-current]) :is(h3, .n) {
+      color: var(--color-ink-2);
     }
 
     :global(html:is([data-motion="css"], [data-motion="io"])) .step[data-current] {
