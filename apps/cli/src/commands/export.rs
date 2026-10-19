@@ -131,7 +131,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         return export_preset::manage(&lib, &args.source, &args.manga_id, action, &explicit);
     }
     let src = volume::load(&lib, &args.source, &args.manga_id, None)?;
-    let plans = plans(&args, &src.manga, &src.chapters)?;
+    let plans = volume::one_file_each(plans(&args, &src.manga, &src.chapters)?, args.replace);
     if plans.is_empty() {
         let list = hint(&format!("chapters {}", args.manga_id), &args.source);
         bail!("nothing to export: no downloaded chapters match (see {list})");

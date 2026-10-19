@@ -88,6 +88,7 @@ pub async fn export_volumes<R: Runtime>(
     let device = dev.id.to_string();
     let format = Format::resolve(None, None, resolved.format, &dev).map_err(to_ipc)?;
     let (src, plans) = plans(&source, &manga_id, &chapter_ids, grouping, title.as_deref())?;
+    let plans = volume::one_file_each(plans, replace.unwrap_or(false));
     if plans.is_empty() {
         return Err(to_ipc("none of these chapters is downloaded"));
     }

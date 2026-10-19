@@ -1,5 +1,6 @@
 //! What an export of a manga will produce, before any image is read.
 
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
@@ -54,6 +55,42 @@ pub fn plan(
             }
         })
         .collect()
+}
+
+/// `plans` ready to write with `replace`: then two books planned under one file name (a
+/// template without `{volume}`) are numbered ` (2)`, ` (3)`… as the writer numbers them in an
+/// empty folder, so no book of the run writes over another. Without `replace` the writer
+/// already gives each book its own file.
+pub fn one_file_each(plans: Vec<VolumePlan>, replace: bool) -> Vec<VolumePlan> {
+    if !replace {
+        return plans;
+    }
+    let mut used = HashSet::new();
+    let mut free = |name: &str| {
+        (1..)
+            .map(|n| numbered(name, n))
+            .find(|name| used.insert(name.to_lowercase()))
+            .unwrap_or_default()
+    };
+    plans
+        .into_iter()
+        .map(|p| VolumePlan {
+            file_name: free(&p.file_name),
+            ..p
+        })
+        .collect()
+}
+
+/// `name` for `n` = 1, else `stem (n).ext`.
+fn numbered(name: &str, n: usize) -> String {
+    let path = Path::new(name);
+    match (n, path.file_stem(), path.extension()) {
+        (1, _, _) => name.to_string(),
+        (_, Some(stem), Some(ext)) => {
+            format!("{} ({n}).{}", stem.to_string_lossy(), ext.to_string_lossy())
+        }
+        _ => format!("{name} ({n})"),
+    }
 }
 
 /// The planned book with volume number `number`: an exact label first, else a numeric match

@@ -7,7 +7,9 @@ mod export_support;
 use std::path::{Path, PathBuf};
 
 use export_support::chapter;
+use mangas_core::domain::{Chapter, Manga};
 use mangas_core::export::kindle::{export, ExportRequest};
+use mangas_core::export::volume::{one_file_each, plan, Grouping, VolumePlan};
 use mangas_core::export::{profile, Format};
 use mangas_core::smartcut::Preset;
 
@@ -92,6 +94,19 @@ fn replacing_into_a_missing_folder_creates_it() {
     assert_eq!(stats.output, root.path().join("new/book.cbz"));
 }
 
+#[test]
+fn replacing_a_file_with_a_name_near_the_limit_works() {
+    let root = fixture();
+    let output = root.path().join(format!("{}.epub", "b".repeat(250)));
+    std::fs::write(&output, b"old").unwrap();
+    let req = ExportRequest {
+        output: output.clone(),
+        ..request(root.path(), Format::Epub, true)
+    };
+    assert_eq!(export(&req, None, &mut |_| {}).unwrap().output, output);
+    assert!(std::fs::read(&output).unwrap().starts_with(b"PK"));
+}
+
 /// Child half of the failure test: replaces every format's book in the folder given by the env
 /// var, under a file size limit far below a book, so each write fails part way.
 #[test]
@@ -141,4 +156,27 @@ fn a_failed_replace_keeps_the_old_file() {
     let mut expected: Vec<String> = Format::ALL.iter().map(|f| format!("book.{f}")).collect();
     expected.sort();
     assert_eq!(names(root.path()), expected, "no temporary file left");
+}
+
+#[test]
+fn replace_numbers_books_planned_under_one_file_name() {
+    let ch = |n: &str| Chapter {
+        number: n.into(),
+        local_path: Some(format!("/lib/ch{n}")),
+        ..Default::default()
+    };
+    let chapters = [ch("1"), ch("2"), ch("3")];
+    let plans = plan(
+        &Manga::default(),
+        &chapters,
+        Grouping::Every(1),
+        Some("Book"),
+        None,
+    );
+    let names = |plans: Vec<VolumePlan>| -> Vec<String> {
+        plans.into_iter().map(|p| p.file_name).collect()
+    };
+    assert_eq!(names(one_file_each(plans.clone(), false)), ["Book.epub"; 3]);
+    let own = ["Book.epub", "Book (2).epub", "Book (3).epub"];
+    assert_eq!(names(one_file_each(plans, true)), own);
 }
