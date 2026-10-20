@@ -1,9 +1,9 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::bail;
 use clap::Args as ClapArgs;
 use mangas_core::export::kindle::{export, part_path, ExportStats};
-use mangas_core::export::volume::{self, VolumeOutcome};
+use mangas_core::export::volume::{self, VolumeOutcome, VolumePlan};
 use mangas_core::export::{free_names_in, ExportPreset, Format};
 use mangas_core::{library, storage};
 
@@ -101,7 +101,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let device = CutArgs::device_of(&preset, DEFAULT_PROFILE)?;
     let format = Format::resolve(preset.format, None, None, &device)?;
     let names = volume::written_names(&plans, &args.output_dir, format.id(), args.replace)?;
-    for (p, name) in plans.iter().zip(&names).filter(|_| !args.json) {
+    let firsts = first_parts(&args, &plans, format.id())?;
+    let rows = plans.iter().zip(&names).zip(&firsts);
+    for ((p, name), first_part) in rows.filter(|_| !args.json) {
         let (first, last) = (
             &p.chapters[0].number,
             &p.chapters[p.chapters.len() - 1].number,
@@ -110,7 +112,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         let parts = match args.cut.split_mb {
             Some(mb) => format!(
                 ", in parts of {mb} MB if bigger: {}, …",
-                first_part(&args, &p.file_name, format.id())?.display()
+                first_part.display()
             ),
             None => String::new(),
         };
@@ -196,17 +198,18 @@ fn print_written(stats: &ExportStats) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Where part 1 of the book planned as `file_name` goes: named from the planned name, as the
-/// writer names parts, under a free name unless replacing.
-fn first_part(args: &Args, file_name: &str, ext: &str) -> anyhow::Result<PathBuf> {
-    let planned = args.output_dir.join(file_name).with_extension(ext);
-    let wanted = part_path(&planned, 1);
-    let name = wanted.file_name().map(|n| n.to_string_lossy().into_owned());
-    let name = name.unwrap_or_default();
-    Ok(match args.replace {
+/// Where part 1 of each planned book goes: named as the writer names parts (free unless replacing).
+fn first_parts(args: &Args, plans: &[VolumePlan], ext: &str) -> anyhow::Result<Vec<PathBuf>> {
+    let wanted: Vec<String> = plans
+        .iter()
+        .map(|p| {
+            let planned = Path::new(&p.file_name).with_extension(ext);
+            part_path(&planned, 1).to_string_lossy().into_owned()
+        })
+        .collect();
+    let names = match args.replace {
         true => wanted,
-        false => args
-            .output_dir
-            .join(free_names_in(&args.output_dir, &[name])?.remove(0)),
-    })
+        false => free_names_in(&args.output_dir, &wanted)?,
+    };
+    Ok(names.iter().map(|n| args.output_dir.join(n)).collect())
 }
