@@ -46,9 +46,7 @@ describe("export dialog: emailing a book split into parts", () => {
     fireEvent.click(await enabledButton(/Export book and email/));
     expect(await screen.findByText(/554/)).toBeTruthy();
     expect(screen.getByText(/Emailed Solo \(part 1\)\.epub/)).toBeTruthy();
-    expect(
-      screen.getByText("Not sent: Solo (part 2).epub, Solo (part 3).epub"),
-    ).toBeTruthy();
+    expect(screen.getByText("Not sent: Solo (part 2).epub, Solo (part 3).epub")).toBeTruthy();
     fireEvent.click(await enabledButton(/^Retry email$/));
     expect(await screen.findByText(/Emailed Solo \(part 3\)\.epub/)).toBeTruthy();
     expect(sendEmail.mock.calls).toEqual([
