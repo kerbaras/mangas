@@ -5,12 +5,10 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
-use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId};
-use mangas_core::library;
 use serde_json::Value;
 
 mod support;
-use support::{noisy_chapter, smtp_sessions};
+use support::{library_with_noisy_chapters, noisy_chapter, smtp_sessions};
 
 const ID: &str = "series-1";
 
@@ -32,34 +30,6 @@ fn mangas(home: &Path, args: &[&str], stdin: &str) -> Output {
     child.wait_with_output().unwrap()
 }
 
-/// Follows a manga with chapters "1" and "2" downloaded, three noisy pages each.
-fn library_with_noisy_chapters(home: &Path) {
-    let db = home.join("data/mangas/mangas.db");
-    std::fs::create_dir_all(db.parent().unwrap()).unwrap();
-    let lib = library::open(&db).unwrap();
-    let manga = Manga {
-        id: MangaId(ID.into()),
-        source: "mangadex".into(),
-        title: "Series".into(),
-        ..Default::default()
-    };
-    library::upsert_manga(&lib, &manga).unwrap();
-    let chapter = |n: &str| Chapter {
-        id: ChapterId(format!("c{n}")),
-        manga_id: MangaId(ID.into()),
-        number: n.into(),
-        language: "en".into(),
-        ..Default::default()
-    };
-    let chapters = [chapter("1"), chapter("2")];
-    library::upsert_chapters(&lib, "mangadex", &manga.id, "en", &chapters).unwrap();
-    for c in &chapters {
-        let dir = home.join("chapters").join(&c.number);
-        noisy_chapter(&dir, 3);
-        library::mark_downloaded(&lib, "mangadex", &c.id, &dir).unwrap();
-    }
-}
-
 fn report(out: &Output) -> Value {
     serde_json::from_slice(&out.stdout).unwrap_or_else(|e| panic!("{e}: {out:?}"))
 }
@@ -79,6 +49,11 @@ fn assert_parts(r: &Value, stem: &str, max: u64) -> Vec<PathBuf> {
             assert_eq!(
                 f["part"],
                 serde_json::json!({ "index": i + 1, "total": total })
+            );
+            let title = f["title"].as_str().unwrap();
+            assert!(
+                title.ends_with(&format!(" (part {} of {total})", i + 1)),
+                "{title}"
             );
             let bytes = std::fs::metadata(&path).unwrap().len();
             assert_eq!(f["bytes"], bytes, "{name}");
@@ -147,7 +122,7 @@ fn a_lower_quality_writes_a_smaller_book() {
 #[test]
 fn export_emails_every_part_under_its_own_subject() {
     let home = tempfile::tempdir().unwrap();
-    library_with_noisy_chapters(home.path());
+    library_with_noisy_chapters(home.path(), ID);
     let out_dir = home.path().join("out");
     // One session per part: two ~0.9 MB pages fit in 2 MB, so six pages make three parts.
     let (port, smtp) = smtp_sessions(3);

@@ -120,6 +120,9 @@ pub struct ExportStats {
 pub struct Part {
     pub path: PathBuf,
     pub pages: usize,
+    /// Chapters with at least one page in this part.
+    #[serde(default)]
+    pub chapters: usize,
 }
 
 impl ExportStats {

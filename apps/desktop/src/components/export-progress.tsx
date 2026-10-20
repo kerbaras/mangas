@@ -57,6 +57,7 @@ export function ExportProgressPanel({
   const { pages } = combineResults(results);
   const { warning } = exportSummary(combineResults(results));
   const folder = first ? parentDir(first.output) : "";
+  const parts = results.length === 1 ? first.parts.length : 0;
   return (
     <div
       className="flex items-center justify-between gap-3 rounded-md border border-stroke bg-surface p-3"
@@ -65,12 +66,12 @@ export function ExportProgressPanel({
       <div className="min-w-0">
         <p className="text-body font-medium">
           {results.length === 1
-            ? `Exported ${pages} ${pages === 1 ? "page" : "pages"}`
+            ? `Exported ${pages} ${pages === 1 ? "page" : "pages"}${parts > 1 ? ` in ${parts} parts` : ""}`
             : `Wrote ${results.length} books`}
         </p>
         <Hint hint={first?.output}>
           <p className="truncate text-caption text-ink-3">
-            {results.length === 1 ? first.output : folder}
+            {results.length === 1 && parts < 2 ? first.output : folder}
           </p>
         </Hint>
         {warning && (

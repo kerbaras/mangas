@@ -69,9 +69,10 @@ impl Report {
     pub fn add(&mut self, stats: &ExportStats, title: &str, dirs: &[PathBuf]) {
         let chapters = stats.exported_chapters(dirs).len();
         let total = stats.parts.len();
-        let file = |path: &Path, pages, part| WrittenFile {
+        let titles = stats.titled_outputs(title);
+        let file = |path: &Path, pages, chapters, part: Option<PartNo>| WrittenFile {
             path: path.to_path_buf(),
-            title: title.to_string(),
+            title: titles[part.as_ref().map_or(0, |p| p.index - 1)].1.clone(),
             chapters,
             pages,
             bytes: bytes(path),
@@ -79,13 +80,16 @@ impl Report {
             skipped_files: stats.skipped,
         };
         match total {
-            0 => self.files.push(file(&stats.output, stats.pages, None)),
+            0 => self
+                .files
+                .push(file(&stats.output, stats.pages, chapters, None)),
             _ => self
                 .files
                 .extend(stats.parts.iter().enumerate().map(|(i, p)| {
                     file(
                         &p.path,
                         p.pages,
+                        p.chapters,
                         Some(PartNo {
                             index: i + 1,
                             total,

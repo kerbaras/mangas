@@ -177,16 +177,19 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let to = args.send.map(|via| (via, args.kindle.as_deref()));
     let done =
         kindle_record::record_and_send(&stats, &req.chapter_dirs, &req.title, dev.id, to).await;
-    match (&done, args.json) {
-        (Ok(Some(sent)), false) => outln!("{sent}")?,
-        (Ok(Some(sent)), true) => eprintln!("{sent}"),
-        (Err(e), true) => report.fail(&stats.output, e.to_string()),
-        _ => {}
+    for line in &done.sent {
+        match args.json {
+            true => eprintln!("{line}"),
+            false => outln!("{line}")?,
+        }
     }
     if args.json {
+        for (file, why) in &done.failed {
+            report.fail(file, why.clone());
+        }
         report.print()?;
     }
-    done.map(|_| ())
+    done.result()
 }
 
 #[cfg(test)]

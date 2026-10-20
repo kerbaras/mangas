@@ -9,54 +9,73 @@ use mangas_core::library::{self, Library};
 use super::deliver::{deliver, not_sent, SendArg};
 use crate::{paths, Exit};
 
-/// Records the book `stats` describes, made from the chapter folders `dirs`, in the library, then sends it when `to` says how (and to
-/// which Kindle for USB). A library that won't open only warns, unless the book had to be sent:
-/// failing to send it exits 2. Returns where it was sent, if it was.
+/// Where each file went, and the files that couldn't be sent with why.
+#[derive(Default)]
+pub struct Delivery {
+    pub sent: Vec<String>,
+    pub failed: Vec<(PathBuf, String)>,
+}
+
+impl Delivery {
+    /// Exit 2 when a file wasn't sent: naming it, or counting them after saying each on stderr.
+    pub fn result(&self) -> anyhow::Result<()> {
+        let message = match self.failed.as_slice() {
+            [] => return Ok(()),
+            [(_, message)] => message.clone(),
+            many => {
+                many.iter().for_each(|(_, m)| eprintln!("{m}"));
+                format!("{} parts were written but not sent", many.len())
+            }
+        };
+        Err(Exit { code: 2, message }.into())
+    }
+}
+
+/// Records the book `stats` describes (every part of it), made from the chapter folders `dirs`,
+/// in the library, then sends each file when `to` says how (and to which Kindle for USB). A
+/// library that won't open only warns, unless the book had to be sent: then no file is sent.
 pub async fn record_and_send(
     stats: &ExportStats,
     dirs: &[PathBuf],
     title: &str,
     device: &str,
     to: Option<(SendArg, Option<&Path>)>,
-) -> anyhow::Result<Option<String>> {
-    let unsent = |e: anyhow::Error| -> anyhow::Error {
-        let (via, kindle) = to.unwrap_or((SendArg::Email, None));
-        let message = not_sent(&stats.output, via, kindle, &e);
-        Exit { code: 2, message }.into()
-    };
+) -> Delivery {
+    let outputs = stats.titled_outputs(title);
     let lib = match paths::library_db().and_then(|db| Ok(library::open(&db)?)) {
         Ok(lib) => lib,
-        Err(e) if to.is_some() => return Err(unsent(e)),
         Err(e) => {
-            eprintln!("warning: could not open the library: {e}");
-            return Ok(None);
+            let Some((via, kindle)) = to else {
+                eprintln!("warning: could not open the library: {e}");
+                return Delivery::default();
+            };
+            let unsent =
+                |(out, _): &(PathBuf, String)| (out.clone(), not_sent(out, via, kindle, &e));
+            let failed = outputs.iter().map(unsent).collect();
+            return Delivery {
+                sent: Vec::new(),
+                failed,
+            };
         }
     };
     mark_exported(&lib, &stats.exported_chapters(dirs));
-    let outputs = stats.titled_outputs(title);
     for (output, title) in &outputs {
         record_export(&lib, output, title, device);
     }
+    let mut done = Delivery::default();
     let Some((via, kindle)) = to else {
-        return Ok(None);
+        return done;
     };
-    // Every part is tried; the first that fails is the error, the others were said on stderr.
-    let (mut lines, mut failed) = (Vec::new(), None);
     for (output, title) in &outputs {
-        let file = std::path::absolute(output)?;
+        let file = std::path::absolute(output).unwrap_or_else(|_| output.clone());
         match deliver(&lib, &file, title, via, kindle).await {
-            Ok(line) => lines.push(line),
-            Err(e) => {
-                let message = not_sent(output, via, kindle, &e);
-                eprintln!("{message}");
-                failed.get_or_insert(message);
-            }
+            Ok(line) => done.sent.push(line),
+            Err(e) => done
+                .failed
+                .push((output.clone(), not_sent(output, via, kindle, &e))),
         }
     }
-    match failed {
-        Some(message) => Err(Exit { code: 2, message }.into()),
-        None => Ok(Some(lines.join("\n"))),
-    }
+    done
 }
 
 /// Library chapters among `dirs` count as read from now on; folders from elsewhere are ignored.

@@ -121,6 +121,7 @@ fn write_parts(
             Ok(path) => written.push(Part {
                 path,
                 pages: range.len(),
+                chapters: part.chapters.len(),
             }),
             Err(e) => {
                 for part in &written {
