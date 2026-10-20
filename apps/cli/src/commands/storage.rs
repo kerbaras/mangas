@@ -1,9 +1,11 @@
 use std::path::PathBuf;
 
 use clap::{Args as ClapArgs, Subcommand, ValueEnum};
+use mangas_core::domain::MangaId;
 use mangas_core::library;
 use mangas_core::storage::{self, human_size, Cache, Usage};
 
+use super::followed::followed_source;
 use crate::output::outln;
 use crate::paths;
 
@@ -23,8 +25,9 @@ enum Command {
     Delete {
         /// Manga id on the source (see `mangas list`)
         id: String,
-        #[arg(long, default_value = "mangadex")]
-        source: String,
+        /// Source of the title [default: the one your library follows it on]
+        #[arg(long)]
+        source: Option<String>,
     },
     /// Delete a cache the app rebuilds on its own
     Clear {
@@ -56,6 +59,7 @@ pub fn run(args: Args) -> anyhow::Result<()> {
     match args.command.unwrap_or(Command::Usage) {
         Command::Usage => print_usage(&storage::usage(&lib, &folders)?),
         Command::Delete { id, source } => {
+            let source = followed_source(&lib, &MangaId(id.clone()), source.as_deref())?;
             let deleted = storage::delete_downloads(&lib, &folders.chapters(), &source, &id)?;
             outln!(
                 "Deleted {} of {id} ({}); the title stays in your library",

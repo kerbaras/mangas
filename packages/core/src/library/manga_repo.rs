@@ -67,6 +67,15 @@ pub fn get_manga(lib: &Library, source: &str, id: &MangaId) -> Result<Option<Man
         .optional()?)
 }
 
+/// The sources following a manga with id `id`, in name order (one, unless two providers or an
+/// import share the id).
+pub fn followed_sources(lib: &Library, id: &MangaId) -> Result<Vec<String>> {
+    let conn = lib.conn()?;
+    let mut stmt = conn.prepare("SELECT source FROM manga WHERE id = ?1 ORDER BY source")?;
+    let rows = stmt.query_map(params![id.0], |r| r.get(0))?;
+    Ok(rows.collect::<std::result::Result<_, _>>()?)
+}
+
 /// Unfollows a manga; its chapter rows go with it. Returns whether a row was removed.
 pub fn remove_manga(lib: &Library, source: &str, id: &MangaId) -> Result<bool> {
     let removed = lib.conn()?.execute(

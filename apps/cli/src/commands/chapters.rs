@@ -4,6 +4,7 @@ use mangas_core::domain::{
 };
 use mangas_core::library;
 
+use super::followed::source_or_default;
 use super::{hint, source_by_name, stored_settings, unknown_group};
 use crate::output::{outln, print_json};
 use crate::paths;
@@ -12,8 +13,9 @@ use crate::paths;
 pub struct Args {
     /// Manga id on the source
     pub id: String,
-    #[arg(long, default_value = "mangadex")]
-    pub source: String,
+    /// Source of the title [default: the one your library follows it on, else mangadex]
+    #[arg(long)]
+    pub source: Option<String>,
     /// Chapter languages, e.g. "es,en" [default: your preferred languages]
     #[arg(long)]
     pub lang: Option<String>,
@@ -34,15 +36,16 @@ pub struct Args {
 pub async fn run(args: Args) -> anyhow::Result<()> {
     let id = MangaId(args.id);
     let lib = library::open(&paths::library_db()?)?;
-    let followed = library::get_manga(&lib, &args.source, &id)?.is_some();
+    let source_name = source_or_default(&lib, &id, args.source.as_deref())?;
+    let followed = library::get_manga(&lib, &source_name, &id)?.is_some();
     let requested = library::requested_languages(args.lang.as_deref(), &stored_settings());
-    let languages = mangas_providers::languages_for(&args.source, &requested);
-    let stored = || library::list_chapters(&lib, &args.source, &id, None);
+    let languages = mangas_providers::languages_for(&source_name, &requested);
+    let stored = || library::list_chapters(&lib, &source_name, &id, None);
     // Imported manga have no provider: their chapters only live in the library.
-    let chapters = if args.offline || library::is_local(&args.source) {
+    let chapters = if args.offline || library::is_local(&source_name) {
         library::in_languages(stored()?, &languages)
     } else {
-        let source = source_by_name(&args.source)?;
+        let source = source_by_name(&source_name)?;
         if followed {
             library::sync_chapters(&lib, source.as_ref(), &id, &languages).await?;
             library::in_languages(stored()?, &languages)
@@ -54,14 +57,14 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let group = normalize_group(args.group.as_deref());
     let chapters = in_group(chapters, group.as_deref());
     if let (Some(group), true) = (&group, chapters.is_empty()) {
-        return Err(unknown_group(group, &id, &args.source));
+        return Err(unknown_group(group, &id, &source_name));
     }
     if args.json {
         return print_json(&chapters);
     }
     if chapters.is_empty() {
         let langs = languages.join("/");
-        outln!("No {langs} chapters hosted on {} for {id}", args.source)?;
+        outln!("No {langs} chapters hosted on {} for {id}", source_name)?;
         return Ok(());
     }
     let id_width = id_width(&chapters);
@@ -78,7 +81,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         outln!("{}", format_row(c, id_width))?;
     }
     if !followed {
-        let add = hint(&format!("add {id}"), &args.source);
+        let add = hint(&format!("add {id}"), &source_name);
         outln!("\n(not in your library; {add} to follow it)")?;
     }
     Ok(())

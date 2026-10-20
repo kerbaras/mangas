@@ -9,9 +9,10 @@ use mangas_core::download::queue::{self, JobState, Scope};
 use mangas_core::{library, storage};
 
 use super::download_releases::{pick, pick_group, report_left_out};
+use super::followed::followed_source;
 use super::settled::{failed_note, paused_report};
 use super::watch::run_until_settled;
-use super::{hint, source_by_name, stored_settings, unknown_group};
+use super::{source_by_name, stored_settings, unknown_group};
 use crate::output::outln;
 use crate::paths;
 
@@ -22,8 +23,9 @@ pub struct Args {
     /// Chapter numbers to download, e.g. "1-5,7" (default: all)
     #[arg(long)]
     pub chapters: Option<String>,
-    #[arg(long, default_value = "mangadex")]
-    pub source: String,
+    /// Source of the title [default: the one your library follows it on, see `mangas list`]
+    #[arg(long)]
+    pub source: Option<String>,
     /// Chapter languages, most preferred first: each chapter comes in the first one that has
     /// it, e.g. "es,en" [default: your preferred languages]
     #[arg(long)]
@@ -45,30 +47,33 @@ pub struct Args {
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
-    queue::ensure_downloadable(&args.source)?;
-    let source = source_by_name(&args.source)?;
+    if let Some(given) = &args.source {
+        queue::ensure_downloadable(given)?;
+    }
     let id = MangaId(args.manga_id.clone());
     let lib = Arc::new(library::open(&paths::library_db()?)?);
-    if library::get_manga(&lib, &args.source, &id)?.is_none() {
-        let add = hint(&format!("add {id}"), &args.source);
-        bail!("{id} is not in your library; run {add} first");
+    let source_name = followed_source(&lib, &id, args.source.as_deref())?;
+    if library::is_local(&source_name) {
+        let export = format!("`mangas export {id}`");
+        bail!("{id} is an imported title: its chapters are already on disk, so there is nothing to download ({export} makes a book of them)");
     }
+    let source = source_by_name(&source_name)?;
     let settings = stored_settings();
     let requested = library::requested_languages(args.lang.as_deref(), &settings);
-    let languages = mangas_providers::languages_for(&args.source, &requested);
+    let languages = mangas_providers::languages_for(&source_name, &requested);
     let synced = library::sync_chapters(&lib, source.as_ref(), &id, &languages).await?;
-    let saved = library::chapter_group(&lib, &args.source, &id)?;
+    let saved = library::chapter_group(&lib, &source_name, &id)?;
     let group = pick_group(args.group.as_deref(), args.all_groups, saved);
     let picked = pick(
         &lib,
-        &args.source,
+        &source_name,
         &synced,
         group.as_deref(),
         args.all_groups,
         &settings,
     )?;
     if let (Some(group), true) = (&group, picked.is_empty()) {
-        return Err(unknown_group(group, &id, &args.source));
+        return Err(unknown_group(group, &id, &source_name));
     }
     if let Some(group) = &group {
         outln!("Group: {group}")?;
@@ -82,7 +87,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         bail!("no chapters match the selection");
     }
     if group.is_none() && !args.all_groups {
-        report_left_out(&synced, &selected, &id, &args.source, &settings)?;
+        report_left_out(&synced, &selected, &id, &source_name, &settings)?;
     }
     let selected = without_unavailable(selected, args.chapters.is_some())?;
     // `--cbz` reads the chapter folders after they download: no data-folder move until it's done.
@@ -90,7 +95,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         true => Some(storage::hold_for_export(paths::data_dir)?),
         false => None,
     };
-    let queued = queue::enqueue(&lib, &args.source, selected, args.force)?;
+    let queued = queue::enqueue(&lib, &source_name, selected, args.force)?;
     if !queued.on_disk.is_empty() {
         outln!(
             "skipped {} chapter(s) already on disk (--force downloads them again)",
