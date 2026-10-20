@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use mangas_core::library::{self, ExportRecord};
 use mangas_core::send::password::{self, SecretStore};
@@ -42,9 +43,14 @@ pub async fn send_usb(
         let file = file.clone();
         move || {
             let kindle = usb::choose(root.as_deref(), usb::find_kindles())?;
+            // One event per 1 MB chunk would repaint the dialog ~30 times a second.
+            let mut last = Instant::now() - Duration::from_secs(1);
             let mut on_progress = |done, total| {
-                if let Err(e) = app.emit(SEND_EVENT, CopyProgress { done, total }) {
-                    log::warn!("emit {SEND_EVENT}: {e}");
+                if done == total || last.elapsed() >= Duration::from_millis(250) {
+                    last = Instant::now();
+                    if let Err(e) = app.emit(SEND_EVENT, CopyProgress { done, total }) {
+                        log::warn!("emit {SEND_EVENT}: {e}");
+                    }
                 }
             };
             usb::copy_to_kindle(&file, &kindle, &mut on_progress).map(|d| (d, kindle.name))
