@@ -100,20 +100,21 @@ jobs:
             Write-Host "--- HKCU\Software\kerbaras (install dir record)"
             Get-ChildItem "HKCU:\Software\kerbaras" -ErrorAction SilentlyContinue | ForEach-Object { "$($_.Name) = $((Get-ItemProperty $_.PSPath).'(default)')" } | Write-Host
             Write-Host "--- Get-Package"
-            Get-Package -ProviderName Programs -ErrorAction SilentlyContinue | Where-Object Name -match 'mangas' | Format-Table Name, Version, ProviderName -AutoSize | Out-String -Width 300 | Write-Host
+            # The Programs provider only exists in Windows PowerShell 5.1, not pwsh 7.
+            powershell.exe -NoProfile -Command "Get-Package -ProviderName Programs | Where-Object Name -match 'mangas' | Format-Table Name, Version, ProviderName -AutoSize | Out-String -Width 300" | Write-Host
             Write-Host "--- install dirs under LOCALAPPDATA / Program Files (exact on-disk case)"
             Get-ChildItem $env:LOCALAPPDATA, $env:ProgramFiles, ${env:ProgramFiles(x86)} -Directory -ErrorAction SilentlyContinue | Where-Object Name -match '^mangas$' | ForEach-Object { Write-Host $_.FullName; Get-ChildItem $_.FullName | Format-Table Name, Length, LastWriteTime -AutoSize | Out-String | Write-Host }
             Write-Host "--- Start menu / desktop shortcuts"
             Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs", "$env:USERPROFILE\Desktop", "$env:PUBLIC\Desktop" -Filter '*.lnk' -Recurse -ErrorAction SilentlyContinue | Where-Object Name -match 'mangas' | ForEach-Object { $t = (New-Object -ComObject WScript.Shell).CreateShortcut($_.FullName).TargetPath; Write-Host "$($_.FullName) -> $t" }
             return @($hits)
           }
-          function Install($exe, $argline) {
+          function Invoke-Installer($exe, $argline) {
             Write-Host "Installing $exe $argline"
             $p = Start-Process -FilePath $exe -ArgumentList $argline -Wait -PassThru
             Write-Host "exit $($p.ExitCode)"
             if ($p.ExitCode) { throw "installer exited $($p.ExitCode)" }
           }
-          function Cli($exe, [string[]]$a) {
+          function Invoke-Mangas($exe, [string[]]$a) {
             $out = Join-Path $env:RUNNER_TEMP "cli.out"; $err = Join-Path $env:RUNNER_TEMP "cli.err"
             $p = Start-Process -FilePath $exe -ArgumentList $a -NoNewWindow -Wait -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
             $o = Get-Content $out -Raw; Write-Host "> mangas $($a -join ' ')"; Write-Host $o; Get-Content $err | Write-Host
@@ -125,16 +126,16 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"; . "$env:RUNNER_TEMP\helpers.ps1"
-          Install (Get-ChildItem old\*-setup.exe).FullName "/S"
+          Invoke-Installer (Get-ChildItem old\*-setup.exe).FullName "/S"
           $hits = Show-Installs "after installing v0.5.0-rc.1"
           if ($hits.Count -ne 1) { throw "expected one install entry, got $($hits.Count)" }
           $dir = $hits[0].InstallLocation.Trim('"')
           $exe = Join-Path $dir "mangas.exe"
-          Cli $exe @("--version") | Out-Null
-          Cli $exe @("settings", "languages", "es-la,en") | Out-Null
-          Cli $exe @("settings", "concurrency", "5") | Out-Null
-          Cli $exe @("settings", "proxy", "none") | Out-Null
-          $before = Cli $exe @("settings", "show")
+          Invoke-Mangas $exe @("--version") | Out-Null
+          Invoke-Mangas $exe @("settings", "languages", "es-la,en") | Out-Null
+          Invoke-Mangas $exe @("settings", "concurrency", "5") | Out-Null
+          Invoke-Mangas $exe @("settings", "proxy", "none") | Out-Null
+          $before = Invoke-Mangas $exe @("settings", "show")
           $before | Set-Content "$env:RUNNER_TEMP\settings-before.txt"
           $db = Join-Path $env:APPDATA "kerbaras\mangas\data\mangas.db"
           Get-Item $db | Format-List FullName, Length, LastWriteTime | Out-String | Write-Host
@@ -143,7 +144,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"; . "$env:RUNNER_TEMP\helpers.ps1"
-          Install (Get-ChildItem new\*-setup.exe).FullName "${{ matrix.args }}"
+          Invoke-Installer (Get-ChildItem new\*-setup.exe).FullName "${{ matrix.args }}"
           $hits = Show-Installs "after installing the renamed build"
           if ($hits.Count -ne 1) { throw "expected ONE install entry, got $($hits.Count)" }
           if ($hits[0].DisplayName -cne "mangas") { throw "DisplayName is '$($hits[0].DisplayName)'" }
@@ -155,9 +156,9 @@ jobs:
           $dirs = @(Get-ChildItem $env:LOCALAPPDATA, $env:ProgramFiles -Directory | Where-Object Name -match '^mangas$')
           if ($dirs.Count -ne 1) { throw "expected one install dir, got $($dirs.Count)" }
           $exe = Join-Path $dir "mangas.exe"
-          $v = Cli $exe @("--version")
+          $v = Invoke-Mangas $exe @("--version")
           if ($v -notmatch [regex]::Escape($env:NEW_VERSION)) { throw "installed exe is not the new build: $v" }
-          $after = Cli $exe @("settings", "show")
+          $after = Invoke-Mangas $exe @("settings", "show")
           $before = Get-Content "$env:RUNNER_TEMP\settings-before.txt" -Raw
           if ($after.Trim() -ne $before.Trim()) { throw "settings changed across the upgrade" }
           Write-Host "settings identical before and after the upgrade"
