@@ -25,8 +25,9 @@ pub fn export(
     if req.chapter_dirs.is_empty() {
         return Err(Error::Other("export: no chapter directories".into()));
     }
+    check_listable(&req.output)?;
     let output = match req.replace {
-        true => check_listable(&req.output).map(|_| req.output.clone())?,
+        true => req.output.clone(),
         false => free_book_path(&req.output)?,
     };
     let req = &ExportRequest {

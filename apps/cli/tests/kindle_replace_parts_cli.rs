@@ -8,19 +8,22 @@ mod support;
 use support::noisy_chapter;
 
 fn kindle(home: &Path, chapter: &Path, book: &Path, split_mb: Option<&str>) {
-    let out = run(home, chapter, book, split_mb);
+    let out = run(home, chapter, book, split_mb, true);
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(out.status.success(), "{stderr}");
 }
 
-fn run(home: &Path, chapter: &Path, book: &Path, split_mb: Option<&str>) -> Output {
+fn run(home: &Path, chapter: &Path, book: &Path, split_mb: Option<&str>, replace: bool) -> Output {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_mangas-cli"));
-    cmd.args(["kindle", chapter.to_str().unwrap(), "--replace", "-o"])
+    cmd.args(["kindle", chapter.to_str().unwrap(), "-o"])
         .arg(book)
         .env("HOME", home)
         .env("XDG_DATA_HOME", home.join("data"))
         .env("MANGAS_KEYCHAIN", "off")
         .env_remove("MANGAS_LOG");
+    if replace {
+        cmd.arg("--replace");
+    }
     if let Some(mb) = split_mb {
         cmd.args(["--split-mb", mb]);
     }
@@ -84,7 +87,7 @@ fn a_replacement_leaves_only_the_new_set_of_the_same_book() {
 
 #[cfg(unix)]
 #[test]
-fn a_folder_that_cannot_be_listed_stops_a_replacement_before_it_writes() {
+fn a_folder_that_cannot_be_listed_stops_every_export_before_it_writes() {
     use std::os::unix::fs::PermissionsExt;
     let home = tempfile::tempdir().unwrap();
     let chapter = home.path().join("chapters/1");
@@ -104,14 +107,22 @@ fn a_folder_that_cannot_be_listed_stops_a_replacement_before_it_writes() {
         eprintln!("skipped: running as root, -wx folders can still be listed");
         return;
     }
-    let failed = run(home.path(), &chapter, &book, Some("2"));
+    // Replacing, or naming a new set next to the old one, split or not: each must list the folder.
+    let runs = [(Some("2"), true), (Some("2"), false), (None, false)];
+    let failed: Vec<Output> = runs
+        .iter()
+        .map(|&(mb, replace)| run(home.path(), &chapter, &book, mb, replace))
+        .collect();
     mode(0o755);
-    let stderr = String::from_utf8_lossy(&failed.stderr);
-    assert_eq!(failed.status.code(), Some(1), "{stderr}");
-    assert!(
-        stderr.contains(&format!("couldn't list {}: ", out.display())),
-        "{stderr}"
-    );
+    for (out_, (mb, replace)) in failed.iter().zip(runs) {
+        let stderr = String::from_utf8_lossy(&out_.stderr);
+        let case = format!("split {mb:?}, replace {replace}: {stderr}");
+        assert_eq!(out_.status.code(), Some(1), "{case}");
+        assert!(
+            stderr.contains(&format!("couldn't list {}: ", out.display())),
+            "{case}"
+        );
+    }
     assert_eq!(names(&out), before);
     let after: Vec<Vec<u8>> = before
         .iter()
