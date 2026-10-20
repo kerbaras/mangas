@@ -36,9 +36,8 @@ import {
   initialMode,
   pickSummary,
 } from "@/lib/export-plan";
-import { filesOf } from "@/lib/export-summary";
+import { booksOf } from "@/lib/export-summary";
 import type { ExportResult } from "@/lib/ipc";
-import { titleOf } from "@/lib/send-labels";
 
 type Props = {
   open: boolean;
@@ -134,7 +133,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
     setRuns((n) => n + 1);
     if (!results) return;
     onExported?.(results);
-    const sent = results.flatMap(filesOf).map((file) => ({ file, title: titleOf(file) }));
+    const sent = results.flatMap(booksOf);
     setWritten(sent);
     if (via !== "save") await send.deliver(sent, via);
   };

@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import type { ExportResult } from "./ipc";
 import { openLogs } from "./ipc.diagnostics";
 import { notifyError } from "./notify";
+import { titleOf } from "./send-labels";
 
 const fileName = (path: string): string =>
   path.slice(Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")) + 1);
@@ -26,6 +27,15 @@ export function exportSummary({ output, parts, pages, skipped, detectors_error }
 
 /** Every file a result wrote: its parts when the book was split, else the one book. */
 export const filesOf = (r: ExportResult): string[] => (r.parts.length > 0 ? r.parts : [r.output]);
+
+/** Every file a result wrote and the title its delivery sends it under: a part's is
+ * "Title (part 2 of 3)", like the book's own (`export::kindle::parts::part_title`). */
+export function booksOf(r: ExportResult): { file: string; title: string }[] {
+  if (r.parts.length === 0) return [{ file: r.output, title: titleOf(r.output) }];
+  const base = titleOf(r.parts[0]).replace(/ \(part 1\)$/, "");
+  const total = r.parts.length;
+  return r.parts.map((file, i) => ({ file, title: `${base} (part ${i + 1} of ${total})` }));
+}
 
 /** Several books reported as one: pages and skipped files add up. */
 export const combineResults = (results: ExportResult[]): ExportResult => ({

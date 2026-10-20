@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { combineResults, exportSummary, notifyExported } from "@/lib/export-summary";
+import { booksOf, combineResults, exportSummary, notifyExported } from "@/lib/export-summary";
 import { toExportResult } from "@/lib/ipc.wire";
 
 const toast = vi.hoisted(() => ({ success: vi.fn(), warning: vi.fn(), error: vi.fn() }));
@@ -38,6 +38,20 @@ describe("exportSummary of a split book", () => {
     expect(exportSummary({ ...result, output: parts[0], parts }).title).toBe(
       "Exported 30 pages in 2 parts, from Solo (part 1).epub",
     );
+  });
+});
+
+describe("booksOf", () => {
+  const result = { output: "/k/Solo.epub", parts: [], pages: 9, skipped: 0 };
+  it("sends a book under its file name", () => {
+    expect(booksOf(result)).toEqual([{ file: "/k/Solo.epub", title: "Solo" }]);
+  });
+  it("sends each part as part n of the total, like the book's own title", () => {
+    const parts = ["/k/Solo (part 1).epub", "/k/Solo (part 2).epub"];
+    expect(booksOf({ ...result, output: parts[0], parts }).map((b) => b.title)).toEqual([
+      "Solo (part 1 of 2)",
+      "Solo (part 2 of 2)",
+    ]);
   });
 });
 
