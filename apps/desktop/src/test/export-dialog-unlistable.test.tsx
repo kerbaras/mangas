@@ -49,7 +49,7 @@ describe("export dialog: a folder that can't be listed", () => {
     await waitFor(async () => expect((await exportButton()).hasAttribute("disabled")).toBe(true));
   });
 
-  it("refuses a replacing export up front, and lets it go once the folder lists", async () => {
+  it("refuses a replacing export up front with the same line", async () => {
     const checkExportDir = unlistable();
     exportBackend({ checkExportDir });
     render(dialog());
@@ -57,5 +57,19 @@ describe("export dialog: a folder that can't be listed", () => {
     expect(await screen.findByText(refused)).toBeTruthy();
     await waitFor(async () => expect((await exportButton()).hasAttribute("disabled")).toBe(true));
     expect(checkExportDir).toHaveBeenLastCalledWith(expect.stringMatching(/kindle$/), false, true);
+  });
+
+  it("re-enables Export once the folder can be listed again, with no option changed", async () => {
+    let listable = false;
+    const checkExportDir = vi.fn(async () => {
+      if (!listable) throw refused;
+    });
+    exportBackend({ checkExportDir });
+    render(dialog());
+    fireEvent.click(await screen.findByRole("switch", { name: "Replace existing files" }));
+    expect(await screen.findByText(refused)).toBeTruthy();
+    listable = true;
+    await waitFor(() => expect(screen.queryByText(refused)).toBeNull(), { timeout: 4000 });
+    expect(await enabledButton(/Export 2 books/)).toBeTruthy();
   });
 });
