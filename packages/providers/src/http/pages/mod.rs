@@ -52,6 +52,8 @@ pub struct PageClient<'a> {
     public_only: bool,
     max_bytes: Option<usize>,
     network: Network,
+    /// [`network::proxy_hosts`]: never a page host (see [`Self::target`]).
+    proxies: Vec<String>,
 }
 
 /// How one hop ended: the final response, or a redirect to follow.
@@ -85,6 +87,7 @@ impl<'a> PageClient<'a> {
             retry: PAGE_RETRY,
             public_only,
             max_bytes: None,
+            proxies: network::proxy_hosts(&network),
             network,
         }
     }
@@ -123,6 +126,14 @@ impl<'a> PageClient<'a> {
                 None => self.error(format!("refusing to fetch non-public url {url}")),
             });
         }
+        // The resolver lets the proxy's name resolve to a private address; a page on that name
+        // (reached directly when `NO_PROXY` lists it) would get the same pass.
+        let host = Url::parse(&url)
+            .ok()
+            .and_then(|u| u.host_str().map(str::to_ascii_lowercase));
+        if self.public_only && host.is_some_and(|h| self.proxies.contains(&h)) {
+            return Err(self.error(format!("refusing to fetch the proxy's own host: {url}")));
+        }
         if url.starts_with("http:") {
             log::debug!("{}: fetching plain http {url}", self.source.name());
         }
@@ -130,15 +141,6 @@ impl<'a> PageClient<'a> {
     }
 
     async fn get_hop(&self, url: &str, extra: &[Header]) -> Result<Step> {
-        let domain = Url::parse(url)
-            .ok()
-            .and_then(|u| u.domain().map(str::to_string));
-        let proxied = self.public_only && network::proxied(&self.network);
-        if let Some(host) = domain.filter(|_| proxied) {
-            resolver::check_proxied(&host)
-                .await
-                .map_err(|e| e.into_error(self.source.name()))?;
-        }
         let mut headers = self.source.page_headers(url);
         headers.extend_from_slice(extra);
         let headers = header_map(&headers)?;

@@ -106,7 +106,12 @@ Rules: the Tauri layer and the CLI contain no business logic. Everything testabl
   `http::PageClient`, so pages get the source's page headers, the host's shared token bucket
   (`image_hosts` take their provider's `requests_per_second`, other hosts `DEFAULT_PAGE_RATE`),
   `PAGE_RETRY` with `Retry-After`, and public hosts only. A 429 pauses the whole host for the
-  retry delay. A chapter with any page missing after
+  retry delay. "Public" is checked on the addresses a page host resolves to, so a name pointing
+  at the LAN or loopback is refused too. Through a proxy (Settings → Network or the `*_PROXY`
+  variables) the proxy resolves the host and no local lookup runs (#123): a host only the
+  proxy can resolve (split DNS, a VPN) downloads, and the trade-off is that only private IP
+  literals and `localhost` in the URL are still refused; what a name points at is the proxy's
+  call. The proxy's own name may resolve to a private address (it is the user's choice). A chapter with any page missing after
   retries is an error naming the failed pages and the count; it is never marked downloaded.
 - **Download queue** (`download::queue`, #29): every download is a row in `download_jobs`
   (one per chapter), so it survives restarts and the desktop app and CLI share it. The logic is

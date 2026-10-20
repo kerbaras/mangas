@@ -44,18 +44,41 @@ pub fn proxied(network: &Network) -> bool {
     }
 }
 
-/// Whether reqwest picks up a proxy from the environment (it reads these variables).
+/// The proxy variables reqwest reads from the environment.
+const PROXY_VARS: [&str; 6] = [
+    "HTTPS_PROXY",
+    "https_proxy",
+    "HTTP_PROXY",
+    "http_proxy",
+    "ALL_PROXY",
+    "all_proxy",
+];
+
+/// Whether reqwest picks up a proxy from the environment.
 fn env_proxied() -> bool {
-    [
-        "HTTPS_PROXY",
-        "https_proxy",
-        "HTTP_PROXY",
-        "http_proxy",
-        "ALL_PROXY",
-        "all_proxy",
-    ]
-    .iter()
-    .any(|var| std::env::var_os(var).is_some_and(|v| !v.is_empty()))
+    PROXY_VARS
+        .iter()
+        .any(|var| std::env::var_os(var).is_some_and(|v| !v.is_empty()))
+}
+
+/// The host names of the proxies requests go through (the configured one, or the
+/// environment's), lowercased: the only names a client resolves itself when proxied.
+pub fn proxy_hosts(network: &Network) -> Vec<String> {
+    let urls = match effective(network) {
+        Network::System => PROXY_VARS
+            .iter()
+            .filter_map(|var| std::env::var(var).ok())
+            .collect(),
+        Network::Direct => vec![],
+        Network::Proxy(url) => vec![url],
+    };
+    urls.iter().filter_map(|url| proxy_host(url)).collect()
+}
+
+/// The host of a proxy URL; a bare `host:port` (which reqwest takes as http) too.
+fn proxy_host(raw: &str) -> Option<String> {
+    let host = |s: &str| Some(Url::parse(s).ok()?.host_str()?.to_ascii_lowercase());
+    host(raw).or_else(|| host(&format!("http://{raw}")))
 }
 
 /// A transport error, naming the proxy when a configured one could not be reached (a
@@ -118,6 +141,15 @@ mod tests {
     fn a_fixed_proxy_counts_as_proxied() {
         assert!(proxied(&Network::Proxy("http://127.0.0.1:1".into())));
         assert!(!proxied(&Network::Direct));
+    }
+
+    #[test]
+    fn proxy_hosts_name_the_configured_proxy() {
+        let proxy = |url: &str| proxy_hosts(&Network::Proxy(url.into()));
+        assert_eq!(proxy("http://me:pw@Proxy.LAN:3128"), ["proxy.lan"]);
+        assert_eq!(proxy("socks5h://localhost:1055"), ["localhost"]);
+        assert_eq!(proxy("[::1]:8080"), ["[::1]"]);
+        assert!(proxy_hosts(&Network::Direct).is_empty());
     }
 
     #[test]

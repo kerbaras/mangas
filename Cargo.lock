@@ -3053,6 +3053,8 @@ dependencies = [
  "chrono",
  "futures",
  "html-escape",
+ "http",
+ "hyper-util",
  "log",
  "mangas-core",
  "mangas-providers",

@@ -278,7 +278,8 @@ Issues and pull requests are welcome. Rules for contributors and agents are in
 ## Security
 
 - Downloaded models and the ONNX Runtime library are checked against pinned SHA-256 hashes
-- Page downloads refuse private and local network addresses
+- Page downloads refuse private and local network addresses. Through a proxy, the proxy looks
+  up image hosts, so only private IP addresses and `localhost` written in a link are refused
 - The webview opens folders only inside the app's data folders or a folder you exported to
 
 To report a vulnerability, please don't post the details in a public issue. Open an issue asking
