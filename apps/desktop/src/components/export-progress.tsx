@@ -51,7 +51,7 @@ export function ExportProgressPanel({
     );
   }
   if (state.kind === "stopped")
-    return <ExportStoppedPanel stopped={state.stopped} onReset={onReset} />;
+    return <ExportStoppedPanel stopped={state.stopped} onReset={onRetry} canRetry={canRetry} />;
   const { results } = state;
   const [first] = results;
   const { pages } = combineResults(results);

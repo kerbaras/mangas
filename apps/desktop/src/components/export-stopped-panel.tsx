@@ -13,9 +13,12 @@ const books = (n: number) => `${n} ${n === 1 ? "book" : "books"}`;
 export function ExportStoppedPanel({
   stopped,
   onReset,
+  canRetry = true,
 }: {
   stopped: ExportStopped;
   onReset: () => void;
+  /** False while the form can't export (names or settings still loading). */
+  canRetry?: boolean;
 }) {
   const { results, failed, notWritten } = stopped;
   const folder = parentDir(failed.output);
@@ -41,7 +44,7 @@ export function ExportStoppedPanel({
         </p>
       )}
       <div className="mt-3 flex gap-2">
-        <Button size="sm" onClick={onReset}>
+        <Button size="sm" disabled={!canRetry} onClick={onReset}>
           Try again
         </Button>
         {results.length > 0 && (
