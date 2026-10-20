@@ -134,9 +134,13 @@ fn a_folder_that_cannot_be_listed_stops_a_split_or_a_replacement_not_a_plain_exp
     mode(0o755);
     let stderr = String::from_utf8_lossy(&plain.stderr);
     assert!(plain.status.success(), "plain export: {stderr}");
-    assert!(book.is_file(), "the plain export writes the file");
+    // The old parts of book.epub hold its name, as in a folder that lists (#303).
+    assert!(
+        out.join("book (2).epub").is_file(),
+        "the plain export writes the file"
+    );
     let mut with_book = before.clone();
-    with_book.push("book.epub".into());
+    with_book.push("book (2).epub".into());
     with_book.sort();
     assert_eq!(names(&out), with_book);
 }
