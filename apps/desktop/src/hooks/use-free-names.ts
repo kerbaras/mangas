@@ -21,6 +21,8 @@ export function useFreeNames(
   const wanted = plans.kind === "ready" ? plans.data.map((p) => p.file_name) : [];
   const key = [dir, epoch, replace, split, ...wanted].join("\n");
   const check = useExportDirCheck(dir, split, replace, wanted.length > 0, key);
+  // A folder that lists again is read again: its names may now be taken.
+  const listKey = `${key}\n${check === null}`;
   const free = useAsync(async () => {
     const names =
       !replace && dir.trim() && wanted.length > 0
@@ -28,9 +30,10 @@ export function useFreeNames(
         : replace
           ? ownNames(wanted)
           : wanted;
-    return { key, names };
-  }, [key]);
-  const done = free.state.kind === "ready" && free.state.data.key === key ? free.state.data : null;
+    return { listKey, names };
+  }, [listKey]);
+  const done =
+    free.state.kind === "ready" && free.state.data.listKey === listKey ? free.state.data : null;
   const [names, blocked] = [check === undefined ? null : (done?.names ?? null), check ?? null];
   if (plans.kind !== "ready" || !names) return { files: plans, named: names !== null, blocked };
   const data = plans.data.map((p, i) => ({ ...p, file_name: names[i] ?? p.file_name }));

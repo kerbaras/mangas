@@ -72,4 +72,22 @@ describe("export dialog: a folder that can't be listed", () => {
     await waitFor(() => expect(screen.queryByText(refused)).toBeNull(), { timeout: 4000 });
     expect(await enabledButton(/Export 2 books/)).toBeTruthy();
   });
+
+  it("reads the names again once a split export's folder lists", async () => {
+    let listable = false;
+    const checkExportDir = vi.fn(async () => {
+      if (!listable) throw refused;
+    });
+    const freeExportNames = vi.fn(async (_dir: string, names: string[]) =>
+      listable ? names.map((n) => n.replace(/\.(\w+)$/, " (2).$1")) : names,
+    );
+    exportBackend({ checkExportDir, freeExportNames });
+    render(dialog());
+    fireEvent.click(await screen.findByLabelText("Split into parts of"));
+    expect(await screen.findByText(refused)).toBeTruthy();
+    listable = true;
+    expect(await screen.findByText("Solo v1 (2).epub", {}, { timeout: 4000 })).toBeTruthy();
+    expect(screen.queryByText(refused)).toBeNull();
+    expect(await enabledButton(/Export 2 books/)).toBeTruthy();
+  });
 });
