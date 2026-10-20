@@ -1,6 +1,6 @@
 //! Live smoke tests against the real sites. Ignored by default and skipped unless
 //! `MANGAS_LIVE=1`: `MANGAS_LIVE=1 cargo test -p mangas-providers --test live -- --ignored`.
-//! MangaDot is behind a Cloudflare verification, so only MangaDex, WeebCentral, Tapas and
+//! MangaDot is behind a Cloudflare verification, so only MangaDex, WeebCentral, Tapas, MANGA Plus and
 //! Webtoons run here.
 //! Comick's search is gated the same way, so its tests walk the open endpoints and check the
 //! missing-session report.
@@ -178,5 +178,21 @@ async fn webtoons_live_contract() {
 async fn webtoons_live_check() {
     if live("webtoons_live_check") {
         live_doctor("webtoons").await;
+    }
+}
+
+#[tokio::test]
+#[ignore = "hits jumpg-webapi.tokyo-cdn.com; run with MANGAS_LIVE=1"]
+async fn mangaplus_live_contract() {
+    if live("mangaplus_live_contract") {
+        live_contract("mangaplus").await;
+    }
+}
+
+#[tokio::test]
+#[ignore = "hits jumpg-webapi.tokyo-cdn.com; run with MANGAS_LIVE=1"]
+async fn mangaplus_live_check() {
+    if live("mangaplus_live_check") {
+        live_doctor("mangaplus").await;
     }
 }

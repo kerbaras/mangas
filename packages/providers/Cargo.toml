@@ -26,6 +26,12 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 futures = "0.3"
 scraper = "0.27"
 html-escape = "0.2"
+prost = "0.14"
+uuid = { version = "1", default-features = false, features = ["v4"] }
+
+[build-dependencies]
+prost-build = "0.14"
+protox = "0.10"
 
 [features]
 # Test-only constructors (`PageClient::resolving_to`) for this crate's integration tests.

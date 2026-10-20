@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use mangas_core::library::Network;
+use mangas_core::sources::Header;
 
 use super::RetryPolicy;
 use crate::provider::ProviderInfo;
@@ -27,6 +28,8 @@ pub struct ClientConfig {
     pub session_ttl: Option<Duration>,
     /// Proxy for every request ([`Settings::network`](mangas_core::library::Settings::network)).
     pub network: Network,
+    /// Sent with every request to the base's origin (an API's session token).
+    pub headers: Vec<Header>,
 }
 
 impl ClientConfig {
@@ -42,6 +45,7 @@ impl ClientConfig {
             json_api: false,
             session_ttl: None,
             network: Network::System,
+            headers: Vec::new(),
         }
     }
 }

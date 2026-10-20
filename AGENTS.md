@@ -8,7 +8,7 @@ app, small CLI. The original Go/TUI implementation was removed once the Rust por
 - `packages/core` (`mangas-core`): all business logic. Modules: `domain`, `sources` (the
   `Source` trait only), `library`, `download`, `export`, `send` (email/USB delivery), `smartcut`,
   `ml`. Tests in `packages/core/tests/`.
-- `packages/providers` (`mangas-providers`): one module per site (`mangadex`, `mangadot`, `weebcentral`, `tapas`), each a
+- `packages/providers` (`mangas-providers`): one module per site (`mangadex`, `mangadot`, `weebcentral`, `tapas`, `mangaplus`, ...), each a
   `Provider` descriptor (`info()` + `build(&Settings)` + `build_at` for mock bases) listed in `registry`, on the shared
   `http::SiteClient` (timeouts, rate limit, retries, `HostPolicy` page headers, status probe).
   Sites behind a browser verification (Comick) need a `Session` (cookies + user agent) stored in

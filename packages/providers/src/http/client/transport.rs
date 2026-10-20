@@ -142,12 +142,18 @@ impl SiteClient {
             }
         }
         let mitigated = mitigated(&response);
-        let read = response.text().await;
+        let read = match request.binary {
+            true => (response.bytes().await)
+                .map(|b| (String::from_utf8_lossy(&b).into_owned(), b.to_vec())),
+            false => response.text().await.map(|text| (text, Vec::new())),
+        };
         let wait = || idempotent.then(|| retry.delay(attempt, after)).flatten();
         match read {
             Err(e) => (Err(e.into()), wait()),
-            Ok(body) if is_challenge(status, &mitigated, &body) => (Err(self.challenge()), None),
-            Ok(body) => (Ok(Step::Reply(Reply { status, body })), None),
+            Ok((body, _)) if is_challenge(status, &mitigated, &body) => {
+                (Err(self.challenge()), None)
+            }
+            Ok((body, raw)) => (Ok(Step::Reply(Reply { status, body, raw })), None),
         }
     }
 }

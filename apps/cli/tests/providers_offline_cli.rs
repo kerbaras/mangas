@@ -44,7 +44,7 @@ fn assert_all_unreachable(out: &Output) {
     let report: Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(report["all_unreachable"], true, "{report}");
     let rows = report["providers"].as_array().unwrap();
-    assert_eq!(rows.len(), 6, "{report}");
+    assert_eq!(rows.len(), 7, "{report}");
     for row in rows {
         assert_eq!(row["state"], "unreachable", "{row}");
     }
@@ -97,5 +97,5 @@ fn no_tls_certificates_exits_1() {
         .unwrap();
     assert_eq!(out.status.code(), Some(1), "{out:?}");
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert_eq!(stdout.matches("unreachable: ").count(), 6, "{stdout}");
+    assert_eq!(stdout.matches("unreachable: ").count(), 7, "{stdout}");
 }
