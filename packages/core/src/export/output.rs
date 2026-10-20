@@ -6,6 +6,7 @@ use std::ffi::OsString;
 use std::fs::{File, OpenOptions};
 use std::path::{Path, PathBuf};
 
+use super::space;
 use crate::domain::{Error, Result};
 use crate::export::kindle::part_owner;
 
@@ -20,16 +21,19 @@ pub fn in_export_folder(default_dir: &Path, path: &Path) -> PathBuf {
 }
 
 /// Writes `path` with `fill` and returns the file written: over an existing file when `replace`
-/// ([`write_over`]), else under a free name ([`write_new`]).
+/// ([`write_over`]), else under a free name ([`write_new`]). A full disk is
+/// [`Error::NoSpace`] in the file's folder.
 pub(crate) fn write_file(
     path: &Path,
     replace: bool,
     fill: impl FnOnce(File) -> Result<()>,
 ) -> Result<PathBuf> {
-    match replace {
+    let written = match replace {
         true => write_over(path, fill),
         false => write_new(path, fill),
-    }
+    };
+    let dir = path.parent().filter(|d| !d.as_os_str().is_empty());
+    written.map_err(|e| space::in_folder(e, dir.unwrap_or(Path::new("."))))
 }
 
 /// Writes `path` (parent directories are created), replacing a file already there. The content

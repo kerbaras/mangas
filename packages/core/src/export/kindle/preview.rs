@@ -65,18 +65,16 @@ pub fn preview(
         penalizer,
         limit: Some(limit),
         cancelled,
+        spool_dir: None,
     };
-    let mut run = Run::new(spec, &mut ignore);
+    let mut run = Run::new(spec, &mut ignore)?;
     run.chapter(&req.chapter_dir)?;
     let more = run.stopped_early || run.pages.len() > limit;
     std::fs::create_dir_all(&req.out_dir)
         .map_err(|e| Error::Other(format!("{}: {e}", req.out_dir.display())))?;
-    let pages = run
-        .pages
-        .iter()
-        .take(limit)
-        .enumerate()
-        .map(|(i, p)| {
+    let pages = (0..run.pages.len().min(limit))
+        .map(|i| {
+            let p = run.pages.read(i)?;
             write_page(&req.out_dir, i, &p.jpeg).map(|path| PreviewPage {
                 path,
                 width: p.width,

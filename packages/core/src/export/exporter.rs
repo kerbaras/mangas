@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use super::cbz::CbzExporter;
 use super::epub::{ChapterEntry, EpubExporter, PageImage, Series};
 use super::pdf::PdfExporter;
+use super::PageSpool;
 use super::Profile;
 use crate::domain::{Error, Result};
 
@@ -63,7 +64,7 @@ pub trait Exporter: Sync {
     fn extension(&self) -> &'static str;
     fn export(
         &self,
-        pages: Vec<PageImage>,
+        pages: PageSpool,
         meta: &Meta,
         profile: &Profile,
         output: &Path,

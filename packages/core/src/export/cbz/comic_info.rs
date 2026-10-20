@@ -1,13 +1,12 @@
 //! `ComicInfo.xml` (the Anansi/ComicRack schema 2.0), built as a plain string.
 
-use crate::export::epub::PageImage;
 use crate::export::output::xml_escape;
-use crate::export::{Meta, Profile};
+use crate::export::{Meta, PageInfo, Profile};
 
 /// Book metadata and one `<Page>` per image; a chapter's first page carries its title as a
 /// `Bookmark`, which readers show as a table of contents. `Series` falls back to the export
 /// title when the chapters aren't one library series, so readers still group the file.
-pub fn comic_info_xml(pages: &[PageImage], meta: &Meta, profile: &Profile) -> String {
+pub fn comic_info_xml(pages: &[PageInfo], meta: &Meta, profile: &Profile) -> String {
     let labels = &meta.labels;
     let chapter_title = labels.title.as_deref().filter(|_| !meta.title_explicit);
     let title = xml_escape(chapter_title.unwrap_or(&meta.title));
@@ -50,7 +49,7 @@ pub fn comic_info_xml(pages: &[PageImage], meta: &Meta, profile: &Profile) -> St
     )
 }
 
-fn page_xml(index: usize, page: &PageImage, meta: &Meta) -> String {
+fn page_xml(index: usize, page: &PageInfo, meta: &Meta) -> String {
     let cover = if index == 0 {
         r#" Type="FrontCover""#
     } else {
@@ -65,7 +64,7 @@ fn page_xml(index: usize, page: &PageImage, meta: &Meta) -> String {
     format!(
         r#"    <Page Image="{index}"{cover} ImageSize="{size}" ImageWidth="{w}" ImageHeight="{h}"{bookmark} />
 "#,
-        size = page.jpeg.len(),
+        size = page.bytes,
         w = page.width,
         h = page.height,
     )

@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::domain::Result;
 use crate::export::epub::{ChapterEntry, PageImage};
-use crate::export::free_names_in;
+use crate::export::{free_names_in, PageInfo};
 
 /// Amazon's Send-to-Kindle email limit for one attached file, in bytes.
 pub const SEND_TO_KINDLE_LIMIT: u64 = 50_000_000;
@@ -55,13 +55,13 @@ const PART_OVERHEAD: u64 = 64_000;
 
 /// Consecutive page ranges, each part (with its `cover` copy) at most `max` bytes. A page that
 /// is bigger than a part on its own goes alone.
-pub fn split_points(pages: &[PageImage], cover: Option<&PageImage>, max: u64) -> Vec<Range<usize>> {
+pub fn split_points(pages: &[PageInfo], cover: Option<&PageImage>, max: u64) -> Vec<Range<usize>> {
     let fixed = PART_OVERHEAD + cover.map_or(0, |c| c.jpeg.len() as u64 + PAGE_OVERHEAD);
     let budget = max.saturating_sub(fixed);
     let mut parts = Vec::new();
     let (mut start, mut used) = (0, 0u64);
     for (i, page) in pages.iter().enumerate() {
-        let cost = page.jpeg.len() as u64 + PAGE_OVERHEAD;
+        let cost = page.bytes as u64 + PAGE_OVERHEAD;
         if i > start && used + cost > budget {
             parts.push(start..i);
             (start, used) = (i, 0);

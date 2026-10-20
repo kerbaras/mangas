@@ -15,6 +15,7 @@ use zip::write::SimpleFileOptions;
 use zip::CompressionMethod;
 
 use super::output::write_file;
+use super::PageSpool;
 use crate::domain::{Error, Result};
 
 pub use exporter::EpubExporter;
@@ -41,7 +42,7 @@ pub struct Series {
     pub position: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct Book {
     pub id: String,
     pub title: String,
@@ -52,7 +53,8 @@ pub struct Book {
     pub device_width: u32,
     pub device_height: u32,
     pub chapters: Vec<ChapterEntry>,
-    pub pages: Vec<PageImage>,
+    /// Read back one at a time while the zip is written.
+    pub pages: PageSpool,
     /// A separate cover page shown first; without one the first page is the cover image.
     pub cover: Option<PageImage>,
 }
@@ -70,6 +72,7 @@ pub(crate) struct PageEntry {
 
 fn entries(book: &Book) -> Vec<PageEntry> {
     book.pages
+        .info()
         .iter()
         .enumerate()
         .map(|(i, p)| PageEntry {
@@ -95,7 +98,7 @@ fn write_zip(book: &Book, file: File) -> Result<()> {
     crate::zip_out::write_zip(BufWriter::new(file), "epub", |zip| {
         let stored = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
         let deflated = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
-        let z = |e: zip::result::ZipError| Error::Other(format!("epub: {e}"));
+        let z = crate::export::space::zip_error("epub");
 
         zip.start_file("mimetype", stored).map_err(z)?;
         zip.write_all(b"application/epub+zip")?;
@@ -105,7 +108,7 @@ fn write_zip(book: &Book, file: File) -> Result<()> {
 
         let pages = entries(book);
         zip.start_file("OEBPS/content.opf", deflated).map_err(z)?;
-        zip.write_all(xml::content_opf(book, &pages, &modified::modified(book)).as_bytes())?;
+        zip.write_all(xml::content_opf(book, &pages, &modified::modified(book)?).as_bytes())?;
         zip.start_file("OEBPS/nav.xhtml", deflated).map_err(z)?;
         zip.write_all(nav::nav_xhtml(book, &pages).as_bytes())?;
         if let Some(cover) = &book.cover {
@@ -116,7 +119,8 @@ fn write_zip(book: &Book, file: File) -> Result<()> {
                 .map_err(z)?;
             zip.write_all(&cover.jpeg)?;
         }
-        for (entry, page) in pages.iter().zip(&book.pages) {
+        for entry in &pages {
+            let page = book.pages.read(entry.index)?;
             zip.start_file(format!("OEBPS/text/{}", entry.xhtml_name), deflated)
                 .map_err(z)?;
             zip.write_all(xml::page_xhtml(&book.title, entry).as_bytes())?;

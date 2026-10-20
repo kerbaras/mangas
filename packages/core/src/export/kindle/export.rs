@@ -10,8 +10,8 @@ use super::request::{ExportRequest, ExportStats, Part, Progress};
 use super::run::{Run, RunSpec};
 use super::stale::{check_export_folder, folder_of, remove_stale};
 use crate::domain::{Error, Result};
-use crate::export::epub::{ChapterEntry, PageImage};
-use crate::export::Meta;
+use crate::export::epub::ChapterEntry;
+use crate::export::{Meta, PageSpool};
 use crate::smartcut::RowPenalizer;
 use std::ops::Range;
 use std::path::Path;
@@ -42,8 +42,9 @@ pub fn export(
         penalizer,
         limit: None,
         cancelled: &|| false,
+        spool_dir: Some(folder_of(&req.output)),
     };
-    let mut run = Run::new(spec, progress);
+    let mut run = Run::new(spec, progress)?;
     let mut chapters = Vec::new();
     let total = req.chapter_dirs.len();
     for (index, dir) in req.chapter_dirs.iter().enumerate() {
@@ -53,8 +54,10 @@ pub fn export(
             path: dir.clone(),
         });
         let first_page = run.pages.len();
-        run.chapter(dir)
-            .map_err(|e| Error::Other(format!("{}: {e}", dir.display())))?;
+        run.chapter(dir).map_err(|e| match e {
+            Error::NoSpace { .. } => e,
+            e => Error::Other(format!("{}: {e}", dir.display())),
+        })?;
         if run.pages.len() > first_page {
             let title = req.meta.chapter_titles.get(index).cloned();
             chapters.push(ChapterEntry {
@@ -92,7 +95,7 @@ pub fn export(
     };
     let ranges = req
         .split
-        .map(|max| split_points(&run.pages, meta.cover.as_ref(), max))
+        .map(|max| split_points(run.pages.info(), meta.cover.as_ref(), max))
         .filter(|r| r.len() > 1);
     let exporter = req.format.exporter();
     match ranges {
@@ -100,7 +103,7 @@ pub fn export(
             run.stats.output = exporter.export(run.pages, &meta, &dev, &req.output, req.replace)?
         }
         Some(ranges) => {
-            run.stats.parts = write_parts(req, run.pages, &meta, &ranges)?;
+            run.stats.parts = write_parts(req, &run.pages, &meta, &ranges)?;
             run.stats.output = run.stats.parts[0].path.clone();
         }
     }
@@ -111,12 +114,13 @@ pub fn export(
     Ok(run.stats)
 }
 
-/// Writes `pages` as one book per range. A part that fails removes the parts written before
+/// Writes `pages` as one book per range, each copied into its own spool in the export folder
+/// before it is written. A part that fails removes the parts written before
 /// it: half a book is never left behind. Replacing parts, each is built under a staging name and
 /// they are renamed over the old ones only once all are written, so a failure keeps the old set.
 fn write_parts(
     req: &ExportRequest,
-    mut pages: Vec<PageImage>,
+    pages: &PageSpool,
     meta: &Meta,
     ranges: &[Range<usize>],
 ) -> Result<Vec<Part>> {
@@ -129,17 +133,18 @@ fn write_parts(
             chapters: chapters_in(&meta.chapters, range),
             ..meta.clone()
         };
-        let rest = pages.split_off(range.len());
         let out = part_path(&req.output, n);
         let target = match req.replace {
             true => staging(&out),
             false => out,
         };
-        match req
-            .format
-            .exporter()
-            .export(pages, &part, &req.device, &target, req.replace)
-        {
+        let exported = pages
+            .copy_range(range.clone(), Some(folder_of(&req.output)))
+            .and_then(|pages| {
+                let exporter = req.format.exporter();
+                exporter.export(pages, &part, &req.device, &target, req.replace)
+            });
+        match exported {
             Ok(path) => written.push(Part {
                 path,
                 pages: range.len(),
@@ -152,7 +157,6 @@ fn write_parts(
                 return Err(e);
             }
         }
-        pages = rest;
     }
     match req.replace {
         true => publish(written, &req.output),

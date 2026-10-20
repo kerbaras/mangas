@@ -10,9 +10,8 @@ use std::path::{Path, PathBuf};
 use zip::write::SimpleFileOptions;
 use zip::CompressionMethod;
 
-use super::epub::PageImage;
 use super::output::write_file;
-use super::{Exporter, Meta, Profile};
+use super::{Exporter, Meta, PageSpool, Profile};
 use crate::domain::{Error, Result};
 
 pub use comic_info::comic_info_xml;
@@ -30,7 +29,7 @@ impl Exporter for CbzExporter {
 
     fn export(
         &self,
-        pages: Vec<PageImage>,
+        pages: PageSpool,
         meta: &Meta,
         profile: &Profile,
         output: &Path,
@@ -51,18 +50,19 @@ pub fn page_name(index: usize, total: usize) -> String {
     format!("{:0width$}.jpg", index + 1)
 }
 
-fn write_zip(pages: &[PageImage], meta: &Meta, profile: &Profile, file: File) -> Result<()> {
+fn write_zip(pages: &PageSpool, meta: &Meta, profile: &Profile, file: File) -> Result<()> {
     crate::zip_out::write_zip(BufWriter::new(file), "cbz", |zip| {
         let stored = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
         let deflated = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
-        let z = |e: zip::result::ZipError| Error::Other(format!("cbz: {e}"));
-        for (i, page) in pages.iter().enumerate() {
+        let z = crate::export::space::zip_error("cbz");
+        for i in 0..pages.len() {
+            let page = pages.read(i)?;
             zip.start_file(page_name(i, pages.len()), stored)
                 .map_err(z)?;
             zip.write_all(&page.jpeg)?;
         }
         zip.start_file("ComicInfo.xml", deflated).map_err(z)?;
-        zip.write_all(comic_info_xml(pages, meta, profile).as_bytes())?;
+        zip.write_all(comic_info_xml(pages.info(), meta, profile).as_bytes())?;
         Ok(())
     })
 }

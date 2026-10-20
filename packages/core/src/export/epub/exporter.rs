@@ -2,9 +2,9 @@
 
 use std::path::{Path, PathBuf};
 
-use super::{write, Book, PageImage};
+use super::{write, Book};
 use crate::domain::Result;
-use crate::export::{Exporter, Meta, Profile};
+use crate::export::{Exporter, Meta, PageSpool, Profile};
 
 pub struct EpubExporter;
 
@@ -19,7 +19,7 @@ impl Exporter for EpubExporter {
 
     fn export(
         &self,
-        pages: Vec<PageImage>,
+        pages: PageSpool,
         meta: &Meta,
         profile: &Profile,
         output: &Path,

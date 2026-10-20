@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::bail;
 use clap::Args as ClapArgs;
-use mangas_core::export::kindle::{check_export_folder, export, ExportStats};
+use mangas_core::export::kindle::{check_export_folder, export, ExportStats, Progress};
 use mangas_core::export::volume::{self, VolumeOutcome};
 use mangas_core::export::{ExportPreset, Format};
 use mangas_core::{library, storage};
@@ -150,7 +150,17 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .collect();
     let mut written = Vec::with_capacity(reqs.len());
     for (index, req) in reqs.iter().enumerate() {
-        let stats = match export(req, penalizer.clone(), &mut print_progress) {
+        // A failure mid-chapter starts its own line, not after the `\r  pages: N` counter.
+        let mut mid_line = false;
+        let mut progress = |p: Progress| {
+            mid_line = matches!(p, Progress::Pages { .. });
+            print_progress(p)
+        };
+        let exported = export(req, penalizer.clone(), &mut progress);
+        if exported.is_err() && mid_line {
+            eprintln!();
+        }
+        let stats = match exported {
             Ok(stats) => stats,
             Err(e) => {
                 let outcome = VolumeOutcome::stopped(&reqs, index, written, e.to_string());

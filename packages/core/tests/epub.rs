@@ -5,6 +5,7 @@ use std::io::Read;
 use image::{ExtendedColorType, RgbImage};
 use mangas_core::export::epub::{self, Book, ChapterEntry, PageImage};
 use mangas_core::export::kindle::process::encode_jpeg;
+use mangas_core::export::PageSpool;
 
 fn page(w: u32, h: u32) -> PageImage {
     let img = RgbImage::from_pixel(w, h, image::Rgb([200, 200, 200]));
@@ -39,7 +40,8 @@ fn writes_valid_fixed_layout_epub() {
                 first_page: 2,
             },
         ],
-        pages: vec![page(1264, 1680), page(1264, 1680), page(600, 800)],
+        pages: PageSpool::from_pages(vec![page(1264, 1680), page(1264, 1680), page(600, 800)])
+            .unwrap(),
         cover: None,
     };
     epub::write(&book, &out, false).expect("write");
@@ -114,7 +116,7 @@ fn failed_write_keeps_the_previous_file() {
         device_width: 1,
         device_height: 1,
         chapters: vec![],
-        pages: vec![],
+        pages: PageSpool::from_pages(vec![]).unwrap(),
         cover: None,
     };
     assert!(epub::write(&empty, &out, false).is_err());
@@ -134,7 +136,7 @@ fn rejects_empty_book() {
         device_width: 1,
         device_height: 1,
         chapters: vec![],
-        pages: vec![],
+        pages: PageSpool::from_pages(vec![]).unwrap(),
         cover: None,
     };
     assert!(epub::write(&book, &dir.path().join("e.epub"), false).is_err());
@@ -155,7 +157,7 @@ fn never_replaces_an_existing_book() {
         device_width: 1,
         device_height: 1,
         chapters: vec![],
-        pages: vec![page(600, 800)],
+        pages: PageSpool::from_pages(vec![page(600, 800)]).unwrap(),
         cover: None,
     };
     let written = epub::write(&book, &out, false).expect("write");
