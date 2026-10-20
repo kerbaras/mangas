@@ -62,12 +62,23 @@ pub fn compute(s: &RgbStrip) -> StripFeatures {
         texture: row_texture(s),
         row_panel: rows_covered(&panels, s.height),
         row_text: rows_covered(&text, s.height),
-        row_bubble: width_covered(&bubbles, s.width, s.height),
+        row_bubble: bubble_rows(&bubbles, s.width, s.height),
         gutters,
         panels,
         text,
         bubbles,
     }
+}
+
+/// Share of each row's width inside a balloon, never under `MIN_BUBBLE` on a balloon row, so
+/// even a narrow balloon costs more than a page shrunk into its slack.
+fn bubble_rows(bubbles: &[PixelBox], w: usize, h: usize) -> Vec<f32> {
+    const MIN_BUBBLE: f32 = 0.5;
+    let floor = |c: f32| if c > 0.0 { c.max(MIN_BUBBLE) } else { 0.0 };
+    width_covered(bubbles, w, h)
+        .into_iter()
+        .map(floor)
+        .collect()
 }
 
 pub fn find_gutters(uni: &[f64]) -> Vec<RowSpan> {
@@ -164,4 +175,20 @@ pub fn panel_boxes(fg: &[u8], w: usize, h: usize) -> Vec<PixelBox> {
         .filter(|c| c.area >= PANEL_MIN_AREA && c.bbox.width() >= 20 && c.bbox.height() >= 20)
         .map(|c| c.bbox)
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_narrow_balloon_still_costs_half_a_row() {
+        let narrow = [PixelBox {
+            x0: 0,
+            y0: 1,
+            x1: 10,
+            y1: 2,
+        }];
+        assert_eq!(bubble_rows(&narrow, 100, 3), vec![0.0, 0.5, 0.0]);
+    }
 }
