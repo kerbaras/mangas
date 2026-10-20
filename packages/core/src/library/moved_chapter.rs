@@ -21,8 +21,8 @@ type Row = (String, String, String);
 /// The stored download folder(s) of the chapter `spellings` (one folder, spelled as typed,
 /// absolute, resolved) is a copy of, for a folder the library does not store: the stored folders
 /// whose `<manga id>/<chapter>` names match. A copy in a folder named after one of `sources`
-/// matches only that source's folders. Empty when the folder is stored itself, or no single
-/// series matches.
+/// matches only that source's folders. The last spelling (resolved) is tried first: it is where
+/// the files really are. Empty when the folder is stored itself, or no single series matches.
 pub fn stored_original(
     lib: &Library,
     spellings: &[&Path],
@@ -45,7 +45,7 @@ pub fn stored_original(
             return Ok(Vec::new());
         }
     }
-    for g in &given {
+    for g in given.iter().rev() {
         let found = copy_of(&conn, Path::new(g), sources)?;
         if !found.is_empty() {
             return Ok(found);

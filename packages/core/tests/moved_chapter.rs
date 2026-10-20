@@ -93,3 +93,16 @@ fn a_manga_id_folder_is_not_a_series_name() {
         Some("Kaiju No. 8")
     );
 }
+
+#[test]
+fn a_symlink_takes_the_series_of_the_folder_it_points_to() {
+    let lib = open_in_memory().unwrap();
+    let dex = follow(&lib, "mangadex", "42", "Dex");
+    follow(&lib, "mangadot", "42", "Dot");
+    let spellings = [
+        Path::new("/links/mangadot/42/1"),
+        Path::new("/copy/mangadex/42/1"),
+    ];
+    let found = stored_original(&lib, &spellings, &["mangadex", "mangadot"]).unwrap();
+    assert_eq!(found, vec![dex]);
+}
