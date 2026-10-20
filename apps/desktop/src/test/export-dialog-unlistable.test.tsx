@@ -90,4 +90,19 @@ describe("export dialog: a folder that can't be listed", () => {
     expect(screen.queryByText(refused)).toBeNull();
     expect(await enabledButton(/Export 2 books/)).toBeTruthy();
   });
+
+  it("checks the folder again when the part size changes", async () => {
+    let listable = true;
+    const checkExportDir = vi.fn(async () => {
+      if (!listable) throw refused;
+    });
+    exportBackend({ checkExportDir });
+    render(dialog());
+    fireEvent.click(await screen.findByLabelText("Split into parts of"));
+    expect(await enabledButton(/Export 2 books/)).toBeTruthy();
+    listable = false;
+    fireEvent.change(screen.getByLabelText("Part size in MB"), { target: { value: "20" } });
+    expect(await screen.findByText(refused)).toBeTruthy();
+    await waitFor(async () => expect((await exportButton()).hasAttribute("disabled")).toBe(true));
+  });
 });

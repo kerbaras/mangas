@@ -19,7 +19,7 @@ export function useFreeNames(
 ) {
   const split = splitMb !== null;
   const wanted = plans.kind === "ready" ? plans.data.map((p) => p.file_name) : [];
-  const key = [dir, epoch, replace, split, ...wanted].join("\n");
+  const key = [dir, epoch, replace, splitMb, ...wanted].join("\n");
   const check = useExportDirCheck(dir, split, replace, wanted.length > 0, key);
   // A folder that lists again is read again: its names may now be taken.
   const listKey = `${key}\n${check === null}`;
