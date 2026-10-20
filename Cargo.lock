@@ -2955,7 +2955,7 @@ dependencies = [
 
 [[package]]
 name = "mangas-cli"
-version = "0.5.0-rc.1"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -2973,7 +2973,7 @@ dependencies = [
 
 [[package]]
 name = "mangas-core"
-version = "0.5.0-rc.1"
+version = "0.5.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -3013,7 +3013,7 @@ dependencies = [
 
 [[package]]
 name = "mangas-desktop"
-version = "0.5.0-rc.1"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3044,7 +3044,7 @@ dependencies = [
 
 [[package]]
 name = "mangas-providers"
-version = "0.5.0-rc.1"
+version = "0.5.0"
 dependencies = [
  "async-trait",
  "chrono",
