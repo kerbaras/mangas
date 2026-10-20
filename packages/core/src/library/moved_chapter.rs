@@ -95,14 +95,30 @@ fn one_series(matches: &[&Row]) -> Vec<PathBuf> {
     }
 }
 
-/// The series folder name of chapter folder `dir` for a book title, unless it is a manga id:
-/// the folder sits in a `<source>` folder named after one of `sources` (the download layout).
+/// The series folder name of chapter folder `dir` for a book title, unless it is a manga id: the
+/// folder sits in a `<source>` folder named after one of `sources` (the download layout), or its
+/// name is shaped like a provider's manga id wherever it sits ([`looks_like_manga_id`]).
 pub fn series_folder_name(dir: &Path, sources: &[&str]) -> Option<String> {
     let dir = dir.canonicalize().ok()?;
     let series = dir.parent()?;
-    let source = series.parent()?.file_name()?.to_string_lossy();
-    if sources.iter().any(|s| *s == source) {
-        return None;
-    }
-    Some(series.file_name()?.to_string_lossy().into_owned())
+    let name = series.file_name()?.to_string_lossy().into_owned();
+    let source = series.parent().and_then(Path::file_name);
+    let in_source = source.is_some_and(|s| sources.iter().any(|known| s == *known));
+    (!in_source && !looks_like_manga_id(&name)).then_some(name)
+}
+
+/// A provider manga id, not a title: a UUID (MangaDex), a ULID (Weeb Central), a
+/// `<lang>-webtoon|canvas-<number>` (Webtoons), or a number of 5+ digits (MangaDot, Tapas;
+/// shorter numbers can be titles, like "86").
+pub fn looks_like_manga_id(name: &str) -> bool {
+    let ulid = name.len() == 26
+        && name
+            .chars()
+            .all(|c| c.is_ascii_digit() || c.is_ascii_uppercase());
+    let number = |s: &str| !s.is_empty() && s.chars().all(|c| c.is_ascii_digit());
+    let webtoon = match name.rsplitn(3, '-').collect::<Vec<_>>().as_slice() {
+        [n, kind, lang] => number(n) && matches!(*kind, "webtoon" | "canvas") && !lang.is_empty(),
+        _ => false,
+    };
+    uuid::Uuid::try_parse(name).is_ok() || ulid || webtoon || (number(name) && name.len() >= 5)
 }

@@ -82,6 +82,11 @@ fn a_download_folder_the_library_does_not_know_is_not_named_after_its_id() {
     let name = kindle(home.path(), &unknown);
     assert!(!name.contains("1d7c44c5"), "{name}");
     assert_eq!(name, "Manga.epub");
+    let bare = chapter(
+        home.path()
+            .join("bare/0b6f7e0e-1111-4222-8333-944455556666/2"),
+    );
+    assert_eq!(kindle(home.path(), &bare), "Manga.epub");
     let named = chapter(home.path().join("Kaiju No. 8 scans/2"));
     assert_eq!(kindle(home.path(), &named), "Kaiju No. 8 scans.epub");
 }

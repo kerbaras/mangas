@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 
 use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId};
 use mangas_core::library::{
-    mark_downloaded, open_in_memory, series_folder_name, stored_original, upsert_chapters,
-    upsert_manga, Library,
+    looks_like_manga_id, mark_downloaded, open_in_memory, series_folder_name, stored_original,
+    upsert_chapters, upsert_manga, Library,
 };
 
 fn follow(lib: &Library, source: &str, id: &str, title: &str) -> PathBuf {
@@ -105,4 +105,33 @@ fn a_symlink_takes_the_series_of_the_folder_it_points_to() {
     ];
     let found = stored_original(&lib, &spellings, &["mangadex", "mangadot"]).unwrap();
     assert_eq!(found, vec![dex]);
+}
+
+#[test]
+fn an_id_shaped_folder_is_not_a_series_name_anywhere() {
+    let root = tempfile::tempdir().unwrap();
+    let bare = root
+        .path()
+        .join("bare/0b6f7e0e-1111-4222-8333-944455556666/2");
+    std::fs::create_dir_all(&bare).unwrap();
+    assert_eq!(series_folder_name(&bare, &["mangadex"]), None);
+    for id in [
+        "0b6f7e0e-1111-4222-8333-944455556666",
+        "01J76XYCPSY3C4BNPBRY8JMCBE",
+        "en-webtoon-1234",
+        "en-canvas-98",
+        "1833854",
+    ] {
+        assert!(looks_like_manga_id(id), "{id}");
+    }
+    for title in [
+        "Kaiju No. 8",
+        "86",
+        "1984",
+        "quiet-harbor",
+        "One-Punch Man",
+        "kaiju-no-8",
+    ] {
+        assert!(!looks_like_manga_id(title), "{title}");
+    }
 }
