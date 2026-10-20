@@ -3,16 +3,20 @@
 use super::components::PixelBox;
 use super::raster::RgbStrip;
 
-/// Grows a text block to the flat-colour balloon enclosing it (floating-range flood fill).
+/// Grows a text block to the flat-colour balloon enclosing it (fixed-range flood fill from the
+/// balloon colour just above the text, so anti-aliased outlines do not leak).
 pub fn bubble_around(s: &RgbStrip, t: PixelBox) -> PixelBox {
     const TOL: i32 = 20;
-    const MAX_H: usize = 600;
-    const MAX_W_FRAC: f64 = 0.7;
+    const MAX_H: usize = 900;
+    const MAX_W_FRAC: f64 = 0.9;
+    // The fill stops inside the outline; the box takes the outline too.
+    const OUTLINE: usize = 4;
     let w = s.width;
     let (wy0, wy1) = (t.y0.saturating_sub(MAX_H), (t.y1 + MAX_H).min(s.height));
     let wh = wy1 - wy0;
     let seed_x = (t.x0 + t.x1) / 2;
     let seed_y = t.y0.saturating_sub(3) - wy0;
+    let seed = s.px(seed_x, wy0 + seed_y);
     let mut visited = vec![0u8; w * wh];
     let mut stack = vec![seed_y * w + seed_x];
     visited[stack[0]] = 1;
@@ -24,7 +28,6 @@ pub fn bubble_around(s: &RgbStrip, t: PixelBox) -> PixelBox {
         bx1 = bx1.max(x + 1);
         by0 = by0.min(y);
         by1 = by1.max(y + 1);
-        let p = s.px(x, wy0 + y);
         let neighbours = [
             (x + 1 < w).then(|| i + 1),
             (x > 0).then(|| i - 1),
@@ -32,7 +35,7 @@ pub fn bubble_around(s: &RgbStrip, t: PixelBox) -> PixelBox {
             (y > 0).then(|| i - w),
         ];
         for j in neighbours.into_iter().flatten() {
-            if visited[j] == 0 && close(p, s.px(j % w, wy0 + j / w)) {
+            if visited[j] == 0 && close(seed, s.px(j % w, wy0 + j / w)) {
                 visited[j] = 1;
                 stack.push(j);
             }
@@ -49,9 +52,9 @@ pub fn bubble_around(s: &RgbStrip, t: PixelBox) -> PixelBox {
         };
     }
     PixelBox {
-        x0: bx0.min(t.x0),
-        y0: by0.min(t.y0),
-        x1: bx1.max(t.x1),
-        y1: by1.max(t.y1),
+        x0: bx0.min(t.x0).saturating_sub(OUTLINE),
+        y0: by0.min(t.y0).saturating_sub(OUTLINE),
+        x1: (bx1.max(t.x1) + OUTLINE).min(w),
+        y1: (by1.max(t.y1) + OUTLINE).min(s.height),
     }
 }
