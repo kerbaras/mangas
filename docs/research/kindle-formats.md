@@ -9,13 +9,17 @@ a source states or I measured.
 ## TL;DR
 
 - **Recommendation: partial.** Keep fixed-layout EPUB as the Send-to-Kindle format. Add a
-  fixed-layout **AZW3 (KF8)** output, written in Rust, and use it for USB delivery. Skip **KFX**:
+  fixed-layout **AZW3 (KF8)** output from our own pure `export::azw3` writer (~2 weeks), and use
+  it for USB delivery. `kindling-cli`, `calibre-debug --inspect-mobi` and the `mobi` crate are
+  dev/CI-only oracles, never linked into the app. Skip **KFX**:
   nothing outside Amazon's Kindle Previewer writes fixed-layout KFX. Before any of that, fix two
   bugs in today's EPUB: the writing-mode value is invalid, and Kindle exports are always
   left-to-right.
 - The reasons. KF8 is documented well enough to write: calibre has a writer (GPL, so we can learn
-  from it but not copy it), and an MIT Rust crate (`kindling-mobi`) built a correct fixed-layout
-  AZW3 from our EPUB in 8.8 s. Amazon lists EPUB only for Send to Kindle, and calibre's Kindle USB
+  from it but not copy it), and an MIT Rust crate (`kindling-mobi`) wrote valid fixed-layout
+  EXTH from our EPUB in 8.8 s. It is not usable as our exporter, though: it dropped our title,
+  author and chapter TOC and re-encoded every page much smaller
+  ([below](#kindling-mobi-on-our-epub)). Amazon lists EPUB only for Send to Kindle, and calibre's Kindle USB
   driver never copies EPUB to a Kindle. Yet mangas's USB delivery copies the EPUB into
   `documents/` today. Converting with calibre is not a fix either: calibre's AZW3 drops every
   fixed-layout flag. KFX is not worth it. The only Rust KFX writer (`boko`, GPL) wrote a reflowable
@@ -132,11 +136,45 @@ a source states or I measured.
 
 | Crate | Licence | Writes | Notes |
 |---|---|---|---|
-| [`kindling-mobi`](https://crates.io/crates/kindling-mobi) 0.45.6 | MIT | KF8 `.azw3`, MOBI7+KF8 | First release 2026-04, 55 versions, 1,379 downloads. 68k lines (dictionaries, StarDict, EPUB repair…); `kf8.rs` 3.4k, `mobi.rs` 8.5k, `comic.rs` 3.4k. Has a library API. Comic mode writes the fixed-layout EXTH ids. |
+| [`kindling-mobi`](https://crates.io/crates/kindling-mobi) 0.45.6 | MIT | KF8 `.azw3`, MOBI7+KF8 | First release 2026-04, 55 versions, 1,379 downloads. 68k lines (dictionaries, StarDict, EPUB repair…); `kf8.rs` 3.4k, `mobi.rs` 8.5k, `comic.rs` 3.4k. 0.45.6 released 2026-09-21; one crates.io owner (`ciscoriordan`); 188 crates in its dependency tree. Library API is path in, path out with `Box<dyn Error>`. Comic mode writes the fixed-layout EXTH ids but loses our metadata ([below](#kindling-mobi-on-our-epub)). |
 | [`boko`](https://crates.io/crates/boko) 0.5.0 | GPL-3.0+ | AZW3, KFX | Can't be used in an MIT app. calibre's inspector rejects its AZW3 index; its KFX is reflowable (above). |
 | [`epub3-kindle`](https://crates.io/crates/epub3-kindle) 0.5.0 | MIT | AZW3/MOBI | 99 downloads. README covers text and vertical Japanese; it doesn't mention comics or fixed layout. |
 | [`kindlecc`](https://crates.io/crates/kindlecc) 0.3.0 | GPL-3.0+ | via kindlegen | Shells out to Amazon's kindlegen. |
 | [`mobi`](https://crates.io/crates/mobi) 0.8.0 | MIT | none (reader) | 678k downloads; good for reading our own output back in tests. |
+
+### kindling-mobi on our EPUB
+
+Checked after #323 merged, against the same `kindling.azw3` (commands in the raw logs).
+
+- **Metadata lost.** `kindling-cli dump` shows `mobi.full_name = "Comic"` and
+  `exth[100] = "kindling"`, not "Yotsuba v1-2" / "Azuma Kiyohiko". The comic path rebuilds its own
+  OPF and NCX: `docTitle` is the literal `Comic`
+  ([comic.rs:3072](https://docs.rs/crate/kindling-mobi/0.45.6/source/src/comic.rs#3072)), the author defaults to `DEFAULT_AUTHOR = "kindling"`
+  ([lib.rs:58](https://docs.rs/crate/kindling-mobi/0.45.6/source/src/lib.rs#58)), and the TOC is one "Page N" entry per page
+  ([`build_comic_ncx` comic.rs:3048](https://docs.rs/crate/kindling-mobi/0.45.6/source/src/comic.rs#3048)). Our chapter TOC is gone.
+  `ComicOptions` has `title_override`/`author_override`, but no way to pass a TOC.
+- **Images re-processed.** It pulls the JPEGs back out of the EPUB and runs its own pipeline
+  (crop, contrast, resize, re-encode, default `jpeg_quality: 85`,
+  [comic.rs:232](https://docs.rs/crate/kindling-mobi/0.45.6/source/src/comic.rs#232)). Any page over `LD_IMAGE_MAX_BYTES = 128 * 1024`
+  ([mobi.rs:1943](https://docs.rs/crate/kindling-mobi/0.45.6/source/src/mobi.rs#1943)) goes through `fit_ld_image`, which lowers the quality and
+  then halves the dimensions until it fits ([mobi.rs:2032](https://docs.rs/crate/kindling-mobi/0.45.6/source/src/mobi.rs#2032)). Its doc comment says
+  "the full-resolution original belongs in the HD container", but this output has no `CONT`/`CRES`
+  records (the HD container calibre reads, [reader/mobi8.py#L432-L437](https://github.com/kovidgoyal/calibre/blob/dc29097d6ef22d32e5af85ce0d822cc7c08a64ea/src/calibre/ebooks/mobi/reader/mobi8.py#L432-L437)).
+  So the device gets only the small copies.
+- **Per-page quality, measured** (Pillow; quality estimated from the JPEG quantisation tables):
+
+| | Our EPUB pages | kindling `-d paperwhite` | kindling `--no-optimize --no-split --crop 0` |
+|---|---|---|---|
+| Images | 305 | 309 (308 collected + library thumbnail) | 306 |
+| Average / max size | 680 KB / 1.29 MB | 111 KB / 128 KB | 114 KB / 128 KB |
+| JPEG quality | 90 on every page | 85 ×91, 75 ×75, 65 ×31, 55 ×20, 45 ×22, 35 ×30, 25 ×30 (re-encoded pages, from its log) | 65 ×129, 85 ×47, 55 ×42, 35 ×25 (top four, from the quantisation tables) |
+| Page height | 133 at 1680 px, the rest 872–1200 | 239 at 700–999 px, 38 under 700, 7 at ≥1400 | 243 at 700–999, 43 under 700, none ≥1000 |
+| Bits per pixel | 4.03 | 2.43 | 2.03 |
+
+  On a 1448-px (Paperwhite 3/4) or 1680-px (Paperwhite 12) screen, most kindling pages are shown
+  at about half our resolution, and 82 pages at quality 45 or lower. **Inference:** that
+  will show as soft line art and visible JPEG blocking in screentones, which is worse than our
+  EPUB pages, not equal at a sixth of the size. Not checked on a device.
 
 ### What a manga book needs, and where mangas stands
 
@@ -160,17 +198,17 @@ Yotsuba&! (MangaDex `58be6aa6-…`), chapters 1–10, **304 pages**, profile `ki
 | Download | `mangas download --chapters 1-10` | 1 m 15.7 s | 799 MB of PNG | source |
 | Export EPUB | `mangas export --format epub` | 38.0 s | **212,458,877 B** | 305 grayscale JPEGs (q90): 1181×1680 ×133, 600×872 ×99, 841×1200 ×29, … (no upscaling) |
 | EPUB → AZW3 | calibre `ebook-convert` 9.16.0 | 6.6 s | 212,386,521 B | copied unchanged; **no EXTH 122/123/126**; EXTH 525 = `horizontal-ltr` |
-| EPUB → AZW3 | `kindling-cli comic -d paperwhite` | 8.8 s | 35,368,406 B | resized to 1072×1448 and re-encoded (q85, crop, contrast); EXTH 122 `true`, 123 `comic`, 126 `1072x1448`, 525 `horizontal-lr` |
-| EPUB → AZW3 | `kindling-cli comic --no-optimize --no-split --crop 0` | 8.6 s | 36,089,137 B | the 128 KB cap still re-encodes pages |
+| EPUB → AZW3 | `kindling-cli comic -d paperwhite` | 8.8 s | 35,368,406 B 299 of 305 pages re-encoded to fit 128 KB, 158 also scaled down; most pages end up 700–999 px tall (details [below](#kindling-mobi-on-our-epub)); EXTH 122 `true`, 123 `comic`, 126 `1072x1448`, 525 `horizontal-lr` |
+| EPUB → AZW3 | `kindling-cli comic --no-optimize --no-split --crop 0` | 8.6 s | 36,089,137 B | the 128 KB cap still re-encodes pages; 181 scaled down |
 | EPUB → AZW3 | `boko convert` | 0.3 s | 212,352,199 B | `calibre-debug --inspect-mobi` fails: "Trailing bytes after last IDXT entry" |
 | EPUB → KFX | `boko convert` | 0.8 s | 212,457,835 B | `reflow-style` only, not fixed layout |
 
 What the numbers say:
 
 - Wrapping the container costs nothing. All three AZW3 writers finish in seconds, and calibre and
-  boko come out the same size as the EPUB. The size gap comes from image re-encoding, not from the
-  format. **Inference:** most of kindling's 6× smaller file comes from the 1072×1448 target and its
-  q85 re-encode to fit 128 KB.
+  boko come out the same size as the EPUB. **The 212 MB → 35 MB drop with kindling comes from its
+  re-encoding of our pages, not from the KF8 container**: calibre and boko put the same JPEGs in a
+  KF8 container and stay at 212 MB, and kindling's own image bytes total 35.1 MB of its 35.4 MB file.
 - At 212 MB, the EPUB can't go through Send to Kindle at all (200 MB web, 50 MB email). One volume
   works out to about 700 KB per page.
 
@@ -181,7 +219,7 @@ What the numbers say:
 | Fixed-layout EPUB (today) | yes, shipped | MIT (ours) | 212 MB | **Inference:** Amazon converts it on the server (to KFX, per MobileRead); whether fixed layout survives isn't documented. Writing-mode/RTL bugs above | S2K: accepted ≤200 MB web / 50 MB email. USB: not a Kindle sideload format (calibre driver; unverified on device) |
 | AZW3 (KF8) via calibre | no (Python, shell-out) | GPL tool, run as a separate program | 212 MB | **loses fixed layout** (no EXTH 122/126), so pages come out reflowed | S2K: rejected (not listed). USB: opens |
 | AZW3 (KF8), own Rust writer | yes, ~2k lines (estimate) | MIT (ours) | same as the EPUB, or less with a size budget | fixed layout, RTL, Panel View off; no library cover tile when side-loaded (third-party) | S2K: rejected. USB: native format |
-| AZW3 (KF8) via `kindling-mobi` | yes (crate) | MIT | 35 MB (it re-encodes) | fixed layout confirmed in EXTH; its image pipeline runs on top of ours unless turned off | S2K: rejected. USB: native |
+| AZW3 (KF8) via `kindling-mobi` | yes (crate) | MIT | 35 MB (it re-encodes) | fixed layout in EXTH, but title `Comic`, author `kindling`, a "Page N" TOC, and pages cut to q25–85 and mostly 700–999 px tall (no HD copy) | S2K: rejected. USB: native |
 | MOBI7+KF8 (`.mobi`) | yes (kindling `--legacy-mobi`, or own writer + KF7 part) | MIT | about the KF8 size again | as AZW3, plus a cover tile when side-loaded (third-party) | S2K: MOBI deprecated 2022. USB: opens |
 | KFX | **no**, for fixed layout | Previewer is Amazon freeware (Win/mac, Wine); boko is GPL and reflow-only | n/a | best on device (Guided View, page flip) | S2K makes it from EPUB anyway; USB: opens |
 
@@ -192,19 +230,23 @@ Rough sizes; a week of human work is about one Devin session.
 1. EPUB metadata fixes (writing mode, RTL): ½ day.
 2. Size budget for Kindle profiles: 1–2 days.
 3. Fixed-layout KF8 writer in `packages/core/src/export/azw3/`: about 2 weeks. That covers PalmDB
-   + MOBI/KF8 header + EXTH, one skeleton/fragment per page, the SKEL/FRAG/NCX INDX records, FDST,
-   image + cover + thumbnail records, FLIS/FCIS/EOF. Text compression can be skipped (images
+   + MOBI/KF8 header + EXTH (fixed layout, 525/527, cover/thumbnail, title, author, language),
+   one skeleton/fragment per page, the SKEL/FRAG/NCX INDX records with a chapter-level TOC, FDST,
+   image + cover + thumbnail records, the HD image container (`CONT`/`CRES`, see below),
+   FLIS/FCIS/EOF. Text compression can be skipped (images
    dominate). **Inference:** about 1.5–2.5k lines over several files of <200 lines. That is the
    same order as kindling's `kf8.rs` plus the parts of `mobi.rs` we'd need, without dictionaries.
 4. Wire up `Format::Azw3` (CLI `--format azw3`, desktop picker, Kindle profile default for USB,
    history, file names): 3–4 days.
 
-Using `kindling-mobi` as a dependency instead of item 3 cuts that item to about 2–3 days. The
-costs: a 68k-line crate that is six months old, with its own image pipeline
-we'd have to keep switched off. **Inference:** a writer of our own fits AGENTS.md better
-(small, pure modules). kindling's CLI, calibre's `--inspect-mobi` and the `mobi` crate can serve
-as test oracles. They run as separate tools in dev and CI and are never linked, so their licences
-don't reach our code.
+**Decision: write our own `export::azw3`; don't depend on `kindling-mobi`.** Depending on it would
+cut item 3 to about 2–3 days, but we would still have to pass title/author through its overrides,
+accept a "Page N" TOC (`build_comic_ncx` takes only a page count), run our processed pages through
+a second image pipeline, and take a path-in/path-out API with `Box<dyn Error>` and 188 crates from
+a six-month-old, single-owner crate. Our own writer takes our book model and returns bytes, which
+fits AGENTS.md (small, pure modules). kindling's CLI, calibre's `--inspect-mobi` and the `mobi`
+crate serve as test oracles. They run as separate tools in dev and CI and are never linked, so
+their licences don't reach our code.
 
 ## Proposed issues
 
@@ -228,8 +270,10 @@ don't reach our code.
    - The output has EXTH 122 `true`, 123 `comic`, 126 = the profile size, 525/527 from the book,
      201/202 cover and thumbnail, and one page per image in spine order. RTL books keep the
      reversed page order.
-   - No image record is over 128 KB. Larger pages are re-encoded at a lower quality, and the
-     export reports which pages were.
+   - Each page keeps its exported JPEG unchanged in the HD container (`CONT`/`CRES`). The
+     low-definition record is ≤128 KB, and the export reports which pages needed a smaller one.
+   - Title, author and a chapter-level TOC from the book model survive (checked with
+     `kindling-cli dump`).
    - `calibre-debug --inspect-mobi`, `kindling-cli dump` and the `mobi` crate all read the
      304-page fixture back with 304 pages (CI or a recorded run).
    - The owner opens it on a Kindle (Paperwhite 12th gen) side-loaded over USB, LTR and RTL:
@@ -282,7 +326,9 @@ primary-writing-mode (525): b'horizontal-ltr'   page-progression-direction (527)
 Override Kindle fonts (528): b'true'
 (no 122 fixed-layout, 123 book-type, 126 original-resolution)
 
-$ cargo install --root ~/k320/tools kindling-mobi boko   # outside the repo
+$ cargo install --root ~/k320/tools kindling-mobi boko   # outside the repo; resolved kindling-mobi 0.45.6
+$ kindling-cli --version
+kindling 0.45.6
 $ time kindling-cli comic "Yotsuba v1-2.epub" -o kindling.azw3 -d paperwhite
 Detected book content, building KF8-only (.azw3)
 Collected 308 images (35132443 bytes total)
@@ -314,6 +360,34 @@ features: [ {namespace: "com.amazon.yjconversion", key: "reflow-style", major 6}
             {namespace: "SDK.Marker", key: "CanonicalFormat", major 1} ]
 305 x { layout: scale_fit, fixed_width: 1400, fixed_height: 2100 }
 writing_mode: horizontal_tb
+$ kindling-cli dump kindling.azw3 | grep -E 'full_name |exth\[100\]\.value '
+mobi.full_name = "Comic"
+exth[100].value = "kindling"
+$ grep -c "over 128 KB" kindling.log; grep -c "scaled down" kindling.log
+299
+158
+$ grep -o "quality [0-9]*" kindling.log | sort | uniq -c | sort -rn
+     91 quality 85     75 quality 75     31 quality 65     30 quality 35
+     30 quality 25     22 quality 45     20 quality 55
+page-00037.jpg: over 128 KB, re-encoded at quality 75 instead of 85 and scaled down to 456x724
+page-00151.jpg: over 128 KB, re-encoded at quality 85 and scaled down to 322x502
+$ python3 jpeg-stats.py   # PDB records starting FF D8 FF; quality from quant tables
+epub           305 imgs; avg 679.7 KB max 1293.8 KB; >128KiB: 299; bpp 4.03; q90 x305
+kindling       309 imgs; avg 111.3 KB max 128.0 KB; >128KiB: 0; bpp 2.43; CRES 0 CONT 0
+kindling-noopt 306 imgs; avg 113.6 KB max 128.0 KB; >128KiB: 0; bpp 2.03; CRES 0 CONT 0
+```
+
+Library equivalent of the CLI call (kindling-mobi 0.45.6; not compiled or run in this spike):
+
+```rust
+let profile = kindling::comic::get_profile("kpw6").ok_or("profile")?; // 1264-wide PW 12th gen
+let opts = kindling::comic::ComicOptions {
+    rtl,
+    title_override: Some(title),
+    author_override: Some(author),
+    ..Default::default()
+};
+kindling::comic::build_comic_with_options(&epub, &out_azw3, &profile, &opts)?;
 ```
 
 </details>
