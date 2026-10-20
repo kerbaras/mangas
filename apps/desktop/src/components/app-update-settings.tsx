@@ -1,4 +1,4 @@
-import { CheckCircle2, Info, Loader2, RefreshCw } from "lucide-react";
+import { CheckCircle2, Info, RefreshCw } from "lucide-react";
 import { Field } from "@/components/field";
 import { Hint } from "@/components/hint";
 import { Button } from "@/components/ui/button";
@@ -85,12 +85,15 @@ export function AppUpdateSettings() {
       <Field label="Version">
         <div className="flex items-center gap-3">
           <span className="text-body tabular-nums">{version ?? "…"}</span>
+          {/* A still icon while checking: a spin keeps WebKitGTK repainting (~240 % CPU without a
+              GPU) for up to the 20 s timeout; "Checking…" shows below. */}
           <Button
             size="sm"
             disabled={checking}
+            aria-busy={checking}
             onClick={() => void checkForAppUpdate(settings.appUpdateChannel)}
           >
-            {checking ? <Loader2 className="animate-spin" /> : <RefreshCw />} Check for updates
+            <RefreshCw /> Check for updates
           </Button>
         </div>
         <CheckResult check={check} />
