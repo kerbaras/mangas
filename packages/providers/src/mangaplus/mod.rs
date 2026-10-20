@@ -21,7 +21,7 @@ pub use mapping::{
 };
 pub use page::{decrypt, page_url, view_token, xor, VIEW_TOKEN_HEADER};
 
-use crate::http::{ClientConfig, SiteClient};
+use crate::http::{host_matches, ClientConfig, SiteClient};
 use crate::languages::resolve_languages;
 use crate::provider::{Capability, Provider, ProviderInfo};
 
@@ -63,6 +63,8 @@ impl Provider for MangaPlusProvider {
 
 pub struct MangaPlus {
     api: SiteClient,
+    /// Hosts the viewer token may go to: the image CDN and the API's own host.
+    token_hosts: Vec<String>,
     /// Preferred languages MANGA Plus publishes in; search keeps titles in these.
     languages: Vec<String>,
 }
@@ -77,13 +79,27 @@ impl MangaPlus {
             ..ClientConfig::new(INFO, base)
         };
         let languages = resolve_languages(&settings.languages_for(INFO.id), INFO.languages);
+        let api_host = url::Url::parse(base)
+            .ok()
+            .and_then(|u| u.host_str().map(str::to_string));
         Ok(Self {
             api: SiteClient::new(config, None)?,
+            token_hosts: ["tokyo-cdn.com".to_string()]
+                .into_iter()
+                .chain(api_host)
+                .collect(),
             languages: match languages.is_empty() {
                 true => vec!["en".to_string()],
                 false => languages,
             },
         })
+    }
+
+    fn takes_token(&self, url: &str) -> bool {
+        let host = url::Url::parse(url)
+            .ok()
+            .and_then(|u| u.host_str().map(str::to_string));
+        host.is_some_and(|h| self.token_hosts.iter().any(|p| host_matches(&h, p)))
     }
 
     async fn detail(&self, id: &MangaId) -> Result<Vec<u8>> {
@@ -124,7 +140,7 @@ impl Source for MangaPlus {
 
     fn page_headers(&self, url: &str) -> Vec<Header> {
         let mut headers = self.api.page_headers(url);
-        if let Some(token) = view_token(url) {
+        if let Some(token) = view_token(url).filter(|_| self.takes_token(url)) {
             headers.push((VIEW_TOKEN_HEADER.to_string(), token.to_string()));
         }
         headers
@@ -138,7 +154,21 @@ impl Source for MangaPlus {
         decrypt(url, bytes)
     }
 
+    /// The API answers a rejection ("Account Banned") with HTTP 200 and an error popup, so a
+    /// probe that answered is read too.
     async fn status(&self) -> ProviderStatus {
-        self.api.status(PROBE).await
+        let status = self.api.status(PROBE).await;
+        if status != ProviderStatus::Ready {
+            return status;
+        }
+        match self.api.get_bytes(PROBE, &[]).await {
+            Ok(body) => match response::rejection(&body) {
+                Some(reason) => ProviderStatus::Unreachable { reason },
+                None => ProviderStatus::Ready,
+            },
+            Err(e) => ProviderStatus::Unreachable {
+                reason: e.to_string(),
+            },
+        }
     }
 }

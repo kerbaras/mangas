@@ -23,6 +23,16 @@ pub fn decode(body: &[u8], what: &str) -> Result<SuccessResult> {
     })
 }
 
+/// The error popup of `body` when the API answered with one instead of a result.
+pub fn rejection(body: &[u8]) -> Option<String> {
+    let response = Response::decode(body).ok()?;
+    if response.success.is_some() {
+        return None;
+    }
+    let popup = response.error?.english_popup?;
+    Some(explained(&popup.subject, &popup.body))
+}
+
 pub fn error(message: String) -> Error {
     Error::Source {
         name: SOURCE_NAME.to_string(),

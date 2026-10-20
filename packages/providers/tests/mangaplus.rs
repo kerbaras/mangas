@@ -103,6 +103,23 @@ fn viewer_pages_carry_their_key_and_the_view_token() {
     let headers = source.page_headers(&pages[0]);
     let token = headers.iter().find(|(name, _)| name == "Plus-Vw-Token");
     assert_eq!(token.map(|(_, v)| v.as_str()), view_token(&pages[0]));
+    let elsewhere = source.page_headers("https://images.example/1.jpg#key=00&vw=tok");
+    assert!(
+        elsewhere.iter().all(|(name, _)| name != "Plus-Vw-Token"),
+        "{elsewhere:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_rejection_popup_is_unreachable() {
+    let server = MockServer::start().await;
+    Mock::given(path("/title_detailV3"))
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(fixture("banned.pb")))
+        .mount(&server)
+        .await;
+    let source = mangas_providers::source_at("mangaplus", &Settings::default(), &server.uri());
+    let status = source.unwrap().status().await;
+    assert!(status.to_string().contains("Account Banned"), "{status}");
 }
 
 #[test]
@@ -142,7 +159,8 @@ async fn the_page_client_sends_the_token_and_decrypts() {
         .respond_with(ResponseTemplate::new(200).set_body_bytes(encrypted.clone()))
         .mount(&server)
         .await;
-    let source = mangas_providers::source("mangaplus", &Settings::default()).unwrap();
+    let source = mangas_providers::source_at("mangaplus", &Settings::default(), &server.uri());
+    let source = source.unwrap();
     let client = PageClient::for_source(source.as_ref())
         .and_then(|c| c.allow_private_hosts())
         .unwrap();
