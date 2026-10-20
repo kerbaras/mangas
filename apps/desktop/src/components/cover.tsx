@@ -2,13 +2,15 @@ import { useCover } from "@/hooks/use-cover";
 import { cn } from "@/lib/cn";
 import type { Manga } from "@/lib/ipc";
 
-type Props = { manga: Manga; className?: string };
+/** `clearTop`: badges sit over the top corners, so the title starts below them. */
+type Props = { manga: Manga; className?: string; clearTop?: boolean };
 
 /**
  * 2:3 cover. The title, set like a spine, holds the box until the image has loaded and stays
  * when there is no image or it fails, so a cover never shows as broken or shifts the layout.
+ * One column, ellipsised at the bottom: a long title stays inside the box instead of clipping.
  */
-export function Cover({ manga, className }: Props) {
+export function Cover({ manga, className, clearTop = false }: Props) {
   const { src, loaded, onLoad, onError } = useCover(manga);
   return (
     <div
@@ -20,7 +22,10 @@ export function Cover({ manga, className }: Props) {
       {!loaded && (
         <p
           data-testid="cover-placeholder"
-          className="p-2 text-caption font-medium text-ink-3 [writing-mode:vertical-rl]"
+          className={cn(
+            "absolute inset-0 truncate p-2 text-caption font-medium text-ink-3 [writing-mode:vertical-rl]",
+            clearTop && "pt-8",
+          )}
         >
           {manga.title}
         </p>
