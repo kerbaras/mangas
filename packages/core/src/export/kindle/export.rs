@@ -4,7 +4,7 @@
 use super::cover::cover_page;
 use super::input::{book_id, chapter_title};
 use super::parts::{
-    book_path, chapters_in, oversized, part_path, part_title, split_points, staging,
+    chapters_in, free_book_path, oversized, part_path, part_title, split_points, staging,
 };
 use super::request::{ExportRequest, ExportStats, Part, Progress};
 use super::run::{Run, RunSpec};
@@ -27,7 +27,7 @@ pub fn export(
     }
     let output = match req.replace {
         true => check_listable(&req.output).map(|_| req.output.clone())?,
-        false => book_path(&req.output)?,
+        false => free_book_path(&req.output)?,
     };
     let req = &ExportRequest {
         output,

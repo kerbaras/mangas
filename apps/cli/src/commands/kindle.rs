@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use anyhow::bail;
 use clap::Args as ClapArgs;
-use mangas_core::export::kindle::{export, BookMeta, ExportRequest};
+use mangas_core::export::kindle::{export, part_book, BookMeta, ExportRequest};
 use mangas_core::export::target::{book_path, is_folder};
 use mangas_core::export::{ExportPreset, Format, PROFILES};
 use mangas_core::storage;
@@ -154,8 +154,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     report.add(&stats, &req.title, &req.chapter_dirs);
     if !args.json {
         let (book, parts) = match stats.parts.len() {
-            0 => (&stats.output, String::new()),
-            n => (&req.output, format!(" in {n} parts")),
+            0 => (stats.output.clone(), String::new()),
+            n => (part_book(&stats.output), format!(" in {n} parts")),
         };
         outln!(
             "{}: {} pages{parts} from {} chapters ({} strips, {} source rows); pagination {} ms, filters {} ms, total {} ms",

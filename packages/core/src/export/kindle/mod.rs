@@ -19,7 +19,8 @@ pub use estimate::{estimate, estimate_largest, Estimate};
 pub use export::export;
 pub use input::{chapter_files, chapter_images, decode, ChapterFiles};
 pub use parts::{
-    book_path, oversized, part_owner, part_path, Oversized, PART_SIZE, SEND_TO_KINDLE_LIMIT,
+    free_book_path, oversized, part_book, part_owner, part_path, Oversized, PART_SIZE,
+    SEND_TO_KINDLE_LIMIT,
 };
 pub use preview::{preview, Preview, PreviewPage, PreviewRequest};
 pub use process::{process_page, EncodedPage, ImageSettings};

@@ -118,9 +118,18 @@ pub fn part_owner(name: &str) -> Option<String> {
     (numbered && !book.is_empty()).then_some(owner)
 }
 
+/// The book `part` is a part of (`Book (2) (part 1).epub` → `Book (2).epub`), else `part`.
+pub fn part_book(part: &Path) -> PathBuf {
+    let name = part.file_name().map(|n| n.to_string_lossy().into_owned());
+    match name.as_deref().and_then(part_owner) {
+        Some(book) => part.with_file_name(book),
+        None => part.to_path_buf(),
+    }
+}
+
 /// Where a book that replaces nothing is written: `output`, or its first name free in the folder
 /// ([`free_names_in`]), so the book number never collides with an earlier set of parts.
-pub fn book_path(output: &Path) -> Result<PathBuf> {
+pub fn free_book_path(output: &Path) -> Result<PathBuf> {
     let dir = output.parent().filter(|d| !d.as_os_str().is_empty());
     let name = output.file_name().map(|n| n.to_string_lossy().into_owned());
     let Some(name) = name else {

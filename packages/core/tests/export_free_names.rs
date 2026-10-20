@@ -1,3 +1,6 @@
+use std::path::Path;
+
+use mangas_core::export::kindle::part_book;
 use mangas_core::export::{free_names_in, resolve_free_names};
 
 fn names(xs: &[&str]) -> Vec<String> {
@@ -90,4 +93,13 @@ fn an_earlier_set_of_parts_takes_its_book_name() {
         resolve_free_names(&existing, &wanted),
         names(&["Book (2).epub", "Other.epub", "Third.epub", "Book (3).epub"])
     );
+}
+
+#[test]
+fn a_part_names_its_book() {
+    let book = |p: &str| part_book(Path::new(p)).display().to_string();
+    assert_eq!(book("/o/Book (2) (part 1).epub"), "/o/Book (2).epub");
+    assert_eq!(book("/o/Book (part 12).cbz"), "/o/Book.cbz");
+    assert_eq!(book("/o/Book (part 03).epub"), "/o/Book (part 03).epub");
+    assert_eq!(book("/o/Book.epub"), "/o/Book.epub");
 }
