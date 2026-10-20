@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use anyhow::bail;
 use clap::Args as ClapArgs;
-use mangas_core::export::kindle::{export, BookMeta, ExportRequest};
+use mangas_core::export::kindle::{export, part_book, BookMeta, ExportRequest};
 use mangas_core::export::target::{book_path, is_folder};
 use mangas_core::export::{ExportPreset, Format, PROFILES};
 use mangas_core::storage;
@@ -15,6 +15,7 @@ use super::deliver::SendArg;
 use super::export_args::FormatArg;
 use super::export_preset::note_series_preset;
 use super::export_report::Report;
+use super::export_size::warn_too_big;
 use super::kindle_library::from_library;
 use super::kindle_record;
 use crate::output::outln;
@@ -105,10 +106,12 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     }
     let _reading = storage::hold_for_export(paths::data_dir)?;
     // Kept from before other formats existed: a Paperwhite EPUB unless the flags or the
-    // series preset say otherwise, whatever the stored defaults are.
+    // series preset say otherwise, whatever the stored defaults are. The JPEG quality stored for
+    // the profile applies: it belongs to the device, not to the default picks.
     let explicit = args.cut.explicit(None)?;
     let (labels, series, chapter_titles, saved) = from_library(&args.chapters);
-    let preset = ExportPreset::resolve(&explicit, saved.as_ref(), &ExportPreset::default());
+    let preset = ExportPreset::resolve(&explicit, saved.as_ref(), &ExportPreset::default())
+        .with_stored_quality(&super::stored_settings(), DEFAULT_PROFILE);
     let dev = CutArgs::device_of(&preset, DEFAULT_PROFILE)?;
     let file = args.output.as_deref().filter(|o| !is_folder(o));
     let picked = legacy_format(
@@ -128,6 +131,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     note_series_preset(saved.as_ref());
     let (penalizer, detectors) = args.cut.penalizer().await?;
     let req = ExportRequest {
+        split: args.cut.split(),
         chapter_dirs: args.chapters.clone(),
         device: dev,
         format,
@@ -145,12 +149,17 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     };
     let started = Instant::now();
     let stats = export(&req, penalizer, &mut print_progress)?;
+    warn_too_big(&stats.oversized);
     let mut report = Report::new(detectors);
     report.add(&stats, &req.title, &req.chapter_dirs);
     if !args.json {
+        let (book, parts) = match stats.parts.len() {
+            0 => (stats.output.clone(), String::new()),
+            n => (part_book(&stats.output), format!(" in {n} parts")),
+        };
         outln!(
-            "{}: {} pages from {} chapters ({} strips, {} source rows); pagination {} ms, filters {} ms, total {} ms",
-            stats.output.display(),
+            "{}: {} pages{parts} from {} chapters ({} strips, {} source rows); pagination {} ms, filters {} ms, total {} ms",
+            book.display(),
             stats.pages,
             req.chapter_dirs.len(),
             stats.strips,
@@ -159,6 +168,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             stats.filters_ms,
             started.elapsed().as_millis()
         )?;
+    }
+    for part in stats.parts.iter().filter(|_| !args.json) {
+        outln!("  {}: {} pages", part.path.display(), part.pages)?;
     }
     if stats.skipped > 0 && !args.json {
         outln!(
@@ -169,16 +181,19 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let to = args.send.map(|via| (via, args.kindle.as_deref()));
     let done =
         kindle_record::record_and_send(&stats, &req.chapter_dirs, &req.title, dev.id, to).await;
-    match (&done, args.json) {
-        (Ok(Some(sent)), false) => outln!("{sent}")?,
-        (Ok(Some(sent)), true) => eprintln!("{sent}"),
-        (Err(e), true) => report.fail(&stats.output, e.to_string()),
-        _ => {}
+    for line in &done.sent {
+        match args.json {
+            true => eprintln!("{line}"),
+            false => outln!("{line}")?,
+        }
     }
     if args.json {
+        for (file, why) in &done.failed {
+            report.fail(file, why.clone());
+        }
         report.print()?;
     }
-    done.map(|_| ())
+    done.result()
 }
 
 #[cfg(test)]

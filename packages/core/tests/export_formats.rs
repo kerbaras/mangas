@@ -90,6 +90,7 @@ fn every_format_keeps_an_existing_file() {
         let (root, stats) = run(format, "kindle-paperwhite12", &name);
         assert_eq!(stats.output, root.path().join(&name));
         let req = ExportRequest {
+            split: None,
             chapter_dirs: vec![root.path().join("Chapter 1")],
             device: profile("kindle-paperwhite12").unwrap(),
             format,
@@ -122,6 +123,7 @@ fn exporting_the_same_chapters_twice_gives_identical_files() {
             title: "Tom & Jerry".into(),
             output: root.path().join(format!("two.{format}")),
             replace: false,
+            split: None,
             labels: Default::default(),
             title_explicit: false,
             meta: Default::default(),

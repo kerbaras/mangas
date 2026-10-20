@@ -7,6 +7,7 @@ use std::fs::{File, OpenOptions};
 use std::path::{Path, PathBuf};
 
 use crate::domain::{Error, Result};
+use crate::export::kindle::part_owner;
 
 /// Where an export path the user gave goes: an absolute path as given, a relative one (or none)
 /// under `default_dir`, never under the process working directory.
@@ -138,8 +139,10 @@ fn candidate_names(name: &str) -> impl Iterator<Item = String> + '_ {
 
 /// The names `wanted` get when written, in order, into a folder that holds `existing`: each
 /// takes its first free candidate (ignoring case), as [`write_new`] does, so preview and files agree.
+/// A book with parts in the folder (`Book (part 1).epub`) has its name taken too.
 pub fn resolve_free_names(existing: &[String], wanted: &[String]) -> Vec<String> {
-    let mut taken = folded(existing);
+    let owners: Vec<String> = existing.iter().filter_map(|n| part_owner(n)).collect();
+    let mut taken = folded(&[existing, &owners].concat());
     wanted
         .iter()
         .map(|name| {

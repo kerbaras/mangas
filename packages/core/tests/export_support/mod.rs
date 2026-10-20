@@ -37,6 +37,7 @@ pub fn run_labelled(
         chapter(root.path(), "Chapter 2", 3),
     ];
     let req = ExportRequest {
+        split: None,
         chapter_dirs: dirs,
         device: profile(device).unwrap(),
         format,

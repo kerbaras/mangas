@@ -118,6 +118,7 @@ mod tests {
             title_explicit: false,
             output: PathBuf::from(format!("/k/{title}.epub")),
             replace: false,
+            split: None,
             meta: Default::default(),
             labels: Default::default(),
         }
@@ -134,6 +135,8 @@ mod tests {
             empty_chapters: Vec::new(),
             output: r.output.clone(),
             detectors_error: None,
+            oversized: Vec::new(),
+            parts: Vec::new(),
         }
     }
 

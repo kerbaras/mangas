@@ -15,7 +15,8 @@ export type SendState =
   | { kind: "copying"; device: string; done: number; total: number }
   | { kind: "emailing" }
   | { kind: "done"; via: Via; message: string }
-  | { kind: "error"; via: Via; message: string; sent: string };
+  /** `left`: the files this delivery didn't get to, the failed one first. */
+  | { kind: "error"; via: Via; message: string; sent: string; left?: string[] };
 
 /** The delivery under way in `state`, if one is. */
 export const runningVia = (state: SendState): Via | undefined =>
@@ -86,7 +87,8 @@ export function useSend(onSent?: () => void) {
         setState({ kind: "done", via, message: lines.join("\n") });
         onSent?.();
       } catch (e) {
-        setState({ kind: "error", via, message: errorMessage(e), sent: lines.join("\n") });
+        const left = (pending.current?.books ?? []).map((b) => fileName(b.file));
+        setState({ kind: "error", via, message: errorMessage(e), sent: lines.join("\n"), left });
         if (lines.length > earlier.length) onSent?.();
       } finally {
         device.current = null;

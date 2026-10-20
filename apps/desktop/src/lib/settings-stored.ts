@@ -21,6 +21,8 @@ export type Settings = {
   defaultFormat: ExportFormat | null;
   /** Exports write over a file already in the folder instead of a ` (2)` copy. */
   replaceExisting: boolean;
+  /** JPEG quality by device profile id; a profile missing here uses its own. */
+  jpegQuality: Record<string, number>;
   /** Chapter languages in order of preference, never empty. */
   preferredLanguages: string[];
   providerOptions: Record<string, unknown>;
@@ -54,6 +56,7 @@ export const DEFAULTS: Settings = {
   defaultPreset: DEFAULT_PRESET,
   defaultFormat: null,
   replaceExisting: false,
+  jpegQuality: {},
   preferredLanguages: [DEFAULT_LANGUAGE],
   providerOptions: {},
   providersEnabled: {},
@@ -80,6 +83,7 @@ export const fromStored = (s: Stored, platformDataDir: string): Settings => ({
   defaultPreset: isPreset(s.default_preset) ? s.default_preset : DEFAULTS.defaultPreset,
   defaultFormat: isFormat(s.default_format) ? s.default_format : null,
   replaceExisting: s.export_replace === true,
+  jpegQuality: s.jpeg_quality ?? {},
   preferredLanguages: s.preferred_languages?.length
     ? s.preferred_languages
     : DEFAULTS.preferredLanguages,
@@ -109,6 +113,7 @@ export const toStored = (s: Settings, platformDataDir: string): Stored => ({
   default_preset: unlessDefault(s.defaultPreset, DEFAULTS.defaultPreset),
   default_format: s.defaultFormat,
   export_replace: unlessDefault(s.replaceExisting, false),
+  jpeg_quality: s.jpegQuality,
   preferred_languages: s.preferredLanguages,
   provider_options: s.providerOptions,
   providers_enabled: s.providersEnabled,
@@ -132,6 +137,7 @@ export const STORED_KEY: { [K in keyof Settings]: keyof Stored } = {
   defaultPreset: "default_preset",
   defaultFormat: "default_format",
   replaceExisting: "export_replace",
+  jpegQuality: "jpeg_quality",
   preferredLanguages: "preferred_languages",
   providerOptions: "provider_options",
   providersEnabled: "providers_enabled",

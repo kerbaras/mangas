@@ -84,7 +84,14 @@ describe("export dialog: a volume that fails part-way (#220)", () => {
   it("turns the backend outcome into results, or the error when a book failed", () => {
     const ok = { written: [stats("/k/a.epub")], failed: null, not_written: [] };
     expect(outcomeResults(ok)).toEqual([
-      { output: "/k/a.epub", pages: 6, skipped: 0, detectors_error: null },
+      {
+        output: "/k/a.epub",
+        parts: [],
+        pages: 6,
+        skipped: 0,
+        detectors_error: null,
+        oversized: [],
+      },
     ]);
     expect(() => outcomeResults({ ...ok, failed })).toThrow(
       "Solo v2 failed: No space left on device",

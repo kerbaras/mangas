@@ -9,7 +9,7 @@ import { ch, chapters, enabledButton, exportBackend, solo } from "./export-backe
 
 afterEach(() => {
   setBackend(null);
-  writeSettings({ defaultFormat: null, defaultDevice: "kindle-paperwhite12" });
+  writeSettings({ defaultFormat: null, defaultDevice: "kindle-paperwhite12", jpegQuality: {} });
 });
 
 const saved: ExportPreset = { profile: "kobo-clara", format: "cbz", cut_preset: "fewest-cuts" };
@@ -40,6 +40,16 @@ describe("export dialog: series export preset", () => {
       format: "cbz",
       preset: "fewest-cuts",
     });
+  });
+
+  it("exports at the JPEG quality stored for the device the preset picks", async () => {
+    writeSettings({ jpegQuality: { "kindle-paperwhite12": 80, "kobo-clara": 60 } });
+    const { exportVolumes } = withPreset(saved);
+    render(dialog());
+    expect(await screen.findByText("Using series preset")).toBeTruthy();
+    fireEvent.click(await enabledButton(/Export 2 books/));
+    await waitFor(() => expect(exportVolumes).toHaveBeenCalledOnce());
+    expect(exportVolumes.mock.calls[0][0]).toMatchObject({ device: "kobo-clara", quality: 60 });
   });
 
   it("applies the preset to one file per chapter too", async () => {

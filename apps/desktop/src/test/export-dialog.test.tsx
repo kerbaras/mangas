@@ -92,7 +92,12 @@ describe("export dialog: bundles", () => {
   });
 
   it("joins chapters from several series into one book", async () => {
-    const exportChapters = vi.fn(async () => ({ output: "/k/x.epub", pages: 6, skipped: 0 }));
+    const exportChapters = vi.fn(async () => ({
+      output: "/k/x.epub",
+      parts: [],
+      pages: 6,
+      skipped: 0,
+    }));
     exportBackend({ exportChapters });
     const other = { ...solo, id: "o", title: "Other" };
     render(

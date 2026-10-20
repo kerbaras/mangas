@@ -9,6 +9,7 @@ import {
   type Manga,
   setBackend,
 } from "@/lib/ipc";
+import type { ExportResult } from "@/lib/ipc.export";
 import type { VolumeExport, VolumeRequest } from "@/lib/ipc.volumes";
 import { mockPlan, portable } from "@/lib/volume-plan";
 
@@ -55,18 +56,21 @@ export function exportBackend(overrides: Partial<Backend> = {}, detectors = dete
       r.title,
     ),
   );
-  const exportVolumes = vi.fn(async (r: VolumeExport) =>
-    (await planVolumes(r)).map((p) => ({
-      output: `/k/${p.file_name.replace(/\.epub$/, `.${r.format}`)}`,
-      pages: 6,
-      skipped: 0,
-    })),
+  const exportVolumes = vi.fn(
+    async (r: VolumeExport): Promise<ExportResult[]> =>
+      (await planVolumes(r)).map((p) => ({
+        output: `/k/${p.file_name.replace(/\.epub$/, `.${r.format}`)}`,
+        parts: [] as string[],
+        pages: 6,
+        skipped: 0,
+      })),
   );
   const freeExportNames = vi.fn(async (_dir: string, names: string[]) => names);
   setBackend({
     planVolumes,
     exportVolumes,
     freeExportNames,
+    checkExportDir: async () => {},
     exportFileName: async (title: string, format: ExportFormat) =>
       withExtension(portable(title), format),
     listDevices: async () => [

@@ -66,6 +66,7 @@ fn export_keeps_gif_pages_and_counts_unsupported_files() {
 
     let out = tmp.path().join("book.epub");
     let req = ExportRequest {
+        split: None,
         format: mangas_core::export::Format::Epub,
         chapter_dirs: vec![ch],
         device: device("kindle-paperwhite12").unwrap(),

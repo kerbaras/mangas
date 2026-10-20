@@ -37,6 +37,7 @@ export function failIfOffline(source: string, query: string) {
 /** Six pages per chapter; `?skipped` reports two unsupported files left out. */
 export const mockExportResult = (output: string, chapters: number): ExportResult => ({
   output,
+  parts: [],
   pages: 6 * chapters,
   skipped: mockFlags.skipped ? 2 : 0,
   detectors_error: null,

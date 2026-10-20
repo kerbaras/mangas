@@ -23,9 +23,13 @@ export const tauriVolumes: VolumesBackend = {
       detectors: r.detectors,
       outputDir: r.outputDir,
       replace: r.replace ?? false,
+      quality: r.quality ?? null,
+      splitMb: r.splitMb ?? null,
     });
     return outcomeResults(outcome);
   },
   freeExportNames: (dir, names) => invoke("free_export_names", { dir, names }),
+  checkExportDir: (dir, split, replace) => invoke("check_export_dir", { dir, split, replace }),
   exportFileName: (title, format) => invoke("export_file_name", { title, format }),
+  estimateExport: (r) => invoke("estimate_export", { ...r }),
 };

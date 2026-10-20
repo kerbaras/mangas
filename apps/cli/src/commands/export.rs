@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::bail;
 use clap::Args as ClapArgs;
-use mangas_core::export::kindle::{export, ExportStats};
+use mangas_core::export::kindle::{check_export_folder, export, ExportStats};
 use mangas_core::export::volume::{self, VolumeOutcome};
 use mangas_core::export::{ExportPreset, Format};
 use mangas_core::{library, storage};
@@ -14,6 +14,7 @@ use super::export_cover::cover_file;
 use super::export_plans::plans;
 use super::export_preset::{self, PresetAction};
 use super::export_report::Report;
+use super::export_size::{warn_too_big, written_pages};
 use super::kindle_record;
 use super::{hint, stored_settings};
 use crate::output::outln;
@@ -54,9 +55,10 @@ pub struct Args {
     #[arg(long)]
     pub dry_run: bool,
     /// Print one JSON object instead of the lines above: `files` (path, title, chapters, pages,
-    /// skipped_files), `skipped`, `failed` and `not_written` (path, reason; a failed book stops
-    /// the run: the books before it stay, the ones after it are `not_written`)
-    /// and `detectors` (state "used", "skipped" or "off", and the runtime's error as reason)
+    /// bytes, part {index, total} when written in parts, skipped_files), `skipped`, `failed` and
+    /// `not_written` (path, reason; a failed book stops the run: the books before it stay, the
+    /// ones after it are `not_written`) and `detectors` (state "used", "skipped" or "off", and the
+    /// runtime's error as reason)
     #[arg(long, conflicts_with_all = ["dry_run", "preset"])]
     pub json: bool,
     /// Write over books already in the folder instead of next to them as "Title (2)"
@@ -92,19 +94,33 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         bail!("nothing to export: no downloaded chapters match (see {list})");
     }
     let series = library::get_export_preset(&lib, &args.source, &args.manga_id)?;
-    let fallback = ExportPreset::from_settings(&stored_settings());
-    let preset = ExportPreset::resolve(&explicit, series.as_ref(), &fallback);
+    let stored = stored_settings();
+    let fallback = ExportPreset::from_settings(&stored);
+    let preset = ExportPreset::resolve(&explicit, series.as_ref(), &fallback)
+        .with_stored_quality(&stored, DEFAULT_PROFILE);
     let device = CutArgs::device_of(&preset, DEFAULT_PROFILE)?;
     let format = Format::resolve(preset.format, None, None, &device)?;
-    let names = volume::written_names(&plans, &args.output_dir, format.id(), args.replace)?;
-    for (p, name) in plans.iter().zip(&names).filter(|_| !args.json) {
+    check_export_folder(&args.output_dir, args.cut.split_mb.is_some(), args.replace)?;
+    let plans = volume::named_as_written(plans, &args.output_dir, format.id(), args.replace)?;
+    let names: Vec<String> = plans.iter().map(|p| p.file_name.clone()).collect();
+    let firsts = volume::first_part_names(&names, &args.output_dir, args.replace)?;
+    let rows = plans.iter().zip(&names).zip(&firsts);
+    for ((p, name), first_part) in rows.filter(|_| !args.json) {
         let (first, last) = (
             &p.chapters[0].number,
             &p.chapters[p.chapters.len() - 1].number,
         );
+        let path = args.output_dir.join(name);
+        let parts = match args.cut.split_mb {
+            Some(mb) => format!(
+                ", in parts of {mb} MB if bigger: {}, …",
+                args.output_dir.join(first_part).display()
+            ),
+            None => String::new(),
+        };
         outln!(
-            "{}  ({} chapters, {first}–{last})",
-            args.output_dir.join(name).display(),
+            "{}  ({} chapters, {first}–{last}{parts})",
+            path.display(),
             p.chapters.len()
         )?;
     }
@@ -129,6 +145,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             .with_format(format)
             .with_page(preset.page())
             .with_replace(args.replace)
+            .with_split(args.cut.split())
         })
         .collect();
     let mut written = Vec::with_capacity(reqs.len());
@@ -148,15 +165,17 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         if !args.json {
             print_written(&stats)?;
         }
+        warn_too_big(&stats.oversized);
         kindle_record::mark_exported(&lib, &stats.exported_chapters(&req.chapter_dirs));
-        kindle_record::record_export(&lib, &stats.output, &req.title, device.id);
-        if let Some(via) = args.send {
-            let file = std::path::absolute(&stats.output)?;
+        for (output, title) in &stats.titled_outputs(&req.title) {
+            kindle_record::record_export(&lib, output, title, device.id);
+            let Some(via) = args.send else { continue };
+            let file = std::path::absolute(output)?;
             let kindle = args.kindle.as_deref();
-            match try_deliver(&lib, &file, &req.title, via, kindle).await {
+            match try_deliver(&lib, &file, title, via, kindle).await {
                 Ok(sent) if args.json => eprintln!("{sent}"),
                 Ok(sent) => outln!("{sent}")?,
-                Err(e) => report.fail(&stats.output, e),
+                Err(e) => report.fail(output, e),
             }
         }
         written.push(stats);
@@ -168,7 +187,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
 }
 
 fn print_written(stats: &ExportStats) -> std::io::Result<()> {
-    outln!("{}: {} pages", stats.output.display(), stats.pages)?;
+    for (file, pages) in written_pages(stats) {
+        outln!("{}: {pages} pages", file.display())?;
+    }
     if stats.skipped > 0 {
         outln!(
             "skipped {} unsupported file(s), listed in the warnings above",

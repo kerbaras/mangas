@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use super::parts::Oversized;
 use super::Device;
 use crate::export::epub::Series;
 use crate::export::{Format, Labels, PageSettings};
@@ -43,6 +44,8 @@ pub struct ExportRequest {
     pub meta: BookMeta,
     /// Series, chapter and volume labels from the library (CBZ writes them to ComicInfo).
     pub labels: Labels,
+    /// Write numbered parts of at most this many bytes when the book would be bigger.
+    pub split: Option<u64>,
 }
 
 impl ExportRequest {
@@ -56,9 +59,15 @@ impl ExportRequest {
         ExportRequest { replace, ..self }
     }
 
+    /// The same export in parts of at most `split` bytes (see [`ExportRequest::split`]).
+    pub fn with_split(self, split: Option<u64>) -> ExportRequest {
+        ExportRequest { split, ..self }
+    }
+
     /// The same export written as `format`, the output's extension changed to match.
     pub fn with_format(self, format: Format) -> ExportRequest {
         ExportRequest {
+            split: None,
             output: self.output.with_extension(format.id()),
             format,
             ..self
@@ -96,14 +105,56 @@ pub struct ExportStats {
     /// Chapter folders that gave no page (nothing decodable in them): not part of the book.
     #[serde(default)]
     pub empty_chapters: Vec<PathBuf>,
-    /// File actually written (differs from the request when the name was already taken).
+    /// File actually written (differs from the request when the name was already taken); the
+    /// first part when the book was split.
     pub output: PathBuf,
+    /// Every part in order when the book was split into several files, else empty.
+    #[serde(default)]
+    pub parts: Vec<Part>,
     /// Why detectors were asked for but not used (set by the caller that chose them).
     #[serde(default)]
     pub detectors_error: Option<String>,
+    /// Files written over the Send-to-Kindle email limit, measured on disk.
+    #[serde(default)]
+    pub oversized: Vec<Oversized>,
+}
+
+/// One file of a book written in parts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Part {
+    pub path: PathBuf,
+    pub pages: usize,
+    /// Chapters with at least one page in this part.
+    #[serde(default)]
+    pub chapters: usize,
 }
 
 impl ExportStats {
+    /// The files written: the parts, else the one book.
+    pub fn outputs(&self) -> Vec<PathBuf> {
+        match self.parts.is_empty() {
+            true => vec![self.output.clone()],
+            false => self.parts.iter().map(|p| p.path.clone()).collect(),
+        }
+    }
+
+    /// Each file written with the title it goes by: "Title (part 2 of 3)" for a part, else
+    /// `title`. What the history records and an email's subject.
+    pub fn titled_outputs(&self, title: &str) -> Vec<(PathBuf, String)> {
+        let total = self.parts.len();
+        match total {
+            0 => vec![(self.output.clone(), title.to_string())],
+            _ => (self.parts.iter().enumerate())
+                .map(|(i, p)| {
+                    (
+                        p.path.clone(),
+                        super::parts::part_title(title, i + 1, total),
+                    )
+                })
+                .collect(),
+        }
+    }
+
     /// The requested chapter folders that made it into the book.
     pub fn exported_chapters<'a>(&self, dirs: &'a [PathBuf]) -> Vec<&'a Path> {
         dirs.iter()

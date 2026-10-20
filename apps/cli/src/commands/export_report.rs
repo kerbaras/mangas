@@ -8,6 +8,7 @@ use mangas_core::export::volume::VolumeOutcome;
 use mangas_core::ml::DetectorReport;
 use serde::Serialize;
 
+use super::export_size::bytes;
 use crate::output::print_json;
 
 #[derive(Debug, Serialize)]
@@ -27,8 +28,18 @@ pub struct WrittenFile {
     /// Chapters in the book (folders that gave no page are in `skipped` instead).
     pub chapters: usize,
     pub pages: usize,
+    pub bytes: u64,
+    /// Which part of the book this file is, when it was written in parts.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub part: Option<PartNo>,
     /// Files in its chapters left out because their format can't be decoded.
     pub skipped_files: usize,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PartNo {
+    pub index: usize,
+    pub total: usize,
 }
 
 /// A chapter folder or book, and what happened to it.
@@ -56,13 +67,36 @@ impl Report {
 
     /// Adds the book `stats` describes, made from the chapter folders `dirs`.
     pub fn add(&mut self, stats: &ExportStats, title: &str, dirs: &[PathBuf]) {
-        self.files.push(WrittenFile {
-            path: stats.output.clone(),
-            title: title.to_string(),
-            chapters: stats.exported_chapters(dirs).len(),
-            pages: stats.pages,
+        let chapters = stats.exported_chapters(dirs).len();
+        let total = stats.parts.len();
+        let titles = stats.titled_outputs(title);
+        let file = |path: &Path, pages, chapters, part: Option<PartNo>| WrittenFile {
+            path: path.to_path_buf(),
+            title: titles[part.as_ref().map_or(0, |p| p.index - 1)].1.clone(),
+            chapters,
+            pages,
+            bytes: bytes(path),
+            part,
             skipped_files: stats.skipped,
-        });
+        };
+        match total {
+            0 => self
+                .files
+                .push(file(&stats.output, stats.pages, chapters, None)),
+            _ => self
+                .files
+                .extend(stats.parts.iter().enumerate().map(|(i, p)| {
+                    file(
+                        &p.path,
+                        p.pages,
+                        p.chapters,
+                        Some(PartNo {
+                            index: i + 1,
+                            total,
+                        }),
+                    )
+                })),
+        }
         self.skipped
             .extend(stats.empty_chapters.iter().map(|dir| Item {
                 path: dir.clone(),

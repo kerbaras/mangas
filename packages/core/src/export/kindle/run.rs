@@ -51,7 +51,9 @@ fn empty_stats() -> ExportStats {
         skipped: 0,
         empty_chapters: Vec::new(),
         output: PathBuf::new(),
+        parts: Vec::new(),
         detectors_error: None,
+        oversized: Vec::new(),
     }
 }
 
@@ -145,11 +147,16 @@ impl<'a> Run<'a> {
     }
 
     pub fn chapter(&mut self, dir: &Path) -> Result<()> {
+        self.files(dir, chapter_files(dir)?)
+    }
+
+    /// Runs `files` as the content of chapter `dir`.
+    pub fn files(&mut self, dir: &Path, files: ChapterFiles) -> Result<()> {
         self.paginator.new_chapter();
         let ChapterFiles {
             pages: files,
             skipped,
-        } = chapter_files(dir)?;
+        } = files;
         for file in &skipped {
             tracing::warn!(file = %file.display(), "export: skipping unsupported file");
         }

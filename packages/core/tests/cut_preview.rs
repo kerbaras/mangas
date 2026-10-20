@@ -40,6 +40,7 @@ fn request(dir: &Path, out: &Path, limit: usize, page: PageSettings) -> PreviewR
 
 fn export_pages(dir: &Path, root: &Path, page: PageSettings) -> usize {
     let req = ExportRequest {
+        split: None,
         chapter_dirs: vec![dir.to_path_buf()],
         device: device("kindle-paperwhite12").unwrap(),
         format: Format::Cbz,

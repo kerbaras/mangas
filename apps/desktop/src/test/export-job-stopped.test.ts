@@ -27,6 +27,8 @@ const job = () =>
     detectors: true,
     outputDir: null,
     replace: false,
+    quality: null,
+    splitMb: null,
   });
 
 describe("export job", () => {

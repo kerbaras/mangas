@@ -4,6 +4,7 @@ import { type Series, useSeriesPreset } from "@/hooks/use-series-preset";
 import { effectiveFormat } from "@/lib/export-formats";
 import type { ExportPick } from "@/lib/export-name";
 import type { Preset } from "@/lib/ipc";
+import { withQuality } from "@/lib/kindle-size";
 import { useSettings } from "@/lib/settings";
 
 /**
@@ -11,7 +12,7 @@ import { useSettings } from "@/lib/settings";
  * format keeps it for next time) unless the one picked series has a preset that sets them.
  */
 export function useSeriesTarget(picks: ExportPick[]) {
-  const [settings] = useSettings();
+  const [settings, update] = useSettings();
   const stored = useExportTarget();
   const [ownPreset, setOwnPreset] = useState<Preset>(settings.defaultPreset);
   const [pick] = picks;
@@ -27,6 +28,10 @@ export function useSeriesTarget(picks: ExportPick[]) {
     device,
     format: series.shown("format", effectiveFormat(settings.defaultFormat, list, device)),
     recommended: list.find((d) => d.id === device),
+    // The quality stored for the device shown, which a series preset may have picked.
+    quality: settings.jpegQuality[device] ?? null,
+    setQuality: (q: number | null) =>
+      update({ jpegQuality: withQuality(settings.jpegQuality, device, q) }),
     setDevice: (id: string) => {
       series.touch("profile");
       stored.setDevice(id);

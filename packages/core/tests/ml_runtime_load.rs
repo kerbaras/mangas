@@ -124,6 +124,7 @@ async fn preview_and_export_cut_without_detectors_that_cant_run() {
     let shown = preview(&req, detection.penalizer.clone(), &|| false).unwrap();
     assert!(!shown.pages.is_empty());
     let book = ExportRequest {
+        split: None,
         chapter_dirs: vec![dir],
         device: device("kindle-paperwhite12").unwrap(),
         format: Format::Cbz,

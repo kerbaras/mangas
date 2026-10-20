@@ -36,7 +36,7 @@ const failingOnce = () =>
   vi
     .fn()
     .mockRejectedValueOnce(new Error("permission denied: /k"))
-    .mockResolvedValueOnce([{ output: "/k/Solo v1.epub", pages: 6, skipped: 0 }]);
+    .mockResolvedValueOnce([{ output: "/k/Solo v1.epub", parts: [], pages: 6, skipped: 0 }]);
 
 describe("export dialog: Try again after a failed export", () => {
   it("exports again with the same options", async () => {

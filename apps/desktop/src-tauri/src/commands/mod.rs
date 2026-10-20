@@ -11,6 +11,7 @@ pub mod detectors;
 pub mod diagnostics;
 pub mod downloads;
 mod errors;
+pub mod estimate;
 pub mod export;
 pub mod folders;
 pub mod import;

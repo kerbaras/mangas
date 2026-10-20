@@ -34,12 +34,23 @@ export type ExportRequest = {
   title?: string;
   /** Write over a file already at `output` instead of a ` (2)` copy. */
   replace?: boolean;
+  /** JPEG quality of the pages; null keeps the profile's. */
+  quality?: number | null;
+  /** Write a bigger book as numbered parts of at most this many MB. */
+  splitMb?: number | null;
 };
 
 export type ExportResult = {
   output: string;
+  /** Every file written, in order, when the book was split into parts; else empty. */
+  parts: string[];
   pages: number;
   skipped: number;
   /** Why the detectors were asked for but the book was cut without them. */
   detectors_error?: string | null;
+  /** Files written over the Send-to-Kindle email limit, measured on disk (not estimated). */
+  oversized?: Oversized[];
 };
+
+/** A written file and its size on disk (`export::kindle::Oversized`). */
+export type Oversized = { file: string; bytes: number };

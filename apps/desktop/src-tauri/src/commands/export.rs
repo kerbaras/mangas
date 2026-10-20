@@ -56,12 +56,15 @@ pub async fn export_chapters<R: Runtime>(
     output: PathBuf,
     title: Option<String>,
     replace: Option<bool>,
+    quality: Option<u8>,
+    split_mb: Option<u64>,
 ) -> Result<ExportStats, String> {
     let _reading = hold_for_export().map_err(to_ipc)?;
     let explicit = ExportPreset {
         cut_preset: preset,
         format,
         profile: device,
+        jpeg_quality: quality,
         ..Default::default()
     };
     let settings = settings_or_default();
@@ -75,6 +78,7 @@ pub async fn export_chapters<R: Runtime>(
     let detection = penalizer(&app, detectors, &settings).await?;
     let req_dirs = chapter_dirs.clone();
     let req = ExportRequest {
+        split: split_mb.map(|mb| mb * 1_000_000),
         labels: labels_of(&chapter_dirs),
         // The desktop always sends a generated title, so the chapter's own title wins.
         title_explicit: false,
@@ -108,17 +112,18 @@ pub async fn export_chapters<R: Runtime>(
 }
 
 /// `explicit` choices over the series preset over the stored defaults (the built-in ones when
-/// the settings can't be read).
+/// the settings can't be read), with the JPEG quality stored for the resolved profile.
 pub(super) fn resolve(
     explicit: &ExportPreset,
     series: Option<&ExportPreset>,
     settings: &Settings,
 ) -> ExportPreset {
     ExportPreset::resolve(explicit, series, &ExportPreset::from_settings(settings))
+        .with_stored_quality(settings, paths::DEFAULT_PROFILE)
 }
 
 /// The preset of the series every folder belongs to; none when unreadable or mixed.
-fn series_preset(dirs: &[PathBuf]) -> Option<ExportPreset> {
+pub(super) fn series_preset(dirs: &[PathBuf]) -> Option<ExportPreset> {
     let refs: Vec<&std::path::Path> = dirs.iter().map(PathBuf::as_path).collect();
     open_library()
         .and_then(|lib| library::preset_for_dirs(&lib, &refs).map_err(to_ipc))
@@ -133,7 +138,10 @@ fn series_preset(dirs: &[PathBuf]) -> Option<ExportPreset> {
 pub(super) fn record_export(stats: &ExportStats, dirs: &[PathBuf], title: &str, device: &str) {
     let recorded = open_library().and_then(|lib| {
         library::mark_exported(&lib, &stats.exported_chapters(dirs)).map_err(to_ipc)?;
-        library::record_export(&lib, &stats.output, title, device).map_err(to_ipc)
+        for (output, title) in stats.titled_outputs(title) {
+            library::record_export(&lib, &output, &title, device).map_err(to_ipc)?;
+        }
+        Ok(())
     });
     if let Err(e) = recorded {
         tracing::warn!("could not record the export: {e}");

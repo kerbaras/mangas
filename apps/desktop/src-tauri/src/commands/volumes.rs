@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use mangas_core::export::kindle::{self, Progress};
+use mangas_core::export::kindle::{self, check_export_folder, Progress};
 use mangas_core::export::volume::{self, Grouping, VolumeOutcome, VolumePlan};
 use mangas_core::export::{ExportPreset, Format};
 use mangas_core::library;
@@ -55,6 +55,19 @@ pub async fn free_export_names(dir: PathBuf, names: Vec<String>) -> Result<Vec<S
     .await
 }
 
+/// Refused with `couldn't list <folder>: <reason>` when the export would be: a split or a
+/// replacement into a folder that can't be listed (see [`check_export_folder`]).
+#[tauri::command]
+#[tracing::instrument(level = "error", skip_all)]
+pub async fn check_export_dir(dir: PathBuf, split: bool, replace: bool) -> Result<(), String> {
+    blocking(move || {
+        let dir =
+            mangas_core::export::in_export_folder(&paths::exports(&settings_quietly())?, &dir);
+        check_export_folder(&dir, split, replace).map_err(to_ipc)
+    })
+    .await
+}
+
 /// The file name a book titled `title` is written under as `format` (shortened when too long),
 /// for books planned in the UI (chapters of several series joined into one).
 #[tauri::command]
@@ -79,6 +92,8 @@ pub async fn export_volumes<R: Runtime>(
     detectors: bool,
     output_dir: Option<PathBuf>,
     replace: Option<bool>,
+    quality: Option<u8>,
+    split_mb: Option<u64>,
 ) -> Result<VolumeOutcome, String> {
     // Before the chapter folders are looked up: a data-folder move can't start under the export.
     let _reading = hold_for_export().map_err(to_ipc)?;
@@ -91,6 +106,7 @@ pub async fn export_volumes<R: Runtime>(
         cut_preset: preset,
         format,
         profile: device,
+        jpeg_quality: quality,
         ..Default::default()
     };
     let series =
@@ -102,7 +118,11 @@ pub async fn export_volumes<R: Runtime>(
     let device = dev.id.to_string();
     let format = Format::resolve(None, None, resolved.format, &dev).map_err(to_ipc)?;
     let (src, plans) = plans(&source, &manga_id, &chapter_ids, grouping, title.as_deref())?;
-    let plans = volume::one_file_each(plans, replace.unwrap_or(false));
+    let replace = replace.unwrap_or(false);
+    let plans = volume::one_file_each(plans, replace);
+    check_export_folder(&output_dir, split_mb.is_some(), replace).map_err(to_ipc)?;
+    let plans =
+        volume::named_as_written(plans, &output_dir, format.id(), replace).map_err(to_ipc)?;
     if plans.is_empty() {
         return Err(to_ipc("none of these chapters is downloaded"));
     }
@@ -121,7 +141,8 @@ pub async fn export_volumes<R: Runtime>(
             )
             .with_format(format)
             .with_page(resolved.page())
-            .with_replace(replace.unwrap_or(false))
+            .with_replace(replace)
+            .with_split(split_mb.map(|mb| mb * 1_000_000))
         })
         .collect();
     let detectors_error = detection.error.clone();

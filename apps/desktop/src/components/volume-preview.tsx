@@ -9,10 +9,12 @@ type Props = {
   folder: string;
   /** The plans are for an older selection and a new plan is on its way. */
   stale?: boolean;
+  /** Why the export would be refused before it writes anything (`couldn't list <folder>: …`). */
+  blocked?: string | null;
 };
 
 /** The EPUB files an export will write, one row each. */
-export function VolumePreview({ plans, folder, stale = false }: Props) {
+export function VolumePreview({ plans, folder, stale = false, blocked = null }: Props) {
   if (plans.kind === "loading") return <p className="text-caption text-ink-3">Planning books…</p>;
   if (plans.kind === "error")
     return (
@@ -47,6 +49,11 @@ export function VolumePreview({ plans, folder, stale = false }: Props) {
       <Hint hint={folder} truncated>
         <p className="truncate text-caption text-ink-3">Saved to {folder}</p>
       </Hint>
+      {blocked && (
+        <p className="text-caption text-accent-text [overflow-wrap:anywhere]" role="alert">
+          {blocked}
+        </p>
+      )}
     </div>
   );
 }

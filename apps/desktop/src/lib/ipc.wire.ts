@@ -37,14 +37,20 @@ export type ExportStats = {
   skipped: number;
   /** File actually written; differs from the request when that name was taken. */
   output: string;
+  /** Every part in order when the book was split, else empty. */
+  parts?: { path: string; pages: number }[];
   detectors_error?: string | null;
+  /** Files written over the Send-to-Kindle email limit, measured on disk. */
+  oversized?: { path: string; bytes: number }[];
 };
 
 export const toExportResult = (s: ExportStats): ExportResult => ({
   output: s.output,
+  parts: (s.parts ?? []).map((p) => p.path),
   pages: s.pages,
   skipped: s.skipped ?? 0,
   detectors_error: s.detectors_error ?? null,
+  oversized: (s.oversized ?? []).map((o) => ({ file: o.path, bytes: o.bytes })),
 });
 
 /** Mirrors `mangas_core::export::volume::VolumeOutcome`: a run stops at the first failed book. */
@@ -75,6 +81,8 @@ export type ExportChaptersArgs = {
   output: string;
   title?: string;
   replace: boolean;
+  quality: number | null;
+  splitMb: number | null;
 };
 
 export const toExportProgress = (e: ExportEvent): ExportProgress => {
@@ -116,4 +124,6 @@ export const toExportArgs = (r: ExportRequest): ExportChaptersArgs => ({
   output: r.output,
   ...(r.title ? { title: r.title } : {}),
   replace: r.replace ?? false,
+  quality: r.quality ?? null,
+  splitMb: r.splitMb ?? null,
 });
