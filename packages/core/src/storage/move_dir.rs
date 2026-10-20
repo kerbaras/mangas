@@ -5,6 +5,7 @@ use serde::Serialize;
 
 use super::layout::DATA_SUBDIRS;
 use super::partial::{mark, prepare_target, unmark};
+use super::reading::{hold_for_move, EXPORT_LEASE_FILES};
 use super::relocate::{check_target, rebase};
 use super::tree::{empty_dir, list_files, FileEntry};
 use crate::domain::{Error, Result};
@@ -68,7 +69,10 @@ fn move_held(
     let to = fs::canonicalize(to)?;
     let from_resolved = fs::canonicalize(from).unwrap_or_else(|_| from.to_path_buf());
     check_target(&from_resolved, &to)?;
-    // Not under a detector download or removal in this process or another.
+    // Not under an export, nor a detector download or removal, in this process or another. The
+    // export lease goes first: a move an export refuses never holds the detector lease the export
+    // may need for its detectors.
+    let reading = hold_for_move(&from_resolved)?;
     let lease = lease::acquire(&from_resolved.join("models"), Purpose::Move)?;
     prepare_target(lib, &from_resolved, &to, replace_partial)?;
     let mut plan = Vec::new();
@@ -104,7 +108,10 @@ fn move_held(
     if let Err(e) = empty_dir(&from_resolved.join("models"), &lease::LEASE_FILES) {
         log::warn!("empty the old models folder: {e}");
     }
-    drop(lease);
+    drop((lease, reading));
+    for name in EXPORT_LEASE_FILES {
+        let _ = fs::remove_file(from_resolved.join(name));
+    }
     let leftovers = DATA_SUBDIRS
         .iter()
         .map(|sub| from_resolved.join(sub))

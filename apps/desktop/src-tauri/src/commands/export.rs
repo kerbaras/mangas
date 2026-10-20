@@ -5,6 +5,7 @@ use mangas_core::export::{ExportPreset, Format, Labels};
 use mangas_core::library;
 use mangas_core::library::Settings;
 use mangas_core::smartcut::Preset;
+use mangas_core::storage;
 use tauri::{AppHandle, Emitter, Runtime};
 
 use super::penalizer::penalizer;
@@ -56,6 +57,7 @@ pub async fn export_chapters<R: Runtime>(
     title: Option<String>,
     replace: Option<bool>,
 ) -> Result<ExportStats, String> {
+    let _reading = hold_for_export().map_err(to_ipc)?;
     let explicit = ExportPreset {
         cut_preset: preset,
         format,
@@ -166,4 +168,11 @@ fn default_title(chapter_dirs: &[PathBuf]) -> String {
         .and_then(|c| c.parent().and_then(|p| p.file_name()))
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| "Manga".to_string())
+}
+
+/// The export lease on the data folder Settings point at now (see [`storage::hold_for_export`]).
+pub(super) fn hold_for_export() -> Result<mangas_core::ml::lease::Lease, mangas_core::Error> {
+    storage::hold_for_export(|| {
+        paths::data_dir(&settings_or_default()).map_err(mangas_core::Error::Other)
+    })
 }

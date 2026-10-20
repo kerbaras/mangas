@@ -116,7 +116,7 @@ fn a_holder_that_dies_frees_the_folder() {
     let reading = mangas_core::ml::lease::share(&models).unwrap();
     let err = acquire(&models, Purpose::Remove).err().unwrap().to_string();
     assert!(
-        err.contains("an export is using"),
+        err.contains("an export or import is running"),
         "the dead downloader isn't blamed: {err}"
     );
     drop(reading);

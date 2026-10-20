@@ -22,7 +22,7 @@ pub fn rate_limits() -> anyhow::Result<PathBuf> {
 
 /// Folder chosen in the desktop app's Settings, so the CLI and the app see the same chapters
 /// and models; the platform data dir when none is set or the library cannot be read.
-fn data_dir() -> anyhow::Result<PathBuf> {
+pub fn data_dir() -> anyhow::Result<PathBuf> {
     let custom = library::open(&library_db()?)
         .and_then(|lib| library::get_settings(&lib))
         .ok()

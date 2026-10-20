@@ -43,9 +43,14 @@ pub fn lease_path(models_dir: &Path) -> PathBuf {
 
 /// Takes the lease to change the folder, or fails naming what holds it.
 pub fn acquire(models_dir: &Path, purpose: Purpose) -> Result<Lease> {
-    let file = open(models_dir)?;
-    locked(file.try_lock(), models_dir)?;
-    let owner = models_dir.join(OWNER_FILE);
+    acquire_at(models_dir, LEASE_FILE, purpose)
+}
+
+/// [`acquire`] on the lock file `name` in `dir` (its owner record is `<name>.owner`).
+pub fn acquire_at(dir: &Path, name: &str, purpose: Purpose) -> Result<Lease> {
+    let file = open(dir, name)?;
+    locked(file.try_lock(), dir, name)?;
+    let owner = owner_path(dir, name);
     let record = Owner {
         pid: std::process::id(),
         purpose,
@@ -60,10 +65,15 @@ pub fn acquire(models_dir: &Path, purpose: Purpose) -> Result<Lease> {
 
 /// Takes the lease to read the folder; any number of readers, refused during a change.
 pub fn share(models_dir: &Path) -> Result<Lease> {
-    let file = open(models_dir)?;
-    locked(file.try_lock_shared(), models_dir)?;
+    share_at(models_dir, LEASE_FILE)
+}
+
+/// [`share`] on the lock file `name` in `dir`.
+pub fn share_at(dir: &Path, name: &str) -> Result<Lease> {
+    let file = open(dir, name)?;
+    locked(file.try_lock_shared(), dir, name)?;
     // Nobody can hold it exclusively now, so an owner record left is from a crashed holder.
-    if let Err(e) = remove_if_present(&models_dir.join(OWNER_FILE)) {
+    if let Err(e) = remove_if_present(&owner_path(dir, name)) {
         log::warn!("clear a stale lease owner: {e}");
     }
     Ok(Lease {
@@ -72,32 +82,37 @@ pub fn share(models_dir: &Path) -> Result<Lease> {
     })
 }
 
-fn open(models_dir: &Path) -> Result<File> {
-    fs::create_dir_all(models_dir)?;
+fn open(dir: &Path, name: &str) -> Result<File> {
+    fs::create_dir_all(dir)?;
     let file = OpenOptions::new()
         .read(true)
         .write(true)
         .create(true)
         .truncate(false)
-        .open(lease_path(models_dir))?;
+        .open(dir.join(name))?;
     Ok(file)
 }
 
-fn locked(result: std::result::Result<(), TryLockError>, models_dir: &Path) -> Result<()> {
+fn locked(result: std::result::Result<(), TryLockError>, dir: &Path, name: &str) -> Result<()> {
     match result {
         Ok(()) => Ok(()),
-        Err(TryLockError::WouldBlock) => Err(Error::Other(busy(models_dir))),
+        Err(TryLockError::WouldBlock) => Err(Error::Other(busy(dir, name))),
         Err(TryLockError::Error(e)) => Err(e.into()),
     }
 }
 
-/// Why the lease is taken: the exclusive owner's purpose, else an export reading the models.
-fn busy(models_dir: &Path) -> String {
-    let owner = fs::read(models_dir.join(OWNER_FILE))
+/// Why the lease is taken: the exclusive owner's purpose, else an export (reading chapters or
+/// the detectors, see [`crate::storage::hold_for_export`]).
+fn owner_path(dir: &Path, name: &str) -> PathBuf {
+    dir.join(format!("{name}.owner"))
+}
+
+fn busy(dir: &Path, name: &str) -> String {
+    let owner = fs::read(owner_path(dir, name))
         .ok()
         .and_then(|bytes| serde_json::from_slice::<Owner>(&bytes).ok());
     let Some(Owner { pid, purpose }) = owner else {
-        return "an export is using detector support; try again when it finishes".into();
+        return "an export or import is running; try again when it finishes".into();
     };
     let what = match purpose {
         Purpose::Download => "detector support is downloading",
