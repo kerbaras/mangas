@@ -31,11 +31,19 @@ pub(super) fn spellings(lib: &Library, dirs: &[&Path]) -> anyhow::Result<Vec<Pat
         .flatten()
         .collect();
         let refs: Vec<&Path> = own.iter().map(PathBuf::as_path).collect();
-        let original = library::stored_original(lib, &refs)?;
+        let original = library::stored_original(lib, &refs, &source_ids())?;
         spellings.extend(own);
         spellings.extend(original);
     }
     spellings.sort();
     spellings.dedup();
     Ok(spellings)
+}
+
+/// Every provider id plus the imported titles' source: the `<source>` folder names a download
+/// can sit in.
+pub(super) fn source_ids() -> Vec<&'static str> {
+    let mut sources: Vec<&str> = mangas_providers::providers().iter().map(|p| p.id).collect();
+    sources.push(library::LOCAL_SOURCE);
+    sources
 }

@@ -4,7 +4,7 @@
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-use rusqlite::params;
+use rusqlite::{params, Connection};
 
 use super::Library;
 use crate::domain::Result;
@@ -16,74 +16,83 @@ fn tail(path: &Path, n: usize) -> Vec<OsString> {
     names[names.len().saturating_sub(n)..].to_vec()
 }
 
+type Row = (String, String, String);
+
 /// The stored download folder(s) of the chapter `spellings` (one folder, spelled as typed,
 /// absolute, resolved) is a copy of, for a folder the library does not store: the stored folders
-/// whose `<manga id>/<chapter>` names match, narrowed to the same `<source>` folder above when
-/// several series match. Empty when the folder is stored itself, or no single series matches.
-pub fn stored_original(lib: &Library, spellings: &[&Path]) -> Result<Vec<PathBuf>> {
+/// whose `<manga id>/<chapter>` names match. A copy in a folder named after one of `sources`
+/// matches only that source's folders. Empty when the folder is stored itself, or no single
+/// series matches.
+pub fn stored_original(
+    lib: &Library,
+    spellings: &[&Path],
+    sources: &[&str],
+) -> Result<Vec<PathBuf>> {
     let conn = lib.conn()?;
-    let mut stmt = conn.prepare(
-        "SELECT source, manga_id, rtrim(local_path, '/\\') FROM chapter
-         WHERE local_path IS NOT NULL",
-    )?;
-    let rows: Vec<(String, String, String)> = stmt
-        .query_map(params![], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
-        .collect::<rusqlite::Result<_>>()?;
-    let given: Vec<PathBuf> = spellings
+    let given: Vec<String> = spellings
         .iter()
-        .map(|s| PathBuf::from(s.to_string_lossy().trim_end_matches(['/', '\\'])))
+        .map(|s| {
+            s.to_string_lossy()
+                .trim_end_matches(['/', '\\'])
+                .to_string()
+        })
         .collect();
-    if rows
-        .iter()
-        .any(|(_, _, p)| given.iter().any(|g| g == Path::new(p)))
-    {
-        return Ok(Vec::new());
+    let mut stored = conn.prepare(
+        "SELECT EXISTS(SELECT 1 FROM chapter WHERE local_path IN (?1, ?1 || '/', ?1 || '\\'))",
+    )?;
+    for g in &given {
+        if stored.query_row(params![g], |r| r.get::<_, bool>(0))? {
+            return Ok(Vec::new());
+        }
     }
-    let Some(first) = given.first() else {
-        return Ok(Vec::new());
-    };
-    let names = tail(first, 3);
+    for g in &given {
+        let found = copy_of(&conn, Path::new(g), sources)?;
+        if !found.is_empty() {
+            return Ok(found);
+        }
+    }
+    Ok(Vec::new())
+}
+
+/// [`stored_original`] for one spelling `dir`.
+fn copy_of(conn: &Connection, dir: &Path, sources: &[&str]) -> Result<Vec<PathBuf>> {
+    let names = tail(dir, 3);
     if names.len() < 2 {
         return Ok(Vec::new());
     }
-    let matches: Vec<&(String, String, String)> = rows
+    let mut stmt = conn.prepare(
+        "SELECT source, manga_id, rtrim(local_path, '/\\') FROM chapter
+         WHERE local_path IS NOT NULL AND instr(local_path, ?1) > 0",
+    )?;
+    let series_folder = names[names.len() - 2].to_string_lossy().into_owned();
+    let rows: Vec<Row> = stmt
+        .query_map(params![series_folder], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+        })?
+        .collect::<rusqlite::Result<_>>()?;
+    let source = names
+        .first()
+        .filter(|s| names.len() == 3 && sources.iter().any(|known| s.as_os_str() == *known));
+    let matches: Vec<&Row> = rows
         .iter()
         .filter(|(_, _, p)| tail(Path::new(p), 2) == names[names.len() - 2..])
+        .filter(|(_, _, p)| source.is_none() || tail(Path::new(p), 3).first() == source)
         .collect();
-    Ok(one_series(
-        &matches,
-        names.first().filter(|_| names.len() == 3),
-    ))
+    Ok(one_series(&matches))
 }
 
-/// The paths of `matches` when they are one series, else those under a `source` folder named
-/// like the copy's, when that leaves one series.
-fn one_series(matches: &[&(String, String, String)], source: Option<&OsString>) -> Vec<PathBuf> {
-    let series = |m: &[&(String, String, String)]| {
-        let mut keys: Vec<(&str, &str)> = m.iter().map(|r| (r.0.as_str(), r.1.as_str())).collect();
-        keys.sort();
-        keys.dedup();
-        keys.len()
-    };
-    let narrowed: Vec<&(String, String, String)>;
-    let picked = match (series(matches), source) {
-        (1, _) => matches,
-        (_, Some(source)) => {
-            let folder = |p: &str| tail(Path::new(p), 3).first().cloned();
-            narrowed = matches
-                .iter()
-                .copied()
-                .filter(|r| folder(&r.2).as_ref() == Some(source))
-                .collect();
-            if series(&narrowed) == 1 {
-                &narrowed[..]
-            } else {
-                &[]
-            }
-        }
-        _ => &[],
-    };
-    picked.iter().map(|r| PathBuf::from(&r.2)).collect()
+/// The paths of `matches` when they all belong to one series.
+fn one_series(matches: &[&Row]) -> Vec<PathBuf> {
+    let mut keys: Vec<(&str, &str)> = matches
+        .iter()
+        .map(|r| (r.0.as_str(), r.1.as_str()))
+        .collect();
+    keys.sort();
+    keys.dedup();
+    match keys.len() {
+        1 => matches.iter().map(|r| PathBuf::from(&r.2)).collect(),
+        _ => Vec::new(),
+    }
 }
 
 /// The series folder name of chapter folder `dir` for a book title, unless it is a manga id:

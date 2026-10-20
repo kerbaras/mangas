@@ -31,7 +31,7 @@ fn follow(lib: &Library, source: &str, id: &str, title: &str) -> PathBuf {
 }
 
 fn original(lib: &Library, dir: &str) -> Vec<PathBuf> {
-    stored_original(lib, &[Path::new(dir)]).unwrap()
+    stored_original(lib, &[Path::new(dir)], &["mangadex", "mangadot", "local"]).unwrap()
 }
 
 #[test]
@@ -61,6 +61,22 @@ fn the_source_folder_tells_two_series_with_one_id_apart() {
     let dot = follow(&lib, "mangadot", "42", "Dot");
     assert_eq!(original(&lib, "/copy/mangadot/42/1"), vec![dot]);
     assert!(original(&lib, "/copy/42/1").is_empty());
+}
+
+#[test]
+fn a_copy_under_another_source_folder_is_not_that_series() {
+    let lib = open_in_memory().unwrap();
+    follow(&lib, "mangadex", "42", "Dex");
+    assert!(original(&lib, "/copy/mangadot/42/1").is_empty());
+}
+
+#[test]
+fn a_symlink_to_a_copy_matches_through_its_resolved_spelling() {
+    let lib = open_in_memory().unwrap();
+    let stored = follow(&lib, "mangadex", "m-uuid", "Kaiju No. 8");
+    let spellings = [Path::new("/tmp/link"), Path::new("/copy/mangadex/m-uuid/1")];
+    let found = stored_original(&lib, &spellings, &["mangadex"]).unwrap();
+    assert_eq!(found, vec![stored]);
 }
 
 #[test]

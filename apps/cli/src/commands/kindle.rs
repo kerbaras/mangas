@@ -77,12 +77,8 @@ fn list_profiles() -> anyhow::Result<()> {
 /// The library's series for the chapters, else the first folder's parent name unless that is
 /// a manga id (a `<source>/<manga id>/<chapter>` download folder).
 fn default_title(series: Option<&str>, chapters: &[PathBuf]) -> String {
-    let folder = || {
-        let providers = mangas_providers::providers();
-        let mut sources: Vec<&str> = providers.iter().map(|p| p.id).collect();
-        sources.push(library::LOCAL_SOURCE);
-        library::series_folder_name(chapters.first()?, &sources)
-    };
+    let folder =
+        || library::series_folder_name(chapters.first()?, &super::kindle_titles::source_ids());
     series
         .map(str::to_owned)
         .or_else(folder)
