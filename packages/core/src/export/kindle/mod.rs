@@ -8,6 +8,8 @@ mod input;
 mod margins;
 mod parts;
 mod plan;
+mod png_rgba;
+mod pool;
 mod preview;
 pub mod process;
 mod request;

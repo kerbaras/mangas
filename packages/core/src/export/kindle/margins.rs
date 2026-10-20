@@ -8,7 +8,8 @@ use rayon::prelude::*;
 
 use super::input::decode;
 use super::plan::Margins;
-use super::trim::{crop_sides, narrower, side_margins};
+use super::pool;
+use super::trim::{crop_sides_owned, narrower, side_margins};
 use crate::domain::Result;
 
 /// Side margins blank in every image of a width, so strip chunks keep stitching together.
@@ -22,10 +23,12 @@ fn margin_sample(files: &[PathBuf]) -> Vec<&PathBuf> {
 }
 
 pub(super) fn strip_margins(files: &[PathBuf]) -> Result<HashMap<u32, (u32, u32)>> {
-    let found: Vec<(u32, Option<(u32, u32)>)> = margin_sample(files)
-        .par_iter()
-        .map(|f| decode(f).map(|img| (img.width(), side_margins(&img))))
-        .collect::<Result<_>>()?;
+    let found: Vec<(u32, Option<(u32, u32)>)> = pool::install(|| {
+        margin_sample(files)
+            .par_iter()
+            .map(|f| decode(f).map(|img| (img.width(), side_margins(&img))))
+            .collect::<Result<_>>()
+    })?;
     let mut by_width: HashMap<u32, Option<(u32, u32)>> = HashMap::new();
     for (w, m) in found {
         let entry = by_width.entry(w).or_insert(m);
@@ -41,7 +44,7 @@ pub(super) fn strip_margins(files: &[PathBuf]) -> Result<HashMap<u32, (u32, u32)
 pub(super) fn load(file: &Path, margins: &Margins) -> Result<RgbaImage> {
     let img = decode(file)?;
     Ok(match margins.get(&img.width()) {
-        Some(&m) if m != (0, 0) => crop_sides(&img, m),
-        _ => img,
+        Some(&m) => crop_sides_owned(img, m),
+        None => img,
     })
 }

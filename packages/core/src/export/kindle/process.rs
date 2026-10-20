@@ -6,7 +6,7 @@ use image::codecs::jpeg::JpegEncoder;
 use image::{ExtendedColorType, GrayImage, ImageEncoder, RgbaImage};
 
 use super::filters::{
-    apply_lut, flatten_on_white, grayscale_rgba, is_identity, sharpen_gray, tone_lut,
+    apply_lut, flatten_on_white_in_place, grayscale_rgba, is_identity, sharpen_gray, tone_lut,
 };
 use super::Device;
 use crate::domain::{Error, Result};
@@ -68,34 +68,60 @@ pub fn process_page(img: &RgbaImage, s: &ImageSettings) -> Result<EncodedPage> {
     } else {
         img.clone()
     };
-    let flat = flatten_on_white(fitted.as_raw());
-    if s.grayscale {
+    finish(fitted, s)
+}
+
+/// [`process_page`] on an owned page, dropped as soon as it is resized: a page worker holds one
+/// full-size page at most.
+pub fn process_owned(img: RgbaImage, s: &ImageSettings) -> Result<EncodedPage> {
+    let (w, h) = fit_dimensions(img.width(), img.height(), s.max_width, s.max_height);
+    let fitted = if (w, h) != (img.width(), img.height()) {
+        resize_rgba(&img, w, h)?
+    } else {
+        img
+    };
+    finish(fitted, s)
+}
+
+/// Flattens, tones and encodes a fitted page, reusing its buffer.
+fn finish(fitted: RgbaImage, s: &ImageSettings) -> Result<EncodedPage> {
+    let (w, h) = fitted.dimensions();
+    let mut flat = fitted.into_raw();
+    flatten_on_white_in_place(&mut flat);
+    let lut = tone_lut(s.contrast, s.gamma);
+    let (buf, color) = if s.grayscale {
         let mut gray = grayscale_rgba(&flat);
-        let lut = tone_lut(s.contrast, s.gamma);
+        drop(flat);
         if !is_identity(&lut) {
             gray = apply_lut(&gray, &lut);
         }
         if s.sharpen {
             gray = sharpen_gray(&gray, w as usize, h as usize);
         }
-        return Ok(EncodedPage {
-            jpeg: encode_jpeg(&gray, w, h, ExtendedColorType::L8, s.quality)?,
-            width: w,
-            height: h,
-        });
-    }
-    let lut = tone_lut(s.contrast, s.gamma);
-    let rgb: Vec<u8> = flat
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .flat_map(|p| [lut[p[0] as usize], lut[p[1] as usize], lut[p[2] as usize]])
-        .collect();
+        (gray, ExtendedColorType::L8)
+    } else {
+        (toned_rgb(flat, &lut), ExtendedColorType::Rgb8)
+    };
     Ok(EncodedPage {
-        jpeg: encode_jpeg(&rgb, w, h, ExtendedColorType::Rgb8, s.quality)?,
+        jpeg: encode_jpeg(&buf, w, h, color, s.quality)?,
         width: w,
         height: h,
     })
+}
+
+/// RGB with `lut` on every channel, packed into the front of the flattened RGBA buffer.
+fn toned_rgb(mut rgba: Vec<u8>, lut: &[u8; 256]) -> Vec<u8> {
+    let n = rgba.len() / 4;
+    for i in 0..n {
+        let [r, g, b] = [rgba[4 * i], rgba[4 * i + 1], rgba[4 * i + 2]];
+        rgba[3 * i..3 * i + 3].copy_from_slice(&[
+            lut[r as usize],
+            lut[g as usize],
+            lut[b as usize],
+        ]);
+    }
+    rgba.truncate(3 * n);
+    rgba
 }
 
 pub fn encode_jpeg(
@@ -123,9 +149,21 @@ pub fn to_gray_image(img: &RgbaImage, s: &ImageSettings) -> Result<GrayImage> {
 
 /// `process_page` as a page of the book.
 pub fn encode(img: &RgbaImage, settings: &ImageSettings) -> Result<crate::export::epub::PageImage> {
-    process_page(img, settings).map(|e| crate::export::epub::PageImage {
+    process_page(img, settings).map(page_image)
+}
+
+/// [`encode`] on an owned page (see [`process_owned`]).
+pub fn encode_owned(
+    img: RgbaImage,
+    settings: &ImageSettings,
+) -> Result<crate::export::epub::PageImage> {
+    process_owned(img, settings).map(page_image)
+}
+
+fn page_image(e: EncodedPage) -> crate::export::epub::PageImage {
+    crate::export::epub::PageImage {
         jpeg: e.jpeg,
         width: e.width,
         height: e.height,
-    })
+    }
 }

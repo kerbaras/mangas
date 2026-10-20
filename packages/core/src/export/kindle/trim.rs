@@ -78,11 +78,33 @@ pub fn trim_page(img: &RgbaImage) -> RgbaImage {
 /// `trim_page` without a copy when there is nothing to trim.
 pub fn trim_owned(img: RgbaImage) -> RgbaImage {
     match trim_box(&img) {
-        Some(b) if b != (0, 0, img.width(), img.height()) => {
-            image::imageops::crop_imm(&img, b.0, b.1, b.2, b.3).to_image()
-        }
+        Some(b) if b != (0, 0, img.width(), img.height()) => crop_owned(img, b),
         _ => img,
     }
+}
+
+/// `crop_sides` on an owned page, cropped in its own buffer.
+pub fn crop_sides_owned(img: RgbaImage, (left, right): (u32, u32)) -> RgbaImage {
+    if left == 0 && right == 0 {
+        return img;
+    }
+    let w = img.width().saturating_sub(left + right).max(1);
+    let h = img.height();
+    crop_owned(img, (left, 0, w, h))
+}
+
+/// The `w x h` box at `(x, y)` (inside `img`), moved row by row to the front of `img`'s own
+/// buffer: the same pixels as `crop_imm(..).to_image()` without a second page in memory.
+fn crop_owned(img: RgbaImage, (x, y, w, h): (u32, u32, u32, u32)) -> RgbaImage {
+    let stride = img.width() as usize * 4;
+    let (row, left) = (w as usize * 4, x as usize * 4);
+    let mut buf = img.into_raw();
+    for r in 0..h as usize {
+        let from = (y as usize + r) * stride + left;
+        buf.copy_within(from..from + row, r * row);
+    }
+    buf.truncate(row * h as usize);
+    RgbaImage::from_raw(w, h, buf).unwrap_or_else(|| RgbaImage::new(w, h))
 }
 
 /// The page with its blank margins cut off (a quarter of the height at most per side).

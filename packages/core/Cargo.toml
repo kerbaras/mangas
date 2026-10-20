@@ -24,6 +24,7 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "que
 rusqlite = { version = "0.40", features = ["bundled"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
 fast_image_resize = { version = "5", features = ["image"] }
+png = "0.18"
 rayon = "1"
 sha2 = "0.10"
 semver = "1"

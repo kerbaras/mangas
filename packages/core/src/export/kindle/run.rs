@@ -10,7 +10,8 @@ use rayon::prelude::*;
 use super::input::{chapter_files, ChapterFiles};
 use super::margins::{load, strip_margins};
 use super::plan::{page_size, regular_run, Margins};
-use super::process::{encode, ImageSettings};
+use super::pool::{self, WORKERS as WINDOW};
+use super::process::{encode_owned, ImageSettings};
 use super::request::{ExportStats, Progress};
 use super::trim::trim_owned;
 use super::Device;
@@ -18,9 +19,6 @@ use crate::domain::{Error, Result};
 use crate::export::epub::PageImage;
 use crate::export::PageSettings;
 use crate::smartcut::{Options, RowPenalizer, StripPaginator};
-
-/// Regular pages decoded and encoded at once: most of the multi-core speed-up, a bounded peak.
-const WINDOW: usize = 4;
 
 pub(super) struct Run<'a> {
     pub settings: ImageSettings,
@@ -92,23 +90,27 @@ impl<'a> Run<'a> {
     fn emit_files(&mut self, files: &[PathBuf], margins: &Margins) -> Result<()> {
         let t = Instant::now();
         let (settings, trim) = (self.settings, self.trim);
-        let encoded = files
-            .par_iter()
-            .map(|file| {
-                let img = load(file, margins)?;
-                encode(&if trim { trim_owned(img) } else { img }, &settings)
-            })
-            .collect::<Result<_>>()?;
+        let encoded = pool::install(|| {
+            files
+                .par_iter()
+                .map(|file| {
+                    let img = load(file, margins)?;
+                    encode_owned(if trim { trim_owned(img) } else { img }, &settings)
+                })
+                .collect::<Result<_>>()
+        })?;
         self.push(encoded, t)
     }
 
     fn emit_pages(&mut self, rendered: Vec<RgbaImage>) -> Result<()> {
         let t = Instant::now();
         let settings = self.settings;
-        let encoded = rendered
-            .par_iter()
-            .map(|img| encode(img, &settings))
-            .collect::<Result<_>>()?;
+        let encoded = pool::install(|| {
+            rendered
+                .into_par_iter()
+                .map(|img| encode_owned(img, &settings))
+                .collect::<Result<_>>()
+        })?;
         self.push(encoded, t)
     }
 
