@@ -65,3 +65,42 @@ pub fn rows_covered(boxes: &[PixelBox], h: usize) -> Vec<f32> {
     }
     r
 }
+
+/// Per row, the share of the strip's width under at least one box: cutting across a narrow box
+/// loses less of the picture than cutting across a wide one.
+pub fn width_covered(boxes: &[PixelBox], w: usize, h: usize) -> Vec<f32> {
+    let share = |y: usize| {
+        let mut spans: Vec<(usize, usize)> = boxes
+            .iter()
+            .filter(|b| b.y0 <= y && y < b.y1)
+            .map(|b| (b.x0.min(w), b.x1.min(w)))
+            .collect();
+        spans.sort_unstable();
+        let merge = |(n, end): (usize, usize), &(a, b): &(usize, usize)| {
+            let a = a.max(end);
+            if b > a {
+                (n + b - a, b)
+            } else {
+                (n, end)
+            }
+        };
+        let (covered, _) = spans.iter().fold((0, 0), merge);
+        covered as f32 / w.max(1) as f32
+    };
+    (0..h).map(share).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn bx(x0: usize, y0: usize, x1: usize, y1: usize) -> PixelBox {
+        PixelBox { x0, y0, x1, y1 }
+    }
+
+    #[test]
+    fn overlapping_boxes_count_their_union_once() {
+        let boxes = [bx(0, 0, 40, 2), bx(20, 1, 60, 3), bx(90, 1, 200, 2)];
+        assert_eq!(width_covered(&boxes, 100, 4), vec![0.4, 0.7, 0.4, 0.0]);
+    }
+}

@@ -5,6 +5,7 @@ mod bubbles;
 pub mod components;
 pub mod costs;
 pub mod features;
+mod gutters;
 mod morphology;
 pub mod paginate;
 mod paginator;

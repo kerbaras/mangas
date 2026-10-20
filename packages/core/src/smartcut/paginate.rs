@@ -12,20 +12,21 @@ pub struct PageSpan {
 }
 
 /// Where a page starts when the previous cut was at row `a`: a cut through artwork repeats
-/// `overlap` rows.
-fn page_start(cost: &[f64], a: usize, overlap: usize) -> usize {
+/// `overlap` rows, a cut in a long gutter skips to `tops[a]` (see `gutters::page_tops`).
+fn page_start(cost: &[f64], tops: &[usize], a: usize, overlap: usize) -> usize {
     if a > 0 && cost[a] > CUT_BAD_THRESHOLD {
         a.saturating_sub(overlap)
     } else {
-        a
+        tops.get(a).copied().unwrap_or(a).max(a)
     }
 }
 
 /// Chooses page boundaries for a strip with `cost.len() - 1` rows where `cap` rows fit on a page
 /// at native zoom. A page may hold up to `cap * max_shrink` rows at a cost of
-/// `shrink_penalty * excess / cap`.
+/// `shrink_penalty * excess / cap`. Rows skipped by `tops` belong to no page.
 pub fn paginate_rows(
     cost: &[f64],
+    tops: &[usize],
     cap: usize,
     max_shrink: f64,
     shrink_penalty: f64,
@@ -44,9 +45,17 @@ pub fn paginate_rows(
         if best[a].is_infinite() {
             continue;
         }
-        let start = page_start(cost, a, overlap);
+        let start = page_start(cost, tops, a, overlap);
+        if start >= h {
+            // only blank rows left: the strip ends here without another page
+            if best[a] < best[h] {
+                best[h] = best[a];
+                prev[h] = a;
+            }
+            continue;
+        }
         let hi = h.min(start + max_h);
-        for b in (a + 1)..=hi {
+        for b in (a.max(start) + 1)..=hi {
             let rows = b - start;
             let pen = if rows > cap {
                 shrink_penalty * (rows - cap) as f64 / cap as f64
@@ -64,10 +73,10 @@ pub fn paginate_rows(
     let mut b = h;
     while b > 0 && prev[b] != usize::MAX {
         let a = prev[b];
-        pages.push(PageSpan {
-            start: page_start(cost, a, overlap),
-            end: b,
-        });
+        let start = page_start(cost, tops, a, overlap);
+        if start < b {
+            pages.push(PageSpan { start, end: b });
+        }
         b = a;
     }
     pages.reverse();
