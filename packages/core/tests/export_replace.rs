@@ -150,6 +150,11 @@ fn a_failed_replace_keeps_the_old_file() {
         out.status.success(),
         "every write failed in the child: {log}"
     );
+    let errors = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        !errors.contains("ZipWriter::drop"),
+        "the failed archive logged a second error: {errors}"
+    );
     for target in &targets {
         assert_eq!(std::fs::read(target).unwrap(), OLD, "{}", target.display());
     }

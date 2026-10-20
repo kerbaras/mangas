@@ -4,7 +4,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use zip::write::SimpleFileOptions;
-use zip::{CompressionMethod, ZipWriter};
+use zip::CompressionMethod;
 
 use crate::domain::{Error, Result};
 
@@ -15,15 +15,16 @@ pub fn write_cbz(dir: &Path, out: &Path) -> Result<usize> {
     if let Some(parent) = out.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let mut writer = ZipWriter::new(File::create(out)?);
     let options = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
-    for name in &pages {
-        writer
-            .start_file(name.as_str(), options)
-            .map_err(zip_error)?;
-        io::copy(&mut File::open(dir.join(name))?, &mut writer)?;
-    }
-    writer.finish().map_err(zip_error)?;
+    crate::zip_out::write_zip(File::create(out)?, "cbz", |writer| {
+        for name in &pages {
+            writer
+                .start_file(name.as_str(), options)
+                .map_err(zip_error)?;
+            io::copy(&mut File::open(dir.join(name))?, writer)?;
+        }
+        Ok(())
+    })?;
     Ok(pages.len())
 }
 

@@ -3,6 +3,7 @@
 //! accept as a comic.
 
 mod exporter;
+mod modified;
 mod nav;
 mod xml;
 
@@ -11,7 +12,7 @@ use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 use zip::write::SimpleFileOptions;
-use zip::{CompressionMethod, ZipWriter};
+use zip::CompressionMethod;
 
 use super::output::write_file;
 use crate::domain::{Error, Result};
@@ -91,39 +92,38 @@ pub fn write(book: &Book, path: &Path, replace: bool) -> Result<PathBuf> {
 }
 
 fn write_zip(book: &Book, file: File) -> Result<()> {
-    let mut zip = ZipWriter::new(BufWriter::new(file));
-    let stored = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
-    let deflated = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
-    let z = |e: zip::result::ZipError| Error::Other(format!("epub: {e}"));
+    crate::zip_out::write_zip(BufWriter::new(file), "epub", |zip| {
+        let stored = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
+        let deflated = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
+        let z = |e: zip::result::ZipError| Error::Other(format!("epub: {e}"));
 
-    zip.start_file("mimetype", stored).map_err(z)?;
-    zip.write_all(b"application/epub+zip")?;
-    zip.start_file("META-INF/container.xml", deflated)
-        .map_err(z)?;
-    zip.write_all(xml::CONTAINER_XML.as_bytes())?;
+        zip.start_file("mimetype", stored).map_err(z)?;
+        zip.write_all(b"application/epub+zip")?;
+        zip.start_file("META-INF/container.xml", deflated)
+            .map_err(z)?;
+        zip.write_all(xml::CONTAINER_XML.as_bytes())?;
 
-    let pages = entries(book);
-    let modified = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
-    zip.start_file("OEBPS/content.opf", deflated).map_err(z)?;
-    zip.write_all(xml::content_opf(book, &pages, &modified).as_bytes())?;
-    zip.start_file("OEBPS/nav.xhtml", deflated).map_err(z)?;
-    zip.write_all(nav::nav_xhtml(book, &pages).as_bytes())?;
-    if let Some(cover) = &book.cover {
-        zip.start_file(format!("OEBPS/text/{COVER_XHTML}"), deflated)
-            .map_err(z)?;
-        zip.write_all(xml::cover_xhtml(&book.title, cover).as_bytes())?;
-        zip.start_file(format!("OEBPS/images/{COVER_IMAGE}"), stored)
-            .map_err(z)?;
-        zip.write_all(&cover.jpeg)?;
-    }
-    for (entry, page) in pages.iter().zip(&book.pages) {
-        zip.start_file(format!("OEBPS/text/{}", entry.xhtml_name), deflated)
-            .map_err(z)?;
-        zip.write_all(xml::page_xhtml(&book.title, entry).as_bytes())?;
-        zip.start_file(format!("OEBPS/images/{}", entry.image_name), stored)
-            .map_err(z)?;
-        zip.write_all(&page.jpeg)?;
-    }
-    zip.finish().map_err(z)?.flush()?;
-    Ok(())
+        let pages = entries(book);
+        zip.start_file("OEBPS/content.opf", deflated).map_err(z)?;
+        zip.write_all(xml::content_opf(book, &pages, &modified::modified(book)).as_bytes())?;
+        zip.start_file("OEBPS/nav.xhtml", deflated).map_err(z)?;
+        zip.write_all(nav::nav_xhtml(book, &pages).as_bytes())?;
+        if let Some(cover) = &book.cover {
+            zip.start_file(format!("OEBPS/text/{COVER_XHTML}"), deflated)
+                .map_err(z)?;
+            zip.write_all(xml::cover_xhtml(&book.title, cover).as_bytes())?;
+            zip.start_file(format!("OEBPS/images/{COVER_IMAGE}"), stored)
+                .map_err(z)?;
+            zip.write_all(&cover.jpeg)?;
+        }
+        for (entry, page) in pages.iter().zip(&book.pages) {
+            zip.start_file(format!("OEBPS/text/{}", entry.xhtml_name), deflated)
+                .map_err(z)?;
+            zip.write_all(xml::page_xhtml(&book.title, entry).as_bytes())?;
+            zip.start_file(format!("OEBPS/images/{}", entry.image_name), stored)
+                .map_err(z)?;
+            zip.write_all(&page.jpeg)?;
+        }
+        Ok(())
+    })
 }
