@@ -83,3 +83,38 @@ fn page_starts_just_above_the_art_after_a_long_gutter() {
     let last = pages.last().expect("pages");
     assert!(last.rows.start <= art && art - last.rows.start <= cap as usize / 20);
 }
+
+#[test]
+fn a_solid_band_of_another_colour_is_art() {
+    let cap = capacity(W as usize, DEV_W, DEV_H) as u32;
+    let mut img = strip(&[(200, 400), (cap * 2, 400), (200, 400)], 200);
+    let band = 200 + 400 + cap * 2..200 + 400 + cap * 2 + cap;
+    for y in band.clone() {
+        for x in 0..W {
+            img.put_pixel(x, y, Rgba([0, 0, 0, 255]));
+        }
+    }
+    let pages = paginate(&img);
+    let spans: Vec<_> = pages.iter().map(|p| p.rows).collect();
+    for row in band.step_by(50).map(|r| r as usize) {
+        assert!(
+            spans.iter().any(|r| r.start <= row && row < r.end),
+            "band row {row} is on no page: {spans:?}"
+        );
+    }
+}
+
+#[test]
+fn a_blank_chunk_is_not_held_back() {
+    let cap = capacity(W as usize, DEV_W, DEV_H) as u32;
+    let mut p = StripPaginator::new(DEV_W, DEV_H, Preset::Balanced.options());
+    let mut pages = p.feed(&strip(&[(100, cap * 3)], 100), false).expect("art");
+    for _ in 0..3 {
+        let blank = RgbaImage::from_pixel(W, cap * 2, Rgba([255, 255, 255, 255]));
+        pages.extend(p.feed(&blank, false).expect("blank"));
+        assert!(!p.has_pending_any(), "a blank chunk is carried forward");
+    }
+    pages.extend(p.flush().expect("flush"));
+    assert!(!pages.is_empty());
+    assert!(pages.iter().all(|pg| background_share(pg) < 0.95));
+}

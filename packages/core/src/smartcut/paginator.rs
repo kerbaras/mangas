@@ -7,7 +7,7 @@ use rayon::prelude::*;
 
 use super::costs::cut_costs;
 use super::features::{self, RowSpan, StripFeatures};
-use super::gutters::{is_blank, page_tops, row_colours};
+use super::gutters::{add_votes, background, is_blank, page_tops, row_colours, Votes};
 use super::paginate::{paginate_rows, PageSpan};
 use super::raster::{crop_rows, resized_for_analysis, stack, RgbStrip};
 use super::render::render_page;
@@ -37,6 +37,7 @@ pub struct StripPaginator {
     carry: Option<RgbaImage>,
     /// Global row of the top of the pending unit.
     offset: usize,
+    votes: Votes,
 }
 
 pub fn is_long_strip(w: u32, h: u32, device_w: u32, device_h: u32) -> bool {
@@ -59,6 +60,7 @@ impl StripPaginator {
             penalizer: None,
             carry: None,
             offset: 0,
+            votes: Votes::new(),
         }
     }
 
@@ -114,7 +116,9 @@ impl StripPaginator {
         let overlap = ((cap as f64 * self.opts.overlap).round() as usize).min(cap / 2);
         let cost = cut_costs(&feats, extra.as_deref());
         let colours = row_colours(&strip);
-        let tops = page_tops(&feats.gutters, &colours, feats.height, cap);
+        self.votes = add_votes(std::mem::take(&mut self.votes), &feats.gutters, &colours);
+        let bg = background(&self.votes);
+        let tops = page_tops(&feats.gutters, &colours, bg, feats.height, cap);
         let mut spans = paginate_rows(
             &cost,
             &tops,
@@ -123,20 +127,22 @@ impl StripPaginator {
             self.opts.shrink_penalty,
             overlap,
         );
-        if !last {
+        // A strip ending in a skipped gutter has no tail to hold back.
+        let ends_blank = spans.last().is_none_or(|sp| sp.end < feats.height);
+        if !last && !ends_blank {
             if spans.len() <= 1 {
                 self.carry = Some(unit.clone());
                 return Ok(Vec::new());
             }
             let tail = spans.pop().unwrap_or(PageSpan { start: 0, end: 0 });
-            spans.retain(|sp| !is_blank(&feats, &colours, *sp, cap));
+            spans.retain(|sp| !is_blank(&feats, &colours, bg, *sp, cap));
             let start = ((tail.start as f64 * to_src).round() as usize).min(h - 1);
             self.carry = Some(crop_rows(unit, start as u32, h as u32));
             let pages = self.render(unit, &feats, &spans, to_src)?;
             self.offset += start;
             return Ok(pages);
         }
-        spans.retain(|sp| !is_blank(&feats, &colours, *sp, cap));
+        spans.retain(|sp| !is_blank(&feats, &colours, bg, *sp, cap));
         let pages = self.render(unit, &feats, &spans, to_src)?;
         self.offset += h;
         Ok(pages)
