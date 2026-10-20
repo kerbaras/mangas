@@ -44,14 +44,16 @@ fn blank_runs(gutters: &[RowSpan], colours: &[[u8; 3]]) -> Vec<RowSpan> {
     out
 }
 
-pub fn add_votes(mut votes: Votes, gutters: &[RowSpan], colours: &[[u8; 3]]) -> Votes {
+/// Counts only rows from `from` on: rows above it were counted when they were first fed.
+pub fn add_votes(mut votes: Votes, gutters: &[RowSpan], colours: &[[u8; 3]], from: usize) -> Votes {
     for g in blank_runs(gutters, colours) {
-        let Some(&c) = colours.get(g.start) else {
+        let start = g.start.max(from);
+        let Some(&c) = colours.get(start).filter(|_| start < g.end) else {
             continue;
         };
         match votes.iter_mut().find(|(v, _)| same(*v, c)) {
-            Some((_, n)) => *n += g.end - g.start,
-            None => votes.push((c, g.end - g.start)),
+            Some((_, n)) => *n += g.end - start,
+            None => votes.push((c, g.end - start)),
         }
     }
     votes

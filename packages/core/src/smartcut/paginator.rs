@@ -2,6 +2,8 @@
 //! pages. Chapters arrive as arbitrary ~10 000 px chunks, so the unfinished tail of each image is
 //! carried over to the next one; a panel straddling two files is never cut at the file boundary.
 
+use std::mem::take;
+
 use image::RgbaImage;
 use rayon::prelude::*;
 
@@ -80,8 +82,9 @@ impl StripPaginator {
         {
             out.extend(self.flush()?);
         }
+        let seen = self.carry.as_ref().map_or(0, |c| c.height() as usize);
         let unit = stack(self.carry.take().as_ref(), img);
-        out.extend(self.paginate_unit(&unit, last)?);
+        out.extend(self.paginate_unit(&unit, last, seen)?);
         Ok(out)
     }
 
@@ -97,12 +100,18 @@ impl StripPaginator {
 
     pub fn flush(&mut self) -> Result<Vec<Page>> {
         match self.carry.take() {
-            Some(unit) => self.paginate_unit(&unit, true),
+            Some(unit) => self.paginate_unit(&unit, true, unit.height() as usize),
             None => Ok(Vec::new()),
         }
     }
 
-    fn paginate_unit(&mut self, unit: &RgbaImage, last: bool) -> Result<Vec<Page>> {
+    /// Forgets the background colour learnt so far; chapters can use another one.
+    pub fn new_chapter(&mut self) {
+        self.votes.clear();
+    }
+
+    /// `seen`: leading source rows of `unit` already fed (and counted) before.
+    fn paginate_unit(&mut self, unit: &RgbaImage, last: bool, seen: usize) -> Result<Vec<Page>> {
         let (w, h) = (unit.width() as usize, unit.height() as usize);
         if w == 0 || h == 0 {
             return Ok(Vec::new());
@@ -116,7 +125,8 @@ impl StripPaginator {
         let overlap = ((cap as f64 * self.opts.overlap).round() as usize).min(cap / 2);
         let cost = cut_costs(&feats, extra.as_deref());
         let colours = row_colours(&strip);
-        self.votes = add_votes(std::mem::take(&mut self.votes), &feats.gutters, &colours);
+        let from = (seen as f64 / to_src).round() as usize;
+        self.votes = add_votes(take(&mut self.votes), &feats.gutters, &colours, from);
         let bg = background(&self.votes);
         let tops = page_tops(&feats.gutters, &colours, bg, feats.height, cap);
         let mut spans = paginate_rows(

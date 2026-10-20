@@ -145,6 +145,7 @@ impl<'a> Run<'a> {
     }
 
     pub fn chapter(&mut self, dir: &Path) -> Result<()> {
+        self.paginator.new_chapter();
         let ChapterFiles {
             pages: files,
             skipped,

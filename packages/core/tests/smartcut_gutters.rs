@@ -118,3 +118,45 @@ fn a_blank_chunk_is_not_held_back() {
     assert!(!pages.is_empty());
     assert!(pages.iter().all(|pg| background_share(pg) < 0.95));
 }
+
+fn paint(img: &mut RgbaImage, rows: std::ops::Range<u32>, c: [u8; 3]) {
+    for y in rows {
+        for x in 0..W {
+            img.put_pixel(x, y, Rgba([c[0], c[1], c[2], 255]));
+        }
+    }
+}
+
+#[test]
+fn each_chapter_learns_its_own_background() {
+    let cap = capacity(W as usize, DEV_W, DEV_H) as u32;
+    let mut p = StripPaginator::new(DEV_W, DEV_H, Preset::Balanced.options());
+    let mut dark = strip(&[(100, 400), (cap * 4, 400)], 100);
+    paint(&mut dark, 500..500 + cap * 4, [0; 3]);
+    p.feed(&dark, true).expect("dark chapter");
+    p.new_chapter();
+    let pages = p
+        .feed(&strip(&[(100, 400), (cap * 2, 400)], 100), true)
+        .expect("light chapter");
+    let shares: Vec<f64> = pages.iter().map(background_share).collect();
+    assert!(shares.iter().all(|s| *s < 0.95), "{shares:?}");
+}
+
+#[test]
+fn carried_rows_are_counted_once() {
+    let cap = capacity(W as usize, DEV_W, DEV_H) as u32;
+    let mut p = StripPaginator::new(DEV_W, DEV_H, Preset::Balanced.options());
+    let mut head = strip(&[(50, 200)], 0);
+    head = image::imageops::crop_imm(&head, 0, 0, W, 250).to_image();
+    let mut first = RgbaImage::new(W, cap / 3 + 250);
+    paint(&mut first, 0..cap / 3, [0; 3]);
+    image::imageops::replace(&mut first, &head, 0, (cap / 3) as i64);
+    let mut pages = p.feed(&first, false).expect("first");
+    for _ in 0..10 {
+        pages.extend(p.feed(&strip(&[(5, 15)], 0), false).expect("chunk"));
+    }
+    assert!(p.has_pending_any(), "the short chunks stay carried");
+    pages.extend(p.feed(&strip(&[(cap * 2, 400)], 100), true).expect("last"));
+    let shares: Vec<f64> = pages.iter().map(background_share).collect();
+    assert!(shares.iter().all(|s| *s < 0.95), "{shares:?}");
+}
