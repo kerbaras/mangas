@@ -153,9 +153,13 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let mut report = Report::new(detectors);
     report.add(&stats, &req.title, &req.chapter_dirs);
     if !args.json {
+        let (book, parts) = match stats.parts.len() {
+            0 => (&stats.output, String::new()),
+            n => (&req.output, format!(" in {n} parts")),
+        };
         outln!(
-            "{}: {} pages from {} chapters ({} strips, {} source rows); pagination {} ms, filters {} ms, total {} ms",
-            stats.output.display(),
+            "{}: {} pages{parts} from {} chapters ({} strips, {} source rows); pagination {} ms, filters {} ms, total {} ms",
+            book.display(),
             stats.pages,
             req.chapter_dirs.len(),
             stats.strips,
