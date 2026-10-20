@@ -85,8 +85,7 @@ impl<'a> Run<'a> {
         self.limit.is_some_and(|n| self.pages.len() + queued >= n)
     }
 
-    /// Decodes, crops, trims (when asked) and encodes regular pages side by side, each dropped
-    /// as soon as it is encoded, and emits them in order.
+    /// Decodes, crops, trims and encodes a run (at most `WORKERS` pages) side by side, in order.
     fn emit_files(&mut self, files: &[PathBuf], margins: &Margins) -> Result<()> {
         let t = Instant::now();
         let (settings, trim) = (self.settings, self.trim);
