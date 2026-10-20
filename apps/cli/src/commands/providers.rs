@@ -170,7 +170,9 @@ fn table(rows: &[(ProviderInfo, ProviderStatus)]) -> Vec<String> {
     rows.iter()
         .map(|(info, status)| {
             let hint = match status {
-                ProviderStatus::NeedsSession => " (connect in the app: Settings > Providers)",
+                ProviderStatus::NeedsSession => {
+                    " (connect in the app: Settings > Downloads > Sources)"
+                }
                 _ => "",
             };
             format!(

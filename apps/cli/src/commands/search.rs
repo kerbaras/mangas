@@ -41,7 +41,8 @@ fn name_of(id: &str) -> String {
 /// One block per provider: a header with its name and count or problem, then its results.
 fn render(groups: &[SearchGroup], query: &str, name: impl Fn(&str) -> String) -> String {
     if groups.is_empty() {
-        return "No providers enabled: turn one on in the app (Settings > Providers)\n".into();
+        return "No providers enabled: turn one on in the app (Settings > Downloads > Sources)\n"
+            .into();
     }
     let mut out = String::new();
     for g in groups {
@@ -53,7 +54,7 @@ fn render(groups: &[SearchGroup], query: &str, name: impl Fn(&str) -> String) ->
                 if g.items.len() == 1 { "" } else { "s" }
             ),
             ProviderStatus::NeedsSession => {
-                "needs a session (connect in the app: Settings > Providers)".into()
+                "needs a session (connect in the app: Settings > Downloads > Sources)".into()
             }
             ProviderStatus::Unreachable { reason } => format!("unreachable ({reason})"),
         };
