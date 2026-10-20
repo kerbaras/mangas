@@ -6,7 +6,7 @@ use mangas_core::library::{self, ProviderSession, ProxyMode, Settings};
 use mangas_providers::{ProviderInfo, ProviderStatus};
 use tauri::{AppHandle, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
-use super::{open_library, settings_of, settings_or_default, to_ipc};
+use super::{connect_window, open_library, settings_of, settings_or_default, to_ipc};
 
 /// A current browser user agent for the engine the Connect window runs (Chromium on Windows,
 /// WebKit elsewhere): Cloudflare's check loops when the two disagree. It binds `cf_clearance`
@@ -48,7 +48,8 @@ pub async fn test_proxy(mode: ProxyMode, url: String) -> Result<ProviderStatus, 
 }
 
 /// Opens `provider`'s site in a private window, so only a clearance earned there is seen. Once
-/// the verification cookie appears the session is saved and the window closes itself.
+/// the verification cookie appears the session is saved and the window closes itself; closing it
+/// or a page that fails to load ends the UI's wait (`connect_window`).
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub fn connect_provider(app: AppHandle, provider: String) -> Result<(), String> {
@@ -61,7 +62,7 @@ pub fn connect_provider(app: AppHandle, provider: String) -> Result<(), String> 
     }
     let id = info.id;
     let origin = site.clone();
-    WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(site.clone()))
+    let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(site.clone()))
         .title(format!("Connect {}", info.name))
         .inner_size(1000.0, 760.0)
         .incognito(true)
@@ -74,6 +75,7 @@ pub fn connect_provider(app: AppHandle, provider: String) -> Result<(), String> 
         })
         .build()
         .map_err(to_ipc)?;
+    connect_window::watch(&window, id);
     Ok(())
 }
 

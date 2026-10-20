@@ -9,7 +9,7 @@ import { errorMessage } from "@/lib/format";
 import { disconnectProvider, getSettings, listProviders, type ProviderInfo } from "@/lib/ipc";
 import { isEnabled, withEnabled } from "@/lib/provider-prefs";
 import { checkStatus, useProviderChecks } from "@/lib/provider-status";
-import { connectAndWait } from "@/lib/providers";
+import { connectAndWait, connectNote } from "@/lib/providers";
 import { useSettings } from "@/lib/settings";
 
 /** A status older than this is checked again when Settings opens. */
@@ -39,8 +39,8 @@ export function ProvidersList() {
     setConnecting(p.id);
     setNote(`Pass the verification in the ${p.name} window; it closes by itself when done.`);
     try {
-      const ok = await connectAndWait(p.id);
-      setNote(ok ? null : `No session captured for ${p.name}; close its window and try again.`);
+      const outcome = await connectAndWait(p.id);
+      setNote(connectNote(outcome, p.name));
       // Probe before the new session shows, so the row reads "Checking", never "expired".
       void checkStatus(p.id);
       sessions.reload();

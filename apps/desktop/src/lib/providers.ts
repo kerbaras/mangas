@@ -1,5 +1,5 @@
 import { describeFailure } from "./errors";
-import { connectProvider, getSettings, type ProviderStatus } from "./ipc";
+import { connectProvider, getSettings, onProviderConnectEnd, type ProviderStatus } from "./ipc";
 
 const POLL_MS = 2000;
 const TIMEOUT_MS = 180_000;
@@ -17,21 +17,63 @@ export async function waitForSession(
   id: string,
   previous: string | null,
   timeoutMs = TIMEOUT_MS,
+  signal?: AbortSignal,
 ): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
+  while (Date.now() < deadline && !signal?.aborted) {
     await sleep(POLL_MS);
-    const current = await savedAt(id);
-    if (current && current !== previous) return true;
+    if (signal?.aborted) break;
+    if (await isFresh(id, previous)) return true;
   }
   return false;
 }
 
-/** Opens the Connect window and waits for the verification to produce a fresh session. */
-export async function connectAndWait(id: string): Promise<boolean> {
+const isFresh = async (id: string, previous: string | null) => {
+  const current = await savedAt(id);
+  return Boolean(current && current !== previous);
+};
+
+export type ConnectOutcome = "connected" | "cancelled" | "timed_out";
+
+/**
+ * Opens the Connect window and waits for the verification to produce a fresh session. Ends as
+ * soon as the window closes ("cancelled" unless it saved a session first); rejects with the
+ * reason when its page fails to load (TLS, DNS), for `describeFailure`.
+ */
+export async function connectAndWait(id: string, timeoutMs = TIMEOUT_MS): Promise<ConnectOutcome> {
   const previous = await savedAt(id);
-  await connectProvider(id);
-  return waitForSession(id, previous);
+  const stop = new AbortController();
+  let settle: (o: Promise<ConnectOutcome>) => void = () => {};
+  const ended = new Promise<ConnectOutcome>((resolve) => {
+    settle = resolve;
+  });
+  const unlisten = await onProviderConnectEnd((end) => {
+    if (end.provider !== id) return;
+    settle(
+      end.kind === "failed"
+        ? Promise.reject(new Error(end.reason))
+        : isFresh(id, previous).then((ok) => (ok ? "connected" : "cancelled")),
+    );
+  });
+  try {
+    await connectProvider(id);
+    const polled = waitForSession(id, previous, timeoutMs, stop.signal).then(
+      (ok): ConnectOutcome => (ok ? "connected" : "timed_out"),
+    );
+    polled.catch(() => {}); // a read failing after the window closed is nobody's to report
+
+    return await Promise.race([polled, ended]);
+  } finally {
+    stop.abort();
+    unlisten();
+  }
+}
+
+/** The line under the providers list after Connect; null once connected. */
+export function connectNote(outcome: ConnectOutcome, name: string): string | null {
+  if (outcome === "connected") return null;
+  if (outcome === "cancelled") return "Connection cancelled";
+  return `No session captured for ${name}; close its window and try again.`;
 }
 
 type Detail = {

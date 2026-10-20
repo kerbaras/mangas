@@ -2995,6 +2995,7 @@ dependencies = [
  "reqwest",
  "roxmltree",
  "rusqlite",
+ "rustls-native-certs",
  "semver",
  "serde",
  "serde_json",
@@ -3039,6 +3040,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "webkit2gtk",
  "windows-sys 0.59.0",
 ]
 

@@ -4,7 +4,12 @@ import type { Backend, ProviderInfo, Settings } from "./ipc";
 type Store = { get: () => Settings; set: (next: Settings) => void };
 type ProvidersPart = Pick<
   Backend,
-  "listProviders" | "connectProvider" | "disconnectProvider" | "providerStatus" | "testProxy"
+  | "listProviders"
+  | "connectProvider"
+  | "disconnectProvider"
+  | "onProviderConnectEnd"
+  | "providerStatus"
+  | "testProxy"
 >;
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -27,6 +32,7 @@ export function mockProviderSessions(providers: ProviderInfo[], store: Store): P
       const { [id]: _, ...rest } = store.get().provider_sessions;
       store.set({ ...store.get(), provider_sessions: rest });
     },
+    onProviderConnectEnd: async () => () => {},
     async providerStatus(id) {
       await wait(300);
       const info = providers.find((p) => p.id === id);

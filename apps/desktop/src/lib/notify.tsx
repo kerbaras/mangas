@@ -62,9 +62,12 @@ export async function connectThen(source: string, then?: () => void, name = sour
     description: "It closes by itself when done.",
   });
   try {
-    if (await connectAndWait(source)) {
+    const outcome = await connectAndWait(source);
+    if (outcome === "connected") {
       toast.success(`Connected to ${name}`, { id, description: null });
       then?.();
+    } else if (outcome === "cancelled") {
+      toast.info("Connection cancelled", { id, description: null });
     } else {
       toast.error(`No session captured for ${name}`, {
         id,
