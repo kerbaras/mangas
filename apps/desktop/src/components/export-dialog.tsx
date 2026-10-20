@@ -76,7 +76,9 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const useDetectors =
     detectorsUsable(detectors.status) && (detectorsOn ?? detectorsDefault(detectors.status));
   const planned = inFormat(plans, target.format);
-  const { files, named } = useFreeNames(planned, folder.resolved, runs, target.replace);
+  const { device, format, replace, quality } = target;
+  const { files, named, blocked } = useFreeNames(planned, folder.resolved, runs, replace, splitMb);
+  const preview = { folder: folder.resolved, stale: !fresh || !named, blocked };
   const books = files.kind === "ready" ? files.data.length : 0;
   const oversized = job.state.kind === "done" ? oversizedOf(job.state.results) : [];
   const sending = runningVia(send.state);
@@ -87,6 +89,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const ready =
     fresh &&
     named &&
+    !blocked &&
     books > 0 &&
     (folder.picked === null || folder.picked.trim() !== "") &&
     target.devices.kind === "ready" &&
@@ -98,7 +101,6 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
     resetSend();
     setWritten([]);
   }, [resetJob, resetSend]);
-  const { device, format, replace, quality } = target;
   const picked = [mode, size, title, preset, useDetectors, folder.output, splitMb];
   const choice = [...picked, device, format, replace, quality].join("|");
   useClearOnChange(choice, busy, clearResult);
@@ -150,7 +152,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
               <ExportTitleField value={title} onChange={setTitle} plans={plans} />
             )}
             <Field label={books > 1 ? `${books} files` : "File"}>
-              <VolumePreview plans={files} folder={folder.resolved} stale={!fresh || !named} />
+              <VolumePreview plans={files} {...preview} />
             </Field>
           </div>
           <ExportOptions

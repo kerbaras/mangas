@@ -60,6 +60,8 @@ export type VolumesBackend = {
   exportVolumes(request: VolumeExport): Promise<ExportResult[]>;
   /** The names `names` would be written under in `dir` now: taken ones get ` (2)`, ` (3)`… */
   freeExportNames(dir: string, names: string[]): Promise<string[]>;
+  /** Rejects with `couldn't list <dir>: …` when a split or replacing export into `dir` would. */
+  checkExportDir(dir: string, split: boolean, replace: boolean): Promise<void>;
   /** The file name a book titled `title` is written under as `format` (shortened when too long). */
   exportFileName(title: string, format: ExportFormat): Promise<string>;
   /** About how many pages and bytes the book would be, from a few pages encoded for real. */
@@ -70,6 +72,8 @@ export const planVolumes = async (r: VolumeRequest) => (await backend()).planVol
 export const exportVolumes = async (r: VolumeExport) => (await backend()).exportVolumes(r);
 export const freeExportNames = async (dir: string, names: string[]) =>
   (await backend()).freeExportNames(dir, names);
+export const checkExportDir = async (dir: string, split: boolean, replace: boolean) =>
+  (await backend()).checkExportDir(dir, split, replace);
 export const exportFileName = async (title: string, format: ExportFormat = "epub") =>
   (await backend()).exportFileName(title, format);
 export const estimateExport = async (r: EstimateRequest) => (await backend()).estimateExport(r);

@@ -46,6 +46,7 @@ export function mockVolumes(deps: Deps): VolumesBackend {
       return results;
     },
     freeExportNames: async (_dir, names) => names,
+    checkExportDir: async () => {},
     exportFileName: async (title, format) => withExtension(portable(title), format),
     // About 24 pages a chapter at ~6 kB per quality point: 85 makes a 12 MB chapter.
     estimateExport: async (r) => {

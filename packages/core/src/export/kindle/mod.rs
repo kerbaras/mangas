@@ -25,6 +25,7 @@ pub use parts::{
 pub use preview::{preview, Preview, PreviewPage, PreviewRequest};
 pub use process::{process_page, EncodedPage, ImageSettings};
 pub use request::{BookMeta, ExportRequest, ExportStats, Part, Progress};
+pub use stale::check_export_folder;
 
 /// A target e-reader. Kept as the historic name of [`Profile`]; ids are stored in settings.
 pub type Device = Profile;

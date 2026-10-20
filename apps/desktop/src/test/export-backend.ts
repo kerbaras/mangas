@@ -70,6 +70,7 @@ export function exportBackend(overrides: Partial<Backend> = {}, detectors = dete
     planVolumes,
     exportVolumes,
     freeExportNames,
+    checkExportDir: async () => {},
     exportFileName: async (title: string, format: ExportFormat) =>
       withExtension(portable(title), format),
     listDevices: async () => [

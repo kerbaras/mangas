@@ -107,8 +107,8 @@ fn a_folder_that_cannot_be_listed_stops_every_export_before_it_writes() {
         eprintln!("skipped: running as root, -wx folders can still be listed");
         return;
     }
-    // Replacing, or naming a new set next to the old one, split or not: each must list the folder.
-    let runs = [(Some("2"), true), (Some("2"), false), (None, false)];
+    // A split or a replacement must see the folder; a plain export only claims its own name.
+    let runs = [(Some("2"), true), (Some("2"), false), (None, true)];
     let failed: Vec<Output> = runs
         .iter()
         .map(|&(mb, replace)| run(home.path(), &chapter, &book, mb, replace))
@@ -129,4 +129,14 @@ fn a_folder_that_cannot_be_listed_stops_every_export_before_it_writes() {
         .map(|n| std::fs::read(out.join(n)).unwrap())
         .collect();
     assert!(after == bytes, "the old parts changed");
+    mode(0o300);
+    let plain = run(home.path(), &chapter, &book, None, false);
+    mode(0o755);
+    let stderr = String::from_utf8_lossy(&plain.stderr);
+    assert!(plain.status.success(), "plain export: {stderr}");
+    assert!(book.is_file(), "the plain export writes the file");
+    let mut with_book = before.clone();
+    with_book.push("book.epub".into());
+    with_book.sort();
+    assert_eq!(names(&out), with_book);
 }

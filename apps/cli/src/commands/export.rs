@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::bail;
 use clap::Args as ClapArgs;
-use mangas_core::export::kindle::{export, ExportStats};
+use mangas_core::export::kindle::{check_export_folder, export, ExportStats};
 use mangas_core::export::volume::{self, VolumeOutcome};
 use mangas_core::export::{ExportPreset, Format};
 use mangas_core::{library, storage};
@@ -100,6 +100,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .with_stored_quality(&stored, DEFAULT_PROFILE);
     let device = CutArgs::device_of(&preset, DEFAULT_PROFILE)?;
     let format = Format::resolve(preset.format, None, None, &device)?;
+    check_export_folder(&args.output_dir, args.cut.split_mb.is_some(), args.replace)?;
     let plans = volume::named_as_written(plans, &args.output_dir, format.id(), args.replace)?;
     let names: Vec<String> = plans.iter().map(|p| p.file_name.clone()).collect();
     let firsts = volume::first_part_names(&names, &args.output_dir, args.replace)?;

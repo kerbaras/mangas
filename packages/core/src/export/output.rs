@@ -83,7 +83,7 @@ fn part_file(target: &Path) -> PathBuf {
 
 /// Atomically creates `path`, or the first `stem (n).ext` that is free. Names already in the
 /// folder in another case count as taken, so case-insensitive disks match the preview.
-fn claim_free_file(path: &Path) -> Result<(PathBuf, File)> {
+fn claim_free_file(path: &Path) -> std::io::Result<(PathBuf, File)> {
     let name = path
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
@@ -99,25 +99,23 @@ fn claim_free_file(path: &Path) -> Result<(PathBuf, File)> {
         {
             Ok(file) => return Ok((candidate, file)),
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
-            Err(e) => return Err(e.into()),
+            Err(e) => return Err(e),
         }
     }
     unreachable!("candidate_names is infinite")
 }
 
-/// The file names in `dir`; a folder not created yet holds none. A folder that can't be listed
-/// (one we may write to but not read) fails, so no export picks or clears names it can't see.
-pub(crate) fn file_names(dir: &Path) -> Result<Vec<String>> {
+/// The file names in `dir`. A folder not created yet, or one we may write to but not list,
+/// counts as empty: creating the file then decides, as it did before names were compared.
+fn file_names(dir: &Path) -> std::io::Result<Vec<String>> {
+    use std::io::ErrorKind::{NotFound, PermissionDenied};
     match std::fs::read_dir(dir) {
         Ok(entries) => Ok(entries
             .filter_map(|e| e.ok())
             .map(|e| e.file_name().to_string_lossy().into_owned())
             .collect()),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
-        Err(e) => Err(Error::Other(format!(
-            "couldn't list {}: {e}",
-            dir.display()
-        ))),
+        Err(e) if matches!(e.kind(), NotFound | PermissionDenied) => Ok(Vec::new()),
+        Err(e) => Err(e),
     }
 }
 
@@ -176,7 +174,7 @@ mod tests {
     use std::os::unix::fs::PermissionsExt;
 
     #[test]
-    fn a_folder_we_can_write_but_not_list_stops_an_export_before_it_writes() {
+    fn a_folder_we_can_write_but_not_list_still_takes_the_export() {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().join("drop");
         std::fs::create_dir(&dir).unwrap();
@@ -185,12 +183,9 @@ mod tests {
             return; // root ignores the mode; nothing to test
         }
         let wanted = vec!["Book.epub".to_string()];
-        let picked = free_names_in(&dir, &wanted).map_err(|e| e.to_string());
+        assert_eq!(free_names_in(&dir, &wanted).unwrap(), wanted);
         let written = write_file(&dir.join("Book.epub"), false, |_| Ok(()));
         std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
-        let listed = format!("couldn't list {}: ", dir.display());
-        assert!(picked.unwrap_err().starts_with(&listed));
-        assert!(written.unwrap_err().to_string().starts_with(&listed));
-        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0);
+        assert_eq!(written.unwrap(), dir.join("Book.epub"));
     }
 }

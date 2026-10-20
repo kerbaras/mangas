@@ -8,7 +8,7 @@ use super::parts::{
 };
 use super::request::{ExportRequest, ExportStats, Part, Progress};
 use super::run::{Run, RunSpec};
-use super::stale::{check_listable, remove_stale};
+use super::stale::{check_export_folder, folder_of, remove_stale};
 use crate::domain::{Error, Result};
 use crate::export::epub::{ChapterEntry, PageImage};
 use crate::export::Meta;
@@ -25,7 +25,7 @@ pub fn export(
     if req.chapter_dirs.is_empty() {
         return Err(Error::Other("export: no chapter directories".into()));
     }
-    check_listable(&req.output)?;
+    check_export_folder(folder_of(&req.output), req.split.is_some(), req.replace)?;
     let output = match req.replace {
         true => req.output.clone(),
         false => free_book_path(&req.output)?,

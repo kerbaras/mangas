@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use mangas_core::export::kindle::{self, Progress};
+use mangas_core::export::kindle::{self, check_export_folder, Progress};
 use mangas_core::export::volume::{self, Grouping, VolumeOutcome, VolumePlan};
 use mangas_core::export::{ExportPreset, Format};
 use mangas_core::library;
@@ -51,6 +51,19 @@ pub async fn free_export_names(dir: PathBuf, names: Vec<String>) -> Result<Vec<S
         let dir =
             mangas_core::export::in_export_folder(&paths::exports(&settings_quietly())?, &dir);
         mangas_core::export::free_names_in(&dir, &names).map_err(to_ipc)
+    })
+    .await
+}
+
+/// Refused with `couldn't list <folder>: <reason>` when the export would be: a split or a
+/// replacement into a folder that can't be listed (see [`check_export_folder`]).
+#[tauri::command]
+#[tracing::instrument(level = "error", skip_all)]
+pub async fn check_export_dir(dir: PathBuf, split: bool, replace: bool) -> Result<(), String> {
+    blocking(move || {
+        let dir =
+            mangas_core::export::in_export_folder(&paths::exports(&settings_quietly())?, &dir);
+        check_export_folder(&dir, split, replace).map_err(to_ipc)
     })
     .await
 }
@@ -107,6 +120,7 @@ pub async fn export_volumes<R: Runtime>(
     let (src, plans) = plans(&source, &manga_id, &chapter_ids, grouping, title.as_deref())?;
     let replace = replace.unwrap_or(false);
     let plans = volume::one_file_each(plans, replace);
+    check_export_folder(&output_dir, split_mb.is_some(), replace).map_err(to_ipc)?;
     let plans =
         volume::named_as_written(plans, &output_dir, format.id(), replace).map_err(to_ipc)?;
     if plans.is_empty() {

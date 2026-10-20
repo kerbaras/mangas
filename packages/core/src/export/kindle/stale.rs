@@ -4,7 +4,6 @@ use std::path::{Path, PathBuf};
 
 use super::parts::part_path;
 use crate::domain::{Error, Result};
-use crate::export::output::file_names;
 
 /// What a replacement of `output` leaves from an earlier export of the same book and format:
 /// its parts numbered over `kept` (every part when the new book is one file), and the whole
@@ -21,17 +20,38 @@ pub fn stale_files(output: &Path, kept: usize) -> Result<Vec<PathBuf>> {
     Ok(stale)
 }
 
-/// Fails when `output`'s folder can't be listed, so an export stops before writing anything:
-/// it could neither pick a free name nor clean up after a replacement.
-pub fn check_listable(output: &Path) -> Result<()> {
-    entries(output).map(|_| ())
+/// Fails with `couldn't list <dir>: <reason>` when an export into `dir` must see what the folder
+/// holds and can't list it: a split export (its part names must agree with the folder) or a
+/// replacement (it clears the earlier set). A plain export needs no listing: the writer's
+/// `create_new` claim guards its name, so a folder we may write to but not list still takes it.
+pub fn check_export_folder(dir: &Path, split: bool, replace: bool) -> Result<()> {
+    match split || replace {
+        true => listed(dir).map(|_| ()),
+        false => Ok(()),
+    }
 }
 
-/// What `output`'s folder holds ([`file_names`]); a folder not made yet holds nothing.
-fn entries(output: &Path) -> Result<Vec<PathBuf>> {
+/// The folder `output` is written in.
+pub fn folder_of(output: &Path) -> &Path {
     let dir = output.parent().filter(|d| !d.as_os_str().is_empty());
-    let dir = dir.unwrap_or(Path::new("."));
-    Ok(file_names(dir)?.into_iter().map(|n| dir.join(n)).collect())
+    dir.unwrap_or(Path::new("."))
+}
+
+/// What `output`'s folder holds.
+fn entries(output: &Path) -> Result<Vec<PathBuf>> {
+    listed(folder_of(output))
+}
+
+/// What `dir` holds; a folder not made yet holds nothing.
+fn listed(dir: &Path) -> Result<Vec<PathBuf>> {
+    match std::fs::read_dir(dir) {
+        Ok(read) => Ok(read.flatten().map(|e| e.path()).collect()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(e) => Err(Error::Other(format!(
+            "couldn't list {}: {e}",
+            dir.display()
+        ))),
+    }
 }
 
 /// `n` when `path` is named `part_path(output, n)`.
