@@ -18,7 +18,7 @@ use mangas_core::sources::{Header, Source};
 use reqwest::{Client, Url};
 
 use super::redirect::MAX_REDIRECTS;
-use super::{header_map, network, RetryPolicy};
+use super::{header_map, RetryPolicy};
 use crate::rate_limit::{host_key, HostLimiters};
 
 pub(crate) use redirect::build_http;
@@ -130,15 +130,6 @@ impl<'a> PageClient<'a> {
     }
 
     async fn get_hop(&self, url: &str, extra: &[Header]) -> Result<Step> {
-        let domain = Url::parse(url)
-            .ok()
-            .and_then(|u| u.domain().map(str::to_string));
-        let proxied = self.public_only && network::proxied(&self.network);
-        if let Some(host) = domain.filter(|_| proxied) {
-            resolver::check_proxied(&host)
-                .await
-                .map_err(|e| e.into_error(self.source.name()))?;
-        }
         let mut headers = self.source.page_headers(url);
         headers.extend_from_slice(extra);
         let headers = header_map(&headers)?;

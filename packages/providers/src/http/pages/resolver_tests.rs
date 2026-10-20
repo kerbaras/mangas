@@ -53,3 +53,24 @@ fn a_refusal_is_found_under_wrapping_errors() {
     assert_eq!(refusal_in(&Wrapped(refusal.clone())), Some(refusal));
     assert_eq!(refusal_in(&std::io::Error::other("plain")), None);
 }
+
+fn resolve(resolver: &PublicResolver, name: &str) -> Result<Vec<SocketAddr>, String> {
+    let name = name.parse().unwrap();
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    rt.block_on(resolver.resolve(name))
+        .map(|addrs| addrs.collect())
+        .map_err(|e| e.to_string())
+}
+
+#[test]
+fn only_the_proxy_name_may_resolve_to_a_private_address() {
+    let resolver = PublicResolver {
+        fixed: Some("127.0.0.1".parse().unwrap()),
+        proxies: vec!["localhost".into()],
+    };
+    assert_eq!(resolve(&resolver, "LocalHost"), Ok(vec![addr("127.0.0.1")]));
+    let err = resolve(&resolver, "cdn.example").unwrap_err();
+    assert!(err.contains("non-public address 127.0.0.1"), "{err}");
+}

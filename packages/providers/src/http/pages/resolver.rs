@@ -2,6 +2,11 @@
 //! public. Checking the resolved addresses (not the host text) stops a public-looking name that
 //! points at 127.0.0.1, the LAN or the cloud metadata address, and since the checked addresses
 //! are the ones the connection uses, a second lookup cannot swap them.
+//!
+//! Through a proxy the proxy resolves the page host, so no local lookup runs for it: a host
+//! only the proxy knows (split DNS, a VPN) downloads, and the private-address refusal is left
+//! to the URL text ([`literal_refusal`]) and to the proxy. The proxy's own name is resolved
+//! here without the check: the user chose it, and it is often loopback or on the LAN.
 
 use std::fmt;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -11,22 +16,28 @@ use mangas_core::download::{is_public_ip, unmapped};
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use url::{Host, Url};
 
-/// Resolves with the system, or answers every name with `fixed` (tests only).
+/// Resolves with the system, or answers every name with `fixed` (tests only). Names in
+/// `proxies` (lowercase) may resolve to any address.
 #[derive(Default)]
 pub(super) struct PublicResolver {
     pub(super) fixed: Option<IpAddr>,
+    pub(super) proxies: Vec<String>,
 }
 
 impl Resolve for PublicResolver {
     fn resolve(&self, name: Name) -> Resolving {
         let host = name.as_str().to_string();
         let fixed = self.fixed;
+        let proxy = self.proxies.contains(&host.to_ascii_lowercase());
         Box::pin(async move {
             let addrs: Vec<SocketAddr> = match fixed {
                 Some(ip) => vec![SocketAddr::new(ip, 0)],
                 None => tokio::net::lookup_host((host.as_str(), 0)).await?.collect(),
             };
-            let addrs = public_only(&host, addrs)?;
+            let addrs = match proxy {
+                true => addrs,
+                false => public_only(&host, addrs)?,
+            };
             Ok(Box::new(addrs.into_iter()) as Addrs)
         })
     }
@@ -37,7 +48,6 @@ impl Resolve for PublicResolver {
 pub enum Refusal {
     NonPublic { host: String, ip: IpAddr },
     NoAddress(String),
-    Unresolved { host: String, reason: String },
 }
 
 impl fmt::Display for Refusal {
@@ -47,7 +57,6 @@ impl fmt::Display for Refusal {
                 write!(f, "{host} resolves to a non-public address {ip}")
             }
             Self::NoAddress(host) => write!(f, "{host} resolves to no address"),
-            Self::Unresolved { host, reason } => write!(f, "{host}: {reason}"),
         }
     }
 }
@@ -78,19 +87,6 @@ pub(super) fn refusal_in(error: &(dyn std::error::Error + 'static)) -> Option<Re
         current = e.source();
     }
     None
-}
-
-/// Checks `host` up front when requests go through a proxy: the connection then resolves the
-/// proxy, not the host, so [`PublicResolver`] never sees it.
-pub(super) async fn check_proxied(host: &str) -> Result<(), Refusal> {
-    let addrs = tokio::net::lookup_host((host, 0))
-        .await
-        .map_err(|e| Refusal::Unresolved {
-            host: host.to_string(),
-            reason: e.to_string(),
-        })?
-        .collect();
-    public_only(host, addrs).map(|_| ())
 }
 
 /// The refusal for a URL whose host text is already non-public: a private IP literal or a

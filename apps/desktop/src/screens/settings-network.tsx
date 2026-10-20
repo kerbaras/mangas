@@ -49,7 +49,7 @@ export function NetworkSettings() {
     >
       <Field
         label="Proxy"
-        hint="Searches, chapter lists, pages and covers go through it, in the app and the `mangas` command. `mangas --proxy` overrides it for one run."
+        hint="Searches, chapter lists, pages and covers go through it, in the app and the `mangas` command. `mangas --proxy` overrides it for one run. Through a proxy, the proxy looks up image hosts, so the app only refuses private addresses written in a link."
       >
         <fieldset className="flex flex-col gap-2">
           <legend className="sr-only">Proxy</legend>

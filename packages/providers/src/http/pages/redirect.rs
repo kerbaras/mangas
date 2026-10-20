@@ -20,7 +20,11 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
 pub(crate) fn build_http(public_only: bool, network: &Network) -> Result<Client> {
     let builder = if public_only {
-        builder().dns_resolver(Arc::new(PublicResolver::default()))
+        let resolver = PublicResolver {
+            fixed: None,
+            proxies: network::proxy_hosts(network),
+        };
+        builder().dns_resolver(Arc::new(resolver))
     } else {
         builder()
     };
@@ -30,7 +34,10 @@ pub(crate) fn build_http(public_only: bool, network: &Network) -> Result<Client>
 /// A public-only client whose DNS answers every name with `ip` (tests only).
 #[cfg(any(test, feature = "test-support"))]
 pub(super) fn build_http_resolving(ip: IpAddr) -> Result<Client> {
-    let resolver = PublicResolver { fixed: Some(ip) };
+    let resolver = PublicResolver {
+        fixed: Some(ip),
+        proxies: vec![],
+    };
     Ok(builder().dns_resolver(Arc::new(resolver)).build()?)
 }
 
