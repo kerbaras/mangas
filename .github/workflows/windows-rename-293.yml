@@ -1,0 +1,176 @@
+# Scratch-only proof for #293 (not part of the PR). On a real Windows runner: install the
+# published v0.5.0-rc.1 x64 setup.exe ("Mangas"), save some settings with its CLI, then build the
+# PR head's NSIS installer ("mangas") the way release.yml does and install it over the old one,
+# both silently (/S) and the way tauri-plugin-updater runs it (/P /UPDATE).
+name: windows-rename-293
+
+on:
+  push:
+    branches: ["devin/*-scratch-windows-293"]
+
+permissions:
+  contents: read
+
+env:
+  PR_HEAD: 508bf1846103c2a1e88d92dc51558c727d3d508b
+  TARGET: x86_64-pc-windows-msvc
+  OLD_TAG: v0.5.0-rc.1
+  # release.yml runs scripts/set-version.sh before building; the next release is 0.6.0.
+  NEW_VERSION: 0.6.0-rc.1
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: 0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PR_HEAD }}
+      - name: Building exactly the PR head
+        shell: bash
+        run: |
+          echo "HEAD $(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD)" = "$PR_HEAD"
+          grep -n '"productName"\|"identifier"' apps/desktop/src-tauri/tauri.conf.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ env.TARGET }}
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Version bump, same script as release.yml
+        shell: bash
+        run: scripts/set-version.sh "$NEW_VERSION" && git diff --stat
+      - name: NSIS installer, same build as release.yml (no updater signing)
+        run: pnpm -C apps/desktop tauri build --target ${{ env.TARGET }} --features ml
+      - name: Installer name
+        shell: bash
+        run: ls -la target/$TARGET/release/bundle/nsis/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: new-setup
+          path: target/${{ env.TARGET }}/release/bundle/nsis/*-setup.exe
+
+  upgrade:
+    needs: build
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mode: silent
+            args: "/S"
+          - mode: updater
+            args: "/P /UPDATE"
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: new-setup
+          path: new
+      - name: Download the published v0.5.0-rc.1 x64 setup.exe
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir old
+          gh release download "$OLD_TAG" -R "$GITHUB_REPOSITORY" -p '*_x64-setup.exe' -D old
+          ls -la old new
+      - name: Helpers
+        shell: pwsh
+        run: |
+          @'
+          function Show-Installs($label) {
+            Write-Host "===== $label ====="
+            $roots = @(
+              "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall",
+              "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall",
+              "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall")
+            $hits = foreach ($r in $roots) {
+              Get-ChildItem $r -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match 'mangas' -or (Get-ItemProperty $_.PSPath).DisplayName -match 'mangas' } |
+                ForEach-Object { $p = Get-ItemProperty $_.PSPath; [pscustomobject]@{ Key = $_.Name; DisplayName = $p.DisplayName; DisplayVersion = $p.DisplayVersion; InstallLocation = $p.InstallLocation; UninstallString = $p.UninstallString; MainBinaryName = $p.MainBinaryName } }
+            }
+            Write-Host "Uninstall keys matching 'mangas': $(@($hits).Count)"
+            $hits | Format-List | Out-String -Width 300 | Write-Host
+            Write-Host "--- HKCU\Software\kerbaras (install dir record)"
+            Get-ChildItem "HKCU:\Software\kerbaras" -ErrorAction SilentlyContinue | ForEach-Object { "$($_.Name) = $((Get-ItemProperty $_.PSPath).'(default)')" } | Write-Host
+            Write-Host "--- Get-Package"
+            Get-Package -ProviderName Programs -ErrorAction SilentlyContinue | Where-Object Name -match 'mangas' | Format-Table Name, Version, ProviderName -AutoSize | Out-String -Width 300 | Write-Host
+            Write-Host "--- install dirs under LOCALAPPDATA / Program Files (exact on-disk case)"
+            Get-ChildItem $env:LOCALAPPDATA, $env:ProgramFiles, ${env:ProgramFiles(x86)} -Directory -ErrorAction SilentlyContinue | Where-Object Name -match '^mangas$' | ForEach-Object { Write-Host $_.FullName; Get-ChildItem $_.FullName | Format-Table Name, Length, LastWriteTime -AutoSize | Out-String | Write-Host }
+            Write-Host "--- Start menu / desktop shortcuts"
+            Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs", "$env:USERPROFILE\Desktop", "$env:PUBLIC\Desktop" -Filter '*.lnk' -Recurse -ErrorAction SilentlyContinue | Where-Object Name -match 'mangas' | ForEach-Object { $t = (New-Object -ComObject WScript.Shell).CreateShortcut($_.FullName).TargetPath; Write-Host "$($_.FullName) -> $t" }
+            return @($hits)
+          }
+          function Install($exe, $argline) {
+            Write-Host "Installing $exe $argline"
+            $p = Start-Process -FilePath $exe -ArgumentList $argline -Wait -PassThru
+            Write-Host "exit $($p.ExitCode)"
+            if ($p.ExitCode) { throw "installer exited $($p.ExitCode)" }
+          }
+          function Cli($exe, [string[]]$a) {
+            $out = Join-Path $env:RUNNER_TEMP "cli.out"; $err = Join-Path $env:RUNNER_TEMP "cli.err"
+            $p = Start-Process -FilePath $exe -ArgumentList $a -NoNewWindow -Wait -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
+            $o = Get-Content $out -Raw; Write-Host "> mangas $($a -join ' ')"; Write-Host $o; Get-Content $err | Write-Host
+            if ($p.ExitCode) { throw "mangas $($a -join ' ') exited $($p.ExitCode)" }
+            return $o
+          }
+          '@ | Set-Content "$env:RUNNER_TEMP\helpers.ps1"
+      - name: Install v0.5.0-rc.1 and save settings with its CLI
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"; . "$env:RUNNER_TEMP\helpers.ps1"
+          Install (Get-ChildItem old\*-setup.exe).FullName "/S"
+          $hits = Show-Installs "after installing v0.5.0-rc.1"
+          if ($hits.Count -ne 1) { throw "expected one install entry, got $($hits.Count)" }
+          $dir = $hits[0].InstallLocation.Trim('"')
+          $exe = Join-Path $dir "mangas.exe"
+          Cli $exe @("--version") | Out-Null
+          Cli $exe @("settings", "languages", "es-la,en") | Out-Null
+          Cli $exe @("settings", "concurrency", "5") | Out-Null
+          Cli $exe @("settings", "proxy", "none") | Out-Null
+          $before = Cli $exe @("settings", "show")
+          $before | Set-Content "$env:RUNNER_TEMP\settings-before.txt"
+          $db = Join-Path $env:APPDATA "kerbaras\mangas\data\mangas.db"
+          Get-Item $db | Format-List FullName, Length, LastWriteTime | Out-String | Write-Host
+          "$dir" | Set-Content "$env:RUNNER_TEMP\old-dir.txt"
+      - name: Install the renamed build over it (${{ matrix.mode }} ${{ matrix.args }})
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"; . "$env:RUNNER_TEMP\helpers.ps1"
+          Install (Get-ChildItem new\*-setup.exe).FullName "${{ matrix.args }}"
+          $hits = Show-Installs "after installing the renamed build"
+          if ($hits.Count -ne 1) { throw "expected ONE install entry, got $($hits.Count)" }
+          if ($hits[0].DisplayName -cne "mangas") { throw "DisplayName is '$($hits[0].DisplayName)'" }
+          if ($hits[0].DisplayVersion -ne $env:NEW_VERSION) { throw "DisplayVersion is '$($hits[0].DisplayVersion)'" }
+          $old = (Get-Content "$env:RUNNER_TEMP\old-dir.txt").Trim()
+          $dir = $hits[0].InstallLocation.Trim('"')
+          Write-Host "old install dir: $old"; Write-Host "new install dir: $dir"
+          if ($dir -ne $old) { throw "install dir moved: $old -> $dir" }
+          $dirs = @(Get-ChildItem $env:LOCALAPPDATA, $env:ProgramFiles -Directory | Where-Object Name -match '^mangas$')
+          if ($dirs.Count -ne 1) { throw "expected one install dir, got $($dirs.Count)" }
+          $exe = Join-Path $dir "mangas.exe"
+          $v = Cli $exe @("--version")
+          if ($v -notmatch [regex]::Escape($env:NEW_VERSION)) { throw "installed exe is not the new build: $v" }
+          $after = Cli $exe @("settings", "show")
+          $before = Get-Content "$env:RUNNER_TEMP\settings-before.txt" -Raw
+          if ($after.Trim() -ne $before.Trim()) { throw "settings changed across the upgrade" }
+          Write-Host "settings identical before and after the upgrade"
+      - name: The app starts, window title
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $dir = (Get-Content "$env:RUNNER_TEMP\old-dir.txt").Trim()
+          $p = Start-Process -FilePath (Join-Path $dir "mangas.exe") -PassThru
+          $title = ""
+          for ($i = 0; $i -lt 30 -and -not $title; $i++) { Start-Sleep 2; $p.Refresh(); if ($p.HasExited) { throw "app exited with $($p.ExitCode)" }; $title = $p.MainWindowTitle }
+          Write-Host "process $($p.Id) running, main window title: '$title'"
+          Get-Process mangas | Format-Table Id, ProcessName, MainWindowTitle, Path -AutoSize | Out-String -Width 300 | Write-Host
+          (Get-Item (Join-Path $dir "mangas.exe")).VersionInfo | Format-List ProductName, FileDescription, ProductVersion | Out-String | Write-Host
+          if ($title -cne "mangas") { throw "window title is '$title'" }
+          Stop-Process -Id $p.Id
