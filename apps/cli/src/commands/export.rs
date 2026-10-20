@@ -4,7 +4,7 @@ use anyhow::bail;
 use clap::Args as ClapArgs;
 use mangas_core::export::kindle::{export, part_path, ExportStats};
 use mangas_core::export::volume::{self, VolumeOutcome};
-use mangas_core::export::{ExportPreset, Format};
+use mangas_core::export::{free_names_in, ExportPreset, Format};
 use mangas_core::{library, storage};
 
 use super::cut_args::{print_progress, CutArgs, DEFAULT_PROFILE};
@@ -110,7 +110,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         let parts = match args.cut.split_mb {
             Some(mb) => format!(
                 ", in parts of {mb} MB if bigger: {}, …",
-                part_path(&path, 1).display()
+                first_part(&args, &p.file_name, format.id())?.display()
             ),
             None => String::new(),
         };
@@ -194,4 +194,19 @@ fn print_written(stats: &ExportStats) -> std::io::Result<()> {
         )?;
     }
     Ok(())
+}
+
+/// Where part 1 of the book planned as `file_name` goes: named from the planned name, as the
+/// writer names parts, under a free name unless replacing.
+fn first_part(args: &Args, file_name: &str, ext: &str) -> anyhow::Result<PathBuf> {
+    let planned = args.output_dir.join(file_name).with_extension(ext);
+    let wanted = part_path(&planned, 1);
+    let name = wanted.file_name().map(|n| n.to_string_lossy().into_owned());
+    let name = name.unwrap_or_default();
+    Ok(match args.replace {
+        true => wanted,
+        false => args
+            .output_dir
+            .join(free_names_in(&args.output_dir, &[name])?.remove(0)),
+    })
 }
