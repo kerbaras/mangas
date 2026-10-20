@@ -28,7 +28,7 @@ const lines: [string, ReactElement][] = [
   ["a device list error", <DevicesPending key="d" state={{ kind: "error", message: TOKEN }} />],
   [
     "an export error",
-    <ExportProgressPanel key="e" state={{ kind: "error", message: TOKEN }} onReset={() => {}} />,
+    <ExportProgressPanel key="e" state={{ kind: "error", message: TOKEN }} onRetry={() => {}} />,
   ],
   [
     "a delivery report",
