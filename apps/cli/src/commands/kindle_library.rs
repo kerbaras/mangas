@@ -36,7 +36,10 @@ pub(super) fn series_preset(
     lib: &Library,
     chapters: &[PathBuf],
 ) -> anyhow::Result<Option<ExportPreset>> {
-    let spelled: Vec<Vec<PathBuf>> = chapters.iter().map(|c| spellings(&[c.as_path()])).collect();
+    let spelled = chapters
+        .iter()
+        .map(|c| spellings(lib, &[c.as_path()]))
+        .collect::<anyhow::Result<Vec<_>>>()?;
     let refs: Vec<Vec<&Path>> = spelled
         .iter()
         .map(|s| s.iter().map(PathBuf::as_path).collect())
@@ -53,7 +56,7 @@ pub(super) fn first_series(lib: &Library, chapters: &[PathBuf]) -> anyhow::Resul
 
 pub(super) fn labels_in(lib: &Library, chapters: &[PathBuf]) -> anyhow::Result<Labels> {
     let refs: Vec<&Path> = chapters.iter().map(PathBuf::as_path).collect();
-    let spellings = spellings(&refs);
+    let spellings = spellings(lib, &refs)?;
     let dirs: Vec<&Path> = spellings.iter().map(PathBuf::as_path).collect();
     Ok(library::export_labels(lib, &dirs, chapters.len())?)
 }
