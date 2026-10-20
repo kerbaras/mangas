@@ -6,6 +6,7 @@ use super::input::{book_id, chapter_title};
 use super::parts::{chapters_in, oversized, part_path, part_title, split_points, staging};
 use super::request::{ExportRequest, ExportStats, Part, Progress};
 use super::run::{Run, RunSpec};
+use super::stale::remove_stale;
 use crate::domain::{Error, Result};
 use crate::export::epub::{ChapterEntry, PageImage};
 use crate::export::Meta;
@@ -91,6 +92,9 @@ pub fn export(
             run.stats.parts = write_parts(req, run.pages, &meta, &ranges)?;
             run.stats.output = run.stats.parts[0].path.clone();
         }
+    }
+    if req.replace {
+        remove_stale(&req.output, run.stats.parts.len())?;
     }
     run.stats.oversized = oversized(&run.stats.outputs());
     Ok(run.stats)

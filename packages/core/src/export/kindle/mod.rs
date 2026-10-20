@@ -10,6 +10,7 @@ mod preview;
 pub mod process;
 mod request;
 mod run;
+mod stale;
 pub mod trim;
 
 use super::{profile, Profile, PROFILES};
