@@ -30,6 +30,10 @@ pub enum InstallProgress {
 /// Bytes between two progress messages, so a download doesn't flood the IPC channel.
 const PROGRESS_STEP: u64 = 256 * 1024;
 
+/// The whole installer download. The updater reuses the check's timeout for it, and 20 s is
+/// too short for an installer on a slow link.
+const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(30 * 60);
+
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub async fn check_app_update(
@@ -55,7 +59,8 @@ pub async fn check_app_update(
             };
             (status, None)
         }
-        Some(update) => {
+        Some(mut update) => {
+            update.timeout = Some(DOWNLOAD_TIMEOUT);
             let status = Status::Available {
                 current,
                 version: update.version.clone(),
@@ -175,7 +180,7 @@ fn updater(
             }
             app_update::should_update(&current, &remote.version, channel)
         })
-        .timeout(Duration::from_secs(60))
+        .timeout(app_update::CHECK_TIMEOUT)
         .build()
         .map_err(to_ipc)
 }

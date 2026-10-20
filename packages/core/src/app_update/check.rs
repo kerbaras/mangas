@@ -7,6 +7,9 @@ use crate::domain::{Error, Result};
 use crate::library::Network;
 use crate::net;
 
+/// How long a check waits for the release feed before it gives up.
+pub const CHECK_TIMEOUT: Duration = Duration::from_secs(20);
+
 /// The manifest URL set in [`OVERRIDE_ENV`], if any.
 pub fn override_url() -> Option<String> {
     std::env::var(OVERRIDE_ENV)
@@ -24,7 +27,7 @@ pub async fn check(
     network: &Network,
 ) -> Result<Status> {
     let builder = reqwest::Client::builder()
-        .timeout(Duration::from_secs(20))
+        .timeout(CHECK_TIMEOUT)
         .user_agent(format!("mangas/{current}"));
     let client = net::apply(builder, network)?.build()?;
     let mut last = Error::Other("no update endpoint".into());
