@@ -71,6 +71,9 @@ export function SendStatus({ state, via, onRetry }: Props) {
             <AlertTitle>{state.via === "email" ? "Email not sent" : "Copy failed"}</AlertTitle>
             <AlertDescription>
               {state.message}
+              {state.left && (state.sent || state.left.length > 1) && (
+                <p className="[overflow-wrap:anywhere]">Not sent: {state.left.join(", ")}</p>
+              )}
               {onRetry && (
                 <Button size="sm" onClick={onRetry} className="mt-1">
                   <RefreshCw /> Retry
