@@ -9,8 +9,11 @@ use std::path::Path;
 use image::RgbaImage;
 use png::{BitDepth, ColorType, Transformations};
 
+/// `image`'s default allocation limit: a bigger page goes to the general decoder, which refuses it.
+const MAX_BYTES: u64 = 512 * 1024 * 1024;
+
 /// The page, or `None` when `path` needs the general decoder (not a PNG, interlaced, 16-bit,
-/// or unreadable, so that decoder reports the error).
+/// too big, or unreadable, so that decoder reports the error).
 pub(super) fn decode(path: &Path) -> Option<RgbaImage> {
     let mut decoder = png::Decoder::new(BufReader::new(File::open(path).ok()?));
     decoder.set_transformations(Transformations::EXPAND);
@@ -20,6 +23,9 @@ pub(super) fn decode(path: &Path) -> Option<RgbaImage> {
         return None;
     }
     let (w, h) = (reader.info().width, reader.info().height);
+    if !fits(w, h) {
+        return None;
+    }
     let mut out = Vec::with_capacity(w as usize * h as usize * 4);
     while let Some(row) = reader.next_row().ok()? {
         to_rgba(color, row.data(), &mut out)?;
@@ -27,17 +33,27 @@ pub(super) fn decode(path: &Path) -> Option<RgbaImage> {
     RgbaImage::from_raw(w, h, out)
 }
 
+fn fits(w: u32, h: u32) -> bool {
+    (u64::from(w) * u64::from(h))
+        .checked_mul(4)
+        .is_some_and(|bytes| bytes <= MAX_BYTES)
+}
+
 fn to_rgba(color: ColorType, row: &[u8], out: &mut Vec<u8>) -> Option<()> {
     match color {
         ColorType::Rgba => out.extend_from_slice(row),
         ColorType::Rgb => row
-            .chunks_exact(3)
+            .as_chunks::<3>()
+            .0
+            .iter()
             .for_each(|p| out.extend_from_slice(&[p[0], p[1], p[2], 255])),
         ColorType::Grayscale => row
             .iter()
             .for_each(|&l| out.extend_from_slice(&[l, l, l, 255])),
         ColorType::GrayscaleAlpha => row
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .for_each(|p| out.extend_from_slice(&[p[0], p[0], p[0], p[1]])),
         ColorType::Indexed => return None,
     }
@@ -64,6 +80,25 @@ mod tests {
         same_as_image(GrayImage::from_fn(9, 5, |x, y| image::Luma([px(x, y)])).into());
         same_as_image(GrayAlphaImage::from_fn(9, 5, |x, y| image::LumaA([px(x, y), 9])).into());
         same_as_image(RgbaImage::from_fn(9, 5, |x, y| image::Rgba([px(x, y), 1, 2, 3])).into());
+    }
+
+    #[test]
+    fn pages_past_the_allocation_limit_go_to_the_general_decoder() {
+        assert!(fits(2722, 3870));
+        assert!(!fits(100_000, 100_000));
+        assert!(!fits(u32::MAX, u32::MAX));
+    }
+
+    #[test]
+    fn a_huge_header_is_refused_before_any_pixels_are_allocated() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("huge.png");
+        let mut bytes = Vec::new();
+        let mut enc = png::Encoder::new(&mut bytes, 100_000, 100_000);
+        enc.set_color(ColorType::Rgba);
+        drop(enc.write_header().unwrap());
+        std::fs::write(&path, &bytes).unwrap();
+        assert!(decode(&path).is_none());
     }
 
     #[test]
