@@ -25,6 +25,10 @@ export const pendingRemoval = (s: DetectorsStatus): string | null =>
     ? `Detector models removed; the runtime (${formatBytes(s.runtime.bytes)}) is still in use — restart Mangas and remove again.`
     : null;
 
+/** Files a failed remove (or download) left in the detector folder. */
+export const leftoverLabel = (bytes: number) =>
+  `${formatBytes(bytes)} of detector files left on disk`;
+
 export const downloadLabel = (bytes: number) =>
   `Download detector support (~${formatBytes(bytes)})`;
 
