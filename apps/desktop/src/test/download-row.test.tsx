@@ -61,9 +61,11 @@ describe("DownloadRow progress", () => {
     expect(bar(makeJob({ state: "running" }))).toContain("animate-pulse");
   });
 
-  it("animates a row that is receiving pages", () => {
+  it("steps a row that is receiving pages by scale, with no transition", () => {
     const job = makeJob({ state: "running", pages_done: 4, pages_total: 20 });
-    expect(bar(job, 3.4)).toContain("transition");
+    expect(bar(job, 3.4)).not.toContain("transition");
+    const fill = screen.getByRole("progressbar").firstElementChild as HTMLElement;
+    expect(fill.style.transform).toBe("scaleX(0.2)");
     expect(screen.getByText(/pages\/s/)).toBeTruthy();
   });
 });
