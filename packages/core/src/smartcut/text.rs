@@ -6,6 +6,9 @@ use super::raster::RgbStrip;
 
 const TEXT_CONTRAST_THR: i32 = 25;
 const TEXT_BLUR_RADIUS: usize = 15; // 31x31 box blur
+/// Glyph sizes in analysis pixels; shouted bubble lettering on webtoons reaches ~60 rows.
+const GLYPH_H: std::ops::RangeInclusive<usize> = 5..=64;
+const GLYPH_W: std::ops::RangeInclusive<usize> = 2..=80;
 
 /// `(2r+1)^2` box mean of one channel, border-clamped like `cv2.blur`.
 pub fn box_blur_channel(s: &RgbStrip, c: usize, r: usize) -> Vec<u8> {
@@ -58,7 +61,7 @@ fn letter_mask(binm: &[u8], w: usize, h: usize) -> Vec<u8> {
     let mut letters = vec![0u8; w * h];
     for c in comps {
         let (cw, ch) = (c.bbox.width(), c.bbox.height());
-        let letter_sized = (5..=34).contains(&ch) && (2..=44).contains(&cw);
+        let letter_sized = GLYPH_H.contains(&ch) && GLYPH_W.contains(&cw);
         if letter_sized && c.area >= 8 && (c.area as f64) <= 0.9 * (cw * ch) as f64 {
             for y in c.bbox.y0..c.bbox.y1 {
                 letters[y * w + c.bbox.x0..y * w + c.bbox.x1].fill(1);

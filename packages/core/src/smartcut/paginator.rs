@@ -7,6 +7,7 @@ use rayon::prelude::*;
 
 use super::costs::cut_costs;
 use super::features::{self, RowSpan, StripFeatures};
+use super::gutters::{is_blank, page_tops, row_colours};
 use super::paginate::{paginate_rows, PageSpan};
 use super::raster::{crop_rows, resized_for_analysis, stack, RgbStrip};
 use super::render::render_page;
@@ -112,8 +113,11 @@ impl StripPaginator {
         let cap = capacity(strip.width, self.device_w, self.device_h);
         let overlap = ((cap as f64 * self.opts.overlap).round() as usize).min(cap / 2);
         let cost = cut_costs(&feats, extra.as_deref());
+        let colours = row_colours(&strip);
+        let tops = page_tops(&feats.gutters, &colours, feats.height, cap);
         let mut spans = paginate_rows(
             &cost,
+            &tops,
             cap,
             self.opts.max_shrink,
             self.opts.shrink_penalty,
@@ -125,12 +129,14 @@ impl StripPaginator {
                 return Ok(Vec::new());
             }
             let tail = spans.pop().unwrap_or(PageSpan { start: 0, end: 0 });
+            spans.retain(|sp| !is_blank(&feats, &colours, *sp, cap));
             let start = ((tail.start as f64 * to_src).round() as usize).min(h - 1);
             self.carry = Some(crop_rows(unit, start as u32, h as u32));
             let pages = self.render(unit, &feats, &spans, to_src)?;
             self.offset += start;
             return Ok(pages);
         }
+        spans.retain(|sp| !is_blank(&feats, &colours, *sp, cap));
         let pages = self.render(unit, &feats, &spans, to_src)?;
         self.offset += h;
         Ok(pages)

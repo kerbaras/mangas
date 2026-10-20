@@ -1,0 +1,85 @@
+//! Long blank gutters on webtoon strips are skipped instead of becoming blank pages (#135).
+
+use image::{Rgba, RgbaImage};
+use mangas_core::smartcut::{capacity, Page, Preset, StripPaginator};
+
+const W: u32 = 709;
+const DEV_W: u32 = 1264;
+const DEV_H: u32 = 1680;
+
+/// White strip with black panels: (gutter above, panel height) pairs, then a trailing gutter.
+fn strip(parts: &[(u32, u32)], tail: u32) -> RgbaImage {
+    let h: u32 = parts.iter().map(|(g, p)| g + p).sum::<u32>() + tail;
+    let mut img = RgbaImage::from_pixel(W, h, Rgba([255, 255, 255, 255]));
+    let mut y = 0;
+    for &(g, p) in parts {
+        y += g;
+        for yy in y..y + p {
+            for x in 20..W - 20 {
+                img.put_pixel(x, yy, Rgba([0, 0, 0, 255]));
+            }
+        }
+        y += p;
+    }
+    img
+}
+
+fn paginate(img: &RgbaImage) -> Vec<Page> {
+    let mut p = StripPaginator::new(DEV_W, DEV_H, Preset::Balanced.options());
+    p.feed(img, true).expect("paginate")
+}
+
+fn background_share(page: &Page) -> f64 {
+    let white = page.image.pixels().filter(|p| p.0[..3] == [255; 3]).count();
+    white as f64 / (page.image.width() * page.image.height()) as f64
+}
+
+#[test]
+fn long_gutters_never_become_pages() {
+    let cap = capacity(W as usize, DEV_W, DEV_H) as u32;
+    let img = strip(
+        &[(cap * 3, 600), (cap * 2, 400), (40, 400), (cap * 4, 300)],
+        cap * 3,
+    );
+    let pages = paginate(&img);
+    let shares: Vec<f64> = pages.iter().map(background_share).collect();
+    assert!(shares.iter().all(|s| *s < 0.95), "{shares:?}");
+    assert_eq!(
+        pages.len(),
+        3,
+        "{:?}",
+        pages.iter().map(|p| p.rows).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn every_panel_row_is_still_shown() {
+    let cap = capacity(W as usize, DEV_W, DEV_H) as u32;
+    let parts = [(cap * 2, cap / 2), (cap, cap * 2), (cap / 3, 200)];
+    let img = strip(&parts, cap);
+    let pages = paginate(&img);
+    let mut y = 0;
+    for &(g, p) in &parts {
+        y += g;
+        for row in (y..y + p).map(|r| r as usize) {
+            assert!(
+                pages
+                    .iter()
+                    .any(|pg| pg.rows.start <= row && row < pg.rows.end),
+                "panel row {row} is on no page: {:?}",
+                pages.iter().map(|p| p.rows).collect::<Vec<_>>()
+            );
+        }
+        y += p;
+    }
+}
+
+#[test]
+fn page_starts_just_above_the_art_after_a_long_gutter() {
+    let cap = capacity(W as usize, DEV_W, DEV_H) as u32;
+    let img = strip(&[(100, 400), (cap * 2, 400)], 0);
+    let pages = paginate(&img);
+    let art = (100 + 400 + cap * 2) as usize;
+    let last = pages.last().expect("pages");
+    assert!(last.rows.start <= art && art - last.rows.start <= cap as usize / 20);
+}
