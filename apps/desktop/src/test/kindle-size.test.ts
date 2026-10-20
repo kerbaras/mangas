@@ -30,9 +30,16 @@ describe("kindle size", () => {
     const e = { pages: 183, bytes: 96_000_000 };
     expect(sizeNote(e, 1, null)).toEqual({ label: "About 96 MB, 183 pages", over: true });
     expect(sizeNote(e, 1, 45)).toEqual({
-      label: "About 96 MB, 183 pages, about 3 parts",
+      label: "About 96 MB, 183 pages, 2 or 3 parts",
       over: false,
     });
+    expect(sizeNote({ pages: 99, bytes: 70_000_000 }, 1, 45).label).toBe(
+      "About 70 MB, 99 pages, about 2 parts",
+    );
+    expect(sizeNote({ pages: 60, bytes: 42_000_000 }, 1, 45).label).toBe(
+      "About 42 MB, 60 pages, 1 or 2 parts",
+    );
+    expect(sizeNote({ pages: 300, bytes: 200_000_000 }, 1, 45).label).toMatch(/, 4 to 6 parts$/);
     expect(sizeNote(e, 1, 60).over).toBe(true);
     expect(sizeNote({ pages: 40, bytes: 20_000_000 }, 3, null)).toEqual({
       label: "Largest book: about 20 MB, 40 pages",

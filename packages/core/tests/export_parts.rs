@@ -116,6 +116,23 @@ fn the_estimate_is_close_to_the_written_size() {
     assert!(off < 0.15, "estimate {} B vs {real} B", guess.bytes);
 }
 
+#[test]
+fn the_estimate_samples_every_chapter_not_only_the_first_pages() {
+    let root = tempfile::tempdir().unwrap();
+    let flat = root.path().join("Chapter 0");
+    std::fs::create_dir_all(&flat).unwrap();
+    for i in 0..6 {
+        let img = RgbaImage::from_pixel(800, 1200, Rgba([255, 255, 255, 255]));
+        img.save(flat.join(format!("{:03}.png", i + 1))).unwrap();
+    }
+    let mut req = request(root.path(), PageSettings::default(), None);
+    req.chapter_dirs = vec![flat, chapter(root.path(), "Chapter 1", 6)];
+    let guess = estimate(&req.chapter_dirs, req.device, req.cut, req.page).unwrap();
+    let real = size(&run(&req).output) as f64;
+    let off = (guess.bytes as f64 - real).abs() / real;
+    assert!(off < 0.15, "estimate {} B vs {real} B", guess.bytes);
+}
+
 fn entry(path: &Path, name: &str) -> String {
     let mut zip = zip::ZipArchive::new(std::fs::File::open(path).unwrap()).unwrap();
     std::io::read_to_string(zip.by_name(name).unwrap()).unwrap()

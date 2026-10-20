@@ -29,12 +29,23 @@ export function biggestBook(plans: VolumePlan[]): string[] {
   return dirs.reduce<string[]>((big, d) => (d.length > big.length ? d : big), []);
 }
 
+/** How far off the estimate may be either way (`export::kindle::estimate` samples pages). */
+const ESTIMATE_SLACK = 0.15;
+
+/** The part count the estimate allows: ", about 3 parts", ", 2 or 3 parts", or "" for one. */
+function partsNote(bytes: number, part: number): string {
+  const count = (b: number) => Math.max(1, Math.ceil(b / part));
+  const [lo, hi] = [count(bytes * (1 - ESTIMATE_SLACK)), count(bytes * (1 + ESTIMATE_SLACK))];
+  if (hi === 1) return "";
+  if (lo === hi) return `, about ${lo} parts`;
+  return `, ${lo} ${hi - lo === 1 ? "or" : "to"} ${hi} parts`;
+}
+
 /** What the size line says, and whether a file written would be over the email limit. */
 export function sizeNote(e: Estimate, books: number, splitMb: number | null) {
   const size = `about ${megabytes(e.bytes)}, ${e.pages} pages`;
   const limit = SEND_TO_KINDLE_MB * 1_000_000;
   const part = splitMb ? splitMb * 1_000_000 : Number.POSITIVE_INFINITY;
-  const parts = e.bytes > part ? Math.ceil(e.bytes / part) : 1;
-  const label = `${books > 1 ? "Largest book: " : ""}${size}${parts > 1 ? `, about ${parts} parts` : ""}`;
+  const label = `${books > 1 ? "Largest book: " : ""}${size}${partsNote(e.bytes, part)}`;
   return { label: label[0].toUpperCase() + label.slice(1), over: Math.min(e.bytes, part) > limit };
 }

@@ -37,7 +37,7 @@ describe("export dialog: Send-to-Kindle size", () => {
     expect(estimateExport.mock.lastCall?.[0].chapterDirs).toEqual(["/d/1", "/d/2", "/d/3"]);
 
     fireEvent.click(screen.getByLabelText("Split into parts of"));
-    expect(await screen.findByText("About 96 MB, 180 pages, about 3 parts")).toBeTruthy();
+    expect(await screen.findByText("About 96 MB, 180 pages, 2 or 3 parts")).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
 
     exportVolumes.mockResolvedValueOnce([
