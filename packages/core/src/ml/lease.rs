@@ -112,7 +112,7 @@ fn busy(dir: &Path, name: &str) -> String {
         .ok()
         .and_then(|bytes| serde_json::from_slice::<Owner>(&bytes).ok());
     let Some(Owner { pid, purpose }) = owner else {
-        return "an export is running; try again when it finishes".into();
+        return "an export or import is running; try again when it finishes".into();
     };
     let what = match purpose {
         Purpose::Download => "detector support is downloading",

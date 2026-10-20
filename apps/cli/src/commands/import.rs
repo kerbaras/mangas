@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use clap::Args as ClapArgs;
 use mangas_core::library::{self, ImportRequest};
+use mangas_core::storage;
 
 use super::stored_settings;
 use crate::output::outln;
@@ -30,6 +31,8 @@ pub fn run(args: Args) -> anyhow::Result<()> {
             .next()
             .unwrap_or_default(),
     };
+    // Pages are copied into the data folder: no data-folder move until the import is done.
+    let _writing = storage::hold_for_export(paths::data_dir)?;
     let report = library::import_paths(&lib, &paths::downloads()?, &req)?;
     for c in &report.imported {
         let number = if c.number.is_empty() { "-" } else { &c.number };

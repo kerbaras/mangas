@@ -25,7 +25,7 @@ fn exports_share_the_lease_and_a_move_excludes_them_both_ways() {
     let dir = tempfile::tempdir().unwrap();
     let first = hold_for_export(at(dir.path().into())).unwrap();
     let second = hold_for_export(at(dir.path().into())).unwrap();
-    assert!(moving(dir.path()).contains("an export is running"));
+    assert!(moving(dir.path()).contains("an export or import is running"));
     drop((first, second));
     let held = acquire_at(dir.path(), EXPORT_LEASE, Purpose::Move).unwrap();
     let err = hold_for_export(at(dir.path().into()))
@@ -60,7 +60,7 @@ fn a_move_that_switched_the_folder_before_the_lock_gets_the_new_folder_locked() 
         Ok::<_, Error>(dir.to_path_buf())
     };
     let _reading = hold_for_export(data_dir).unwrap();
-    assert!(moving(new.path()).contains("an export is running"));
+    assert!(moving(new.path()).contains("an export or import is running"));
     assert_eq!(moving(old.path()), "free");
 }
 
@@ -76,5 +76,5 @@ fn a_move_an_export_refuses_never_takes_the_detector_lease() {
         .err()
         .unwrap()
         .to_string();
-    assert!(err.contains("an export is running"), "{err}");
+    assert!(err.contains("an export or import is running"), "{err}");
 }

@@ -6,7 +6,7 @@ use clap::Args as ClapArgs;
 use mangas_core::domain::{Chapter, MangaId};
 use mangas_core::download;
 use mangas_core::download::queue::{self, JobState, Scope};
-use mangas_core::library;
+use mangas_core::{library, storage};
 
 use super::download_releases::{pick, pick_group, report_left_out};
 use super::settled::{failed_note, paused_report};
@@ -85,6 +85,11 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         report_left_out(&synced, &selected, &id, &args.source, &settings)?;
     }
     let selected = without_unavailable(selected, args.chapters.is_some())?;
+    // `--cbz` reads the chapter folders after they download: no data-folder move until it's done.
+    let _reading = match args.cbz {
+        true => Some(storage::hold_for_export(paths::data_dir)?),
+        false => None,
+    };
     let queued = queue::enqueue(&lib, &args.source, selected, args.force)?;
     if !queued.on_disk.is_empty() {
         outln!(

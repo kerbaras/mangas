@@ -30,7 +30,7 @@ fn a_move_is_refused_while_an_export_reads_chapters() {
     assert!(!out.status.success(), "{out:?}");
     let err = String::from_utf8_lossy(&out.stderr);
     assert!(
-        err.contains("an export is running; try again when it finishes"),
+        err.contains("an export or import is running; try again when it finishes"),
         "{err}"
     );
     drop(reading);
@@ -48,4 +48,30 @@ fn an_export_is_refused_while_the_data_folder_moves_before_it_reads_a_chapter() 
     let err = String::from_utf8_lossy(&kindle.stderr);
     assert!(err.contains("the data folder is moving"), "{err}");
     drop(moving);
+}
+
+#[test]
+fn an_import_is_refused_while_the_data_folder_moves() {
+    let home = tempfile::tempdir().unwrap();
+    let chapter = home.path().join("Series/Chapter 1");
+    std::fs::create_dir_all(&chapter).unwrap();
+    std::fs::write(chapter.join("001.png"), b"not read").unwrap();
+    let moving = acquire_at(&data(home.path()), EXPORT_LEASE, Purpose::Move).unwrap();
+    let out = mangas(home.path(), &["import", chapter.to_str().unwrap()]);
+    assert!(!out.status.success(), "{out:?}");
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(err.contains("the data folder is moving"), "{err}");
+    assert!(!data(home.path()).join("downloads/local").exists());
+    drop(moving);
+}
+
+#[test]
+fn a_move_is_refused_while_an_import_copies_pages() {
+    let home = tempfile::tempdir().unwrap();
+    let importing = hold_for_export(|| Ok::<_, mangas_core::Error>(data(home.path()))).unwrap();
+    let to = home.path().join("elsewhere");
+    let out = mangas(home.path(), &["storage", "move", to.to_str().unwrap()]);
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(err.contains("an export or import is running"), "{err}");
+    drop(importing);
 }
