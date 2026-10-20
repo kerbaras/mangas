@@ -2,12 +2,12 @@ use std::path::PathBuf;
 
 use anyhow::bail;
 use clap::Args as ClapArgs;
-use mangas_core::export::kindle::{check_export_folder, export, ExportStats, Progress};
+use mangas_core::export::kindle::{check_export_folder, ExportStats};
 use mangas_core::export::volume::{self, VolumeOutcome};
 use mangas_core::export::{ExportPreset, Format};
 use mangas_core::{library, storage};
 
-use super::cut_args::{print_progress, CutArgs, DEFAULT_PROFILE};
+use super::cut_args::{CutArgs, DEFAULT_PROFILE};
 use super::deliver::{try_deliver, unsent, SendArg};
 use super::export_args::FormatArg;
 use super::export_cover::cover_file;
@@ -16,7 +16,7 @@ use super::export_preset::{self, PresetAction};
 use super::export_report::Report;
 use super::export_size::{warn_too_big, written_pages};
 use super::kindle_record;
-use super::{hint, stored_settings};
+use super::{export_progress::export_printing, hint, stored_settings};
 use crate::output::outln;
 use crate::paths;
 
@@ -150,17 +150,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .collect();
     let mut written = Vec::with_capacity(reqs.len());
     for (index, req) in reqs.iter().enumerate() {
-        // A failure mid-chapter starts its own line, not after the `\r  pages: N` counter.
-        let mut mid_line = false;
-        let mut progress = |p: Progress| {
-            mid_line = matches!(p, Progress::Pages { .. });
-            print_progress(p)
-        };
-        let exported = export(req, penalizer.clone(), &mut progress);
-        if exported.is_err() && mid_line {
-            eprintln!();
-        }
-        let stats = match exported {
+        let stats = match export_printing(req, penalizer.clone()) {
             Ok(stats) => stats,
             Err(e) => {
                 let outcome = VolumeOutcome::stopped(&reqs, index, written, e.to_string());

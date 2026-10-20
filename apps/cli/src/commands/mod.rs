@@ -11,6 +11,7 @@ mod export_args;
 mod export_cover;
 mod export_plans;
 mod export_preset;
+mod export_progress;
 mod export_report;
 mod export_size;
 pub mod group;
