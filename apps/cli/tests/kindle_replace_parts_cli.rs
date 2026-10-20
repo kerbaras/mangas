@@ -87,7 +87,7 @@ fn a_replacement_leaves_only_the_new_set_of_the_same_book() {
 
 #[cfg(unix)]
 #[test]
-fn a_folder_that_cannot_be_listed_stops_every_export_before_it_writes() {
+fn a_folder_that_cannot_be_listed_stops_a_split_or_a_replacement_not_a_plain_export() {
     use std::os::unix::fs::PermissionsExt;
     let home = tempfile::tempdir().unwrap();
     let chapter = home.path().join("chapters/1");
