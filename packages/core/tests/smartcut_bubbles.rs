@@ -38,7 +38,7 @@ fn a_tall_balloon_is_never_cut() {
     let img = strip();
     let mut p = StripPaginator::new(1264, 1680, Preset::Balanced.options());
     let pages = p.feed(&img, true).expect("paginate");
-    let spans: Vec<_> = pages.iter().map(|p| p.rows.clone()).collect();
+    let spans: Vec<_> = pages.iter().map(|p| p.rows).collect();
     assert!(
         spans
             .iter()
