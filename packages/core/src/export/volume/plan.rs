@@ -8,7 +8,7 @@ use serde::Serialize;
 use super::DEFAULT_TEMPLATE;
 use super::{book_meta, file_name, group, render, series_file_name, Grouping, Volume};
 use crate::domain::{parse_number, Chapter, Manga, Result};
-use crate::export::kindle::{Device, ExportRequest};
+use crate::export::kindle::{part_path, Device, ExportRequest};
 use crate::export::{free_names_in, Format};
 use crate::smartcut::Options;
 
@@ -101,6 +101,32 @@ pub fn written_names(
             let name = Path::new(&p.file_name).with_extension(ext);
             name.to_string_lossy().into_owned()
         })
+        .collect();
+    match replace {
+        true => Ok(wanted),
+        false => free_names_in(dir, &wanted),
+    }
+}
+
+/// `plans` renamed to the files they are written under (see [`written_names`]), so a split book's
+/// parts carry its own name (`Book (2) (part 1)`), never a number after another book's part.
+pub fn named_as_written(
+    plans: Vec<VolumePlan>,
+    dir: &Path,
+    ext: &str,
+    replace: bool,
+) -> Result<Vec<VolumePlan>> {
+    let names = written_names(&plans, dir, ext, replace)?;
+    let rename = |(p, file_name)| VolumePlan { file_name, ..p };
+    Ok(plans.into_iter().zip(names).map(rename).collect())
+}
+
+/// Where part 1 of each book in `names` (from [`written_names`]) is written in `dir` when split:
+/// [`part_path`] of the book, as the writer names it, then the first free name unless replacing.
+pub fn first_part_names(names: &[String], dir: &Path, replace: bool) -> Result<Vec<String>> {
+    let wanted: Vec<String> = names
+        .iter()
+        .map(|n| part_path(Path::new(n), 1).to_string_lossy().into_owned())
         .collect();
     match replace {
         true => Ok(wanted),

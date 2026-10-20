@@ -1,10 +1,10 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::bail;
 use clap::Args as ClapArgs;
-use mangas_core::export::kindle::{export, part_path, ExportStats};
-use mangas_core::export::volume::{self, VolumeOutcome, VolumePlan};
-use mangas_core::export::{free_names_in, ExportPreset, Format};
+use mangas_core::export::kindle::{export, ExportStats};
+use mangas_core::export::volume::{self, VolumeOutcome};
+use mangas_core::export::{ExportPreset, Format};
 use mangas_core::{library, storage};
 
 use super::cut_args::{print_progress, CutArgs, DEFAULT_PROFILE};
@@ -100,8 +100,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .with_stored_quality(&stored, DEFAULT_PROFILE);
     let device = CutArgs::device_of(&preset, DEFAULT_PROFILE)?;
     let format = Format::resolve(preset.format, None, None, &device)?;
-    let names = volume::written_names(&plans, &args.output_dir, format.id(), args.replace)?;
-    let firsts = first_parts(&args, &plans, format.id())?;
+    let plans = volume::named_as_written(plans, &args.output_dir, format.id(), args.replace)?;
+    let names: Vec<String> = plans.iter().map(|p| p.file_name.clone()).collect();
+    let firsts = volume::first_part_names(&names, &args.output_dir, args.replace)?;
     let rows = plans.iter().zip(&names).zip(&firsts);
     for ((p, name), first_part) in rows.filter(|_| !args.json) {
         let (first, last) = (
@@ -112,7 +113,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         let parts = match args.cut.split_mb {
             Some(mb) => format!(
                 ", in parts of {mb} MB if bigger: {}, …",
-                first_part.display()
+                args.output_dir.join(first_part).display()
             ),
             None => String::new(),
         };
@@ -195,20 +196,4 @@ fn print_written(stats: &ExportStats) -> std::io::Result<()> {
         )?;
     }
     Ok(())
-}
-
-/// Where part 1 of each planned book goes: named as the writer names parts (free unless replacing).
-fn first_parts(args: &Args, plans: &[VolumePlan], ext: &str) -> anyhow::Result<Vec<PathBuf>> {
-    let wanted: Vec<String> = plans
-        .iter()
-        .map(|p| {
-            let planned = Path::new(&p.file_name).with_extension(ext);
-            part_path(&planned, 1).to_string_lossy().into_owned()
-        })
-        .collect();
-    let names = match args.replace {
-        true => wanted,
-        false => free_names_in(&args.output_dir, &wanted)?,
-    };
-    Ok(names.iter().map(|n| args.output_dir.join(n)).collect())
 }
