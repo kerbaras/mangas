@@ -5,7 +5,15 @@ import { cn } from "@/lib/cn";
 import { type Route, railSection, useNavigation } from "@/lib/navigation";
 import { hasTrafficLights } from "@/lib/platform";
 
-type Item = { icon: ReactNode; label: string; route: Route; badge?: number; muted?: boolean };
+type Item = {
+  icon: ReactNode;
+  label: string;
+  route: Route;
+  badge?: number;
+  muted?: boolean;
+  /** The accessible name when it says more than the label (the badge count). */
+  name?: string;
+};
 
 function RailButton({ item, active }: { item: Item; active: boolean }) {
   const nav = useNavigation();
@@ -14,7 +22,7 @@ function RailButton({ item, active }: { item: Item; active: boolean }) {
       <TooltipTrigger asChild>
         <button
           type="button"
-          aria-label={item.label}
+          aria-label={item.name ?? item.label}
           aria-current={active ? "page" : undefined}
           onClick={() => nav.go(item.route)}
           className="relative flex size-10 items-center justify-center rounded-md text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink aria-[current=page]:bg-accent-soft aria-[current=page]:text-accent [&_svg]:size-5"
@@ -40,6 +48,12 @@ function RailButton({ item, active }: { item: Item; active: boolean }) {
 /** `pending`: running and queued jobs; `held`: the queue is paused or held, so they wait. */
 type Props = { downloads: { pending: number; held: boolean } };
 
+/** "Downloads, 3 pending" / "Downloads (paused), 3 waiting": the name says what the badge shows. */
+export function downloadsName({ pending, held }: Props["downloads"]): string {
+  const label = held ? "Downloads (paused)" : "Downloads";
+  return pending ? `${label}, ${pending} ${held ? "waiting" : "pending"}` : label;
+}
+
 export function NavRail({ downloads }: Props) {
   const { route } = useNavigation();
   const section = railSection(route);
@@ -49,6 +63,7 @@ export function NavRail({ downloads }: Props) {
     {
       icon: <Download />,
       label: downloads.held ? "Downloads (paused)" : "Downloads",
+      name: downloadsName(downloads),
       route: { screen: "downloads" },
       badge: downloads.pending,
       muted: downloads.held,

@@ -8,7 +8,7 @@ import { ErrorAlert } from "@/components/error-alert";
 import { HeaderAction } from "@/components/header-action";
 import { ImportMenu } from "@/components/import-menu";
 import { LibraryList } from "@/components/library-list";
-import { LibraryToolbar } from "@/components/library-toolbar";
+import { LIBRARY_RESULTS, LibraryToolbar } from "@/components/library-toolbar";
 import { MangaCard } from "@/components/manga-card";
 import { ScreenHeader } from "@/components/screen-header";
 import { Button } from "@/components/ui/button";
@@ -107,7 +107,11 @@ export function LibraryScreen() {
           onEditCategories={() => setEditing(true)}
         />
       ) : null}
-      <div ref={pane} className="relative min-h-0 flex-1 overflow-auto overscroll-contain">
+      <div
+        ref={pane}
+        id={LIBRARY_RESULTS}
+        className="relative min-h-0 flex-1 overflow-auto overscroll-contain"
+      >
         {state.kind === "loading" && <p className="p-4 text-ink-3">Loading…</p>}
         {state.kind === "error" && (
           <div className="p-4">
