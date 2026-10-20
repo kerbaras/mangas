@@ -46,3 +46,29 @@ fn a_tall_balloon_is_never_cut() {
         "balloon {BALLOON:?} split across {spans:?}"
     );
 }
+
+/// Tower of God ch 650 (rows 38300-39980 of the chapter): a white balloon touching the white
+/// gutter below it, under art whose highlights read as small text blocks. The balloon (tail and
+/// top arc from row 826, text down to row 1140) used to be cut by a page ending at row 895.
+#[test]
+fn a_balloon_touching_the_gutter_is_never_cut() {
+    const BALLOON: (usize, usize) = (826, 1140);
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/smartcut/tog650-balloon.jpg"
+    );
+    let img = image::open(path).expect("fixture").to_rgba8();
+    let mut p = StripPaginator::new(1264, 1680, Preset::Balanced.options());
+    let pages = p.feed(&img, true).expect("paginate");
+    let spans: Vec<(usize, usize)> = pages
+        .iter()
+        .map(|pg| (pg.rows.start, pg.rows.end))
+        .collect();
+    let whole = |&(a, b): &(usize, usize)| a <= BALLOON.0 && b >= BALLOON.1;
+    assert!(spans.iter().any(whole), "balloon split: {spans:?}");
+    let cut = |&(_, b): &(usize, usize)| BALLOON.0 < b && b < BALLOON.1;
+    assert!(
+        !spans.iter().any(cut),
+        "a page ends inside the balloon: {spans:?}"
+    );
+}

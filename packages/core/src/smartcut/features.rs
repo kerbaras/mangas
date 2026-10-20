@@ -7,7 +7,7 @@ use super::bubbles;
 use super::components::{self, PixelBox};
 use super::morphology;
 use super::raster::RgbStrip;
-use super::rows::{row_texture, row_uniformity, rows_covered};
+use super::rows::{row_texture, row_uniformity, rows_covered, width_covered};
 use super::text;
 
 const GUTTER_STD_THRESHOLD: f64 = 3.0;
@@ -62,7 +62,7 @@ pub fn compute(s: &RgbStrip) -> StripFeatures {
         texture: row_texture(s),
         row_panel: rows_covered(&panels, s.height),
         row_text: rows_covered(&text, s.height),
-        row_bubble: rows_covered(&bubbles, s.height),
+        row_bubble: width_covered(&bubbles, s.width, s.height),
         gutters,
         panels,
         text,
