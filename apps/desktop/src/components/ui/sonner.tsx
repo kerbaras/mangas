@@ -22,7 +22,7 @@ export function Toaster(props: ToasterProps) {
           content: "min-w-0 flex-1",
           title: "font-semibold",
           description: "!text-ink-2 text-caption",
-          actionButton: "shrink-0 !bg-accent !text-white !font-medium",
+          actionButton: "shrink-0 !bg-accent-fill !text-white !font-medium",
           cancelButton: "!bg-surface-2 !text-ink",
           error: "[&_[data-icon]]:!text-accent",
         },

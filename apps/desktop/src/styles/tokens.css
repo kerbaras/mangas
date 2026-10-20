@@ -29,7 +29,7 @@
   --color-stroke: #e1e1de;
   --color-ink: #1b1b1a;
   --color-ink-2: #5c5c58;
-  --color-ink-3: #8a8a85;
+  --color-ink-3: #6c6c67;
   --color-accent: #b3261e;
   --color-accent-hover: #9a1f18;
   --color-accent-soft: #fbe9e7;
@@ -37,8 +37,11 @@
      AA's 4.5:1 for small text, so dark mode lightens it; `--color-accent` stays for fills,
      strokes, focus rings and icons. */
   --color-accent-text: #b3261e;
+  /* Fills under white text (the primary button, toast actions): 4.5:1 with white in both modes. */
+  --color-accent-fill: #b3261e;
+  --color-accent-fill-hover: #9a1f18;
   --color-ok: #107c10;
-  --color-warn: #b17d00;
+  --color-warn: #8e6400;
   --color-bad: #c50f1f;
 }
 
@@ -52,14 +55,16 @@
   --color-stroke: #3c3c3a;
   --color-ink: #f2f2f0;
   --color-ink-2: #b4b4af;
-  --color-ink-3: #7f7f7a;
+  --color-ink-3: #9a9a95;
   --color-accent: #e0584f;
   --color-accent-hover: #ec7169;
   --color-accent-soft: #3a2422;
   --color-accent-text: #f07a72;
+  --color-accent-fill: #d0372d;
+  --color-accent-fill-hover: #b8302a;
   --color-ok: #6ccb5f;
   --color-warn: #f2c94c;
-  --color-bad: #f1707b;
+  --color-bad: #f2737e;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -70,13 +75,15 @@
     --color-stroke: #3c3c3a;
     --color-ink: #f2f2f0;
     --color-ink-2: #b4b4af;
-    --color-ink-3: #7f7f7a;
+    --color-ink-3: #9a9a95;
     --color-accent: #e0584f;
     --color-accent-hover: #ec7169;
     --color-accent-soft: #3a2422;
     --color-accent-text: #f07a72;
+    --color-accent-fill: #d0372d;
+    --color-accent-fill-hover: #b8302a;
     --color-ok: #6ccb5f;
     --color-warn: #f2c94c;
-    --color-bad: #f1707b;
+    --color-bad: #f2737e;
   }
 }

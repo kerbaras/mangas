@@ -9,20 +9,22 @@ async function run(action: Action) {
 }
 
 const base =
-  "flex h-12 w-11 items-center justify-center text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink [&_svg]:size-4";
+  "flex h-12 w-11 items-center justify-center text-ink-2 transition-colors [&_svg]:size-4";
+/** Close keeps its own hover: next to `hover:bg-surface-2` the red fill lost the cascade. */
+const plain = `${base} hover:bg-surface-2 hover:text-ink`;
 
 /** Minimize / maximize / close for undecorated windows (Windows, Linux); nothing on macOS. */
 export function WindowControls() {
   if (!drawsWindowControls()) return null;
   return (
     <div className="-mr-4 ml-2 flex shrink-0 self-stretch">
-      <button type="button" aria-label="Minimize" className={base} onClick={() => run("minimize")}>
+      <button type="button" aria-label="Minimize" className={plain} onClick={() => run("minimize")}>
         <Minus />
       </button>
       <button
         type="button"
         aria-label="Maximize"
-        className={base}
+        className={plain}
         onClick={() => run("toggleMaximize")}
       >
         <Square className="[&&]:size-3.5" />
@@ -30,7 +32,7 @@ export function WindowControls() {
       <button
         type="button"
         aria-label="Close"
-        className={`${base} hover:bg-accent hover:text-white`}
+        className={`${base} hover:bg-accent-fill hover:text-white`}
         onClick={() => run("close")}
       >
         <X />
