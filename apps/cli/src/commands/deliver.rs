@@ -123,8 +123,9 @@ pub fn not_sent(file: &Path, via: SendArg, kindle: Option<&Path>, e: &anyhow::Er
         (SendArg::Usb, Some(mount)) => format!("usb --kindle \"{}\"", mount.display()),
     };
     format!(
-        "{} was written but not sent: {e:#}\n  send it again with: mangas send --via {via} \"{}\"",
+        "{} was written but not sent: {}\n  send it again with: mangas send --via {via} \"{}\"",
         file.display(),
+        crate::exit::describe(e),
         file.display()
     )
 }
