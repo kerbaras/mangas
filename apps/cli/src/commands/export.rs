@@ -160,11 +160,10 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             }
         };
         report.add(&stats, &req.title, &req.chapter_dirs);
-        let outputs = stats.outputs();
         if !args.json {
             print_written(&stats)?;
         }
-        warn_too_big(&outputs);
+        warn_too_big(&stats.oversized);
         kindle_record::mark_exported(&lib, &stats.exported_chapters(&req.chapter_dirs));
         for (output, title) in &stats.titled_outputs(&req.title) {
             kindle_record::record_export(&lib, output, title, device.id);

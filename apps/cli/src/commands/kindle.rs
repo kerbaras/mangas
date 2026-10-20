@@ -149,7 +149,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     };
     let started = Instant::now();
     let stats = export(&req, penalizer, &mut print_progress)?;
-    warn_too_big(&stats.outputs());
+    warn_too_big(&stats.oversized);
     let mut report = Report::new(detectors);
     report.add(&stats, &req.title, &req.chapter_dirs);
     if !args.json {

@@ -3,6 +3,9 @@
 
 use std::ops::Range;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+
+use serde::{Deserialize, Serialize};
 
 use crate::export::epub::{ChapterEntry, PageImage};
 
@@ -10,6 +13,39 @@ use crate::export::epub::{ChapterEntry, PageImage};
 pub const SEND_TO_KINDLE_LIMIT: u64 = 50_000_000;
 /// The part size offered by default: under the limit with room for what estimates miss.
 pub const PART_SIZE: u64 = 45_000_000;
+/// A written file over [`SEND_TO_KINDLE_LIMIT`] and its size on disk.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Oversized {
+    pub path: PathBuf,
+    pub bytes: u64,
+}
+
+/// The files of `files` too big to email, measured on disk: what was really written, not an
+/// estimate.
+pub fn oversized(files: &[PathBuf]) -> Vec<Oversized> {
+    let measure = |path: &PathBuf| {
+        let bytes = std::fs::metadata(path).ok()?.len();
+        (bytes > SEND_TO_KINDLE_LIMIT).then(|| Oversized {
+            path: path.clone(),
+            bytes,
+        })
+    };
+    files.iter().filter_map(measure).collect()
+}
+
+/// Where part `out` is built while replacing: `.mangas-<pid>-<n>-<name>.part` next to it, unique
+/// per part written, so two exports replacing the same book never share one.
+pub(crate) fn staging(out: &Path) -> PathBuf {
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    let n = NEXT.fetch_add(1, Ordering::Relaxed);
+    let name = out.file_name().map(|n| n.to_string_lossy().into_owned());
+    let pid = std::process::id();
+    out.with_file_name(format!(
+        ".mangas-{pid}-{n}-{}.part",
+        name.unwrap_or_default()
+    ))
+}
+
 /// What a page costs besides its JPEG (XHTML, manifest and zip entries).
 const PAGE_OVERHEAD: u64 = 2_048;
 /// What a part costs besides its pages (OPF, nav, styles).
@@ -70,4 +106,43 @@ pub fn part_path(output: &Path, n: usize) -> PathBuf {
 /// The title of part `n` of `total`.
 pub fn part_title(title: &str, n: usize, total: usize) -> String {
     format!("{title} (part {n} of {total})")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn each_staged_part_gets_its_own_name_next_to_the_part() {
+        let out = Path::new("/k/Big (part 2).epub");
+        let (a, b) = (staging(out), staging(out));
+        assert_ne!(a, b);
+        for s in [a, b] {
+            assert_eq!(s.parent(), out.parent());
+            let name = s.file_name().unwrap().to_string_lossy().into_owned();
+            assert!(name.starts_with(&format!(".mangas-{}-", std::process::id())));
+            assert!(name.ends_with("-Big (part 2).epub.part"), "{name}");
+        }
+    }
+
+    #[test]
+    fn only_files_over_the_email_limit_on_disk_are_oversized() {
+        let dir = tempfile::tempdir().unwrap();
+        let [at, over] = ["at.epub", "over.epub"].map(|n| dir.path().join(n));
+        std::fs::File::create(&at)
+            .unwrap()
+            .set_len(SEND_TO_KINDLE_LIMIT)
+            .unwrap();
+        let big = SEND_TO_KINDLE_LIMIT + 1;
+        std::fs::File::create(&over).unwrap().set_len(big).unwrap();
+        let gone = dir.path().join("gone.epub");
+        let found = oversized(&[at, over.clone(), gone]);
+        assert_eq!(
+            found,
+            vec![Oversized {
+                path: over,
+                bytes: big
+            }]
+        );
+    }
 }

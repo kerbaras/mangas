@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use super::parts::Oversized;
 use super::Device;
 use crate::export::epub::Series;
 use crate::export::{Format, Labels, PageSettings};
@@ -113,6 +114,9 @@ pub struct ExportStats {
     /// Why detectors were asked for but not used (set by the caller that chose them).
     #[serde(default)]
     pub detectors_error: Option<String>,
+    /// Files written over the Send-to-Kindle email limit, measured on disk.
+    #[serde(default)]
+    pub oversized: Vec<Oversized>,
 }
 
 /// One file of a book written in parts.

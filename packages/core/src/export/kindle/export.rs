@@ -3,7 +3,7 @@
 
 use super::cover::cover_page;
 use super::input::{book_id, chapter_title};
-use super::parts::{chapters_in, part_path, part_title, split_points};
+use super::parts::{chapters_in, oversized, part_path, part_title, split_points, staging};
 use super::request::{ExportRequest, ExportStats, Part, Progress};
 use super::run::{Run, RunSpec};
 use crate::domain::{Error, Result};
@@ -11,7 +11,7 @@ use crate::export::epub::{ChapterEntry, PageImage};
 use crate::export::Meta;
 use crate::smartcut::RowPenalizer;
 use std::ops::Range;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Runs the export. `penalizer` adds detector-based cut costs; `progress` receives events.
 pub fn export(
@@ -92,6 +92,7 @@ pub fn export(
             run.stats.output = run.stats.parts[0].path.clone();
         }
     }
+    run.stats.oversized = oversized(&run.stats.outputs());
     Ok(run.stats)
 }
 
@@ -142,12 +143,6 @@ fn write_parts(
         true => publish(written, &req.output),
         false => Ok(written),
     }
-}
-
-/// Where part `out` is built while replacing: a hidden `.part` file next to it.
-fn staging(out: &Path) -> PathBuf {
-    let name = out.file_name().map(|n| n.to_string_lossy().into_owned());
-    out.with_file_name(format!(".mangas-{}.part", name.unwrap_or_default()))
 }
 
 /// Renames the staged parts over their final names, in order.

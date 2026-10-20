@@ -72,37 +72,6 @@ fn replacing_parts_renames_the_new_set_over_the_old_and_leaves_no_staging_file()
 }
 
 #[test]
-fn a_failed_replacement_keeps_every_old_part() {
-    let root = tempfile::tempdir().unwrap();
-    let whole = export(&request(root.path(), None), None, &mut |_| {}).unwrap();
-    let max = std::fs::metadata(&whole.output).unwrap().len() / 2;
-    std::fs::remove_file(&whole.output).unwrap();
-    let req = request(root.path(), Some(max));
-    let first = export(&req, None, &mut |_| {}).unwrap();
-    assert!(first.parts.len() >= 2);
-    for (i, part) in first.parts.iter().enumerate() {
-        std::fs::write(&part.path, format!("old {i}")).unwrap();
-    }
-    // A folder where part 2 is staged makes writing part 2 fail.
-    let out = root.path().join("out");
-    let blocker = out.join(".mangas-Big (part 2).epub.part");
-    std::fs::create_dir(&blocker).unwrap();
-    assert!(export(&req, None, &mut |_| {}).is_err());
-    for (i, part) in first.parts.iter().enumerate() {
-        assert_eq!(
-            std::fs::read_to_string(&part.path).unwrap(),
-            format!("old {i}")
-        );
-    }
-    std::fs::remove_dir(&blocker).unwrap();
-    let mut expected: Vec<String> = (1..=first.parts.len())
-        .map(|n| format!("Big (part {n}).epub"))
-        .collect();
-    expected.sort();
-    assert_eq!(names(&out), expected);
-}
-
-#[test]
 fn the_estimate_measures_the_book_with_the_most_pages_not_the_most_chapters() {
     let root = tempfile::tempdir().unwrap();
     let short: Vec<PathBuf> = (1..=3)

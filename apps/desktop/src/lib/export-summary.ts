@@ -44,6 +44,7 @@ export const combineResults = (results: ExportResult[]): ExportResult => ({
   pages: results.reduce((n, r) => n + r.pages, 0),
   skipped: results.reduce((n, r) => n + r.skipped, 0),
   detectors_error: results.find((r) => r.detectors_error)?.detectors_error ?? null,
+  oversized: results.flatMap((r) => r.oversized ?? []),
 });
 
 const openLogsOrSay = () =>

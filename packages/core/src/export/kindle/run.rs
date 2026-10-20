@@ -53,6 +53,7 @@ fn empty_stats() -> ExportStats {
         output: PathBuf::new(),
         parts: Vec::new(),
         detectors_error: None,
+        oversized: Vec::new(),
     }
 }
 

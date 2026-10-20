@@ -64,6 +64,7 @@ describe("combineResults", () => {
       pages: 40,
       skipped: 2,
       detectors_error: null,
+      oversized: [],
     });
     expect(exportSummary(combineResults(books)).warning).toMatch(/2 unsupported files skipped/);
   });
@@ -113,6 +114,7 @@ describe("toExportResult", () => {
       pages: 29,
       skipped: 1,
       detectors_error: null,
+      oversized: [],
     });
   });
   it("keeps every part path of a split book, in order", () => {

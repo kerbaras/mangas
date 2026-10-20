@@ -48,4 +48,9 @@ export type ExportResult = {
   skipped: number;
   /** Why the detectors were asked for but the book was cut without them. */
   detectors_error?: string | null;
+  /** Files written over the Send-to-Kindle email limit, measured on disk (not estimated). */
+  oversized?: Oversized[];
 };
+
+/** A written file and its size on disk (`export::kindle::Oversized`). */
+export type Oversized = { file: string; bytes: number };

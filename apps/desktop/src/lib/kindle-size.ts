@@ -1,4 +1,5 @@
 /** The Send-to-Kindle size rule the export dialog warns about (`export::kindle::parts`). */
+import type { ExportResult } from "./ipc.export";
 import type { Estimate, VolumePlan } from "./ipc.volumes";
 
 /** Amazon's Send-to-Kindle email limit for one attached file, in MB (10^6 bytes). */
@@ -50,3 +51,6 @@ export function sizeNote(e: Estimate, books: number, splitMb: number | null) {
   const label = `${books > 1 ? "Largest book: " : ""}${size}${partsNote(e.bytes, part)}`;
   return { label: label[0].toUpperCase() + label.slice(1), over: Math.min(e.bytes, part) > limit };
 }
+
+/** The written files over the email limit, as measured on disk after the export. */
+export const oversizedOf = (results: ExportResult[]) => results.flatMap((r) => r.oversized ?? []);

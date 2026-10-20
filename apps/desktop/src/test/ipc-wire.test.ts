@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toDetectorsStatus, toExportArgs, toExportProgress } from "@/lib/ipc.wire";
+import { toDetectorsStatus, toExportArgs, toExportProgress, toExportResult } from "@/lib/ipc.wire";
 
 describe("export events", () => {
   it("counts chapters from one and leaves page totals open", () => {
@@ -94,5 +94,16 @@ describe("detector status", () => {
       downloadBytes: 5,
       diskBytes: 1,
     });
+  });
+});
+
+describe("export stats", () => {
+  it("passes on the files written over the email limit, measured on disk", () => {
+    const stats = { pages: 31, strips: 0, source_rows: 0, pagination_ms: 0, filters_ms: 0 };
+    const big = { path: "/k/Solo.epub", bytes: 56_200_000 };
+    expect(
+      toExportResult({ ...stats, skipped: 0, output: "/k/Solo.epub", oversized: [big] }).oversized,
+    ).toEqual([{ file: "/k/Solo.epub", bytes: 56_200_000 }]);
+    expect(toExportResult({ ...stats, skipped: 0, output: "/k/a.epub" }).oversized).toEqual([]);
   });
 });

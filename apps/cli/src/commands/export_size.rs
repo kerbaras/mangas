@@ -3,17 +3,17 @@
 
 use std::path::{Path, PathBuf};
 
-use mangas_core::export::kindle::{ExportStats, PART_SIZE, SEND_TO_KINDLE_LIMIT};
+use mangas_core::export::kindle::{ExportStats, Oversized, PART_SIZE, SEND_TO_KINDLE_LIMIT};
 
 /// Size of `file` in bytes; 0 when it can't be read.
 pub fn bytes(file: &Path) -> u64 {
     std::fs::metadata(file).map(|m| m.len()).unwrap_or(0)
 }
 
-/// Warns about each file in `files` over the Send-to-Kindle email limit.
-pub fn warn_too_big(files: &[PathBuf]) {
+/// Warns about each written file over the Send-to-Kindle email limit (measured on disk by core).
+pub fn warn_too_big(files: &[Oversized]) {
     for file in files {
-        if let Some(line) = too_big(file, bytes(file)) {
+        if let Some(line) = too_big(&file.path, file.bytes) {
             eprintln!("{line}");
         }
     }

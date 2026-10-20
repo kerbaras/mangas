@@ -135,6 +135,7 @@ mod tests {
             empty_chapters: Vec::new(),
             output: r.output.clone(),
             detectors_error: None,
+            oversized: Vec::new(),
             parts: Vec::new(),
         }
     }

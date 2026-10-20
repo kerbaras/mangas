@@ -8,6 +8,7 @@ import { ExportProgressPanel } from "@/components/export-progress";
 import { ExportTitleField } from "@/components/export-title-field";
 import { Field } from "@/components/field";
 import { useOutputFolder } from "@/components/output-folder";
+import { OversizedAlert } from "@/components/oversized-alert";
 import { SendStatus } from "@/components/send-status";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +39,7 @@ import {
 } from "@/lib/export-plan";
 import { booksOf } from "@/lib/export-summary";
 import type { ExportResult } from "@/lib/ipc";
+import { oversizedOf, PART_MB } from "@/lib/kindle-size";
 
 type Props = {
   open: boolean;
@@ -76,6 +78,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const planned = inFormat(plans, target.format);
   const { files, named } = useFreeNames(planned, folder.resolved, runs, target.replace);
   const books = files.kind === "ready" ? files.data.length : 0;
+  const oversized = job.state.kind === "done" ? oversizedOf(job.state.results) : [];
   const sending = runningVia(send.state);
   const busy = job.state.kind === "running" || sending !== undefined;
   const failed = written.length > 0 && ["error", "no-device"].includes(send.state.kind);
@@ -95,19 +98,9 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
     resetSend();
     setWritten([]);
   }, [resetJob, resetSend]);
-  const choice = [
-    mode,
-    size,
-    title,
-    target.device,
-    target.format,
-    preset,
-    useDetectors,
-    folder.output,
-    target.replace,
-    target.quality,
-    splitMb,
-  ].join("|");
+  const { device, format, replace, quality } = target;
+  const picked = [mode, size, title, preset, useDetectors, folder.output, splitMb];
+  const choice = [...picked, device, format, replace, quality].join("|");
   useClearOnChange(choice, busy, clearResult);
   const keepFailed = useCallback(() => !failed && clearResult(), [failed, clearResult]);
   useClearOnChange(via, busy, keepFailed, true);
@@ -135,6 +128,8 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
     onExported?.(results);
     const sent = results.flatMap(booksOf);
     setWritten(sent);
+    // A book over the email limit on disk is never emailed: the alert offers the split.
+    if (via === "email" && oversizedOf(results).length > 0) return;
     if (via !== "save") await send.deliver(sent, via);
   };
 
@@ -174,6 +169,11 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
         </div>
         <div className="mt-4 flex flex-col gap-3 empty:hidden">
           <ExportProgressPanel state={job.state} onRetry={() => void run()} canRetry={ready} />
+          <OversizedAlert
+            files={oversized}
+            email={via === "email"}
+            onSplit={splitMb === null ? () => setSplitMb(PART_MB) : undefined}
+          />
           <SendStatus
             state={send.state}
             via={via}
