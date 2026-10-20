@@ -9,7 +9,7 @@ mod signature;
 mod version;
 
 pub use channel::{endpoints, Channel, CHANNELS_TAG, OVERRIDE_ENV, RELEASES};
-pub use check::{check, override_url};
+pub use check::{check, override_url, CHECK_TIMEOUT};
 pub use manifest::{current_target, evaluate, parse_manifest, Manifest, Status};
 pub use semver::Version;
 pub use signature::{key_id, pubkey_from_config, signed_by};
