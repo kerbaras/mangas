@@ -43,7 +43,9 @@ export function MangaCard({ entry, categories, ...on }: Props) {
           </Hint>
           <div className="flex items-center gap-1.5 text-caption text-ink-3">
             {isLocal(entry) && <Badge variant="outline">Local</Badge>}
-            {!isLocal(entry) && <span className="truncate">{statusLabel[entry.status]}</span>}
+            {!isLocal(entry) && entry.status !== "unknown" && (
+              <span className="truncate">{statusLabel[entry.status]}</span>
+            )}
           </div>
         </button>
       </ContextMenuTrigger>

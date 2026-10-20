@@ -1,5 +1,5 @@
 use clap::Args as ClapArgs;
-use mangas_core::domain::{Manga, MangaId};
+use mangas_core::domain::{Manga, MangaId, MangaStatus};
 use mangas_core::library;
 
 use super::source_by_name;
@@ -25,9 +25,17 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// "ongoing", "completed", ...; empty when the source doesn't say.
+pub fn status_label(status: MangaStatus) -> String {
+    match status {
+        MangaStatus::Unknown => String::new(),
+        known => format!("{known:?}").to_lowercase(),
+    }
+}
+
 /// Title, then one labelled line per known field, then the description.
 pub fn describe(m: &Manga) -> String {
-    let status = format!("{:?}", m.status).to_lowercase();
+    let status = status_label(m.status);
     let year = m.year.map(|y| y.to_string()).unwrap_or_default();
     let fields = [
         ("source", format!("{} {}", m.source, m.id)),
@@ -69,5 +77,16 @@ mod tests {
             "Solo Leveling\n  source   comick solo\n  status   completed\n  \
              authors  Chugong, h-goon\n  year     2018\n\nE-rank hunter."
         );
+    }
+
+    #[test]
+    fn an_unknown_status_has_no_line() {
+        let m = Manga {
+            title: "Boruto".into(),
+            source: "mangaplus".into(),
+            id: MangaId("100269".into()),
+            ..Default::default()
+        };
+        assert_eq!(describe(&m), "Boruto\n  source   mangaplus 100269");
     }
 }

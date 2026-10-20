@@ -1,13 +1,14 @@
 //! Pure mapping from MANGA Plus replies (protobuf bytes) to domain types.
 
 use mangas_core::domain::{
-    sort_by_number, Availability, Chapter, ChapterId, Manga, MangaId, MangaStatus, Result,
+    sort_by_number, Availability, Chapter, ChapterId, Manga, MangaId, Result,
 };
 use mangas_core::sources::PageUrls;
 
 use super::page::page_url;
 use super::proto::{Chapter as ApiChapter, Title, TitleDetailView};
 use super::response::{decode, error};
+use super::status::status;
 use super::SOURCE_NAME;
 
 /// API language numbers, by position: 0 en, 1 es, ... 9 vi (8 is unused).
@@ -160,22 +161,5 @@ fn to_chapter(chapter: &ApiChapter, id: &MangaId, language: &str) -> Chapter {
             None => Availability::Locked,
         },
         exported_at: None,
-    }
-}
-
-/// One-shots and titles the site calls completed are complete; "on a hiatus" is a hiatus.
-fn status(detail: &TitleDetailView) -> MangaStatus {
-    let note = detail.non_appearance_info.to_lowercase();
-    let one_shot = detail.genre_list.iter().any(|g| g.slug == "one-shot");
-    match () {
-        _ if one_shot
-            || ["completado", "complete", "completo"]
-                .iter()
-                .any(|w| note.contains(w)) =>
-        {
-            MangaStatus::Completed
-        }
-        _ if note.contains("hiatus") => MangaStatus::Hiatus,
-        _ => MangaStatus::Ongoing,
     }
 }

@@ -60,7 +60,7 @@ fn render(groups: &[SearchGroup], query: &str, name: impl Fn(&str) -> String) ->
         };
         out.push_str(&format!("{}: {header}\n", name(&g.provider)));
         for m in &g.items {
-            let status = format!("{:?}", m.status).to_lowercase();
+            let status = super::info::status_label(m.status);
             out.push_str(&format!("  {:<36}  {status:<10}  {}\n", m.id, m.title));
         }
     }
@@ -110,5 +110,19 @@ mod tests {
     #[test]
     fn no_enabled_provider_says_so() {
         assert!(render(&[], "x", str::to_string).starts_with("No providers enabled"));
+    }
+
+    #[test]
+    fn an_unknown_status_is_left_blank() {
+        let unknown = Manga {
+            status: MangaStatus::Unknown,
+            ..manga("100269", "Boruto")
+        };
+        let out = render(&[group("a", Ok(vec![unknown]))], "boruto", str::to_string);
+        assert!(!out.contains("unknown"), "{out}");
+        assert!(
+            out.lines().nth(1).is_some_and(|l| l.ends_with("  Boruto")),
+            "{out}"
+        );
     }
 }

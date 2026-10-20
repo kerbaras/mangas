@@ -47,10 +47,19 @@ message Title {
 message TitleDetailView {
   Title title = 1;
   string overview = 3;
+  // When the next chapter comes out; 0 when none is scheduled.
+  uint32 next_time_stamp = 5;
   string viewing_period_description = 7;
   string non_appearance_info = 8;
   repeated ChapterListGroup chapter_list_group = 28;
   repeated Tag genre_list = 31;
+  TitleLabels title_labels = 32;
+}
+
+message TitleLabels {
+  // 0 none, 1 daily, 2 weekly, 3 biweekly, 4 monthly, 5 bimonthly, 6 trimonthly, 7 other,
+  // 8 completed, 9 one-shot (seen live on every one-shot).
+  int32 release_schedule = 1;
 }
 
 message Tag {

@@ -8,6 +8,7 @@ mod mapping;
 mod page;
 mod proto;
 mod response;
+mod status;
 
 use std::sync::Arc;
 
@@ -42,7 +43,7 @@ pub const INFO: ProviderInfo = ProviderInfo {
         Capability::Download,
     ],
     needs_browser_session: false,
-    icon_url: Some("https://mangaplus.shueisha.co.jp/favicon.ico"),
+    icon_url: Some("https://mangaplus.shueisha.co.jp/icn/app_icon_64.png"),
 };
 
 pub struct MangaPlusProvider;
