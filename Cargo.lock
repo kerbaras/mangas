@@ -2991,6 +2991,7 @@ dependencies = [
  "ndarray",
  "ort",
  "pdf-writer",
+ "png 0.18.1",
  "rayon",
  "reqwest",
  "roxmltree",

@@ -40,10 +40,13 @@ fn is_hidden(path: &Path) -> bool {
 
 /// Decodes by content, not extension; an animated GIF yields its first frame.
 pub fn decode(path: &Path) -> Result<RgbaImage> {
+    if let Some(img) = super::png_rgba::decode(path) {
+        return Ok(img);
+    }
     Ok(image::ImageReader::open(path)?
         .with_guessed_format()?
         .decode()?
-        .to_rgba8())
+        .into_rgba8())
 }
 
 pub(super) fn chapter_title(dir: &Path, index: usize) -> String {

@@ -3,15 +3,18 @@
 
 /// Composites a packed RGBA buffer onto an opaque white background (alpha becomes 255).
 pub fn flatten_on_white(rgba: &[u8]) -> Vec<u8> {
-    rgba.as_chunks::<4>()
-        .0
-        .iter()
-        .flat_map(|p| {
-            let a = p[3] as u32;
-            let mix = |c: u8| ((c as u32 * a + 255 * (255 - a) + 127) / 255) as u8;
-            [mix(p[0]), mix(p[1]), mix(p[2]), 255]
-        })
-        .collect()
+    let mut flat = rgba.to_vec();
+    flatten_on_white_in_place(&mut flat);
+    flat
+}
+
+/// [`flatten_on_white`] in the buffer itself.
+pub fn flatten_on_white_in_place(rgba: &mut [u8]) {
+    for p in rgba.as_chunks_mut::<4>().0 {
+        let a = p[3] as u32;
+        let mix = |c: u8| ((c as u32 * a + 255 * (255 - a) + 127) / 255) as u8;
+        *p = [mix(p[0]), mix(p[1]), mix(p[2]), 255];
+    }
 }
 
 /// BT.601 luma of a packed RGBA buffer.

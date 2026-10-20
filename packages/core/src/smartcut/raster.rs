@@ -1,7 +1,8 @@
 //! Packed 8-bit RGB raster used by the analysis, plus the few whole-image operations the
 //! paginator needs (downscale for analysis, stack chunks, crop rows).
 
-use fast_image_resize::{images::Image as FirImage, PixelType, ResizeAlg, ResizeOptions, Resizer};
+use fast_image_resize::images::{Image as FirImage, ImageRef};
+use fast_image_resize::{PixelType, ResizeAlg, ResizeOptions, Resizer};
 use image::RgbaImage;
 
 use crate::domain::{Error, Result};
@@ -54,13 +55,8 @@ impl RgbStrip {
 
 /// Lanczos3 resize of an RGBA image to exactly `w x h`.
 pub fn resize_rgba(src: &RgbaImage, w: u32, h: u32) -> Result<RgbaImage> {
-    let src_view = FirImage::from_vec_u8(
-        src.width(),
-        src.height(),
-        src.as_raw().clone(),
-        PixelType::U8x4,
-    )
-    .map_err(|e| Error::Other(format!("resize: {e}")))?;
+    let src_view = ImageRef::new(src.width(), src.height(), src.as_raw(), PixelType::U8x4)
+        .map_err(|e| Error::Other(format!("resize: {e}")))?;
     let mut dst = FirImage::new(w, h, PixelType::U8x4);
     let opts = ResizeOptions::new().resize_alg(ResizeAlg::Convolution(
         fast_image_resize::FilterType::Lanczos3,

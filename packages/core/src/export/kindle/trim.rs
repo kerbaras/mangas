@@ -69,9 +69,47 @@ pub fn crop_sides(img: &RgbaImage, (left, right): (u32, u32)) -> RgbaImage {
 
 /// A page with its blank borders cut off, each side at most a quarter of the page.
 pub fn trim_page(img: &RgbaImage) -> RgbaImage {
-    let Some((left, right)) = side_margins(img) else {
-        return img.clone();
-    };
+    match trim_box(img) {
+        Some((x, y, w, h)) => image::imageops::crop_imm(img, x, y, w, h).to_image(),
+        None => img.clone(),
+    }
+}
+
+/// `trim_page` without a copy when there is nothing to trim.
+pub fn trim_owned(img: RgbaImage) -> RgbaImage {
+    match trim_box(&img) {
+        Some(b) if b != (0, 0, img.width(), img.height()) => crop_owned(img, b),
+        _ => img,
+    }
+}
+
+/// `crop_sides` on an owned page, cropped in its own buffer.
+pub fn crop_sides_owned(img: RgbaImage, (left, right): (u32, u32)) -> RgbaImage {
+    if left == 0 && right == 0 {
+        return img;
+    }
+    let w = img.width().saturating_sub(left + right).max(1);
+    let h = img.height();
+    crop_owned(img, (left, 0, w, h))
+}
+
+/// The `w x h` box at `(x, y)` (inside `img`), moved row by row to the front of `img`'s own
+/// buffer: the same pixels as `crop_imm(..).to_image()` without a second page in memory.
+fn crop_owned(img: RgbaImage, (x, y, w, h): (u32, u32, u32, u32)) -> RgbaImage {
+    let stride = img.width() as usize * 4;
+    let (row, left) = (w as usize * 4, x as usize * 4);
+    let mut buf = img.into_raw();
+    for r in 0..h as usize {
+        let from = (y as usize + r) * stride + left;
+        buf.copy_within(from..from + row, r * row);
+    }
+    buf.truncate(row * h as usize);
+    RgbaImage::from_raw(w, h, buf).unwrap_or_else(|| RgbaImage::new(w, h))
+}
+
+/// The page with its blank margins cut off (a quarter of the height at most per side).
+fn trim_box(img: &RgbaImage) -> Option<(u32, u32, u32, u32)> {
+    let (left, right) = side_margins(img)?;
     let (w, h) = img.dimensions();
     let cols = (left, w - right);
     let (top_bg, bottom_bg) = (*img.get_pixel(left, 0), *img.get_pixel(left, h - 1));
@@ -83,5 +121,5 @@ pub fn trim_page(img: &RgbaImage) -> RgbaImage {
         .take_while(|&y| row_blank(img, y, cols, &bottom_bg))
         .count() as u32;
     let (top, bottom) = (top.min(h / 4), bottom.min(h / 4));
-    image::imageops::crop_imm(img, left, top, w - left - right, h - top - bottom).to_image()
+    Some((left, top, w - left - right, h - top - bottom))
 }
