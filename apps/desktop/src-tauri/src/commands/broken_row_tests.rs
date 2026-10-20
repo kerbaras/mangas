@@ -163,14 +163,14 @@ async fn relative_folders_land_under_the_default_export_folder(home: &Path) {
             replace,
         )
     };
-    let written = volume(None).await.unwrap();
+    let written = volume(None).await.unwrap().written;
     assert_eq!(written.len(), 1);
     assert_eq!(written[0].output.parent(), Some(books.as_path()));
     assert!(written[0].output.is_file());
 
     let first = written[0].output.clone();
-    let copy = volume(Some(false)).await.unwrap();
+    let copy = volume(Some(false)).await.unwrap().written;
     assert_ne!(copy[0].output, first, "replace off writes a numbered copy");
-    let replaced = volume(Some(true)).await.unwrap();
+    let replaced = volume(Some(true)).await.unwrap().written;
     assert_eq!(replaced[0].output, first, "replace on writes the same file");
 }

@@ -60,7 +60,8 @@ pub(super) async fn the_export_embeds_the_cached_series_cover(home: &Path) {
         None,
     )
     .await
-    .unwrap();
+    .unwrap()
+    .written;
     let book = std::fs::read(&written[0].output).unwrap();
     let entry = b"OEBPS/images/cover.jpg";
     assert!(

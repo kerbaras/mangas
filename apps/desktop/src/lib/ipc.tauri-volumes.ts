@@ -1,7 +1,8 @@
 /** Tauri adapters for the volume export commands (`commands/volumes.rs`). */
 import { invoke } from "@tauri-apps/api/core";
+import { outcomeResults } from "./export-stopped";
 import type { VolumeRequest, VolumesBackend } from "./ipc.volumes";
-import { type ExportStats, toExportResult } from "./ipc.wire";
+import type { VolumeOutcome } from "./ipc.wire";
 
 const planArgs = (r: VolumeRequest) => ({
   source: r.source,
@@ -14,7 +15,7 @@ const planArgs = (r: VolumeRequest) => ({
 export const tauriVolumes: VolumesBackend = {
   planVolumes: (r) => invoke("plan_volumes", planArgs(r)),
   exportVolumes: async (r) => {
-    const stats = await invoke<ExportStats[]>("export_volumes", {
+    const outcome = await invoke<VolumeOutcome>("export_volumes", {
       ...planArgs(r),
       device: r.device,
       format: r.format,
@@ -23,7 +24,7 @@ export const tauriVolumes: VolumesBackend = {
       outputDir: r.outputDir,
       replace: r.replace ?? false,
     });
-    return stats.map(toExportResult);
+    return outcomeResults(outcome);
   },
   freeExportNames: (dir, names) => invoke("free_export_names", { dir, names }),
   exportFileName: (title, format) => invoke("export_file_name", { title, format }),

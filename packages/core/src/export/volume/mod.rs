@@ -5,7 +5,9 @@ mod group;
 mod load;
 mod meta;
 mod name;
+mod outcome;
 mod plan;
+mod unwritten;
 
 use serde::{Deserialize, Serialize};
 
@@ -17,6 +19,7 @@ pub use meta::{book_meta, chapter_label};
 pub use name::{
     file_name, file_name_as, render, series_file_name, DEFAULT_TEMPLATE, MAX_STEM_BYTES,
 };
+pub use outcome::{export_each, FailedVolume, PlannedVolume, VolumeOutcome};
 pub use plan::{find_volume, one_file_each, plan, request, written_names, VolumePlan};
 
 /// How a manga's chapters are split into books.

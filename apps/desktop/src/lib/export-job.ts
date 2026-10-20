@@ -1,6 +1,7 @@
 /** Turns the export dialog's choices into the backend call that writes the books. */
 import { type ExportPick, exportTitle, joinPath } from "./export-name";
 import { type BundleMode, groupingOf } from "./export-plan";
+import { ExportStopped } from "./export-stopped";
 import { type ExportFormat, type ExportResult, exportChapters, type Preset } from "./ipc";
 import { exportFileName, exportVolumes } from "./ipc.volumes";
 import { storageChanged } from "./storage-changed";
@@ -27,11 +28,19 @@ export type ExportChoices = {
 export function exportJob(c: ExportChoices): () => Promise<ExportResult[]> {
   const write = writeBooks(c);
   return async () => {
-    const results = await write();
-    // The detector status now holds the failure: the "Use detectors" switch shows it.
-    if (results.some((r) => r.detectors_error)) storageChanged();
-    return results;
+    try {
+      return reloadDetectors(await write());
+    } catch (e) {
+      if (e instanceof ExportStopped) reloadDetectors(e.results);
+      throw e;
+    }
   };
+}
+
+/** The detector status now holds a failure: the "Use detectors" switch shows it. */
+function reloadDetectors(results: ExportResult[]): ExportResult[] {
+  if (results.some((r) => r.detectors_error)) storageChanged();
+  return results;
 }
 
 function writeBooks(c: ExportChoices): () => Promise<ExportResult[]> {

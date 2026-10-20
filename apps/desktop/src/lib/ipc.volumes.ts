@@ -38,7 +38,10 @@ export type VolumeExport = VolumeRequest & {
 export type VolumesBackend = {
   /** The books an export would write, in order, from the downloaded chapters among the ids. */
   planVolumes(request: VolumeRequest): Promise<VolumePlan[]>;
-  /** Writes every planned book; resolves to one result per book. */
+  /**
+   * Writes every planned book; resolves to one result per book. A book that fails stops the run:
+   * rejects with `ExportStopped` (the books written before it, it, the ones not started).
+   */
   exportVolumes(request: VolumeExport): Promise<ExportResult[]>;
   /** The names `names` would be written under in `dir` now: taken ones get ` (2)`, ` (3)`… */
   freeExportNames(dir: string, names: string[]): Promise<string[]>;

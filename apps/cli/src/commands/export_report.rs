@@ -4,6 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use mangas_core::export::kindle::ExportStats;
+use mangas_core::export::volume::VolumeOutcome;
 use mangas_core::ml::DetectorReport;
 use serde::Serialize;
 
@@ -14,6 +15,8 @@ pub struct Report {
     pub files: Vec<WrittenFile>,
     pub skipped: Vec<Item>,
     pub failed: Vec<Item>,
+    /// Books planned after one that failed: the run stopped before them.
+    pub not_written: Vec<Item>,
     pub detectors: DetectorReport,
 }
 
@@ -37,6 +40,8 @@ pub struct Item {
 
 /// Why a chapter folder is not in its book.
 pub const EMPTY_CHAPTER: &str = "no readable pages";
+/// Why a planned book is not on disk after an earlier one failed.
+pub const NOT_STARTED: &str = "not started: an earlier book failed";
 
 impl Report {
     pub fn new(detectors: DetectorReport) -> Self {
@@ -44,6 +49,7 @@ impl Report {
             files: Vec::new(),
             skipped: Vec::new(),
             failed: Vec::new(),
+            not_written: Vec::new(),
             detectors,
         }
     }
@@ -69,6 +75,18 @@ impl Report {
             path: book.to_path_buf(),
             reason,
         });
+    }
+
+    /// Adds the book a stopped run failed on and the ones it didn't start.
+    pub fn stopped(&mut self, outcome: &VolumeOutcome) {
+        if let Some(failed) = &outcome.failed {
+            self.fail(&failed.output, failed.reason.clone());
+        }
+        self.not_written
+            .extend(outcome.not_written.iter().map(|p| Item {
+                path: p.output.clone(),
+                reason: NOT_STARTED.to_string(),
+            }));
     }
 
     pub fn print(&self) -> anyhow::Result<()> {
