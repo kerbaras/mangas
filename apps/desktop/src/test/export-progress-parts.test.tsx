@@ -15,7 +15,7 @@ const result = (parts: string[]): ExportResult => ({
 const panel = (r: ExportResult) =>
   render(
     <TooltipProvider>
-      <ExportProgressPanel state={{ kind: "done", results: [r] }} onReset={() => {}} />
+      <ExportProgressPanel state={{ kind: "done", results: [r] }} onRetry={() => {}} />
     </TooltipProvider>,
   );
 

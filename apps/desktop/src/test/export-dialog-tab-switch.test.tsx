@@ -74,7 +74,7 @@ describe("export dialog: delivery result after a tab switch", () => {
   });
 
   it("keeps the result when the tab changes while the book is still being written", async () => {
-    const write = held<{ output: string; pages: number; skipped: number }[]>();
+    const write = held<{ output: string; parts: string[]; pages: number; skipped: number }[]>();
     const sendEmail = vi.fn().mockResolvedValue(sent);
     exportBackend({ exportVolumes: write.fn, sendEmail });
     render(dialog());
@@ -82,7 +82,7 @@ describe("export dialog: delivery result after a tab switch", () => {
     fireEvent.click(await enabledButton(/Export book and email/));
     await vi.waitFor(() => expect(write.fn).toHaveBeenCalledOnce());
     fireEvent.mouseDown(screen.getByRole("tab", { name: "Save to folder" }));
-    await write.finish([{ output: "/k/Solo v1.epub", pages: 6, skipped: 0 }]);
+    await write.finish([{ output: "/k/Solo v1.epub", parts: [], pages: 6, skipped: 0 }]);
     expect(await screen.findByText(/Emailed Solo v1\.epub/)).toBeTruthy();
     expect(screen.getByText("Exported 6 pages")).toBeTruthy();
     expect(sendEmail).toHaveBeenCalledOnce();
