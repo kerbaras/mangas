@@ -37,8 +37,8 @@ pub fn followed_source(lib: &Library, id: &MangaId, given: Option<&str>) -> anyh
     }
 }
 
-/// `given`, else the one source following `id`, else [`DEFAULT_SOURCE`]: for commands that
-/// also work on titles the library does not follow.
+/// `given`, else [`followed_source`], else [`DEFAULT_SOURCE`] when no source follows `id`: for
+/// commands that also work on titles the library does not follow.
 pub fn source_or_default(
     lib: &Library,
     id: &MangaId,
@@ -47,8 +47,8 @@ pub fn source_or_default(
     if let Some(given) = given {
         return Ok(given.to_string());
     }
-    Ok(match library::followed_sources(lib, id)?.as_slice() {
-        [only] => only.clone(),
-        _ => DEFAULT_SOURCE.to_string(),
-    })
+    match library::followed_sources(lib, id)?.is_empty() {
+        true => Ok(DEFAULT_SOURCE.to_string()),
+        false => followed_source(lib, id, None),
+    }
 }

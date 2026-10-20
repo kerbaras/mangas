@@ -114,6 +114,10 @@ fn an_id_followed_on_two_sources_needs_source() {
         err.contains("42 is followed on mangadex and mangadot; pick one with --source"),
         "{err}"
     );
+    for args in [&["chapters", "42", "--offline"][..], &["info", "42"]] {
+        let err = stderr(&mangas(home.path(), args));
+        assert!(err.contains("pick one with --source"), "{args:?}: {err}");
+    }
     let ok = stdout(&mangas(
         home.path(),
         &["group", "42", "--source", "mangadot"],
