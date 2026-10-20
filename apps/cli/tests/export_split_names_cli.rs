@@ -1,5 +1,6 @@
 //! #134: with `--split-mb`, the dry-run line names the first part each book is written under,
-//! also when two books share a planned name (`Book (part 1)`, `Book (2) (part 1)`).
+//! also when two books share a planned name (`Book (part 1)`, `Book (2) (part 1)`) and when an
+//! earlier set of parts already holds a book's name.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -89,6 +90,25 @@ fn the_dry_run_skips_parts_already_in_the_folder() {
     std::fs::write(out.join("Book (2) (part 1).epub"), "old").unwrap();
     check(
         home.path(),
-        ["Book (part 1).epub", "Book (2) (part 1) (2).epub"],
+        ["Book (part 1).epub", "Book (3) (part 1).epub"],
     );
+}
+
+#[test]
+fn an_earlier_set_of_parts_takes_the_book_name() {
+    let home = tempfile::tempdir().unwrap();
+    library_with_noisy_chapters(home.path(), ID);
+    let out = home.path().join("out");
+    std::fs::create_dir_all(&out).unwrap();
+    for n in 1..=2 {
+        std::fs::write(out.join(format!("Book (part {n}).epub")), "old").unwrap();
+    }
+    check(
+        home.path(),
+        ["Book (2) (part 1).epub", "Book (3) (part 1).epub"],
+    );
+    for n in 1..=2 {
+        let old = std::fs::read(out.join(format!("Book (part {n}).epub"))).unwrap();
+        assert_eq!(old, b"old");
+    }
 }

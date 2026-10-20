@@ -7,7 +7,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde::{Deserialize, Serialize};
 
+use crate::domain::Result;
 use crate::export::epub::{ChapterEntry, PageImage};
+use crate::export::free_names_in;
 
 /// Amazon's Send-to-Kindle email limit for one attached file, in bytes.
 pub const SEND_TO_KINDLE_LIMIT: u64 = 50_000_000;
@@ -101,6 +103,33 @@ pub fn part_path(output: &Path, n: usize) -> PathBuf {
         Some(ext) => output.with_file_name(format!("{name}.{}", ext.to_string_lossy())),
         None => output.with_file_name(name),
     }
+}
+
+/// The book whose part `name` is named as by [`part_path`]: `Book (part 2).epub` → `Book.epub`.
+pub fn part_owner(name: &str) -> Option<String> {
+    let path = Path::new(name);
+    let stem = path.file_stem()?.to_string_lossy().into_owned();
+    let (book, n) = stem.strip_suffix(')')?.rsplit_once(" (part ")?;
+    let numbered = !n.starts_with('0') && !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit());
+    let owner = match path.extension() {
+        Some(ext) => format!("{book}.{}", ext.to_string_lossy()),
+        None => book.to_owned(),
+    };
+    (numbered && !book.is_empty()).then_some(owner)
+}
+
+/// Where a book that replaces nothing is written: `output`, or its first name free in the folder
+/// ([`free_names_in`]), so the book number never collides with an earlier set of parts.
+pub fn book_path(output: &Path) -> Result<PathBuf> {
+    let dir = output.parent().filter(|d| !d.as_os_str().is_empty());
+    let name = output.file_name().map(|n| n.to_string_lossy().into_owned());
+    let Some(name) = name else {
+        return Ok(output.to_path_buf());
+    };
+    let free = free_names_in(dir.unwrap_or(Path::new(".")), &[name])?;
+    Ok(free
+        .first()
+        .map_or(output.to_path_buf(), |n| output.with_file_name(n)))
 }
 
 /// The title of part `n` of `total`.

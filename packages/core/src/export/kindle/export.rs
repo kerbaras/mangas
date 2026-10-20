@@ -3,7 +3,9 @@
 
 use super::cover::cover_page;
 use super::input::{book_id, chapter_title};
-use super::parts::{chapters_in, oversized, part_path, part_title, split_points, staging};
+use super::parts::{
+    book_path, chapters_in, oversized, part_path, part_title, split_points, staging,
+};
 use super::request::{ExportRequest, ExportStats, Part, Progress};
 use super::run::{Run, RunSpec};
 use super::stale::{check_listable, remove_stale};
@@ -23,9 +25,14 @@ pub fn export(
     if req.chapter_dirs.is_empty() {
         return Err(Error::Other("export: no chapter directories".into()));
     }
-    if req.replace {
-        check_listable(&req.output)?;
-    }
+    let output = match req.replace {
+        true => check_listable(&req.output).map(|_| req.output.clone())?,
+        false => book_path(&req.output)?,
+    };
+    let req = &ExportRequest {
+        output,
+        ..req.clone()
+    };
     let dev = req.device;
     let spec = RunSpec {
         device: dev,

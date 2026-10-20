@@ -75,3 +75,19 @@ fn written_names_match_what_each_mode_writes() {
         names(&["Book.cbz", "Book (2).cbz"])
     );
 }
+
+#[test]
+fn an_earlier_set_of_parts_takes_its_book_name() {
+    let existing = names(&[
+        "Book (part 1).epub",
+        "Book (part 2).epub",
+        "Other (part 03).epub",
+        "Other (part x).epub",
+        "Third (part 1).mobi",
+    ]);
+    let wanted = names(&["Book.epub", "Other.epub", "Third.epub", "Book.epub"]);
+    assert_eq!(
+        resolve_free_names(&existing, &wanted),
+        names(&["Book (2).epub", "Other.epub", "Third.epub", "Book (3).epub"])
+    );
+}

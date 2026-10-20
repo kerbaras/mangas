@@ -51,7 +51,7 @@ fn size(path: &Path) -> u64 {
 }
 
 #[test]
-fn a_book_over_the_part_size_is_written_as_numbered_parts_under_it() {
+fn a_book_over_the_part_size_is_written_as_numbered_parts_under_the_next_free_name() {
     let root = tempfile::tempdir().unwrap();
     let whole = run(&request(root.path(), PageSettings::default(), None));
     let total = size(&whole.output);
@@ -70,7 +70,7 @@ fn a_book_over_the_part_size_is_written_as_numbered_parts_under_it() {
             .unwrap()
             .to_string_lossy()
             .into_owned();
-        assert_eq!(name, format!("Big (part {}).epub", i + 1));
+        assert_eq!(name, format!("Big (2) (part {}).epub", i + 1));
         assert!(
             size(&part.path) <= max,
             "{name}: {} > {max}",
@@ -78,6 +78,11 @@ fn a_book_over_the_part_size_is_written_as_numbered_parts_under_it() {
         );
     }
     assert!(!root.path().join("Big (2).epub").exists());
+    assert_eq!(
+        size(&root.path().join("Big.epub")),
+        total,
+        "the whole book is kept"
+    );
 }
 
 #[test]
