@@ -22,9 +22,10 @@ const dialog = () => (
 );
 
 // 32 MB a chapter at the device's quality, 16 MB at 50.
+const chaptersOf = (r: EstimateRequest) => Math.max(...r.books.map((b) => b.length));
 const estimateExport = vi.fn(async (r: EstimateRequest) => ({
-  pages: r.chapterDirs.length * 60,
-  bytes: r.chapterDirs.length * (r.quality === 50 ? 16_000_000 : 32_000_000),
+  pages: chaptersOf(r) * 60,
+  bytes: chaptersOf(r) * (r.quality === 50 ? 16_000_000 : 32_000_000),
 }));
 
 describe("export dialog: Send-to-Kindle size", () => {
@@ -34,7 +35,7 @@ describe("export dialog: Send-to-Kindle size", () => {
     fireEvent.mouseDown(await screen.findByRole("tab", { name: "One book" }));
     expect(await screen.findByText("About 96 MB, 180 pages")).toBeTruthy();
     expect(screen.getByRole("alert").textContent).toMatch(/refuses files over 50 MB/);
-    expect(estimateExport.mock.lastCall?.[0].chapterDirs).toEqual(["/d/1", "/d/2", "/d/3"]);
+    expect(estimateExport.mock.lastCall?.[0].books).toEqual([["/d/1", "/d/2", "/d/3"]]);
 
     fireEvent.click(screen.getByLabelText("Split into parts of"));
     expect(await screen.findByText("About 96 MB, 180 pages, 2 or 3 parts")).toBeTruthy();

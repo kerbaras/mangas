@@ -11,6 +11,7 @@ use crate::export::epub::{ChapterEntry, PageImage};
 use crate::export::Meta;
 use crate::smartcut::RowPenalizer;
 use std::ops::Range;
+use std::path::{Path, PathBuf};
 
 /// Runs the export. `penalizer` adds detector-based cut costs; `progress` receives events.
 pub fn export(
@@ -95,7 +96,8 @@ pub fn export(
 }
 
 /// Writes `pages` as one book per range. A part that fails removes the parts written before
-/// it: half a book is never left behind.
+/// it: half a book is never left behind. Replacing parts, each is built under a staging name and
+/// they are renamed over the old ones only once all are written, so a failure keeps the old set.
 fn write_parts(
     req: &ExportRequest,
     mut pages: Vec<PageImage>,
@@ -113,10 +115,14 @@ fn write_parts(
         };
         let rest = pages.split_off(range.len());
         let out = part_path(&req.output, n);
+        let target = match req.replace {
+            true => staging(&out),
+            false => out,
+        };
         match req
             .format
             .exporter()
-            .export(pages, &part, &req.device, &out, req.replace)
+            .export(pages, &part, &req.device, &target, req.replace)
         {
             Ok(path) => written.push(Part {
                 path,
@@ -132,7 +138,35 @@ fn write_parts(
         }
         pages = rest;
     }
-    Ok(written)
+    match req.replace {
+        true => publish(written, &req.output),
+        false => Ok(written),
+    }
+}
+
+/// Where part `out` is built while replacing: a hidden `.part` file next to it.
+fn staging(out: &Path) -> PathBuf {
+    let name = out.file_name().map(|n| n.to_string_lossy().into_owned());
+    out.with_file_name(format!(".mangas-{}.part", name.unwrap_or_default()))
+}
+
+/// Renames the staged parts over their final names, in order.
+fn publish(staged: Vec<Part>, output: &Path) -> Result<Vec<Part>> {
+    let mut done = Vec::with_capacity(staged.len());
+    for (i, part) in staged.iter().enumerate() {
+        let path = part_path(output, i + 1);
+        if let Err(e) = std::fs::rename(&part.path, &path) {
+            for left in &staged[i..] {
+                let _ = std::fs::remove_file(&left.path);
+            }
+            return Err(e.into());
+        }
+        done.push(Part {
+            path,
+            ..part.clone()
+        });
+    }
+    Ok(done)
 }
 
 fn fallback_identity(req: &ExportRequest) -> String {

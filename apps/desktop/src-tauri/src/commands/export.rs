@@ -123,7 +123,7 @@ pub(super) fn resolve(
 }
 
 /// The preset of the series every folder belongs to; none when unreadable or mixed.
-fn series_preset(dirs: &[PathBuf]) -> Option<ExportPreset> {
+pub(super) fn series_preset(dirs: &[PathBuf]) -> Option<ExportPreset> {
     let refs: Vec<&std::path::Path> = dirs.iter().map(PathBuf::as_path).collect();
     open_library()
         .and_then(|lib| library::preset_for_dirs(&lib, &refs).map_err(to_ipc))

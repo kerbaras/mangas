@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Chapter } from "@/lib/ipc";
-import { biggestBook, megabytes, sizeNote } from "@/lib/kindle-size";
+import { downloadedBooks, megabytes, sizeNote } from "@/lib/kindle-size";
 
 const chapter = (n: string, local: boolean): Chapter => ({
   id: n,
@@ -19,11 +19,12 @@ describe("kindle size", () => {
     expect(megabytes(4_250_000)).toBe("4.3 MB");
   });
 
-  it("measures the book with the most downloaded chapters", () => {
-    const small = plan([chapter("1", true), chapter("2", false), chapter("3", false)]);
-    const big = plan([chapter("4", true), chapter("5", true)]);
-    expect(biggestBook([small, big])).toEqual(["/d/4", "/d/5"]);
-    expect(biggestBook([])).toEqual([]);
+  it("hands every book with downloaded chapters to the estimate", () => {
+    const one = plan([chapter("1", true), chapter("2", false), chapter("3", false)]);
+    const two = plan([chapter("4", true), chapter("5", true)]);
+    const none = plan([chapter("6", false)]);
+    expect(downloadedBooks([one, two, none])).toEqual([["/d/1"], ["/d/4", "/d/5"]]);
+    expect(downloadedBooks([])).toEqual([]);
   });
 
   it("warns over 50 MB unless the parts are under it", () => {

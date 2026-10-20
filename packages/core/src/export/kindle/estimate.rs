@@ -32,6 +32,33 @@ pub fn estimate(
     cut: Options,
     page: PageSettings,
 ) -> Result<Estimate> {
+    estimate_largest(&[chapter_dirs.to_vec()], device, cut, page)
+}
+
+/// The estimate of the book of `books` with the most pages (counted from the image headers of
+/// every book; only that one has pages encoded): the one that decides the size warning.
+pub fn estimate_largest(
+    books: &[Vec<PathBuf>],
+    device: Device,
+    cut: Options,
+    page: PageSettings,
+) -> Result<Estimate> {
+    let counted: Vec<Counted> = books.iter().map(|b| count(b, &device, &page)).collect();
+    match counted.into_iter().max_by_key(|c| c.pages) {
+        Some(book) => sample(book, device, cut, page),
+        None => Ok(Estimate { pages: 0, bytes: 0 }),
+    }
+}
+
+/// One book's chapters with their files, and the pages they give.
+struct Counted<'a> {
+    dirs: &'a [PathBuf],
+    chapters: Vec<(&'a Path, Vec<PathBuf>)>,
+    pages: usize,
+    strips: bool,
+}
+
+fn count<'a>(chapter_dirs: &'a [PathBuf], device: &Device, page: &PageSettings) -> Counted<'a> {
     let chapters: Vec<(&Path, Vec<PathBuf>)> = chapter_dirs
         .iter()
         .map(|d| {
@@ -43,10 +70,24 @@ pub fn estimate(
         .collect();
     let counts: Vec<(usize, bool)> = chapters
         .iter()
-        .map(|(_, files)| page_count(files, &device, &page))
+        .map(|(_, files)| page_count(files, device, page))
         .collect();
-    let pages: usize = counts.iter().map(|c| c.0).sum();
-    let strips = counts.iter().any(|c| c.1);
+    Counted {
+        dirs: chapter_dirs,
+        pages: counts.iter().map(|c| c.0).sum(),
+        strips: counts.iter().any(|c| c.1),
+        chapters,
+    }
+}
+
+/// `book`'s pages times the average size of a few of them encoded for real.
+fn sample(book: Counted, device: Device, cut: Options, page: PageSettings) -> Result<Estimate> {
+    let Counted {
+        dirs: chapter_dirs,
+        chapters,
+        pages,
+        strips,
+    } = book;
     let mut ignore = |_| {};
     let spec = RunSpec {
         device,

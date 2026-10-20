@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::bail;
 use clap::Args as ClapArgs;
-use mangas_core::export::kindle::{export, ExportStats};
+use mangas_core::export::kindle::{export, part_path, ExportStats};
 use mangas_core::export::volume::{self, VolumeOutcome};
 use mangas_core::export::{ExportPreset, Format};
 use mangas_core::{library, storage};
@@ -106,9 +106,17 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             &p.chapters[0].number,
             &p.chapters[p.chapters.len() - 1].number,
         );
+        let path = args.output_dir.join(name);
+        let parts = match args.cut.split_mb {
+            Some(mb) => format!(
+                ", in parts of {mb} MB if bigger: {}, …",
+                part_path(&path, 1).display()
+            ),
+            None => String::new(),
+        };
         outln!(
-            "{}  ({} chapters, {first}–{last})",
-            args.output_dir.join(name).display(),
+            "{}  ({} chapters, {first}–{last}{parts})",
+            path.display(),
             p.chapters.len()
         )?;
     }

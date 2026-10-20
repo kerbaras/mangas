@@ -23,10 +23,11 @@ export const megabytes = (bytes: number): string => {
   return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`;
 };
 
-/** The book the estimate is for: the one with the most downloaded chapters. */
-export function biggestBook(plans: VolumePlan[]): string[] {
-  const dirs = plans.map((p) => p.chapters.flatMap((c) => c.local_path ?? []));
-  return dirs.reduce<string[]>((big, d) => (d.length > big.length ? d : big), []);
+/** The downloaded chapter folders of each planned book; the estimate measures the largest. */
+export function downloadedBooks(plans: VolumePlan[]): string[][] {
+  return plans
+    .map((p) => p.chapters.flatMap((c) => c.local_path ?? []))
+    .filter((dirs) => dirs.length > 0);
 }
 
 /** How far off the estimate may be either way (`export::kindle::estimate` samples pages). */

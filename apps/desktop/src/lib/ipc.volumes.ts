@@ -39,9 +39,9 @@ export type VolumeExport = VolumeRequest & {
   splitMb?: number | null;
 };
 
-/** What `estimate_export` is asked: one book's chapters with the dialog's choices. */
+/** What `estimate_export` is asked: each book's chapter folders with the dialog's choices. */
 export type EstimateRequest = {
-  chapterDirs: string[];
+  books: string[][];
   device: string;
   preset: Preset;
   quality: number | null;

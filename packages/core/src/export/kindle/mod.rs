@@ -14,7 +14,7 @@ pub mod trim;
 
 use super::{profile, Profile, PROFILES};
 
-pub use estimate::{estimate, Estimate};
+pub use estimate::{estimate, estimate_largest, Estimate};
 pub use export::export;
 pub use input::{chapter_files, chapter_images, decode, ChapterFiles};
 pub use parts::{part_path, PART_SIZE, SEND_TO_KINDLE_LIMIT};
