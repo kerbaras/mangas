@@ -79,6 +79,18 @@ async fn private_literals_are_still_refused_before_the_proxy() {
 }
 
 #[tokio::test]
+async fn a_page_on_the_proxy_host_is_refused() {
+    let source = mangas_providers::source("mangadex", &Settings::default()).unwrap();
+    let network = Network::Proxy("http://proxy.only-proxy.test:3128".into());
+    let client = PageClient::via(source.as_ref(), &network).unwrap();
+    let err = client
+        .fetch("http://Proxy.only-proxy.test/x.jpg")
+        .await
+        .unwrap_err();
+    assert!(err.to_string().contains("the proxy's own host"), "{err}");
+}
+
+#[tokio::test]
 async fn the_environment_proxy_resolves_too() {
     let (proxy, server) = (Proxy::start().await, page_server().await);
     std::env::set_var("HTTP_PROXY", format!("localhost:{}", proxy.port));

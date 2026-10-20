@@ -18,7 +18,7 @@ use mangas_core::sources::{Header, Source};
 use reqwest::{Client, Url};
 
 use super::redirect::MAX_REDIRECTS;
-use super::{header_map, RetryPolicy};
+use super::{header_map, network, RetryPolicy};
 use crate::rate_limit::{host_key, HostLimiters};
 
 pub(crate) use redirect::build_http;
@@ -52,6 +52,8 @@ pub struct PageClient<'a> {
     public_only: bool,
     max_bytes: Option<usize>,
     network: Network,
+    /// [`network::proxy_hosts`]: never a page host (see [`Self::target`]).
+    proxies: Vec<String>,
 }
 
 /// How one hop ended: the final response, or a redirect to follow.
@@ -85,6 +87,7 @@ impl<'a> PageClient<'a> {
             retry: PAGE_RETRY,
             public_only,
             max_bytes: None,
+            proxies: network::proxy_hosts(&network),
             network,
         }
     }
@@ -122,6 +125,14 @@ impl<'a> PageClient<'a> {
                 Some(refusal) => refusal.into_error(self.source.name()),
                 None => self.error(format!("refusing to fetch non-public url {url}")),
             });
+        }
+        // The resolver lets the proxy's name resolve to a private address; a page on that name
+        // (reached directly when `NO_PROXY` lists it) would get the same pass.
+        let host = Url::parse(&url)
+            .ok()
+            .and_then(|u| u.host_str().map(str::to_ascii_lowercase));
+        if self.public_only && host.is_some_and(|h| self.proxies.contains(&h)) {
+            return Err(self.error(format!("refusing to fetch the proxy's own host: {url}")));
         }
         if url.starts_with("http:") {
             log::debug!("{}: fetching plain http {url}", self.source.name());
