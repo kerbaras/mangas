@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 env:
-  PR_HEAD: 508bf1846103c2a1e88d92dc51558c727d3d508b
+  PR_HEAD: eccd686f0c98dcb94d5f66ea6f4a0a5c4b6dd23e
   TARGET: x86_64-pc-windows-msvc
   OLD_TAG: v0.5.0-rc.1
   # release.yml runs scripts/set-version.sh before building; the next release is 0.6.0.
@@ -162,6 +162,11 @@ jobs:
           $before = Get-Content "$env:RUNNER_TEMP\settings-before.txt" -Raw
           if ($after.Trim() -ne $before.Trim()) { throw "settings changed across the upgrade" }
           Write-Host "settings identical before and after the upgrade"
+          $lnks = @(Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs", "$env:USERPROFILE\Desktop" -File | Where-Object Name -match '^mangas\.lnk')
+          $lnks | ForEach-Object { Write-Host "shortcut on disk: $($_.FullName)" }
+          if ($lnks.Count -ne 2) { throw "expected the Start menu and desktop shortcuts, got $($lnks.Count)" }
+          foreach ($l in $lnks) { if ($l.Name -cne "mangas.lnk") { throw "shortcut is named '$($l.Name)'" } }
+          Write-Host "both shortcuts are named mangas.lnk"
       - name: The app starts, window title
         shell: pwsh
         run: |
