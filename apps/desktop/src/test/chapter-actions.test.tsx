@@ -64,7 +64,7 @@ describe("Details actions", () => {
 
 describe("chapterFolder", () => {
   it("takes the parent folder on either separator", () => {
-    expect(parentFolder("C:\\Mangas\\local\\x\\1\\")).toBe("C:\\Mangas\\local\\x");
+    expect(parentFolder("C:\\mangas\\local\\x\\1\\")).toBe("C:\\mangas\\local\\x");
     expect(parentFolder("/d/local/x/1")).toBe("/d/local/x");
   });
 

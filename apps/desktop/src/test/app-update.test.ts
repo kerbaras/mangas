@@ -33,7 +33,7 @@ describe("app update wording", () => {
     expect(statusLine({ kind: "up_to_date", current: "0.5.0", channel: "rc" })).toBe(
       "You're up to date (v0.5.0, release candidates channel)",
     );
-    expect(statusLine(available)).toBe("Mangas v0.5.0 is available (you have v0.4.0)");
+    expect(statusLine(available)).toBe("mangas v0.5.0 is available (you have v0.4.0)");
     const older = { kind: "older", current: "0.3.9", version: "0.3.0", channel: "rc" } as const;
     expect(statusLine(older)).toBe(
       "The server offers v0.3.0, older than your v0.3.9: nothing to install",

@@ -9,7 +9,7 @@ export function statusLine(s: AppUpdateStatus): string {
     case "up_to_date":
       return `You're up to date (v${s.current}, ${channelLabel(s.channel)} channel)`;
     case "available":
-      return `Mangas v${s.version} is available (you have v${s.current})`;
+      return `mangas v${s.version} is available (you have v${s.current})`;
     case "older":
       return `The server offers v${s.version}, older than your v${s.current}: nothing to install`;
     case "invalid_signature":

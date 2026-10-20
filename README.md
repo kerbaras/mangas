@@ -1,7 +1,7 @@
-# Mangas
+# mangas
 
 <p align="center">
-  <img src="apps/desktop/src-tauri/icons/128x128@2x.png" alt="Mangas app icon" width="128"/>
+  <img src="apps/desktop/src-tauri/icons/128x128@2x.png" alt="mangas app icon" width="128"/>
 </p>
 
 <p align="center">
@@ -28,11 +28,11 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="apps/web/src/assets/library-dark-1280.webp"/>
-    <img src="apps/web/src/assets/library-light-1280.webp" alt="The Mangas library: a grid of followed series with their covers and unread-chapter badges" width="860"/>
+    <img src="apps/web/src/assets/library-light-1280.webp" alt="The mangas library: a grid of followed series with their covers and unread-chapter badges" width="860"/>
   </picture>
 </p>
 
-Mangas is a desktop manga/manhwa library and Kindle exporter. Follow series from MangaDex,
+mangas is a desktop manga/manhwa library and Kindle exporter. Follow series from MangaDex,
 MangaDot, WeebCentral, Tapas, Comick, Webtoons and MANGA Plus, download chapters, and turn them into
 fixed-layout EPUBs sized for a Kindle. Long webtoon strips are cut into pages at gutters instead
 of at fixed heights, so panels, speech bubbles and faces stay whole.
@@ -68,18 +68,18 @@ pre-release. Take the file for your system from the
 
 | System | File |
 |---|---|
-| macOS, Apple silicon | `Mangas_<version>_aarch64.dmg` |
-| macOS, Intel | `Mangas_<version>_x64.dmg` |
-| Windows x64 / arm64 | `Mangas_<version>_x64-setup.exe` / `Mangas_<version>_arm64-setup.exe` |
-| Debian, Ubuntu | `Mangas_<version>_amd64.deb` / `Mangas_<version>_arm64.deb` |
-| Fedora, openSUSE | `Mangas-<version>-1.x86_64.rpm` / `Mangas-<version>-1.aarch64.rpm` |
-| Any Linux | `Mangas_<version>_amd64.AppImage` / `Mangas_<version>_aarch64.AppImage` |
+| macOS, Apple silicon | `mangas_<version>_aarch64.dmg` |
+| macOS, Intel | `mangas_<version>_x64.dmg` |
+| Windows x64 / arm64 | `mangas_<version>_x64-setup.exe` / `mangas_<version>_arm64-setup.exe` |
+| Debian, Ubuntu | `mangas_<version>_amd64.deb` / `mangas_<version>_arm64.deb` |
+| Fedora, openSUSE | `mangas-<version>-1.x86_64.rpm` / `mangas-<version>-1.aarch64.rpm` |
+| Any Linux | `mangas_<version>_amd64.AppImage` / `mangas_<version>_aarch64.AppImage` |
 
 On Linux:
 
 ```bash
-sudo apt install ./Mangas_<version>_amd64.deb      # puts mangas on your PATH
-chmod +x Mangas_<version>_amd64.AppImage && ./Mangas_<version>_amd64.AppImage
+sudo apt install ./mangas_<version>_amd64.deb      # puts mangas on your PATH
+chmod +x mangas_<version>_amd64.AppImage && ./mangas_<version>_amd64.AppImage
 ```
 
 The Linux builds need glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 37 or later).
@@ -90,7 +90,7 @@ Open no longer works on macOS 15).
 
 ### First run
 
-Open Mangas, search for a title and follow it. Or do the same from a terminal:
+Open mangas, search for a title and follow it. Or do the same from a terminal:
 
 ```bash
 mangas search "solo leveling"
@@ -298,7 +298,7 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## Status
 
-Mangas is pre-1.0. Each minor version closes a
+mangas is pre-1.0. Each minor version closes a
 [milestone](https://github.com/kerbaras/mangas/milestones):
 
 | Milestone | Status | Scope |

@@ -176,7 +176,7 @@ fn link_cli(exe: &std::path::Path) -> Result<String, String> {
         })
 }
 
-/// A previous install of ours: dangling, the `mangas` binary, or a Mangas AppImage.
+/// A previous install of ours: dangling, the `mangas` binary, or a mangas AppImage.
 #[cfg(unix)]
 fn is_ours(target: &std::path::Path) -> bool {
     let name = target

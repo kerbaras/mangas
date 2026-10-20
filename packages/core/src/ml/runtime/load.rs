@@ -71,7 +71,7 @@ fn load(models_dir: &Path, loaded: &mut Loaded) -> Result<()> {
             Ok(())
         }
         Err(e) => {
-            let reason = format!("onnx runtime: {e}; restart Mangas to try again");
+            let reason = format!("onnx runtime: {e}; restart mangas to try again");
             *loaded = Loaded::Broken(reason.clone());
             Err(Error::Other(reason))
         }

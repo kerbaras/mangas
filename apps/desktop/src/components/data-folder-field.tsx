@@ -34,7 +34,7 @@ export function DataFolderField({ onMoved, partial }: Props) {
   const [progress, setProgress] = useState<MoveProgress | null>(null);
 
   const choose = async () => {
-    const dir = await pickFolder("Move the data folder to", "~/Mangas");
+    const dir = await pickFolder("Move the data folder to", "~/mangas");
     if (!dir || dir === settings.dataDir) return;
     try {
       setTarget({ dir, partial: await moveTargetPartial(dir) });

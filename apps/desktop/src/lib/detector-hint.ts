@@ -22,7 +22,7 @@ export const runtimeFailure = (s: DetectorsStatus): string | null =>
 /** After a partial remove; the CLI prints the same words (`pending_line`). */
 export const pendingRemoval = (s: DetectorsStatus): string | null =>
   s.runtime.state === "remove_pending"
-    ? `Detector models removed; the runtime (${formatBytes(s.runtime.bytes)}) is still in use — restart Mangas and remove again.`
+    ? `Detector models removed; the runtime (${formatBytes(s.runtime.bytes)}) is still in use — restart mangas and remove again.`
     : null;
 
 /** Files a failed remove (or download) left in the detector folder. */

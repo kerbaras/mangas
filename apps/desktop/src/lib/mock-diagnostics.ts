@@ -14,7 +14,7 @@ export const mockDiagnostics = (
 ): DiagnosticsBackend => ({
   async diagnostics() {
     const lines = providers.map((p) => `  ${p.id}: ${status(p, settings())}`).join("\n");
-    const report = `Mangas 0.0.0-mock\nOS: browser\nData folder: ${dataDir}\nLogs: ${dataDir}/logs\nProviders:\n${lines}\n`;
+    const report = `mangas 0.0.0-mock\nOS: browser\nData folder: ${dataDir}\nLogs: ${dataDir}/logs\nProviders:\n${lines}\n`;
     return { log_dir: `${dataDir}/logs`, report };
   },
   async reportError(message, level) {

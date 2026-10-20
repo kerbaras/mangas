@@ -32,7 +32,7 @@ pub struct Args {
     /// Download every new chapter found, not only those of titles with auto-download on
     #[arg(long)]
     pub download: bool,
-    /// Check for a new version of the Mangas app instead of new chapters
+    /// Check for a new version of the mangas app instead of new chapters
     ///
     /// Prints one line, or with --json one object whose `kind` is `up_to_date`, `available`,
     /// `older` (the server offers an older version: nothing to install) or `invalid_signature`

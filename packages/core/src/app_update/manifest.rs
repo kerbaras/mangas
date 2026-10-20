@@ -50,7 +50,7 @@ pub enum Status {
 }
 
 impl Status {
-    /// "You're up to date" / "Mangas 0.5.0 is available"; same wording as the app.
+    /// "You're up to date" / "mangas 0.5.0 is available"; same wording as the app.
     pub fn line(&self) -> String {
         match self {
             Self::UpToDate { current, channel } => {
@@ -61,7 +61,7 @@ impl Status {
             }
             Self::Available {
                 current, version, ..
-            } => format!("Mangas v{version} is available (you have v{current})"),
+            } => format!("mangas v{version} is available (you have v{current})"),
             Self::Older {
                 current, version, ..
             } => format!(

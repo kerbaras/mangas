@@ -31,9 +31,9 @@ I studied the four references at 1440 and 390 wide, light and dark, scrolling in
 
 **What I take from them.** One display face with character, used big and rarely. The real product carries the page. A sticky stage suits a product with a real sequence (follow, download, export, read). Motion is a few short entrances and one scrubbed moment, never on body text. We have no logos, quotes, pricing or FAQ, and the page is better without them.
 
-## Direction for Mangas
+## Direction for mangas
 
-Mangas is the only one of these products that turns long webtoon strips into pages. It cuts at the gaps between panels. The page uses that cut line (a dashed red rule) as its single motif and makes it the one scroll-scrubbed moment.
+mangas is the only one of these products that turns long webtoon strips into pages. It cuts at the gaps between panels. The page uses that cut line (a dashed red rule) as its single motif and makes it the one scroll-scrubbed moment.
 
 **Type.** Display is Archivo, self-hosted as one variable WOFF2. It's instanced to `wdth` 62–100 and `wght` 500–800 and subset to Latin, which comes to 30 KB. It's set extra-condensed (wdth 62, wght 760, line-height .92) in sentence case. Condensed gothic is close to manga cover lettering, and closer to httpie than a serif would be. Body copy uses the app's own system stack (`--font-sans` in `tokens.css`, 0 KB). Labels and the CLI snippet use `--font-mono`. The scale is display 104/96 at 1440 (54/50 at 390), step titles 44, lede 20/28, body 16/24 and labels 12 mono uppercase.
 

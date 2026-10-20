@@ -1,4 +1,4 @@
-//! `mangas update --check`: whether a newer Mangas is published on the app's release channel.
+//! `mangas update --check`: whether a newer mangas is published on the app's release channel.
 //! Same manifests, version rule and signing key as Settings → About in the app.
 
 use mangas_core::app_update::{self, pubkey_from_config, Channel, Status, RELEASES};

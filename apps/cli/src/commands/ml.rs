@@ -126,7 +126,7 @@ pub fn runtime_line(runtime: &RuntimeStatus) -> String {
 pub fn pending_line(runtime: &RuntimeStatus) -> Option<String> {
     match runtime {
         RuntimeStatus::RemovePending { bytes, .. } => Some(format!(
-            "Detector models removed; the runtime ({}) is still in use — restart Mangas and remove again",
+            "Detector models removed; the runtime ({}) is still in use — restart mangas and remove again",
             human_size(*bytes)
         )),
         _ => None,
@@ -148,7 +148,7 @@ mod tests {
             line.starts_with("Detector models removed; the runtime ("),
             "{line}"
         );
-        assert!(line.ends_with("is still in use — restart Mangas and remove again"));
+        assert!(line.ends_with("is still in use — restart mangas and remove again"));
         assert_eq!(runtime_line(&pending), "in use, removal pending (v1.28.3)");
         let downloaded = RuntimeStatus::Downloaded {
             version: "1.28.3".into(),

@@ -29,7 +29,7 @@ PY
 
 if ! gh release view "$channels" -R "$repo" >/dev/null 2>&1; then
   gh release create "$channels" -R "$repo" --prerelease --latest=false --target "$(git rev-parse HEAD)" \
-    --title "Update channels" --notes "Update manifests read by installed apps. Not a release: download Mangas from the latest release."
+    --title "Update channels" --notes "Update manifests read by installed apps. Not a release: download mangas from the latest release."
 fi
 
 newer() { # newer FILE_A FILE_B: whether A's version is above B's (semver, rc.N numeric)

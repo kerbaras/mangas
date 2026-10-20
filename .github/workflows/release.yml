@@ -166,7 +166,7 @@ jobs:
           tauriScript: pnpm tauri
           args: --target ${{ matrix.target }} --features ml ${{ env.UPDATER_ARGS }}
           tagName: ${{ needs.version.outputs.tag }}
-          releaseName: Mangas ${{ needs.version.outputs.tag }}
+          releaseName: mangas ${{ needs.version.outputs.tag }}
           releaseBody: ${{ steps.notes.outputs.body }}
           prerelease: ${{ contains(needs.version.outputs.tag, '-rc.') }}
           # Merged across the matrix into the release's latest.json (only when signed).

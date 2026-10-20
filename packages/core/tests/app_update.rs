@@ -155,6 +155,6 @@ fn status_lines_match_the_app() {
     };
     assert_eq!(
         available.line(),
-        "Mangas v0.5.0-rc.1 is available (you have v0.4.0)"
+        "mangas v0.5.0-rc.1 is available (you have v0.4.0)"
     );
 }
