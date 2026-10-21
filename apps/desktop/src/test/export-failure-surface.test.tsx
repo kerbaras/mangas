@@ -70,4 +70,22 @@ describe("export failure surface (#299)", () => {
       expect.objectContaining({ id: "export" }),
     );
   });
+
+  it("toasts the failure when another modal covers the open export dialog", async () => {
+    const modals = ["export", "smart-cut"].map(() => {
+      const d = document.body.appendChild(document.createElement("div"));
+      d.setAttribute("role", "dialog");
+      return d;
+    });
+    try {
+      const { result } = renderHook(() => useExport({ visible: () => true }));
+      await act(() => result.current.run(stopped));
+      expect(toast.error).toHaveBeenCalledWith(
+        "Export stopped",
+        expect.objectContaining({ id: "export" }),
+      );
+    } finally {
+      for (const d of modals) d.remove();
+    }
+  });
 });

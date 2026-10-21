@@ -19,8 +19,12 @@ type Options = {
   visible?: () => boolean;
 };
 
-/** The panel is only seen while the window is on screen: minimised, a toast reports instead. */
-const onScreen = () => document.visibilityState !== "hidden";
+/**
+ * The dialog's panel is out of sight while the window is minimised or another modal (Smart-cut
+ * options) is open over the export dialog; a toast reports the failure then.
+ */
+const panelInSight = () =>
+  document.visibilityState !== "hidden" && document.querySelectorAll('[role="dialog"]').length <= 1;
 
 /** Runs one export job (one or more books) and follows its progress events. */
 export function useExport({ visible = () => false }: Options = {}) {
@@ -29,7 +33,7 @@ export function useExport({ visible = () => false }: Options = {}) {
   shown.current = visible;
   /** One surface for a failure: the dialog's panel while it is open and seen, else a toast. */
   const report = useCallback((title: string, e: unknown) => {
-    if (shown.current() && onScreen()) toast.dismiss("export");
+    if (shown.current() && panelInSight()) toast.dismiss("export");
     else notifyError(title, e, { id: "export" });
   }, []);
   const running = useRef(false);
