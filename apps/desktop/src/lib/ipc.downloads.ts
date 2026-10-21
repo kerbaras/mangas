@@ -84,12 +84,14 @@ export const NO_ROOT_CERTIFICATES = "no CA certificates found";
 export const NO_SPACE = "not enough space in ";
 /** `mangas_core::Error::DeviceFull`: a USB copy filled the Kindle; the partial book was removed. */
 export const DEVICE_FULL = "not enough space on ";
-/** A failure a retry cannot fix: the source no longer has the chapter, its host is refused, the
- * system has no root certificates, or the export folder's disk or the Kindle is full. */
-export const isFinalError = (error: string) =>
+/** A failure a retry cannot fix: the source no longer has the chapter, its host is refused while
+ * no proxy is in use (through one the proxy resolves page hosts, so a refusal stored before it
+ * was set may download on a retry), the system has no root certificates, or the export folder's
+ * disk or the Kindle is full. Mirrors `mangas_core::download::queue::is_final_error`. */
+export const isFinalError = (error: string, proxied = false) =>
   error.includes(UNLISTED) ||
   error.startsWith("not found") ||
-  isRefused(error) ||
+  (!proxied && isRefused(error)) ||
   error.includes(NO_ROOT_CERTIFICATES) ||
   error.startsWith(NO_SPACE) ||
   error.startsWith(DEVICE_FULL);

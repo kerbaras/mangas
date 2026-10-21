@@ -8,7 +8,7 @@ use mangas_providers::updates::check_updates;
 use serde::Serialize;
 
 use super::plural;
-use super::settled::{failed_note, paused_report};
+use super::settled::{failed_note, paused_report, proxied};
 use super::update_print::print_report;
 use super::watch::{count, run_quietly, run_until_settled};
 use crate::exit::Exit;
@@ -95,7 +95,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         };
         print_json(&out)?;
     }
-    let failed_note = failed_note(jobs, "chapter");
+    let failed_note = failed_note(jobs, "chapter", proxied());
     if let Some((lines, exit)) = paused_report(&settled) {
         if !args.json {
             for line in lines {

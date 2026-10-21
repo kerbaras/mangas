@@ -101,10 +101,11 @@ function Detail({ job, speed }: { job: DownloadJob; speed: number | null }) {
   );
 }
 
-type Props = { job: DownloadJob; speed: number | null };
+/** `proxied`: a proxy is in use, so a stored refusal gets Retry. */
+type Props = { job: DownloadJob; speed: number | null; proxied?: boolean };
 
 /** One job. Memoised: a progress event re-renders only the row whose job changed. */
-export const DownloadRow = memo(function DownloadRow({ job, speed }: Props) {
+export const DownloadRow = memo(function DownloadRow({ job, speed, proxied }: Props) {
   const unlisted = isUnlisted(job);
   return (
     <li
@@ -136,7 +137,7 @@ export const DownloadRow = memo(function DownloadRow({ job, speed }: Props) {
         <Detail job={job} speed={speed} />
       </div>
       <div className="flex justify-end gap-1">
-        {jobActions(job).map((a) => (
+        {jobActions(job, proxied).map((a) => (
           <ActionButton key={a} job={job} action={a} />
         ))}
       </div>

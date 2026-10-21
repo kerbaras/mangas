@@ -69,7 +69,8 @@ export function stateLabel(job: DownloadJob): string {
 /** What the user can do with a job from its row. */
 export type JobAction = "pause" | "resume" | "cancel" | "retry" | "dismiss" | "open";
 
-export function jobActions(job: DownloadJob): JobAction[] {
+/** The row's buttons; `proxied` (a proxy is in use) lets a stored refusal be retried. */
+export function jobActions(job: DownloadJob, proxied = false): JobAction[] {
   switch (job.state) {
     case "running":
       return ["pause", "cancel"];
@@ -79,7 +80,9 @@ export function jobActions(job: DownloadJob): JobAction[] {
       return ["cancel"];
     case "failed":
     case "cancelled":
-      return isUnlisted(job) || isFinalError(job.error ?? "") ? ["dismiss"] : ["retry", "dismiss"];
+      return isUnlisted(job) || isFinalError(job.error ?? "", proxied)
+        ? ["dismiss"]
+        : ["retry", "dismiss"];
     case "done":
       return job.local_path ? ["open", "dismiss"] : ["dismiss"];
   }

@@ -72,6 +72,8 @@ export type Backend = AppUpdateBackend &
     providerStatus(id: string): Promise<ProviderStatus>;
     /** MangaDex's status probe through a proxy setting that isn't saved yet. */
     testProxy(mode: ProxyMode, url: string): Promise<ProviderStatus>;
+    /** Whether downloads go through a proxy (the configured one, or the system's). */
+    proxyInUse(): Promise<boolean>;
     /** Searches the enabled providers (only `providers` when not empty), one group each. */
     searchAll(query: string, providers: string[]): Promise<SearchGroup[]>;
     /** Displayable URL of the manga's cover (cached through its provider), or null. */
@@ -133,6 +135,7 @@ export type ConnectEnd =
 export const providerStatus = async (id: string) => (await backend()).providerStatus(id);
 export const testProxy = async (mode: ProxyMode, url: string) =>
   (await backend()).testProxy(mode, url);
+export const proxyInUse = async () => (await backend()).proxyInUse();
 export const searchAll = async (q: string, providers: string[]) =>
   (await backend()).searchAll(q, providers);
 export const coverSrc = async (m: Pick<Manga, "source" | "id" | "cover_url">) =>

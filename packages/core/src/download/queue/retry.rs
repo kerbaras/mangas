@@ -72,11 +72,19 @@ pub fn classify(error: &Error) -> Failure {
 }
 
 /// Whether a failed job's stored error is one a retry cannot fix: the chapter is gone from the
-/// source or its host is refused ([`Error::BlockedAddress`]). Mirrors the desktop's `isFinalError`.
-pub fn is_final_error(error: &str) -> bool {
+/// source, or its host is refused ([`Error::BlockedAddress`]) while no proxy is in use. Through a
+/// proxy the proxy resolves page hosts (#305), so a refusal stored before it was set may download
+/// on a retry (#309); a private IP literal is refused again at once. Mirrors the desktop's
+/// `isFinalError`.
+pub fn is_final_error(error: &str, proxied: bool) -> bool {
     error.contains(super::UNLISTED)
         || error.starts_with("not found")
-        || (error.starts_with("refused:") && error.contains("resolves to a non-public address"))
+        || (!proxied && is_refused(error))
+}
+
+/// [`Error::BlockedAddress`]'s message.
+pub fn is_refused(error: &str) -> bool {
+    error.starts_with("refused:") && error.contains("resolves to a non-public address")
 }
 
 /// The provider's "HTTP 404 for /path" style message for a resource that no longer exists.

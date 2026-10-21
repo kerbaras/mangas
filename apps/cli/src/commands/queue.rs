@@ -5,7 +5,7 @@ use clap::{Args as ClapArgs, Subcommand};
 use mangas_core::download::queue::{self, Action, Job, JobId, JobState, QueueGate, Scope, Target};
 use mangas_core::library;
 
-use super::settled::{failed_note, paused_report};
+use super::settled::{failed_note, paused_report, proxied};
 use super::watch::{count, label, run_until_settled};
 use crate::output::outln;
 use crate::paths;
@@ -144,7 +144,7 @@ async fn run_all(lib: Arc<library::Library>) -> anyhow::Result<()> {
         }
         return Err(exit.into());
     }
-    if let Some(note) = failed_note(jobs, "download") {
+    if let Some(note) = failed_note(jobs, "download", proxied()) {
         bail!("{note}");
     }
     Ok(())

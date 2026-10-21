@@ -10,7 +10,7 @@ use mangas_core::{library, storage};
 
 use super::download_releases::{pick, pick_group, report_left_out};
 use super::followed::followed_source;
-use super::settled::{failed_note, paused_report};
+use super::settled::{failed_note, paused_report, proxied};
 use super::watch::run_until_settled;
 use super::{source_by_name, stored_settings, unknown_group};
 use crate::output::outln;
@@ -117,7 +117,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             }
         }
     }
-    let failed_note = failed_note(jobs, "chapter");
+    let failed_note = failed_note(jobs, "chapter", proxied());
     if let Some((lines, exit)) = paused_report(&settled) {
         for line in lines {
             outln!("{line}")?;

@@ -3,6 +3,7 @@ import { DownloadRow } from "@/components/download-row";
 import { Button } from "@/components/ui/button";
 import { pagesPerSecond, type QueueState } from "@/lib/download-queue";
 import type { DownloadJob } from "@/lib/ipc.downloads";
+import { useProxyInUse } from "@/lib/proxy-in-use";
 
 type Props = {
   title: string;
@@ -19,6 +20,7 @@ export function DownloadSection(props: Props) {
 }
 
 function PagedSection({ title, jobs, samples, action, pageSize }: Props) {
+  const proxied = useProxyInUse();
   const [limit, setLimit] = useState(pageSize ?? Number.POSITIVE_INFINITY);
   const id = `downloads-${title.toLowerCase()}`;
   const shown = jobs.slice(0, limit);
@@ -34,7 +36,12 @@ function PagedSection({ title, jobs, samples, action, pageSize }: Props) {
       </div>
       <ul className="border-t border-stroke/60">
         {shown.map((job) => (
-          <DownloadRow key={job.id} job={job} speed={pagesPerSecond(samples.get(job.id))} />
+          <DownloadRow
+            key={job.id}
+            job={job}
+            speed={pagesPerSecond(samples.get(job.id))}
+            proxied={proxied}
+          />
         ))}
       </ul>
       {hidden > 0 && pageSize && (
