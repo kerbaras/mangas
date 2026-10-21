@@ -4,7 +4,11 @@ use std::time::Duration;
 use chrono::{TimeZone, Utc};
 use mangas_core::library::{ProviderSession, Settings};
 use mangas_providers::http::{answered_gate, probe_status, session_gate};
-use mangas_providers::{info, providers, source, status, Capability, ProviderStatus, Session};
+use mangas_providers::{
+    info, providers, source, source_at, status, Capability, ProviderStatus, Session,
+};
+use wiremock::matchers::method;
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[test]
 fn every_provider_builds_under_its_own_id() {
@@ -45,14 +49,37 @@ fn info_serialises_for_the_apps() {
     );
 }
 
-#[tokio::test]
-async fn status_without_a_request_when_the_session_is_missing() {
+/// Comick's probe against a mock base: offline and deterministic (#312).
+async fn comick_status(base: &str) -> ProviderStatus {
     let settings = Settings::default();
-    assert_eq!(
-        status("comick", &settings).await,
-        ProviderStatus::NeedsSession
-    );
-    let unknown = status("nope", &settings).await;
+    source_at("comick", &settings, base).unwrap().status().await
+}
+
+async fn answering(status: u16) -> MockServer {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(status).set_body_string("{}"))
+        .mount(&server)
+        .await;
+    server
+}
+
+#[tokio::test]
+async fn a_missing_session_needs_one_once_the_host_answers() {
+    for code in [200, 403] {
+        let server = answering(code).await;
+        assert_eq!(
+            comick_status(&server.uri()).await,
+            ProviderStatus::NeedsSession
+        );
+    }
+    let failing = answering(503).await;
+    assert!(comick_status(&failing.uri()).await.is_unreachable());
+    let closed = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let dead = format!("http://{}", closed.local_addr().unwrap());
+    drop(closed);
+    assert!(comick_status(&dead).await.is_unreachable());
+    let unknown = status("nope", &Settings::default()).await;
     assert!(matches!(unknown, ProviderStatus::Unreachable { .. }));
 }
 
