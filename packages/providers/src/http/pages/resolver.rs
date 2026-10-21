@@ -32,7 +32,13 @@ impl Resolve for PublicResolver {
         Box::pin(async move {
             let addrs: Vec<SocketAddr> = match fixed {
                 Some(ip) => vec![SocketAddr::new(ip, 0)],
-                None => tokio::net::lookup_host((host.as_str(), 0)).await?.collect(),
+                None => tokio::net::lookup_host((host.as_str(), 0))
+                    .await
+                    .map_err(|e| Refusal::Unresolved {
+                        host: host.clone(),
+                        cause: e.to_string(),
+                    })?
+                    .collect(),
             };
             let addrs = match proxy {
                 true => addrs,
@@ -46,8 +52,16 @@ impl Resolve for PublicResolver {
 /// Why a host is not fetched.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Refusal {
-    NonPublic { host: String, ip: IpAddr },
+    NonPublic {
+        host: String,
+        ip: IpAddr,
+    },
     NoAddress(String),
+    /// The lookup failed (no such name, no DNS answer): retried once, not refused for good.
+    Unresolved {
+        host: String,
+        cause: String,
+    },
 }
 
 impl fmt::Display for Refusal {
@@ -57,6 +71,7 @@ impl fmt::Display for Refusal {
                 write!(f, "{host} resolves to a non-public address {ip}")
             }
             Self::NoAddress(host) => write!(f, "{host} resolves to no address"),
+            Self::Unresolved { host, cause } => write!(f, "couldn't resolve {host}: {cause}"),
         }
     }
 }
@@ -64,10 +79,12 @@ impl fmt::Display for Refusal {
 impl std::error::Error for Refusal {}
 
 impl Refusal {
-    /// The app error: [`Error::BlockedAddress`] for a private address (final, never retried).
+    /// The app error: [`Error::BlockedAddress`] for a private address (final, never retried),
+    /// a network error for a failed lookup (the queue may retry it).
     pub(super) fn into_error(self, source: &str) -> Error {
         match self {
             Self::NonPublic { host, ip } => Error::BlockedAddress { host, ip },
+            Self::Unresolved { .. } => Error::Other(format!("network: {self}")),
             other => Error::Source {
                 name: source.to_string(),
                 message: other.to_string(),

@@ -7,6 +7,7 @@ mod attempt;
 mod builder;
 mod redirect;
 mod resolver;
+mod unreachable;
 
 use std::time::Duration;
 
