@@ -7,6 +7,7 @@ mod exporter;
 pub mod kindle;
 mod output;
 pub mod page;
+mod part_claim;
 pub mod pdf;
 pub mod preset;
 mod profiles;
