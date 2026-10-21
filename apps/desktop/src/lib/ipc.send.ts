@@ -48,6 +48,12 @@ export const DEFAULT_PORT: Record<Security, number> = { starttls: 587, tls: 465,
 /** Mirrors `mangas_core::send::KindleVolume`. */
 export type KindleVolume = { name: string; root: string; documents: string };
 
+/** Mirrors `mangas_core::send::usb::UsbKindle`: a Kindle on the USB bus, mounted or not. */
+export type UsbKindle = { name: string };
+
+/** Mirrors `mangas_core::send::usb::MTP_HINT`; follows the device name. */
+export const MTP_HINT = "connects over MTP, which mangas can't copy to on this computer yet";
+
 /** Mirrors `mangas_core::send::email::Sent`. */
 export type SentEmail = { to: string; bytes: number };
 
@@ -71,6 +77,8 @@ export type UsbCopy = { path: string; already_there: boolean };
 
 export type SendBackend = {
   findKindles(): Promise<KindleVolume[]>;
+  /** Kindles on the USB bus, mounted or not (asked when none is mounted). */
+  usbKindles(): Promise<UsbKindle[]>;
   /** Copies the EPUB to the Kindle at `root` (the first found when omitted); resolves to where it is. */
   sendUsb(file: string, title: string, root?: string): Promise<UsbCopy>;
   onCopyProgress(cb: (p: CopyProgress) => void): Promise<Unlisten>;
@@ -92,6 +100,7 @@ export type SendBackend = {
 };
 
 export const findKindles = async () => (await backend()).findKindles();
+export const usbKindles = async () => (await backend()).usbKindles();
 export const sendUsb = async (file: string, title: string, root?: string) =>
   (await backend()).sendUsb(file, title, root);
 export const onCopyProgress = async (cb: (p: CopyProgress) => void) =>

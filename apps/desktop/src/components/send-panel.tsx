@@ -66,7 +66,11 @@ export function SendPanel({ file, onSent }: Props) {
           </button>
         </p>
       )}
-      <SendStatus state={send.state} onRetry={() => void send.retry()} />
+      <SendStatus
+        state={send.state}
+        onRetry={() => void send.retry()}
+        onEmail={canEmail && !refusal ? () => void send.retry("email") : undefined}
+      />
     </div>
   );
 }

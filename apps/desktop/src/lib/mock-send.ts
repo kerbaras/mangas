@@ -47,7 +47,10 @@ export function mockSend(): SendBackend {
     async findKindles() {
       await wait(300);
       looks += 1;
-      return params.has("no-kindle") && looks < 2 ? [] : [KINDLE];
+      return (params.has("no-kindle") && looks < 2) || params.has("mtp-kindle") ? [] : [KINDLE];
+    },
+    async usbKindles() {
+      return params.has("mtp-kindle") ? [{ name: "Kindle" }] : [];
     },
     async sendUsb(file, title) {
       const path = `${KINDLE.documents}/${file.split("/").pop()}`;
