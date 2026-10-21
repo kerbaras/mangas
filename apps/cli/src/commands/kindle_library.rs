@@ -19,7 +19,7 @@ pub(super) type FromLibrary = (
 /// Series/chapter/volume labels from the library (folders it doesn't know export unlabelled),
 /// the first chapter's series for the default title (a mixed export lacks it in `Labels`), the
 /// TOC entries, the series export preset when every folder belongs to one series, and below it
-/// what the series' source says (its reading direction).
+/// what the series' source says (its reading direction); several series give the way they all turn.
 pub(super) fn from_library(chapters: &[PathBuf]) -> FromLibrary {
     paths::library_db()
         .and_then(|db| Ok(library::open(&db)?))
@@ -30,7 +30,7 @@ pub(super) fn from_library(chapters: &[PathBuf]) -> FromLibrary {
                     library::get_export_preset(&lib, source, id)?,
                     library::source_direction(&lib, source, id)?,
                 ),
-                None => (None, None),
+                None => (None, shared_direction(&lib, chapters)?),
             };
             Ok((
                 labels_in(&lib, chapters)?,
@@ -60,17 +60,34 @@ pub(super) fn series_preset(
     })
 }
 
-/// The one series every folder (in any of its spellings) belongs to.
-fn series_of(lib: &Library, chapters: &[PathBuf]) -> anyhow::Result<Option<(String, String)>> {
-    let spelled = chapters
+/// Each folder in every spelling the library may store it under.
+fn each_spelled(lib: &Library, chapters: &[PathBuf]) -> anyhow::Result<Vec<Vec<PathBuf>>> {
+    chapters
         .iter()
         .map(|c| spellings(lib, &[c.as_path()]))
-        .collect::<anyhow::Result<Vec<_>>>()?;
-    let refs: Vec<Vec<&Path>> = spelled
+        .collect()
+}
+
+fn as_refs(spelled: &[Vec<PathBuf>]) -> Vec<Vec<&Path>> {
+    spelled
         .iter()
         .map(|s| s.iter().map(PathBuf::as_path).collect())
-        .collect();
-    Ok(library::series_of_spelled(lib, &refs)?)
+        .collect()
+}
+
+/// The one series every folder (in any of its spellings) belongs to.
+fn series_of(lib: &Library, chapters: &[PathBuf]) -> anyhow::Result<Option<(String, String)>> {
+    let spelled = each_spelled(lib, chapters)?;
+    Ok(library::series_of_spelled(lib, &as_refs(&spelled))?)
+}
+
+/// The way the several series of `chapters` all turn ([`library::shared_direction`]).
+fn shared_direction(
+    lib: &Library,
+    chapters: &[PathBuf],
+) -> anyhow::Result<Option<mangas_core::domain::ReadingDirection>> {
+    let spelled = each_spelled(lib, chapters)?;
+    Ok(library::shared_direction(lib, &as_refs(&spelled))?)
 }
 
 pub(super) fn first_series(lib: &Library, chapters: &[PathBuf]) -> anyhow::Result<Option<String>> {

@@ -57,4 +57,43 @@ describe("export dialog: page turn", () => {
     await waitFor(() => expect(exportVolumes).toHaveBeenCalledOnce());
     expect(exportVolumes.mock.calls[0][0]).toMatchObject({ direction: "ltr" });
   });
+
+  it("goes back to the saved way when saving the pick fails", async () => {
+    const setExportPreset = vi.fn(async () => {
+      throw new Error("library is read-only");
+    });
+    exportBackend({ getExportPreset: async () => null, setExportPreset });
+    render(dialog());
+    await waitFor(async () => expect((await pageTurn()).textContent).toBe("Right to left (manga)"));
+    fireEvent.keyDown(await pageTurn(), { key: "Enter" });
+    fireEvent.keyDown(await screen.findByRole("option", { name: "Left to right" }), {
+      key: "Enter",
+    });
+    await waitFor(() => expect(setExportPreset).toHaveBeenCalledOnce());
+    await waitFor(async () => expect((await pageTurn()).textContent).toBe("Right to left (manga)"));
+  });
+
+  it("starts another picked series from its own way", async () => {
+    const presets = new Map<string, ExportPreset>();
+    exportBackend({
+      getExportPreset: async (_s: string, id: string) => presets.get(id) ?? null,
+      setExportPreset: async (_s: string, id: string, p: ExportPreset) => {
+        presets.set(id, p);
+      },
+    });
+    const view = render(dialog());
+    fireEvent.keyDown(await pageTurn(), { key: "Enter" });
+    fireEvent.keyDown(await screen.findByRole("option", { name: "Left to right" }), {
+      key: "Enter",
+    });
+    expect(await screen.findByText("Saved for this series.")).toBeTruthy();
+    const other: Manga = { ...manga, id: "other", title: "Other" };
+    view.rerender(
+      <TooltipProvider>
+        <ExportDialog open onOpenChange={() => {}} picks={[{ manga: other, chapters }]} />
+      </TooltipProvider>,
+    );
+    await waitFor(async () => expect((await pageTurn()).textContent).toBe("Right to left (manga)"));
+    expect(presets.has("other")).toBe(false);
+  });
 });

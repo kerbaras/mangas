@@ -11,7 +11,7 @@ import type { ReadingDirection } from "@/lib/ipc.domain";
 const EACH = "each";
 
 type Props = {
-  /** Null when several series each turn their own way. */
+  /** Null when several series turn the way they all do (else left to right). */
   value: ReadingDirection | null;
   /** The one series picked has this direction saved as its setting. */
   saved: boolean;
@@ -23,7 +23,7 @@ type Props = {
 /** Export option: which way the book's pages turn (right to left for manga). */
 export function DirectionField({ value, saved, series, onChange }: Props) {
   const hint = !series
-    ? "Each series turns its own way unless you pick one."
+    ? "The way all these series turn, else left to right, unless you pick one."
     : saved
       ? "Saved for this series."
       : "From the source; picking one saves it for this series.";
@@ -37,7 +37,7 @@ export function DirectionField({ value, saved, series, onChange }: Props) {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {value === null && <SelectItem value={EACH}>As each series reads</SelectItem>}
+          {value === null && <SelectItem value={EACH}>As the series read</SelectItem>}
           <SelectItem value="ltr">Left to right</SelectItem>
           <SelectItem value="rtl">Right to left (manga)</SelectItem>
         </SelectContent>

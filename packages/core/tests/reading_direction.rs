@@ -152,3 +152,39 @@ fn a_series_without_a_direction_reads_left_to_right() {
         ReadingDirection::Ltr
     );
 }
+
+#[test]
+fn several_series_turn_the_way_they_all_do() {
+    let lib = open_in_memory().unwrap();
+    follow(&lib, Some(ReadingDirection::Rtl));
+    let other = Manga {
+        id: MangaId("n".into()),
+        source: "mangadex".into(),
+        title: "N".into(),
+        direction: Some(ReadingDirection::Rtl),
+        ..Default::default()
+    };
+    upsert_manga(&lib, &other).unwrap();
+    let chapter = Chapter {
+        id: ChapterId("n1".into()),
+        manga_id: other.id.clone(),
+        language: "en".into(),
+        number: "1".into(),
+        ..Default::default()
+    };
+    upsert_chapters(&lib, "mangadex", &other.id, "en", &[chapter]).unwrap();
+    let n1 = ChapterId("n1".into());
+    mark_downloaded(&lib, "mangadex", &n1, Path::new("/lib/n/1")).unwrap();
+    let dirs = [Path::new("/lib/m/1"), Path::new("/lib/n/1")];
+    let layer = |lib: &Library| {
+        let layer = series_layer_for_dirs(lib, &dirs).unwrap();
+        layer.and_then(|p| p.direction)
+    };
+    assert_eq!(layer(&lib), Some(ReadingDirection::Rtl));
+    let setting = ExportPreset {
+        direction: Some(ReadingDirection::Ltr),
+        ..Default::default()
+    };
+    set_export_preset(&lib, "mangadex", "n", &setting).unwrap();
+    assert_eq!(layer(&lib), None);
+}

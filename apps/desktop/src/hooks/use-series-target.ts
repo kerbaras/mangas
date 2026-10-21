@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { useExportTarget } from "@/hooks/use-export-target";
 import { type Series, useSeriesPreset } from "@/hooks/use-series-preset";
 import { effectiveFormat } from "@/lib/export-formats";
 import type { ExportPick } from "@/lib/export-name";
+import { errorMessage } from "@/lib/format";
 import type { Preset } from "@/lib/ipc";
 import { setExportPreset } from "@/lib/ipc.cut-preview";
 import type { ReadingDirection } from "@/lib/ipc.domain";
@@ -17,7 +19,10 @@ export function useSeriesTarget(picks: ExportPick[]) {
   const [settings, update] = useSettings();
   const stored = useExportTarget();
   const [ownPreset, setOwnPreset] = useState<Preset>(settings.defaultPreset);
-  const [ownDirection, setOwnDirection] = useState<ReadingDirection | null>(null);
+  const key = picks.map((p) => `${p.manga.source}/${p.manga.id}`).join("|");
+  const [own, setOwn] = useState<{ key: string; direction: ReadingDirection } | null>(null);
+  // A pick holds for the series it was made for; other picks start from their own way.
+  const ownDirection = own?.key === key ? own.direction : null;
   const [pick] = picks;
   const info: Series | null =
     picks.length === 1 && pick
@@ -45,7 +50,7 @@ export function useSeriesTarget(picks: ExportPick[]) {
     },
     /** Picked here; null lets the series preset, else the source, decide for each series. */
     direction: ownDirection,
-    /** What one series' book turns by; null when several series each turn their own way. */
+    /** What one series' book turns by; null when several series turn the way they all do. */
     shownDirection: info
       ? (ownDirection ?? series.preset?.direction ?? pick?.manga.direction ?? "ltr")
       : ownDirection,
@@ -54,10 +59,16 @@ export function useSeriesTarget(picks: ExportPick[]) {
       (ownDirection ?? series.preset.direction) === series.preset.direction,
     /** Picking a direction for one series saves it as that series' setting. */
     setDirection: (d: ReadingDirection) => {
-      setOwnDirection(d);
+      const before = own;
+      setOwn({ key, direction: d });
       if (!info) return;
       const saved = { ...series.preset, direction: d };
-      setExportPreset(info.source, info.id, saved).then(series.reload, () => undefined);
+      setExportPreset(info.source, info.id, saved).then(series.reload, (e: unknown) => {
+        setOwn(before);
+        toast.error("Couldn't save the page turn for this series", {
+          description: errorMessage(e),
+        });
+      });
     },
   };
   const setPreset = (p: Preset) => {

@@ -93,10 +93,16 @@ pub fn source_direction(
 }
 
 /// [`preset_for_dirs`] over what the series' source says (its reading direction): the layer
-/// between the explicit choices and the defaults when exporting chapter folders.
+/// between the explicit choices and the defaults when exporting chapter folders. Folders of
+/// several series give only the direction they all share ([`shared_direction`]).
 pub fn series_layer_for_dirs(lib: &Library, dirs: &[&Path]) -> Result<Option<ExportPreset>> {
     let Some((source, id)) = series_of_dirs(lib, dirs)? else {
-        return Ok(None);
+        let each: Vec<Vec<&Path>> = dirs.iter().map(|d| vec![*d]).collect();
+        let shared = shared_direction(lib, &each)?.map(|d| ExportPreset {
+            direction: Some(d),
+            ..Default::default()
+        });
+        return Ok(shared);
     };
     let below = ExportPreset {
         direction: source_direction(lib, &source, &id)?,
@@ -104,6 +110,27 @@ pub fn series_layer_for_dirs(lib: &Library, dirs: &[&Path]) -> Result<Option<Exp
     };
     let preset = get_export_preset(lib, &source, &id)?.unwrap_or_default();
     Ok(Some(preset.over(&below)))
+}
+
+/// The way every series among `dirs` (each folder in its spellings) turns, its setting over its
+/// source's, so one book of several manga reads right to left; none when they differ or a
+/// folder or a direction is unknown.
+pub fn shared_direction(lib: &Library, dirs: &[Vec<&Path>]) -> Result<Option<ReadingDirection>> {
+    let mut shared = None;
+    for spellings in dirs {
+        let Some((source, id)) = series_of_spelled(lib, std::slice::from_ref(spellings))? else {
+            return Ok(None);
+        };
+        let setting = get_export_preset(lib, &source, &id)?.and_then(|p| p.direction);
+        let Some(this) = setting.or(source_direction(lib, &source, &id)?) else {
+            return Ok(None);
+        };
+        if shared.is_some_and(|d| d != this) {
+            return Ok(None);
+        }
+        shared = Some(this);
+    }
+    Ok(shared)
 }
 
 /// [`series_of_dirs`] with each folder in several spellings (as typed, absolute, resolved):
