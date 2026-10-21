@@ -4,6 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use super::{list_exports, Library};
+use crate::domain::IoAt;
 use crate::domain::{Error, Result};
 
 /// How many recent exports count as export folders.
@@ -12,7 +13,7 @@ const RECENT_EXPORTS: usize = 200;
 /// `path` resolved (symlinks, `..`), if it is a directory inside one of `roots` or exactly one
 /// of `exact` (export folders: exporting to `~` must not open every folder under it).
 pub fn openable_folder(path: &Path, roots: &[PathBuf], exact: &[PathBuf]) -> Result<PathBuf> {
-    let dir = path.canonicalize()?;
+    let dir = path.canonicalize().at(path)?;
     if !dir.is_dir() {
         return Err(Error::Other(format!("{} is not a folder", path.display())));
     }

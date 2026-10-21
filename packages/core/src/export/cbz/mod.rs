@@ -14,6 +14,7 @@ use super::output::write_file;
 use super::{Exporter, Meta, PageSpool, Profile};
 use crate::domain::{Error, Result};
 
+use crate::domain::unplaced;
 pub use comic_info::comic_info_xml;
 
 pub struct CbzExporter;
@@ -59,10 +60,11 @@ fn write_zip(pages: &PageSpool, meta: &Meta, profile: &Profile, file: File) -> R
             let page = pages.read(i)?;
             zip.start_file(page_name(i, pages.len()), stored)
                 .map_err(z)?;
-            zip.write_all(&page.jpeg)?;
+            zip.write_all(&page.jpeg).map_err(unplaced)?;
         }
         zip.start_file("ComicInfo.xml", deflated).map_err(z)?;
-        zip.write_all(comic_info_xml(pages.info(), meta, profile).as_bytes())?;
+        zip.write_all(comic_info_xml(pages.info(), meta, profile).as_bytes())
+            .map_err(unplaced)?;
         Ok(())
     })
 }

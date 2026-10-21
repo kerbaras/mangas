@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use crate::domain::IoAt;
 use crate::domain::Result;
 use crate::smartcut::is_long_strip;
 
@@ -12,8 +13,10 @@ pub(super) type Margins = HashMap<u32, (u32, u32)>;
 
 /// Width and height of a page once its side margins are cropped, as `crop_sides` gives them.
 pub(super) fn page_size(file: &Path, margins: &Margins) -> Result<(u32, u32)> {
-    let (w, h) = image::ImageReader::open(file)?
-        .with_guessed_format()?
+    let (w, h) = image::ImageReader::open(file)
+        .at(file)?
+        .with_guessed_format()
+        .at(file)?
         .into_dimensions()?;
     Ok(match margins.get(&w) {
         Some(&(left, right)) if left > 0 || right > 0 => (w.saturating_sub(left + right).max(1), h),

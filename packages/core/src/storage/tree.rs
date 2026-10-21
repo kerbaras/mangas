@@ -4,7 +4,8 @@
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
-use crate::domain::Result;
+use crate::domain::{io_at, IoAt};
+use crate::domain::{Error, Result};
 
 /// A regular file under a root: its path relative to the root and its size.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,26 +36,21 @@ pub(crate) fn list_files(root: &Path) -> Result<Vec<FileEntry>> {
     Ok(files)
 }
 
-fn walk(
-    dir: &Path,
-    rel: &Path,
-    visit: &mut dyn FnMut(FileEntry),
-    strict: bool,
-) -> std::io::Result<()> {
+fn walk(dir: &Path, rel: &Path, visit: &mut dyn FnMut(FileEntry), strict: bool) -> Result<()> {
     let entries = match fs::read_dir(dir) {
         Ok(entries) => entries,
-        Err(e) if strict => return Err(e),
+        Err(e) if strict => return Err(io_at(dir)(e)),
         Err(_) => return Ok(()),
     };
     for entry in entries {
         let entry = match entry {
             Ok(entry) => entry,
-            Err(e) if strict => return Err(e),
+            Err(e) if strict => return Err(io_at(dir)(e)),
             Err(_) => continue,
         };
         let kind = match entry.file_type() {
             Ok(kind) => kind,
-            Err(e) if strict => return Err(e),
+            Err(e) if strict => return Err(io_at(&entry.path())(e)),
             Err(_) => continue,
         };
         let rel = rel.join(entry.file_name());
@@ -66,7 +62,7 @@ fn walk(
                     rel,
                     bytes: meta.len(),
                 }),
-                Err(e) if strict => return Err(e),
+                Err(e) if strict => return Err(io_at(&entry.path())(e)),
                 Err(_) => {}
             }
         } else if kind.is_symlink() {
@@ -76,12 +72,12 @@ fn walk(
                     bytes: meta.len(),
                 }),
                 Ok(_) if strict => {
-                    return Err(std::io::Error::other(format!(
+                    return Err(Error::Other(format!(
                         "{} is a link to a folder; replace it with the folder itself first",
                         entry.path().display()
                     )))
                 }
-                Err(e) if strict => return Err(e),
+                Err(e) if strict => return Err(io_at(&entry.path())(e)),
                 _ => {}
             }
         }
@@ -98,15 +94,15 @@ pub(crate) fn empty_dir(dir: &Path, keep: &[&str]) -> Result<(usize, u64)> {
         .filter(|f| !kept(&f.rel))
         .collect();
     for entry in fs::read_dir(dir).into_iter().flatten() {
-        let entry = entry?;
+        let entry = entry.at(dir)?;
         if kept(Path::new(&entry.file_name())) {
             continue;
         }
         let path = entry.path();
         if path.is_dir() && !path.is_symlink() {
-            fs::remove_dir_all(&path)?;
+            fs::remove_dir_all(&path).at(&path)?;
         } else {
-            fs::remove_file(&path)?;
+            fs::remove_file(&path).at(&path)?;
         }
     }
     Ok((files.len(), files.iter().map(|f| f.bytes).sum()))

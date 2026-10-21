@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use super::names::{extension, natural_cmp, strip_extension};
 use super::report::Skipped;
+use crate::domain::IoAt;
 use crate::domain::{Error, Result};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -81,8 +82,8 @@ fn finish(title: String, mut entries: Vec<Entry>, skipped: Vec<Skipped>) -> Scan
 
 fn children(dir: &Path) -> Result<Vec<PathBuf>> {
     let mut out = Vec::new();
-    for entry in std::fs::read_dir(dir)? {
-        let path = entry?.path();
+    for entry in std::fs::read_dir(dir).at(dir)? {
+        let path = entry.at(dir)?.path();
         if !name_of(&path).starts_with('.') {
             out.push(path);
         }

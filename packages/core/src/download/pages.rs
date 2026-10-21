@@ -9,6 +9,7 @@ use super::fetcher::PageFetcher;
 use super::incomplete::{incomplete, missing_on_disk};
 use super::plan::{page_file_name_for, plan, PageJob};
 use super::remove::{drop_stale_parts, remove_files};
+use crate::domain::IoAt;
 use crate::domain::{ChapterId, Result};
 use crate::sources::PageUrls;
 
@@ -50,7 +51,7 @@ pub async fn download_pages_with(
     on_disk: OnDisk,
     on_event: OnEvent<'_>,
 ) -> Result<usize> {
-    tokio::fs::create_dir_all(dest).await?;
+    tokio::fs::create_dir_all(dest).await.at(dest)?;
     remove_files(dest, is_page_partial)?;
     let existing = match on_disk {
         OnDisk::Keep => existing_files(dest)?,
@@ -129,16 +130,18 @@ async fn fetch_page(fetcher: &dyn PageFetcher, job: &PageJob, dest: &Path) -> Re
     let name = page_file_name_for(job.index, &job.url, &bytes);
     let final_path = dest.join(&name);
     let part_path = dest.join(format!("{name}.part"));
-    tokio::fs::write(&part_path, bytes).await?;
-    tokio::fs::rename(&part_path, &final_path).await?;
+    tokio::fs::write(&part_path, bytes).await.at(&part_path)?;
+    tokio::fs::rename(&part_path, &final_path)
+        .await
+        .at(&final_path)?;
     Ok(name)
 }
 
 fn existing_files(dest: &Path) -> Result<HashSet<String>> {
     let mut names = HashSet::new();
-    for entry in std::fs::read_dir(dest)? {
-        let entry = entry?;
-        if entry.file_type()?.is_file() {
+    for entry in std::fs::read_dir(dest).at(dest)? {
+        let entry = entry.at(dest)?;
+        if entry.file_type().at(entry.path())?.is_file() {
             names.insert(entry.file_name().to_string_lossy().into_owned());
         }
     }

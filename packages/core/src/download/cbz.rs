@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use zip::write::SimpleFileOptions;
 use zip::CompressionMethod;
 
-use crate::domain::{Error, Result};
+use crate::domain::{unplaced, Error, IoAt, Result};
 
 /// Packs the page files of `dir` (sorted by name, stored uncompressed) into the CBZ at `out`,
 /// replacing one already there. Returns the number of pages archived. Built in `<name>.cbz.part`
@@ -21,7 +21,8 @@ pub fn write_cbz(dir: &Path, out: &Path) -> Result<usize> {
                 writer
                     .start_file(name.as_str(), options)
                     .map_err(zip_error)?;
-                io::copy(&mut File::open(dir.join(name))?, writer)?;
+                let page = dir.join(name);
+                io::copy(&mut File::open(&page).at(&page)?, writer).map_err(unplaced)?;
             }
             Ok(())
         })
@@ -31,7 +32,8 @@ pub fn write_cbz(dir: &Path, out: &Path) -> Result<usize> {
 
 /// Image files directly inside `dir`, sorted so `0001.jpg` comes before `0002.png`.
 fn page_files(dir: &Path) -> Result<Vec<String>> {
-    let mut names: Vec<String> = std::fs::read_dir(dir)?
+    let mut names: Vec<String> = std::fs::read_dir(dir)
+        .at(dir)?
         .filter_map(|entry| entry.ok())
         .filter(|entry| entry.file_type().map(|t| t.is_file()).unwrap_or(false))
         .map(|entry| entry.file_name().to_string_lossy().into_owned())

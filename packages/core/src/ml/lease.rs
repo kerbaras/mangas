@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 pub use super::lease_fds::spawn as spawn_child;
 use super::lease_fds::LeaseFile;
-use crate::domain::{Error, Result};
+use crate::domain::{io_at, Error, IoAt, Result};
 
 pub const LEASE_FILE: &str = ".detectors.lease";
 /// Who holds the lease exclusively (a separate file: Windows can't read a locked one).
@@ -58,7 +58,7 @@ pub fn acquire_at(dir: &Path, name: &str, purpose: Purpose) -> Result<Lease> {
         purpose,
     };
     let bytes = serde_json::to_vec(&record).map_err(|e| Error::Other(e.to_string()))?;
-    fs::write(&owner, bytes)?;
+    fs::write(&owner, bytes).at(&owner)?;
     Ok(Lease {
         _file: file,
         owner: Some(owner),
@@ -85,15 +85,17 @@ pub fn share_at(dir: &Path, name: &str) -> Result<Lease> {
 }
 
 fn open(dir: &Path, name: &str) -> Result<LeaseFile> {
-    fs::create_dir_all(dir)?;
+    fs::create_dir_all(dir).at(dir)?;
+    let path = dir.join(name);
     let file = LeaseFile::open(|| {
         OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
             .truncate(false)
-            .open(dir.join(name))
-    })?;
+            .open(&path)
+    })
+    .at(&path)?;
     Ok(file)
 }
 
@@ -101,7 +103,7 @@ fn locked(result: std::result::Result<(), TryLockError>, dir: &Path, name: &str)
     match result {
         Ok(()) => Ok(()),
         Err(TryLockError::WouldBlock) => Err(Error::Other(busy(dir, name))),
-        Err(TryLockError::Error(e)) => Err(e.into()),
+        Err(TryLockError::Error(e)) => Err(io_at(&dir.join(name))(e)),
     }
 }
 

@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use super::layout::DATA_SUBDIRS;
 use super::partial::MOVE_MARKER;
 use super::tree::{list_files, Plan};
-use crate::domain::{Error, Result};
+use crate::domain::{io_at, Error, IoAt, Result};
 
 #[derive(Serialize, Deserialize)]
 struct Header {
@@ -48,7 +48,8 @@ fn json(value: &impl Serialize) -> Result<String> {
 
 /// The files the partial copy in `dir` was made of, relative to `dir`.
 pub(crate) fn copies(dir: &Path) -> Result<BTreeSet<PathBuf>> {
-    let text = fs::read_to_string(dir.join(MOVE_MARKER))?;
+    let marker = dir.join(MOVE_MARKER);
+    let text = fs::read_to_string(&marker).at(&marker)?;
     let mut lines = text.lines();
     let first = lines.next().unwrap_or_default();
     let listed = match serde_json::from_str::<Header>(first) {
@@ -84,8 +85,8 @@ fn in_data_subdir(rel: &Path) -> bool {
 /// the files added by hand to its subfolders, which stay.
 pub(crate) fn reuse(dir: &Path, plan: &Plan) -> Result<BTreeSet<PathBuf>> {
     let mut foreign = Vec::new();
-    for entry in fs::read_dir(dir)? {
-        let name = entry?.file_name().to_string_lossy().into_owned();
+    for entry in fs::read_dir(dir).at(dir)? {
+        let name = entry.at(dir)?.file_name().to_string_lossy().into_owned();
         if name != MOVE_MARKER && !DATA_SUBDIRS.contains(&name.as_str()) {
             foreign.push(name);
         }
@@ -149,7 +150,7 @@ pub(crate) fn remove_copies(dir: &Path, copies: &BTreeSet<PathBuf>) -> Result<()
         match fs::remove_file(dir.join(rel)) {
             // Not a directory: a file added by hand where the copy's folder would go.
             Err(e) if !matches!(e.kind(), ErrorKind::NotFound | ErrorKind::NotADirectory) => {
-                return Err(e.into())
+                return Err(io_at(&dir.join(rel))(e))
             }
             _ => {}
         }

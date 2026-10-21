@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use super::part_claim::{claim_free_name, claim_part, part_file, publish};
 use super::space;
-use crate::domain::{Error, Result};
+use crate::domain::{io_at, placed_at, IoAt, Result};
 use crate::export::kindle::part_owner;
 
 /// Where an export path the user gave goes: an absolute path as given, a relative one (or none)
@@ -44,7 +44,7 @@ pub(crate) fn write_file(
 fn write_over(path: &Path, fill: impl FnOnce(File) -> Result<()>) -> Result<PathBuf> {
     let dir = path.parent().filter(|d| !d.as_os_str().is_empty());
     let dir = dir.unwrap_or(Path::new("."));
-    std::fs::create_dir_all(dir)?;
+    std::fs::create_dir_all(dir).at(dir)?;
     // Another replacement holds `<name>.part`, or the name is too long for a suffix.
     let file = match claim_part(path) {
         Ok(Some(file)) => file,
@@ -52,14 +52,12 @@ fn write_over(path: &Path, fill: impl FnOnce(File) -> Result<()>) -> Result<Path
         Err(e) if e.kind() == std::io::ErrorKind::InvalidFilename => {
             return write_over_unique(dir, path, fill)
         }
-        Err(e) => return Err(e.into()),
+        Err(e) => return Err(io_at(&part_file(path))(e)),
     };
     let part = part_file(path);
-    let result = file
-        .try_clone()
-        .map_err(Error::from)
-        .and_then(fill)
-        .and_then(|()| std::fs::rename(&part, path).map_err(Error::from));
+    let result = (file.try_clone().at(&part))
+        .and_then(|file| fill(file).map_err(|e| placed_at(e, path)))
+        .and_then(|()| std::fs::rename(&part, path).at(path));
     if result.is_err() {
         let _ = std::fs::remove_file(&part);
     }
@@ -77,9 +75,9 @@ fn write_over_unique(
     // Same mode as `File::create` (0666 less the umask), not the temporary file's private 0600.
     #[cfg(unix)]
     builder.permissions(std::os::unix::fs::PermissionsExt::from_mode(0o666));
-    let tmp = builder.tempfile_in(dir)?;
-    fill(tmp.as_file().try_clone()?)?;
-    tmp.persist(path).map_err(|e| Error::from(e.error))?;
+    let tmp = builder.tempfile_in(dir).at(dir)?;
+    fill(tmp.as_file().try_clone().at(tmp.path())?).map_err(|e| placed_at(e, path))?;
+    tmp.persist(path).map_err(|e| io_at(path)(e.error))?;
     Ok(path.to_path_buf())
 }
 
@@ -90,15 +88,12 @@ fn write_over_unique(
 /// holds an empty or half-written file, even when the export is killed.
 fn write_new(path: &Path, fill: impl FnOnce(File) -> Result<()>) -> Result<PathBuf> {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
+        std::fs::create_dir_all(parent).at(parent)?;
     }
     let claim = claim_free_name(path)?;
-    let result = claim
-        .file
-        .try_clone()
-        .map_err(Error::from)
-        .and_then(fill)
-        .and_then(|()| publish(&claim).map_err(Error::from));
+    let result = (claim.file.try_clone().at(&claim.part))
+        .and_then(|file| fill(file).map_err(|e| placed_at(e, &claim.target)))
+        .and_then(|()| publish(&claim));
     if result.is_err() {
         let _ = std::fs::remove_file(&claim.part);
     }
@@ -162,7 +157,7 @@ pub fn free_names_in(dir: &Path, wanted: &[String]) -> Result<Vec<String>> {
         Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
             Ok(super::unlisted::free_names(dir, wanted))
         }
-        _ => Ok(resolve_free_names(&file_names(dir)?, wanted)),
+        _ => Ok(resolve_free_names(&file_names(dir).at(dir)?, wanted)),
     }
 }
 

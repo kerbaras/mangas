@@ -7,6 +7,7 @@ mod chapter;
 mod chapter_group;
 mod chapter_tag;
 mod error;
+mod io_at;
 mod manga;
 mod season_label;
 mod tls;
@@ -20,6 +21,8 @@ pub use chapter_group::{
 };
 pub use chapter_tag::{chapter_tag, season_tag, toc_label};
 pub use error::{Error, Result};
+pub(crate) use io_at::{copy_at, placed_at, unplaced};
+pub use io_at::{io_at, IoAt};
 pub use manga::{Manga, MangaId, MangaStatus, ReadingDirection};
 pub use season_label::season_label;
 pub use tls::{

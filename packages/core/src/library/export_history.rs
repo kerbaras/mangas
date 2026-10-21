@@ -6,6 +6,7 @@ use rusqlite::{params, Row};
 use serde::Serialize;
 
 use super::Library;
+use crate::domain::IoAt;
 use crate::domain::Result;
 use crate::send::SendVia;
 
@@ -28,7 +29,7 @@ pub struct ExportRecord {
 
 /// Records a book just written to `file` (stored absolute, like every path in the history).
 pub fn record_export(lib: &Library, file: &Path, title: &str, device: &str) -> Result<i64> {
-    let file = std::path::absolute(file)?;
+    let file = std::path::absolute(file).at(file)?;
     let conn = lib.conn()?;
     conn.execute(
         "INSERT INTO export_history (file, title, device, exported_at)
@@ -41,7 +42,7 @@ pub fn record_export(lib: &Library, file: &Path, title: &str, device: &str) -> R
 /// Stamps the latest export of `file` as sent `via` to `to`, or adds a row when the file has
 /// none (exported by another tool, or before the history existed).
 pub fn record_sent(lib: &Library, file: &Path, title: &str, via: SendVia, to: &str) -> Result<()> {
-    let file = std::path::absolute(file)?;
+    let file = std::path::absolute(file).at(file)?;
     let conn = lib.conn()?;
     let path = file.to_string_lossy();
     let updated = conn.execute(

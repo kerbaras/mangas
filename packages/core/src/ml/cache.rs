@@ -8,6 +8,7 @@ use sha2::{Digest, Sha256};
 
 use super::fetch::fetch;
 use super::ModelSpec;
+use crate::domain::IoAt;
 use crate::domain::{Error, Result};
 use crate::library::Network;
 
@@ -52,20 +53,20 @@ pub async fn ensure_model(
 ) -> Result<PathBuf> {
     let path = model_path(cache_dir, spec);
     if path.is_file() {
-        if verify(spec, &std::fs::read(&path)?).is_ok() {
+        if verify(spec, &std::fs::read(&path).at(&path)?).is_ok() {
             return Ok(path);
         }
         log::warn!(
             "model {}: cached file failed sha256 check, downloading again",
             spec.id
         );
-        std::fs::remove_file(&path)?;
+        std::fs::remove_file(&path).at(&path)?;
     }
-    std::fs::create_dir_all(cache_dir)?;
+    std::fs::create_dir_all(cache_dir).at(cache_dir)?;
     let bytes = fetch(spec.url, network, on_progress, cancel).await?;
     verify(spec, &bytes)?;
     let tmp = part_path(&path);
-    std::fs::write(&tmp, &bytes)?;
-    std::fs::rename(&tmp, &path)?;
+    std::fs::write(&tmp, &bytes).at(&tmp)?;
+    std::fs::rename(&tmp, &path).at(&path)?;
     Ok(path)
 }

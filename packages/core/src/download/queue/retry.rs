@@ -61,7 +61,7 @@ pub fn classify(error: &Error) -> Failure {
                 | Error::Certificate { .. }
                 | Error::Unavailable { .. }
                 | Error::NotFound(_)
-                | Error::Io(_)
+                | Error::Io { .. }
                 | Error::Library(_)
                 | Error::NotImplemented(_)
         );

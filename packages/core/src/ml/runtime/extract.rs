@@ -18,18 +18,27 @@ fn normalize(path: &str) -> &str {
     path.trim_start_matches("./")
 }
 
+/// The downloaded archive can't be read: a damaged download, not a file on disk.
+fn damaged(e: std::io::Error) -> Error {
+    Error::Other(format!("ONNX Runtime archive: {e}"))
+}
+
 fn missing(member: &str) -> Error {
     Error::Other(format!("archive has no {member}"))
 }
 
 fn from_tgz(archive: &[u8], member: &str) -> Result<Vec<u8>> {
     let mut tar = tar::Archive::new(GzDecoder::new(archive));
-    for entry in tar.entries()? {
-        let mut entry = entry?;
-        let path = entry.path()?.to_string_lossy().into_owned();
+    for entry in tar.entries().map_err(damaged)? {
+        let mut entry = entry.map_err(damaged)?;
+        let path = entry
+            .path()
+            .map_err(damaged)?
+            .to_string_lossy()
+            .into_owned();
         if entry.header().entry_type().is_file() && normalize(&path) == normalize(member) {
             let mut out = Vec::new();
-            entry.read_to_end(&mut out)?;
+            entry.read_to_end(&mut out).map_err(damaged)?;
             return Ok(out);
         }
     }
@@ -41,6 +50,6 @@ fn from_zip(archive: &[u8], member: &str) -> Result<Vec<u8>> {
     let mut zip = zip::ZipArchive::new(Cursor::new(archive)).map_err(zip_err)?;
     let mut file = zip.by_name(member).map_err(|_| missing(member))?;
     let mut out = Vec::new();
-    file.read_to_end(&mut out)?;
+    file.read_to_end(&mut out).map_err(damaged)?;
     Ok(out)
 }

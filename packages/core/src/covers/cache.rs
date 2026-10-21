@@ -8,6 +8,7 @@ use std::time::SystemTime;
 use super::check::{decoded_extension, looks_intact};
 use super::evict::{to_evict, Entry};
 use super::key::{file_name, file_stem, manga_prefix, stored_tag};
+use crate::domain::{io_at, IoAt};
 use crate::domain::{Error, Result};
 
 /// How much the cache may hold before the least recently used covers are deleted.
@@ -73,13 +74,13 @@ impl CoverCache {
     pub fn store(&self, source: &str, manga_id: &str, url: &str, bytes: &[u8]) -> Result<PathBuf> {
         let ext = decoded_extension(bytes)
             .ok_or_else(|| Error::Other(format!("cover {url}: not a complete image")))?;
-        fs::create_dir_all(&self.dir)?;
+        fs::create_dir_all(&self.dir).at(&self.dir)?;
         let name = file_name(&file_stem(source, manga_id, url), bytes, ext);
         let path = self.dir.join(&name);
         let tmp = self.dir.join(format!(".{name}.{}.tmp", unique()));
         if let Err(e) = fs::write(&tmp, bytes).and_then(|()| fs::rename(&tmp, &path)) {
             let _ = fs::remove_file(&tmp);
-            return Err(e.into());
+            return Err(io_at(&path)(e));
         }
         self.remove_older(&manga_prefix(source, manga_id), &name);
         self.trim();

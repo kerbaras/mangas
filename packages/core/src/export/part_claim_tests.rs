@@ -3,7 +3,10 @@ use std::io::Write;
 use crate::export::output::write_file;
 
 fn fill(text: &'static str) -> impl FnOnce(std::fs::File) -> crate::Result<()> {
-    move |mut f| Ok(f.write_all(text.as_bytes())?)
+    move |mut f| {
+        f.write_all(text.as_bytes())
+            .map_err(crate::domain::unplaced)
+    }
 }
 
 #[test]
@@ -42,7 +45,7 @@ fn a_failed_write_leaves_neither_the_book_nor_its_part() {
     let dir = tempfile::tempdir().unwrap();
     let book = dir.path().join("Book.epub");
     let failed = write_file(&book, false, |mut f| {
-        f.write_all(b"half")?;
+        f.write_all(b"half").map_err(crate::domain::unplaced)?;
         Err(crate::Error::Other("stopped".into()))
     });
     assert!(failed.is_err());
@@ -69,6 +72,13 @@ fn publishing_never_replaces_a_book_that_appeared_meanwhile() {
     let claim = super::claim_free_name(&book).unwrap();
     std::fs::write(&book, b"someone else's").unwrap();
     let err = super::publish(&claim).unwrap_err();
-    assert_eq!(err.kind(), std::io::ErrorKind::AlreadyExists);
+    let crate::Error::Io { path, source } = &err else {
+        panic!("{err:?}")
+    };
+    assert_eq!(
+        (path, source.kind()),
+        (&book, std::io::ErrorKind::AlreadyExists)
+    );
+    assert_eq!(err.to_string().matches("Book.epub").count(), 1, "{err}");
     assert_eq!(std::fs::read(&book).unwrap(), b"someone else's");
 }

@@ -4,12 +4,13 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use super::complete::is_marker_leftover;
+use crate::domain::IoAt;
 use crate::domain::Result;
 
 /// Removes the files in `dest` whose name matches `drop`, stopping at the first failure.
 pub(super) fn remove_files(dest: &Path, drop: impl Fn(&str) -> bool) -> Result<()> {
     for path in matching_files(dest, drop)? {
-        std::fs::remove_file(path)?;
+        std::fs::remove_file(&path).at(&path)?;
     }
     Ok(())
 }
@@ -45,9 +46,11 @@ fn remove_each(
 /// A name that is not valid UTF-8 is matched on its lossy spelling but kept by its real one.
 fn matching_files(dest: &Path, drop: impl Fn(&str) -> bool) -> Result<Vec<PathBuf>> {
     let mut paths = Vec::new();
-    for entry in std::fs::read_dir(dest)? {
-        let entry = entry?;
-        if entry.file_type()?.is_file() && drop(&entry.file_name().to_string_lossy()) {
+    for entry in std::fs::read_dir(dest).at(dest)? {
+        let entry = entry.at(dest)?;
+        if entry.file_type().at(entry.path())?.is_file()
+            && drop(&entry.file_name().to_string_lossy())
+        {
             paths.push(entry.path());
         }
     }

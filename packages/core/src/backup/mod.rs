@@ -15,6 +15,7 @@ pub use format::{parse, Backup, Bookmark, EntryRef, TrackerRef, FORMAT, VERSION}
 pub use restore::{merge_settings, plan, restore, restore_with, Preferences, Restored, Skipped};
 pub use titles::{sqlite_time, title_state};
 
+use crate::domain::IoAt;
 use crate::domain::{Error, Result};
 use crate::library::{get_settings, list_manga_with_added, read_snapshot, Library};
 
@@ -40,8 +41,8 @@ pub fn export_to(lib: &Library, path: &Path, app_version: &str) -> Result<Export
         serde_json::to_string_pretty(&backup).map_err(|e| Error::Other(format!("backup: {e}")))?;
     let mut tmp = path.as_os_str().to_owned();
     tmp.push(".part");
-    fs::write(&tmp, json)?;
-    fs::rename(&tmp, path)?;
+    fs::write(&tmp, json).at(Path::new(&tmp))?;
+    fs::rename(&tmp, path).at(path)?;
     Ok(summary)
 }
 
@@ -58,6 +59,6 @@ pub fn import_with(
     known_sources: &[&str],
     preferences: Preferences,
 ) -> Result<Restored> {
-    let backup = parse(&fs::read_to_string(path)?)?;
+    let backup = parse(&fs::read_to_string(path).at(path)?)?;
     restore_with(lib, &backup, known_sources, preferences)
 }

@@ -3,6 +3,7 @@ use std::sync::{Mutex, MutexGuard};
 
 use rusqlite::Connection;
 
+use crate::domain::IoAt;
 use crate::domain::{Error, Result};
 
 const MIGRATIONS: &[&str] = &[
@@ -38,7 +39,7 @@ impl Library {
 /// Opens (or creates) the library at `path` and applies pending migrations.
 pub fn open(path: &Path) -> Result<Library> {
     if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
-        std::fs::create_dir_all(dir)?;
+        std::fs::create_dir_all(dir).at(dir)?;
     }
     init(Connection::open(path)?)
 }

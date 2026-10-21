@@ -9,7 +9,7 @@ use super::partial::{mark, prepare_target, unmark};
 use super::reading::{hold_for_move, EXPORT_LEASE_FILES};
 use super::relocate::{check_target, rebase};
 use super::tree::{empty_dir, missing_dirs, remove_empty};
-use crate::domain::Result;
+use crate::domain::{IoAt, Result};
 use crate::library::{downloaded_chapters, get_settings, switch_data_dir, Library};
 use crate::ml::lease::{self, Purpose};
 
@@ -70,8 +70,8 @@ fn move_held(
     replace_partial: bool,
     on_progress: &mut dyn FnMut(MoveProgress),
 ) -> Result<Moved> {
-    fs::create_dir_all(to)?;
-    let to = fs::canonicalize(to)?;
+    fs::create_dir_all(to).at(to)?;
+    let to = fs::canonicalize(to).at(to)?;
     let from_resolved = fs::canonicalize(from).unwrap_or_else(|_| from.to_path_buf());
     check_target(&from_resolved, &to)?;
     // Not under an export, nor a detector download or removal, in this process or another. The

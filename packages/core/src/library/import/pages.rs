@@ -9,6 +9,7 @@ use std::path::Path;
 use super::names::{is_page_image, natural_cmp};
 use super::report::Skipped;
 use super::scan::{name_of, Entry, EntryKind};
+use crate::domain::{io_at, IoAt};
 use crate::domain::{Error, Result};
 use crate::images::check_page;
 
@@ -25,7 +26,8 @@ impl Written {
         match check_page(bytes) {
             Ok(ext) => {
                 self.pages += 1;
-                std::fs::write(dest.join(format!("{:04}.{ext}", self.pages)), bytes)?;
+                let file = dest.join(format!("{:04}.{ext}", self.pages));
+                std::fs::write(&file, bytes).at(&file)?;
             }
             Err(reason) => self.skipped.push(Skipped::new(name, &reason)),
         }
@@ -36,7 +38,7 @@ impl Written {
 /// Replaces `dest` with the valid pages of `entry`.
 pub fn write_pages(entry: &Entry, dest: &Path) -> Result<Written> {
     if dest.exists() {
-        std::fs::remove_dir_all(dest)?;
+        std::fs::remove_dir_all(dest).at(dest)?;
     }
     std::fs::create_dir_all(dest).map_err(|e| not_writable(dest, &e))?;
     match entry.kind {
@@ -47,7 +49,8 @@ pub fn write_pages(entry: &Entry, dest: &Path) -> Result<Written> {
 
 /// Copies each image, so later edits to the source folder never reach the library.
 fn copy_folder(src: &Path, dest: &Path) -> Result<Written> {
-    let mut files: Vec<String> = std::fs::read_dir(src)?
+    let mut files: Vec<String> = std::fs::read_dir(src)
+        .at(src)?
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_ok_and(|t| t.is_file()))
         .map(|e| name_of(&e.path()))
@@ -56,7 +59,8 @@ fn copy_folder(src: &Path, dest: &Path) -> Result<Written> {
     files.sort_by(|a, b| natural_cmp(a, b));
     let mut written = Written::default();
     for name in &files {
-        written.add(dest, name, &std::fs::read(src.join(name))?)?;
+        let page = src.join(name);
+        written.add(dest, name, &std::fs::read(&page).at(&page)?)?;
     }
     Ok(written)
 }
@@ -64,7 +68,7 @@ fn copy_folder(src: &Path, dest: &Path) -> Result<Written> {
 /// Extracts the images of a CBZ (nested folders included, macOS metadata skipped). Entry
 /// names never become paths, so a crafted archive cannot write outside `dest`.
 fn extract_cbz(src: &Path, dest: &Path) -> Result<Written> {
-    let mut archive = zip::ZipArchive::new(File::open(src)?).map_err(|e| match e {
+    let mut archive = zip::ZipArchive::new(File::open(src).at(src)?).map_err(|e| match e {
         // A truncated archive also surfaces as an IO error; only real read failures stay IO.
         zip::result::ZipError::Io(e)
             if !matches!(
@@ -72,7 +76,7 @@ fn extract_cbz(src: &Path, dest: &Path) -> Result<Written> {
                 io::ErrorKind::UnexpectedEof | io::ErrorKind::InvalidData
             ) =>
         {
-            Error::Io(e)
+            io_at(src)(e)
         }
         _ => Error::Import(format!("{} isn't a valid CBZ file", name_of(src))),
     })?;
@@ -91,7 +95,7 @@ fn extract_cbz(src: &Path, dest: &Path) -> Result<Written> {
         let file = archive.by_index(*index).map_err(zip_error)?;
         let budget = MAX_PAGE_BYTES.min(MAX_CHAPTER_BYTES - total);
         let mut bytes = Vec::new();
-        file.take(budget + 1).read_to_end(&mut bytes)?;
+        file.take(budget + 1).read_to_end(&mut bytes).at(src)?;
         if bytes.len() as u64 > budget {
             return Err(Error::Other(format!(
                 "cbz: {name} goes over the size limit"

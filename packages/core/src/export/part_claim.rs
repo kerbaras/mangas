@@ -8,6 +8,7 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use super::output::{candidate_names, file_names, folded};
+use crate::domain::{io_at, IoAt, Result};
 
 /// A free name and its part, held locked for the whole write.
 pub(super) struct Claim {
@@ -28,22 +29,23 @@ pub(super) fn part_file(target: &Path) -> PathBuf {
 /// (it holds the part locked). A part left by an interrupted export is taken over, emptied.
 /// Names already in the folder in another case count as taken, so case-insensitive disks match
 /// the preview.
-pub(super) fn claim_free_name(path: &Path) -> std::io::Result<Claim> {
+pub(super) fn claim_free_name(path: &Path) -> Result<Claim> {
     let name = path
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_default();
     let dir = path.parent().filter(|d| !d.as_os_str().is_empty());
-    let taken = folded(&file_names(dir.unwrap_or(Path::new(".")))?);
+    let folder = dir.unwrap_or(Path::new("."));
+    let taken = folded(&file_names(folder).at(folder)?);
     let free = candidate_names(&name).filter(|c| !taken.contains(&c.to_lowercase()));
     for target in free.map(|n| path.with_file_name(n)) {
-        if exists(&target)? {
+        if exists(&target).at(&target)? {
             continue;
         }
-        let Some(file) = claim_part(&target)? else {
+        let Some(file) = claim_part(&target).at(part_file(&target))? else {
             continue;
         };
-        if exists(&target)? {
+        if exists(&target).at(&target)? {
             continue;
         }
         let part = part_file(&target);
@@ -109,18 +111,15 @@ fn stale(part: &Path) -> std::io::Result<Option<File>> {
 
 /// Publishes the finished part under its name, never over a file that appeared there meanwhile:
 /// a hard link fails on an existing name. Disks without hard links (FAT) check, then rename.
-pub(super) fn publish(claim: &Claim) -> std::io::Result<()> {
-    let appeared = || {
-        std::io::Error::new(
-            ErrorKind::AlreadyExists,
-            format!("{} appeared while exporting", claim.target.display()),
-        )
-    };
+/// A failure names the book's name, or the part when only removing the linked part failed.
+pub(super) fn publish(claim: &Claim) -> Result<()> {
+    let at_target = io_at(&claim.target);
+    let appeared = || std::io::Error::new(ErrorKind::AlreadyExists, "appeared while exporting");
     match std::fs::hard_link(&claim.part, &claim.target) {
-        Ok(()) => std::fs::remove_file(&claim.part),
-        Err(e) if e.kind() == ErrorKind::AlreadyExists => Err(appeared()),
-        Err(_) if exists(&claim.target)? => Err(appeared()),
-        Err(_) => std::fs::rename(&claim.part, &claim.target),
+        Ok(()) => std::fs::remove_file(&claim.part).at(&claim.part),
+        Err(e) if e.kind() == ErrorKind::AlreadyExists => Err(at_target(appeared())),
+        Err(_) if exists(&claim.target).at(&claim.target)? => Err(at_target(appeared())),
+        Err(_) => std::fs::rename(&claim.part, &claim.target).map_err(at_target),
     }
 }
 

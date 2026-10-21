@@ -5,6 +5,7 @@ use std::sync::Mutex;
 
 use super::install::check;
 use super::{current, lib_path, state};
+use crate::domain::IoAt;
 use crate::domain::{Error, Result};
 
 /// What this process did with the runtime. `ort` keeps the first library it loads for the life of
@@ -58,7 +59,7 @@ fn load(models_dir: &Path, loaded: &mut Loaded) -> Result<()> {
         return Err(Error::Other("ONNX Runtime is not downloaded".into()));
     }
     check(
-        &std::fs::read(&path)?,
+        &std::fs::read(&path).at(&path)?,
         spec.lib_sha256,
         "ONNX Runtime library",
     )?;

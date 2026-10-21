@@ -41,8 +41,13 @@ pub enum Error {
     /// [`Error::NoSpace`]: the partial book was removed from the device.
     #[error("not enough space on {device}")]
     DeviceFull { device: String },
-    #[error("io: {0}")]
-    Io(#[from] std::io::Error),
+    /// A file or folder operation failed on `path`; the message names it once.
+    #[error("io: {}: {source}", path.display())]
+    Io {
+        path: std::path::PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
     #[error("image: {0}")]
     Image(#[from] image::ImageError),
     /// A local import found nothing it could use; the message is meant for the user as is.
