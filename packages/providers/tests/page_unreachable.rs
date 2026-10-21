@@ -112,3 +112,38 @@ async fn the_site_s_own_5xx_through_the_proxy_keeps_its_retries() {
         "{err}"
     );
 }
+
+#[tokio::test]
+async fn a_tunnel_the_proxy_never_opens_fails_after_one_retry_and_is_remembered() {
+    let silent = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = silent.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        let held: Vec<_> = silent.incoming().collect();
+        drop(held);
+    });
+    let source = mangas_providers::source("mangadex", &Settings::default()).unwrap();
+    let network = Network::Proxy(format!("http://127.0.0.1:{port}"));
+    let client = client(source.as_ref(), &network);
+    let started = Instant::now();
+    let err = client
+        .fetch("https://cdn.example/p.jpg")
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(
+        started.elapsed() < Duration::from_secs(13),
+        "{:?}",
+        started.elapsed()
+    );
+    assert!(
+        err.contains("couldn't reach cdn.example (it opened no tunnel within 10 s)"),
+        "{err}"
+    );
+    let again = Instant::now();
+    client.fetch("https://cdn.example/q.jpg").await.unwrap_err();
+    assert!(
+        again.elapsed() < Duration::from_secs(2),
+        "{:?}",
+        again.elapsed()
+    );
+}

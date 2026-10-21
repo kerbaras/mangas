@@ -16,7 +16,7 @@ use super::super::{network, USER_AGENT};
 use super::resolver::PublicResolver;
 
 const TIMEOUT: Duration = Duration::from_secs(30);
-const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+pub(super) const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
 pub(crate) fn build_http(public_only: bool, network: &Network) -> Result<Client> {
     let builder = if public_only {

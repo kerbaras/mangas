@@ -9,6 +9,7 @@ use reqwest::Response;
 use url::Url;
 
 use super::super::network::{effective, shown};
+use super::redirect::CONNECT_TIMEOUT;
 
 /// Retries for a host that can't be looked up or that the proxy can't reach.
 pub(super) const UNREACHABLE_RETRIES: u32 = 1;
@@ -23,6 +24,18 @@ pub(super) fn tunnel_refused(e: &(dyn std::error::Error + 'static)) -> bool {
         current = e.source();
     }
     false
+}
+
+/// Whether `e` is a connect that timed out. Through a proxy that is the proxy not opening the
+/// tunnel within [`CONNECT_TIMEOUT`]: what a proxy waiting on a resolver that never answers does.
+pub(super) fn connect_timed_out(e: &reqwest::Error) -> bool {
+    e.is_connect() && e.is_timeout()
+}
+
+/// The error for a page on `url` whose tunnel the proxy of `network` didn't open in time.
+pub(super) fn tunnel_stalled(network: &Network, url: &str) -> Error {
+    let what = format!("it opened no tunnel within {} s", CONNECT_TIMEOUT.as_secs());
+    through_proxy(network, url, &what)
 }
 
 /// Whether a plain-http `response` through a proxy is the proxy's own 5xx rather than the
@@ -53,9 +66,13 @@ pub(super) fn through_proxy(network: &Network, url: &str, what: &str) -> Error {
         Network::Proxy(proxy) => format!("the proxy {}", shown(&proxy)),
         _ => "the system proxy".to_string(),
     };
-    let host = Url::parse(url)
+    unreached_through(&proxy, &host_of(url), what)
+}
+
+/// The host of `url`, or `url` itself when it has none.
+pub(super) fn host_of(url: &str) -> String {
+    Url::parse(url)
         .ok()
         .and_then(|u| u.host_str().map(str::to_string))
-        .unwrap_or_else(|| url.to_string());
-    unreached_through(&proxy, &host, what)
+        .unwrap_or_else(|| url.to_string())
 }

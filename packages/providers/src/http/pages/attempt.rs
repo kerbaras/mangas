@@ -1,6 +1,6 @@
 //! One page request: send, classify, and decide whether and when to try again.
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use mangas_core::domain::{Error, Result};
 use reqwest::{Method, RequestBuilder, Response, Url};
@@ -10,7 +10,8 @@ use super::super::redirect::hop_for;
 use super::super::response::{mitigated, retry_after, retryable_transport, should_retry};
 use super::resolver::{refusal_in, Refusal};
 use super::unreachable::{
-    proxy_answer, proxy_answered, through_proxy, tunnel_refused, UNREACHABLE_RETRIES,
+    connect_timed_out, host_of, proxy_answer, proxy_answered, through_proxy, tunnel_refused,
+    tunnel_stalled, UNREACHABLE_RETRIES,
 };
 use super::{Fetched, PageClient, Step};
 
@@ -29,6 +30,10 @@ impl PageClient<'_> {
         attempt: u32,
     ) -> Attempt {
         let id = self.source.name();
+        let proxied = !self.proxies.is_empty();
+        if proxied && self.stalled.recent(&host_of(url), Instant::now()) {
+            return self.once(url, attempt, tunnel_stalled(&self.network, url));
+        }
         let response = match request.send().await {
             Ok(response) => response,
             Err(e) => {
@@ -39,6 +44,10 @@ impl PageClient<'_> {
                     None if tunnel_refused(&e) => {
                         let error = through_proxy(&self.network, url, "it refused the tunnel");
                         return self.once(url, attempt, error);
+                    }
+                    None if proxied && connect_timed_out(&e) => {
+                        self.stalled.note(&host_of(url), Instant::now());
+                        return self.once(url, attempt, tunnel_stalled(&self.network, url));
                     }
                     None => {}
                 }
@@ -54,7 +63,7 @@ impl PageClient<'_> {
         }
         let status = response.status().as_u16();
         let tries = attempt + 1;
-        if !self.proxies.is_empty() && proxy_answered(url, &response) {
+        if proxied && proxy_answered(url, &response) {
             let error = through_proxy(&self.network, url, &proxy_answer(&response));
             return self.once(url, attempt, error);
         }

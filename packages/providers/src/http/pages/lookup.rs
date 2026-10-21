@@ -17,12 +17,12 @@ pub(super) const LOOKUP_TIMEOUT: Duration = Duration::from_secs(6);
 /// How long a host whose lookup timed out fails without asking the resolver again.
 const REMEMBER: Duration = Duration::from_secs(30);
 
-/// Hosts whose lookup timed out, and when.
+/// Hosts whose lookup (or proxy tunnel, see [`super::unreachable`]) timed out, and when.
 #[derive(Default)]
 pub(super) struct TimedOut(Mutex<HashMap<String, Instant>>);
 
 impl TimedOut {
-    fn recent(&self, host: &str, now: Instant) -> bool {
+    pub(super) fn recent(&self, host: &str, now: Instant) -> bool {
         self.0.lock().is_ok_and(|hosts| {
             hosts
                 .get(host)
@@ -30,7 +30,7 @@ impl TimedOut {
         })
     }
 
-    fn note(&self, host: &str, now: Instant) {
+    pub(super) fn note(&self, host: &str, now: Instant) {
         if let Ok(mut hosts) = self.0.lock() {
             hosts.retain(|_, at| now.duration_since(*at) < REMEMBER);
             hosts.insert(host.to_string(), now);
