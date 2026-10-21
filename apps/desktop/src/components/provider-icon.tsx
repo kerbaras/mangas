@@ -4,12 +4,21 @@ import type { ProviderInfo } from "@/lib/ipc";
 
 type Props = { provider: Pick<ProviderInfo, "name" | "icon_url">; className?: string };
 
-/** The site's favicon, or its initial when there is none or it fails to load. */
+/** The site's favicon, or its initial when there is none or it fails to load. Sent without a
+ * Referer: hosts with hotlink protection (MangaDot) refuse the app's origin. */
 export function ProviderIcon({ provider, className }: Props) {
   const [failed, setFailed] = useState(false);
   const box = cn("size-4 shrink-0 rounded-sm", className);
   if (provider.icon_url && !failed)
-    return <img src={provider.icon_url} alt="" className={box} onError={() => setFailed(true)} />;
+    return (
+      <img
+        src={provider.icon_url}
+        alt=""
+        referrerPolicy="no-referrer"
+        className={box}
+        onError={() => setFailed(true)}
+      />
+    );
   return (
     <span
       aria-hidden
