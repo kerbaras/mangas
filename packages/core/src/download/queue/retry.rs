@@ -1,6 +1,7 @@
 //! Chapter-level retries, on top of the page client's own per-request retries.
 
 use crate::domain::Error;
+use crate::download::is_unresolved;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RetryPolicy {
@@ -40,7 +41,8 @@ pub struct Failure {
 /// Errors that need the user (a browser check, a locked chapter, a full or read-only disk, no root
 /// certificates on the system) or
 /// that will not change (gone from the source: not found, HTTP 404/410) fail at once; network
-/// trouble is retried.
+/// trouble is retried, except a page host that can't be looked up ([`is_unresolved`]): it fails at
+/// once too, still retryable by hand.
 pub fn classify(error: &Error) -> Failure {
     // Several failed pages come wrapped as "incomplete chapter: ... page 3: ... HTTP 404 ...".
     let gone = match error {
@@ -48,7 +50,9 @@ pub fn classify(error: &Error) -> Failure {
         Error::Other(message) => message.starts_with("incomplete chapter") && is_gone(message),
         _ => false,
     };
+    let unresolved = matches!(error, Error::Other(message) if is_unresolved(message));
     let retryable = !gone
+        && !unresolved
         && !matches!(
             error,
             Error::Challenge { .. }

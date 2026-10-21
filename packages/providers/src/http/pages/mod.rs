@@ -5,8 +5,10 @@
 
 mod attempt;
 mod builder;
+mod lookup;
 mod redirect;
 mod resolver;
+mod unreachable;
 
 use std::time::Duration;
 
@@ -54,6 +56,8 @@ pub struct PageClient<'a> {
     network: Network,
     /// [`network::proxy_hosts`]: never a page host (see [`Self::target`]).
     proxies: Vec<String>,
+    /// Hosts whose tunnel the proxy didn't open in time: their other pages fail at once.
+    stalled: lookup::TimedOut,
 }
 
 /// How one hop ended: the final response, or a redirect to follow.
@@ -89,6 +93,7 @@ impl<'a> PageClient<'a> {
             max_bytes: None,
             proxies: network::proxy_hosts(&network),
             network,
+            stalled: Default::default(),
         }
     }
 

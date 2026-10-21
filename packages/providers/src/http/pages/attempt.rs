@@ -1,6 +1,6 @@
 //! One page request: send, classify, and decide whether and when to try again.
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use mangas_core::domain::{Error, Result};
 use reqwest::{Method, RequestBuilder, Response, Url};
@@ -8,7 +8,11 @@ use reqwest::{Method, RequestBuilder, Response, Url};
 use super::super::network;
 use super::super::redirect::hop_for;
 use super::super::response::{mitigated, retry_after, retryable_transport, should_retry};
-use super::resolver::refusal_in;
+use super::resolver::{refusal_in, Refusal};
+use super::unreachable::{
+    connect_timed_out, host_of, proxy_answer, proxy_answered, through_proxy, tunnel_refused,
+    tunnel_stalled, UNREACHABLE_RETRIES,
+};
 use super::{Fetched, PageClient, Step};
 
 /// The outcome of one attempt and, when it is to be retried, how long to wait first.
@@ -17,7 +21,8 @@ type Attempt = (Result<Step>, Option<Duration>);
 impl PageClient<'_> {
     /// Rate limiting (429) and server errors retry after `Retry-After` or the backoff; a
     /// challenge page, a refused address and other statuses are final. Transport and body
-    /// errors retry too.
+    /// errors retry too, except a host that can't be looked up or that the proxy can't reach
+    /// ([`super::unreachable`]): those retry once.
     pub(super) async fn attempt(
         &self,
         url: &str,
@@ -25,11 +30,26 @@ impl PageClient<'_> {
         attempt: u32,
     ) -> Attempt {
         let id = self.source.name();
+        let proxied = !self.proxies.is_empty();
+        if proxied && self.stalled.recent(&host_of(url), Instant::now()) {
+            return self.once(url, attempt, tunnel_stalled(&self.network, url));
+        }
         let response = match request.send().await {
             Ok(response) => response,
             Err(e) => {
-                if let Some(refusal) = refusal_in(&e) {
-                    return (Err(refusal.into_error(id)), None);
+                let unresolved = |r: &Refusal| matches!(r, Refusal::Unresolved { .. });
+                match refusal_in(&e) {
+                    Some(r) if unresolved(&r) => return self.once(url, attempt, r.into_error(id)),
+                    Some(refusal) => return (Err(refusal.into_error(id)), None),
+                    None if tunnel_refused(&e) => {
+                        let error = through_proxy(&self.network, url, "it refused the tunnel");
+                        return self.once(url, attempt, error);
+                    }
+                    None if proxied && connect_timed_out(&e) => {
+                        self.stalled.note(&host_of(url), Instant::now());
+                        return self.once(url, attempt, tunnel_stalled(&self.network, url));
+                    }
+                    None => {}
                 }
                 let wait = retryable_transport(&e, true)
                     .then(|| self.retry.delay(attempt, None))
@@ -43,6 +63,10 @@ impl PageClient<'_> {
         }
         let status = response.status().as_u16();
         let tries = attempt + 1;
+        if proxied && proxy_answered(url, &response) {
+            let error = through_proxy(&self.network, url, &proxy_answer(&response));
+            return self.once(url, attempt, error);
+        }
         if should_retry(&response, true, false) {
             let wait = self.retry.delay(attempt, retry_after(&response));
             log_failure(id, url, attempt, wait, &format!("HTTP {status}"));
@@ -88,6 +112,15 @@ impl PageClient<'_> {
                 None,
             ),
         }
+    }
+
+    /// `error` after one retry ([`UNREACHABLE_RETRIES`]), logged like the other failures.
+    fn once(&self, url: &str, attempt: u32, error: Error) -> Attempt {
+        let wait = (attempt < UNREACHABLE_RETRIES)
+            .then(|| self.retry.delay(attempt, None))
+            .flatten();
+        log_failure(self.source.name(), url, attempt, wait, &error.to_string());
+        (Err(error), wait)
     }
 
     /// The body, refused as soon as it is known to exceed `max_bytes` (final, not retried).

@@ -14,6 +14,7 @@ mod plan;
 pub mod queue;
 mod remove;
 mod selection;
+mod unresolved;
 
 pub use availability::{ensure_available, skipped_summary, split_available};
 pub use cbz::{cbz_path, write_cbz};
@@ -28,3 +29,4 @@ pub use mirror::{MirrorFor, WithMirror};
 pub use pages::{download_pages, download_pages_with, OnDisk, CONCURRENCY};
 pub use plan::{page_file_name, page_file_name_for, plan, PageJob};
 pub use selection::{parse_selection, select_chapters};
+pub use unresolved::{is_unresolved, unreached_through, unresolved};

@@ -16,13 +16,14 @@ use super::super::{network, USER_AGENT};
 use super::resolver::PublicResolver;
 
 const TIMEOUT: Duration = Duration::from_secs(30);
-const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+pub(super) const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
 pub(crate) fn build_http(public_only: bool, network: &Network) -> Result<Client> {
     let builder = if public_only {
         let resolver = PublicResolver {
             fixed: None,
             proxies: network::proxy_hosts(network),
+            timed_out: Default::default(),
         };
         builder().dns_resolver(Arc::new(resolver))
     } else {
@@ -37,6 +38,7 @@ pub(super) fn build_http_resolving(ip: IpAddr) -> Result<Client> {
     let resolver = PublicResolver {
         fixed: Some(ip),
         proxies: vec![],
+        timed_out: Default::default(),
     };
     Ok(builder().dns_resolver(Arc::new(resolver)).build()?)
 }

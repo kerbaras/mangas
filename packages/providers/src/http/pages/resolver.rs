@@ -10,11 +10,14 @@
 
 use std::fmt;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::sync::Arc;
 
 use mangas_core::domain::Error;
-use mangas_core::download::{is_public_ip, unmapped};
+use mangas_core::download::{is_public_ip, unmapped, unresolved};
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use url::{Host, Url};
+
+use super::lookup::{bounded, TimedOut, LOOKUP_TIMEOUT};
 
 /// Resolves with the system, or answers every name with `fixed` (tests only). Names in
 /// `proxies` (lowercase) may resolve to any address.
@@ -22,17 +25,22 @@ use url::{Host, Url};
 pub(super) struct PublicResolver {
     pub(super) fixed: Option<IpAddr>,
     pub(super) proxies: Vec<String>,
+    pub(super) timed_out: Arc<TimedOut>,
 }
 
 impl Resolve for PublicResolver {
     fn resolve(&self, name: Name) -> Resolving {
         let host = name.as_str().to_string();
         let fixed = self.fixed;
+        let timed_out = Arc::clone(&self.timed_out);
         let proxy = self.proxies.contains(&host.to_ascii_lowercase());
         Box::pin(async move {
             let addrs: Vec<SocketAddr> = match fixed {
                 Some(ip) => vec![SocketAddr::new(ip, 0)],
-                None => tokio::net::lookup_host((host.as_str(), 0)).await?.collect(),
+                None => {
+                    let lookup = tokio::net::lookup_host((host.as_str(), 0));
+                    bounded(&host, LOOKUP_TIMEOUT, &timed_out, lookup).await?
+                }
             };
             let addrs = match proxy {
                 true => addrs,
@@ -46,8 +54,16 @@ impl Resolve for PublicResolver {
 /// Why a host is not fetched.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Refusal {
-    NonPublic { host: String, ip: IpAddr },
+    NonPublic {
+        host: String,
+        ip: IpAddr,
+    },
     NoAddress(String),
+    /// The lookup failed (no such name, no DNS answer): retried once, not refused for good.
+    Unresolved {
+        host: String,
+        cause: String,
+    },
 }
 
 impl fmt::Display for Refusal {
@@ -57,6 +73,7 @@ impl fmt::Display for Refusal {
                 write!(f, "{host} resolves to a non-public address {ip}")
             }
             Self::NoAddress(host) => write!(f, "{host} resolves to no address"),
+            Self::Unresolved { host, cause } => write!(f, "couldn't resolve {host}: {cause}"),
         }
     }
 }
@@ -64,10 +81,12 @@ impl fmt::Display for Refusal {
 impl std::error::Error for Refusal {}
 
 impl Refusal {
-    /// The app error: [`Error::BlockedAddress`] for a private address (final, never retried).
+    /// The app error: [`Error::BlockedAddress`] for a private address (final, never retried),
+    /// a network error for a failed lookup (the queue may retry it).
     pub(super) fn into_error(self, source: &str) -> Error {
         match self {
             Self::NonPublic { host, ip } => Error::BlockedAddress { host, ip },
+            Self::Unresolved { host, cause } => unresolved(&host, &cause),
             other => Error::Source {
                 name: source.to_string(),
                 message: other.to_string(),
