@@ -87,7 +87,9 @@ describe("settings load", () => {
     fireEvent.click(screen.getByRole("button", { name: /reset to defaults/i }));
     fireEvent.click(screen.getByRole("button", { name: "Reset" }));
     await waitFor(() =>
-      expect(notifyError).toHaveBeenCalledWith("Couldn't reset export settings", error),
+      expect(notifyError).toHaveBeenCalledWith("Couldn't reset export settings", error, {
+        id: "settings-reset-Export",
+      }),
     );
     expect(toast.success).not.toHaveBeenCalled();
     expect(readSettings()).toBe(before);

@@ -40,7 +40,13 @@ describe("Kindle settings reset", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Change" }));
     fireEvent.change(passwordInput(), { target: { value: "new-secret" } });
     await confirmReset();
-    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Kindle settings reset"));
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith("Kindle settings reset", {
+        id: "settings-reset-Kindle",
+        description: null,
+        action: null,
+      }),
+    );
     expect(setSmtpPassword).toHaveBeenCalledWith("");
     expect(passwordInput().value).toBe("");
     expect((screen.getByRole("button", { name: "Save" }) as HTMLButtonElement).disabled).toBe(true);

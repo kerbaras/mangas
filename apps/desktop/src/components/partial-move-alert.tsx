@@ -17,12 +17,14 @@ export function PartialMoveAlert({ copy, onRemoved }: Props) {
     try {
       const removed = await removePartialMove();
       toast.success("Partial copy removed", {
+        id: "partial-move-remove",
+        action: null,
         description: removed
           ? `${formatBytes(removed.bytes)} freed in ${removed.path}.`
           : "Nothing was left to remove.",
       });
     } catch (e: unknown) {
-      notifyError("Couldn't remove the partial copy", e);
+      notifyError("Couldn't remove the partial copy", e, { id: "partial-move-remove" });
     } finally {
       setBusy(false);
       onRemoved();

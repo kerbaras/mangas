@@ -15,6 +15,9 @@ import {
 import { notifyError } from "@/lib/notify";
 import { formatBytes } from "@/lib/storage";
 
+/** One toast for Remove: a later result replaces an earlier failure. */
+const REMOVE_TOAST = "detector-remove";
+
 type Props = {
   support: DetectorSupport;
   /** Settings shows what is installed and a remove action; the export dialog doesn't. */
@@ -46,10 +49,12 @@ export function DetectorSupportActions({ support, manage = false }: Props) {
     try {
       const freed = await (leftovers ? support.removeLeftovers() : support.remove());
       toast.success("Detector support removed", {
+        id: REMOVE_TOAST,
+        action: null,
         description: `${formatBytes(freed)} freed; download it again here or in the export dialog.`,
       });
     } catch (e: unknown) {
-      notifyError("Couldn't remove detector support", e);
+      notifyError("Couldn't remove detector support", e, { id: REMOVE_TOAST });
     }
   };
   const pending = pendingRemoval(status);
