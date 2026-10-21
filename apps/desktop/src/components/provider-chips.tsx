@@ -1,4 +1,4 @@
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, Hourglass } from "lucide-react";
 import type { ReactNode } from "react";
 import { ProviderIcon } from "@/components/provider-icon";
 import { cn } from "@/lib/cn";
@@ -12,7 +12,7 @@ type Props = {
   onChange: (filter: string) => void;
 };
 
-/** "All" plus one chip per searched provider; each shows its count, a spinner or a warning. */
+/** "All" plus one chip per searched provider; each shows its count, a still hourglass or a warning. */
 export function ProviderChips({ providers, groups, value, onChange }: Props) {
   const total = providers.reduce((n, p) => n + (chipOf(groups[p.id]).count ?? 0), 0);
   const anyDone = providers.some((p) => groups[p.id]?.kind === "done");
@@ -34,7 +34,7 @@ export function ProviderChips({ providers, groups, value, onChange }: Props) {
 }
 
 function Trailing({ chip }: { chip: Chip }) {
-  if (chip.searching) return <Loader2 aria-label="searching" className="size-3 animate-spin" />;
+  if (chip.searching) return <Hourglass aria-label="searching" className="size-3 text-ink-3" />;
   if (chip.problem)
     return <AlertTriangle aria-label="couldn't search" className="size-3 text-warn" />;
   if (chip.count === null) return null;
