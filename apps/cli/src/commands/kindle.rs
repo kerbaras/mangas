@@ -182,13 +182,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let to = args.send.map(|via| (via, args.kindle.as_deref()));
     let done =
         kindle_record::record_and_send(&stats, &req.chapter_dirs, &req.title, dev.id, to).await;
-    for line in &done.sent {
-        match args.json {
-            true => eprintln!("{line}"),
-            false => outln!("{line}")?,
-        }
-    }
+    done.print_sent(args.json)?;
     if args.json {
+        report.recorded.clone_from(&done.recorded);
         for (file, why) in &done.failed {
             report.fail(file, why.clone());
         }

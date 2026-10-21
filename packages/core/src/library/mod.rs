@@ -36,7 +36,7 @@ pub use category_repo::{
     clean_category_name, create_category, delete_category, list_categories, rename_category,
     set_manga_categories, Category,
 };
-pub use chapter_marks::{mark_downloaded, mark_exported};
+pub use chapter_marks::{mark_downloaded, mark_exported, mark_exported_folder, ExportedChapter};
 pub use chapter_repo::{list_chapters, upsert_chapters};
 pub use counts::{count_chapters, ChapterCounts, ChapterMark};
 pub use db::{open, open_in_memory, Library};

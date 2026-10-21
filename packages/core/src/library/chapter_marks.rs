@@ -3,6 +3,7 @@
 use std::path::Path;
 
 use rusqlite::params;
+use serde::Serialize;
 
 use super::Library;
 use crate::domain::{ChapterId, Result};
@@ -40,4 +41,47 @@ pub fn mark_exported(lib: &Library, dirs: &[&Path]) -> Result<usize> {
     }
     tx.commit()?;
     Ok(marked)
+}
+
+/// A library chapter an export just marked as exported.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ExportedChapter {
+    /// The series' title in the library.
+    pub manga: String,
+    /// The chapter's number, as the source gives it.
+    pub chapter: String,
+}
+
+/// Marks the chapters stored at one of `spellings` (one folder, spelled the ways the library may
+/// store it) as just exported and returns each; empty when no library chapter is stored there.
+pub fn mark_exported_folder(lib: &Library, spellings: &[&Path]) -> Result<Vec<ExportedChapter>> {
+    let conn = lib.conn()?;
+    let mut stmt = conn.prepare(
+        "UPDATE chapter SET exported_at = datetime('now')
+         WHERE local_path IS NOT NULL AND rtrim(local_path, '/\\') = ?1
+         RETURNING number, (SELECT title FROM manga m
+                            WHERE m.source = chapter.source AND m.id = chapter.manga_id)",
+    )?;
+    // One stored path matches one spelling only: without repeats, each chapter is named once.
+    let mut paths: Vec<String> = spellings
+        .iter()
+        .map(|p| {
+            p.to_string_lossy()
+                .trim_end_matches(['/', '\\'])
+                .to_string()
+        })
+        .collect();
+    paths.sort();
+    paths.dedup();
+    let mut found = Vec::new();
+    for path in &paths {
+        let rows = stmt.query_map(params![path], |r| {
+            Ok(ExportedChapter {
+                chapter: r.get(0)?,
+                manga: r.get::<_, Option<String>>(1)?.unwrap_or_default(),
+            })
+        })?;
+        found.extend(rows.collect::<rusqlite::Result<Vec<_>>>()?);
+    }
+    Ok(found)
 }
