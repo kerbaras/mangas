@@ -149,9 +149,10 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         labels,
     };
     let started = Instant::now();
-    let stats = export(&req, penalizer, &mut print_progress)?;
-    warn_too_big(&stats.oversized);
     let mut report = Report::new(detectors);
+    let stats = export(&req, penalizer, &mut print_progress)
+        .or_else(|e| report.export_failed(&req.output, e, args.json))?;
+    warn_too_big(&stats.oversized);
     report.add(&stats, &req.title, &req.chapter_dirs);
     if !args.json {
         let (book, parts) = match stats.parts.len() {

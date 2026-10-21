@@ -135,6 +135,21 @@ impl Report {
             }));
     }
 
+    /// The book at `output` failed to export: with `json`, prints the report so far (the
+    /// failure in `failed`, like `export --json`), then returns the error.
+    pub fn export_failed<T>(
+        &mut self,
+        output: &Path,
+        e: mangas_core::Error,
+        json: bool,
+    ) -> anyhow::Result<T> {
+        self.fail(output, e.to_string());
+        if json {
+            self.print()?;
+        }
+        Err(e.into())
+    }
+
     pub fn print(&self) -> anyhow::Result<()> {
         print_json(self)
     }
