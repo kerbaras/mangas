@@ -15,8 +15,20 @@ pub(super) fn create_in(dir: &Path) -> std::io::Result<File> {
     let named = tempfile::Builder::new()
         .prefix(PREFIX)
         .suffix(SUFFIX)
-        .tempfile_in(dir)?;
+        .make_in(dir, open_new)?;
     Ok(named.into_file())
+}
+
+/// Opens the file as `tempfile_in` does (new, read-write, private), but a refusal comes back as
+/// the OS's own error, without the spool's internal name appended.
+fn open_new(path: &Path) -> std::io::Result<File> {
+    let mut options = std::fs::OpenOptions::new();
+    options.read(true).write(true).create_new(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    #[cfg(windows)]
+    std::os::windows::fs::OpenOptionsExt::attributes(&mut options, 0x100); // FILE_ATTRIBUTE_TEMPORARY
+    options.open(path)
 }
 
 #[cfg(test)]
@@ -47,5 +59,21 @@ mod tests {
             .unwrap();
         let _spool = create_in(dir.path()).unwrap();
         assert_eq!(names(dir.path()), [".mangas-spool-other.tmp"]);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_folder_that_refuses_the_spool_gives_the_os_error_as_is() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o500)).unwrap();
+        let Err(e) = create_in(dir.path()) else {
+            return; // root ignores permissions
+        };
+        assert_eq!(e.raw_os_error(), Some(13), "{e}");
+        assert_eq!(
+            e.to_string(),
+            std::io::Error::from_raw_os_error(13).to_string()
+        );
     }
 }

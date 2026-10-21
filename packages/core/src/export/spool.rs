@@ -31,10 +31,11 @@ pub struct PageSpool {
     folder: PathBuf,
 }
 
+/// A spool failure is an IO failure in the export's folder, like the book's own writes.
 fn io(folder: &Path) -> impl Fn(std::io::Error) -> Error + '_ {
     move |e| match space::is_out_of_space(&e) {
         true => space::no_space(folder),
-        false => Error::Other(format!("page spool: {e}")),
+        false => Error::Io(e),
     }
 }
 
