@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { ExportState } from "@/hooks/use-export";
 import { revealFolder } from "@/lib/dialogs";
+import { describeError } from "@/lib/errors";
 import { parentDir } from "@/lib/export-name";
 import { combineResults, exportSummary } from "@/lib/export-summary";
+import { isFinalError } from "@/lib/ipc.downloads";
 
 /** Export progress, its failure with "Try again" (`onRetry` exports again), or what it wrote. */
 export function ExportProgressPanel({
@@ -37,6 +39,8 @@ export function ExportProgressPanel({
     );
   }
   if (state.kind === "error") {
+    const final = isFinalError(state.message);
+    const { hint } = describeError(state.message);
     return (
       <div
         className="rounded-md border border-accent/40 bg-accent-soft/40 p-3 text-body"
@@ -44,9 +48,12 @@ export function ExportProgressPanel({
       >
         <p className="font-medium text-accent-text">Export failed</p>
         <p className="mt-1 text-ink-2 [overflow-wrap:anywhere]">{state.message}</p>
-        <Button size="sm" className="mt-3" disabled={!canRetry} onClick={onRetry}>
-          Try again
-        </Button>
+        {final && hint && <p className="mt-1 text-ink-2">{hint}</p>}
+        {!final && (
+          <Button size="sm" className="mt-3" disabled={!canRetry} onClick={onRetry}>
+            Try again
+          </Button>
+        )}
       </div>
     );
   }

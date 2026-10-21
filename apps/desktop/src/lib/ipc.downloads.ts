@@ -80,13 +80,16 @@ export const isRefused = (error: string | null | undefined) =>
   (error?.startsWith("refused:") && error.includes(REFUSED)) ?? false;
 /** `mangas_core::Error::NoRootCertificates`: a network error no connection check can fix. */
 export const NO_ROOT_CERTIFICATES = "no CA certificates found";
-/** A failure a retry cannot fix: the source no longer has the chapter, its host is refused, or
- * the system has no root certificates. */
+/** `mangas_core::Error::NoSpace`: an export filled the disk; it removed what it wrote. */
+export const NO_SPACE = "not enough space in ";
+/** A failure a retry cannot fix: the source no longer has the chapter, its host is refused, the
+ * system has no root certificates, or the export folder's disk is full. */
 export const isFinalError = (error: string) =>
   error.includes(UNLISTED) ||
   error.startsWith("not found") ||
   isRefused(error) ||
-  error.includes(NO_ROOT_CERTIFICATES);
+  error.includes(NO_ROOT_CERTIFICATES) ||
+  error.startsWith(NO_SPACE);
 
 export type DownloadsBackend = {
   /** Every job in queue order. */

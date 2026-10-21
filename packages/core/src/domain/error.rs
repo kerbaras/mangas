@@ -26,6 +26,10 @@ pub enum Error {
     /// No HTTP or TLS client can be built: the system has no root certificates.
     #[error("network: {}", super::tls::NO_ROOT_CERTIFICATES)]
     NoRootCertificates,
+    /// An export ran out of disk space in `folder` (the spool or the file itself). Final: the
+    /// export removed what it wrote, and a retry fails the same way until space is freed.
+    #[error("not enough space in {}", folder.display())]
+    NoSpace { folder: std::path::PathBuf },
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
     #[error("image: {0}")]

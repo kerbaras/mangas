@@ -92,9 +92,10 @@ pub(crate) fn write_zip<W: Write + Seek>(
         dead.set(true);
         return Err(e);
     }
-    let mut out = zip
-        .finish()
-        .map_err(|e| Error::Other(format!("{what}: {e}")))?;
+    let mut out = zip.finish().map_err(|e| match e {
+        zip::result::ZipError::Io(io) => Error::Io(io),
+        e => Error::Other(format!("{what}: {e}")),
+    })?;
     out.flush()?;
     Ok(())
 }

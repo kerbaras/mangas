@@ -17,13 +17,14 @@ use super::trim::trim_owned;
 use super::Device;
 use crate::domain::{Error, Result};
 use crate::export::epub::PageImage;
-use crate::export::PageSettings;
+use crate::export::{PageSettings, PageSpool};
 use crate::smartcut::{Options, RowPenalizer, StripPaginator};
 
 pub(super) struct Run<'a> {
     pub settings: ImageSettings,
     pub paginator: StripPaginator,
-    pub pages: Vec<PageImage>,
+    /// Finished pages, on disk until the format writer reads them back.
+    pub pages: PageSpool,
     pub stats: ExportStats,
     pub progress: &'a mut dyn FnMut(Progress),
     device: Device,
@@ -41,6 +42,7 @@ pub(super) struct RunSpec<'a> {
     pub penalizer: Option<RowPenalizer>,
     pub limit: Option<usize>,
     pub cancelled: &'a dyn Fn() -> bool,
+    pub spool_dir: Option<&'a Path>,
 }
 
 fn empty_stats() -> ExportStats {
@@ -60,16 +62,16 @@ fn empty_stats() -> ExportStats {
 }
 
 impl<'a> Run<'a> {
-    pub fn new(spec: RunSpec<'a>, progress: &'a mut dyn FnMut(Progress)) -> Run<'a> {
+    pub fn new(spec: RunSpec<'a>, progress: &'a mut dyn FnMut(Progress)) -> Result<Run<'a>> {
         let dev = spec.device;
         let mut paginator = StripPaginator::new(dev.width, spec.page.page_height(&dev), spec.cut);
         if let Some(p) = spec.penalizer {
             paginator = paginator.with_penalizer(p);
         }
-        Run {
+        Ok(Run {
             settings: spec.page.image_settings(&dev),
             paginator,
-            pages: Vec::new(),
+            pages: PageSpool::new_in(spec.spool_dir)?,
             stats: empty_stats(),
             progress,
             device: dev,
@@ -77,7 +79,7 @@ impl<'a> Run<'a> {
             limit: spec.limit,
             cancelled: spec.cancelled,
             stopped_early: false,
-        }
+        })
     }
 
     /// Full counting `queued` pages not emitted yet.
@@ -122,7 +124,9 @@ impl<'a> Run<'a> {
 
     fn push(&mut self, encoded: Vec<PageImage>, t: Instant) -> Result<()> {
         self.stats.filters_ms += t.elapsed().as_millis();
-        self.pages.extend(encoded);
+        for page in &encoded {
+            self.pages.push(page)?;
+        }
         self.stats.pages = self.pages.len();
         (self.progress)(Progress::Pages {
             done: self.pages.len(),

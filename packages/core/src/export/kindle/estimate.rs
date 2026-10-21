@@ -96,8 +96,9 @@ fn sample(book: Counted, device: Device, cut: Options, page: PageSettings) -> Re
         penalizer: None,
         limit: Some(SAMPLE),
         cancelled: &|| false,
+        spool_dir: None,
     };
-    let mut run = Run::new(spec, &mut ignore);
+    let mut run = Run::new(spec, &mut ignore)?;
     if strips {
         for dir in chapter_dirs {
             if run.pages.len() >= SAMPLE {
@@ -115,7 +116,7 @@ fn sample(book: Counted, device: Device, cut: Options, page: PageSettings) -> Re
         }
     }
     let sampled = run.pages.len().max(1) as u64;
-    let average = run.pages.iter().map(|p| p.jpeg.len() as u64).sum::<u64>() / sampled;
+    let average = run.pages.info().iter().map(|p| p.bytes as u64).sum::<u64>() / sampled;
     Ok(Estimate {
         pages,
         bytes: pages as u64 * (average + PAGE_OVERHEAD),

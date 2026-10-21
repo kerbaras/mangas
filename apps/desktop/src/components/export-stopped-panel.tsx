@@ -1,8 +1,10 @@
 import { FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { revealFolder } from "@/lib/dialogs";
+import { describeError } from "@/lib/errors";
 import { parentDir } from "@/lib/export-name";
 import type { ExportStopped } from "@/lib/export-stopped";
+import { isFinalError } from "@/lib/ipc.downloads";
 
 const fileName = (path: string): string =>
   path.slice(Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")) + 1);
@@ -22,6 +24,8 @@ export function ExportStoppedPanel({
 }) {
   const { results, failed, notWritten } = stopped;
   const folder = parentDir(failed.output);
+  const final = isFinalError(failed.reason);
+  const { hint } = describeError(failed.reason);
   return (
     <div
       className="rounded-md border border-accent/40 bg-accent-soft/40 p-3 text-body"
@@ -43,10 +47,13 @@ export function ExportStoppedPanel({
           Not written: {notWritten.map((b) => fileName(b.output)).join(", ")}.
         </p>
       )}
+      {final && hint && <p className="mt-1 text-ink-2">{hint}</p>}
       <div className="mt-3 flex gap-2">
-        <Button size="sm" disabled={!canRetry} onClick={onReset}>
-          Try again
-        </Button>
+        {!final && (
+          <Button size="sm" disabled={!canRetry} onClick={onReset}>
+            Try again
+          </Button>
+        )}
         {results.length > 0 && (
           <Button size="sm" onClick={() => revealFolder(folder)}>
             <FolderOpen /> Open folder

@@ -18,6 +18,10 @@ const HINTS: [prefix: string, hint: string][] = [
   ["image:", "A page image couldn't be decoded."],
   ["not found:", "It no longer exists on the site."],
   ["refused:", "The image host points at a local or private address, so the app won't fetch it."],
+  [
+    "not enough space in",
+    "Free up space on that disk or choose another folder, then export again.",
+  ],
 ];
 
 /** Splits an IPC error message into a readable hint and the raw detail. */

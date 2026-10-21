@@ -10,6 +10,9 @@ pub mod page;
 pub mod pdf;
 pub mod preset;
 mod profiles;
+mod space;
+mod spool;
+mod spool_file;
 pub mod target;
 pub mod volume;
 
@@ -18,3 +21,4 @@ pub use output::{free_names_in, in_export_folder, resolve_free_names};
 pub use page::{default_quality, PageSettings, JPEG_QUALITY};
 pub use preset::ExportPreset;
 pub use profiles::{profile, Profile, PROFILES};
+pub use spool::{PageInfo, PageSpool};
