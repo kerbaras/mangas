@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 
-use super::counts::{count_chapters, ChapterCounts, ChapterMark};
+use super::count_query::{counts_by_manga, Key};
+use super::counts::ChapterCounts;
 use super::manga_repo::{row_to_manga, COLUMNS};
 use super::{Library, ReadingStatus};
 use crate::domain::{Manga, Result};
@@ -28,14 +29,12 @@ pub struct LibraryEntry {
     pub chapter_group: Option<String>,
 }
 
-type Key = (String, String);
-
 /// Every followed title with its status, categories and chapter counts, most recently followed
 /// first.
 pub fn list_entries(lib: &Library) -> Result<Vec<LibraryEntry>> {
     let conn = lib.conn()?;
     let mut categories = categories_by_manga(&conn)?;
-    let marks = marks_by_manga(&conn)?;
+    let mut counts = counts_by_manga(&conn)?;
     let mut stmt = conn.prepare(&format!(
         "SELECT {COLUMNS}, reading_status,
                 strftime('%Y-%m-%dT%H:%M:%SZ', added_at),
@@ -57,10 +56,7 @@ pub fn list_entries(lib: &Library) -> Result<Vec<LibraryEntry>> {
     for row in rows {
         let (manga, reading_status, added_at, updated_at, auto_download, chapter_group) = row?;
         let key = (manga.source.clone(), manga.id.0.clone());
-        let chapters = marks
-            .get(&key)
-            .map(|m| count_chapters(m))
-            .unwrap_or_default();
+        let chapters = counts.remove(&key).unwrap_or_default();
         entries.push(LibraryEntry {
             categories: categories.remove(&key).unwrap_or_default(),
             manga,
@@ -83,35 +79,6 @@ fn categories_by_manga(conn: &Connection) -> Result<HashMap<Key, Vec<i64>>> {
     for row in rows {
         let (key, id) = row?;
         map.entry(key).or_default().push(id);
-    }
-    Ok(map)
-}
-
-/// Chapter marks per title, of its saved group only when it is narrowed to one.
-fn marks_by_manga(conn: &Connection) -> Result<HashMap<Key, Vec<ChapterMark>>> {
-    let mut stmt = conn.prepare(
-        "SELECT c.source, c.manga_id, c.number, c.availability = 'available',
-                c.local_path IS NOT NULL, c.exported_at IS NOT NULL, c.id,
-                c.first_seen_at IS NOT NULL
-                  AND c.first_seen_at > COALESCE(m.last_viewed_at, '')
-         FROM chapter c JOIN manga m ON m.source = c.source AND m.id = c.manga_id
-         WHERE m.chapter_group IS NULL OR c.scanlation_group = m.chapter_group",
-    )?;
-    let rows = stmt.query_map([], |r| {
-        let mark = ChapterMark {
-            id: r.get(6)?,
-            number: r.get(2)?,
-            available: r.get(3)?,
-            downloaded: r.get(4)?,
-            exported: r.get(5)?,
-            new: r.get(7)?,
-        };
-        Ok(((r.get(0)?, r.get(1)?), mark))
-    })?;
-    let mut map: HashMap<Key, Vec<ChapterMark>> = HashMap::new();
-    for row in rows {
-        let (key, mark) = row?;
-        map.entry(key).or_default().push(mark);
     }
     Ok(map)
 }

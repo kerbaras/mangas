@@ -21,7 +21,7 @@ tracing-subscriber = { workspace = true }
 tracing-appender = { workspace = true }
 async-trait = "0.1"
 reqwest = { version = "0.13", default-features = false, features = ["json", "query", "rustls", "stream"] }
-rusqlite = { version = "0.40", features = ["bundled"] }
+rusqlite = { version = "0.40", features = ["bundled", "functions"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
 fast_image_resize = { version = "5", features = ["image"] }
 png = "0.18"
