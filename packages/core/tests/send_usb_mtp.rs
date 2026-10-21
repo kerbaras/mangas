@@ -40,7 +40,7 @@ fn choose_says_mtp_instead_of_device_not_found() {
     assert!(matches!(err, mangas_core::Error::KindleOverMtp { .. }));
     assert_eq!(
         err.to_string(),
-        "Your Kindle is connected over MTP; copying over USB isn't supported on this system — use Email delivery"
+        "Kindle connects over MTP, which mangas can't copy to on this computer yet"
     );
     let err = choose(None, KindleScan::default()).unwrap_err().to_string();
     assert!(

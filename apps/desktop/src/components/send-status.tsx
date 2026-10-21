@@ -6,6 +6,8 @@ import { refused, type SendState, type Via } from "@/hooks/use-send";
 import { MTP_HINT } from "@/lib/ipc.send";
 import { megabytes } from "@/lib/send-labels";
 
+const EMAIL_INSTEAD = "Send it by email instead.";
+
 type Props = {
   state: SendState;
   /** The delivery picked now: a failure of another one is no longer what Retry does. */
@@ -63,7 +65,7 @@ export function SendStatus({ state, via, onRetry, onEmail }: Props) {
           <Usb />
           <AlertTitle>{state.device} connected over MTP</AlertTitle>
           <AlertDescription>
-            {MTP_HINT}.
+            {`${state.device} ${MTP_HINT}. ${EMAIL_INSTEAD}`}
             <div className="mt-1 flex gap-2">
               {onEmail && (
                 <Button size="sm" onClick={onEmail}>

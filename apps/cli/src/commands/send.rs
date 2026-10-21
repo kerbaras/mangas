@@ -72,7 +72,7 @@ fn list_devices() -> anyhow::Result<()> {
     let found = usb::scan_kindles();
     match (found.volumes.is_empty(), found.mtp.first()) {
         (false, _) => {}
-        (true, Some(device)) => eprintln!("{}: {}\n  {EMAIL_INSTEAD}", device.name, usb::MTP_HINT),
+        (true, Some(device)) => eprintln!("{} {}\n  {EMAIL_INSTEAD}", device.name, usb::MTP_HINT),
         (true, None) => eprintln!("Device not found: connect your Kindle over USB and unlock it"),
     }
     for k in found.volumes {

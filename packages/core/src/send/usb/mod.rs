@@ -18,8 +18,8 @@ pub use scan::{decide, scan_kindles, KindleScan, Reach};
 
 use crate::domain::{Error, Result};
 
-/// The line for a Kindle connected over MTP only.
-pub const MTP_HINT: &str = "Your Kindle is connected over MTP; copying over USB isn't supported on this system — use Email delivery";
+/// Follows the device name for a Kindle connected over MTP only.
+pub const MTP_HINT: &str = "connects over MTP, which mangas can't copy to on this computer yet";
 
 /// The Kindle mounted at `root` when given (any folder with `documents/`), otherwise the first
 /// one `found`. With none mounted, [`Error::KindleOverMtp`] when a Kindle is on the bus.

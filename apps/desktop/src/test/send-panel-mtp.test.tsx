@@ -37,7 +37,7 @@ describe("send panel, Kindle connected over MTP", () => {
     render(<SendPanel file={FILE} />);
     fireEvent.click(screen.getByRole("button", { name: /Copy over USB/ }));
     expect(await screen.findByText("Kindle connected over MTP")).toBeTruthy();
-    expect(screen.getByText(`${MTP_HINT}.`)).toBeTruthy();
+    expect(screen.getByText(`Kindle ${MTP_HINT}. Send it by email instead.`)).toBeTruthy();
     expect(screen.queryByText("Device not found")).toBeNull();
     expect(sendUsb).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: /Use Email/ }));

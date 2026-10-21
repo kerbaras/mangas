@@ -51,9 +51,8 @@ export type KindleVolume = { name: string; root: string; documents: string };
 /** Mirrors `mangas_core::send::usb::UsbKindle`: a Kindle on the USB bus, mounted or not. */
 export type UsbKindle = { name: string };
 
-/** Mirrors `mangas_core::send::usb::MTP_HINT`. */
-export const MTP_HINT =
-  "Your Kindle is connected over MTP; copying over USB isn't supported on this system — use Email delivery";
+/** Mirrors `mangas_core::send::usb::MTP_HINT`; follows the device name. */
+export const MTP_HINT = "connects over MTP, which mangas can't copy to on this computer yet";
 
 /** Mirrors `mangas_core::send::email::Sent`. */
 export type SentEmail = { to: string; bytes: number };
