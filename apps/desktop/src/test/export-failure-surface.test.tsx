@@ -18,7 +18,10 @@ vi.mock("@/lib/ipc", async (original) => ({
   onExportProgress: async () => () => {},
 }));
 
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.clearAllMocks();
+  vi.restoreAllMocks();
+});
 
 const disk = () => Promise.reject(new Error("io: No space left on device (os error 28)"));
 const stopped = () =>
@@ -52,6 +55,17 @@ describe("export failure surface (#299)", () => {
     );
     await act(() => result.current.run(stopped));
     expect(toast.error).toHaveBeenLastCalledWith(
+      "Export stopped",
+      expect.objectContaining({ id: "export" }),
+    );
+  });
+
+  it("toasts the failure when the window is minimised with the dialog open", async () => {
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    const { result } = renderHook(() => useExport({ visible: () => true }));
+    await act(() => result.current.run(stopped));
+    expect(result.current.state.kind).toBe("stopped");
+    expect(toast.error).toHaveBeenCalledWith(
       "Export stopped",
       expect.objectContaining({ id: "export" }),
     );

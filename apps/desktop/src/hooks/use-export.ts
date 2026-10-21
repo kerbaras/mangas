@@ -15,18 +15,21 @@ export type ExportState =
   | { kind: "stopped"; stopped: ExportStopped };
 
 type Options = {
-  /** Whether the export dialog shows the failure inline; a toast reports it only otherwise. */
+  /** Whether the export dialog is open, so its panel can show the failure. */
   visible?: () => boolean;
 };
+
+/** The panel is only seen while the window is on screen: minimised, a toast reports instead. */
+const onScreen = () => document.visibilityState !== "hidden";
 
 /** Runs one export job (one or more books) and follows its progress events. */
 export function useExport({ visible = () => false }: Options = {}) {
   const [state, setState] = useState<ExportState>({ kind: "idle" });
   const shown = useRef(visible);
   shown.current = visible;
-  /** One surface for a failure: the dialog's panel while it is open, else a toast. */
+  /** One surface for a failure: the dialog's panel while it is open and seen, else a toast. */
   const report = useCallback((title: string, e: unknown) => {
-    if (shown.current()) toast.dismiss("export");
+    if (shown.current() && onScreen()) toast.dismiss("export");
     else notifyError(title, e, { id: "export" });
   }, []);
   const running = useRef(false);
