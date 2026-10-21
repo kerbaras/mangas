@@ -54,11 +54,12 @@ pub fn move_data_dir_with(
 ) -> Result<Moved> {
     // A download in any process (app or CLI) would keep writing into the old folder.
     use crate::download::queue::{hold_queue, MOVE_SETTLE};
-    let missing = missing_dirs(to);
     hold_queue(lib, MOVE_SETTLE, || {
+        // Under the hold, so no other move creates `to` in between.
+        let missing = missing_dirs(to);
         move_held(lib, from, to, replace_partial, on_progress)
+            .inspect_err(|_| remove_empty(&missing))
     })
-    .inspect_err(|_| remove_empty(&missing))
 }
 
 fn move_held(

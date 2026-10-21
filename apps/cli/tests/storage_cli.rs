@@ -103,6 +103,13 @@ fn a_refused_move_creates_no_target_folder() {
     );
     assert!(!out.status.success(), "{out:?}");
     assert!(existing.is_dir(), "a folder that was there stays");
+    let through_parent = home.path().join("made/../existing");
+    let out = mangas(
+        home.path(),
+        &["storage", "move", through_parent.to_str().unwrap()],
+    );
+    assert!(!out.status.success(), "{out:?}");
+    assert!(existing.is_dir(), "{out:?}");
     drop(reading);
 
     let out = mangas(home.path(), &["storage", "move", to.to_str().unwrap()]);
