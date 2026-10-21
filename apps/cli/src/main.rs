@@ -6,7 +6,7 @@ async fn main() -> std::process::ExitCode {
     match mangas_cli::run(std::env::args_os()).await {
         Ok(()) => std::process::ExitCode::SUCCESS,
         Err(e) => {
-            eprintln!("error: {e:#}");
+            eprintln!("error: {}", mangas_cli::describe(&e));
             std::process::ExitCode::from(mangas_cli::exit_code(&e))
         }
     }

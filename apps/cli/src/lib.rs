@@ -74,7 +74,7 @@ enum Command {
 
 /// Parses `args` (including the program name) and runs the command. Exits on `--help`,
 /// `--version` and usage errors, like any clap binary.
-pub use exit::{exit_code, Exit};
+pub use exit::{describe, exit_code, Exit};
 
 pub async fn run<I, T>(args: I) -> anyhow::Result<()>
 where

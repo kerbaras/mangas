@@ -15,7 +15,7 @@ pub async fn run(channel: Option<&str>, json: bool) -> anyhow::Result<()> {
     match check(channel).await {
         Ok(status) => report(&status, json),
         Err(e) if json => {
-            let message = format!("{e:#}");
+            let message = crate::exit::describe(&e);
             outln!("{}", json!({ "kind": "error", "message": message }))?;
             Err(Exit { code: 1, message }.into())
         }
