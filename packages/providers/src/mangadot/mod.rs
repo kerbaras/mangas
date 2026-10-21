@@ -42,7 +42,7 @@ pub const INFO: ProviderInfo = ProviderInfo {
         Capability::Download,
     ],
     needs_browser_session: false,
-    icon_url: Some("https://mangadot.net/favicon.ico"),
+    icon_url: Some("https://mangadot.net/icon-192.png"),
 };
 
 pub struct MangaDotProvider;
