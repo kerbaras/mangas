@@ -1,4 +1,7 @@
 //! A TLS server on localhost with a self-signed certificate; counts the connections it accepts.
+//!
+//! `fixtures/tls/` holds a test-only, self-signed certificate and key for `localhost` (served on
+//! 127.0.0.1). Only this test helper reads them; nothing outside `tests/` does.
 
 use std::net::TcpListener;
 use std::sync::atomic::{AtomicUsize, Ordering};
