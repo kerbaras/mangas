@@ -1,6 +1,7 @@
 //! `mangas update --check`: whether a newer mangas is published on the app's release channel.
 //! Same manifests, version rule and signing key as Settings → About in the app.
 
+use anyhow::Context;
 use mangas_core::app_update::{self, pubkey_from_config, Channel, Status, RELEASES};
 use serde_json::json;
 
@@ -39,7 +40,7 @@ async fn check(channel: Option<&str>) -> anyhow::Result<Status> {
         &settings.network(),
     )
     .await
-    .map_err(|e| anyhow::anyhow!("couldn't check for updates: {e}"))
+    .context("couldn't check for updates")
 }
 
 fn report(status: &Status, json: bool) -> anyhow::Result<()> {
