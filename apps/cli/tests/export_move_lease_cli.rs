@@ -100,13 +100,11 @@ fn a_move_is_refused_while_an_import_copies_pages() {
     drop(importing);
 }
 
-/// `storage delete` during a move would leave the move's copies of the deleted chapters behind.
-#[test]
-fn a_download_delete_is_refused_while_the_data_folder_moves() {
-    use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId};
+/// A followed title with one downloaded chapter; returns its chapter folder.
+fn downloaded_chapter(home: &Path) -> std::path::PathBuf {
+    use mangas_core::domain::{Chapter, ChapterId};
     use mangas_core::library::{mark_downloaded, open, upsert_chapters, upsert_manga};
-    let home = tempfile::tempdir().unwrap();
-    let lib = open(&data(home.path()).join("mangas.db")).unwrap();
+    let lib = open(&data(home).join("mangas.db")).unwrap();
     let id = MangaId("a".into());
     let manga = Manga {
         id: id.clone(),
@@ -123,11 +121,21 @@ fn a_download_delete_is_refused_while_the_data_folder_moves() {
         ..Default::default()
     };
     upsert_chapters(&lib, "mangadex", &id, "en", &[chapter]).unwrap();
-    let dir = data(home.path()).join("chapters/mangadex/a/1");
+    let dir = data(home).join("chapters/mangadex/a/1");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("001.jpg"), b"page").unwrap();
     mark_downloaded(&lib, "mangadex", &ChapterId("a-1".into()), &dir).unwrap();
+    dir
+}
 
+// A child that another test thread is starting shares a dropped lock until it execs, so no test
+// takes the lease again after dropping a move, or exclusively after dropping any.
+
+/// `storage delete` during a move would leave the move's copies of the deleted chapters behind.
+#[test]
+fn a_download_delete_is_refused_while_the_data_folder_moves() {
+    let home = tempfile::tempdir().unwrap();
+    let dir = downloaded_chapter(home.path());
     let moving = acquire_at(&data(home.path()), EXPORT_LEASE, Purpose::Move).unwrap();
     let out = mangas(home.path(), &["storage", "delete", "a"]);
     assert!(!out.status.success(), "{out:?}");
@@ -135,7 +143,12 @@ fn a_download_delete_is_refused_while_the_data_folder_moves() {
     assert!(err.contains("the data folder is moving"), "{err}");
     assert!(dir.join("001.jpg").exists(), "nothing deleted");
     drop(moving);
+}
 
+#[test]
+fn a_move_is_refused_while_downloads_are_deleted() {
+    let home = tempfile::tempdir().unwrap();
+    let dir = downloaded_chapter(home.path());
     let deleting = hold_for_export(|| Ok::<_, mangas_core::Error>(data(home.path()))).unwrap();
     let to = home.path().join("elsewhere");
     let out = mangas(home.path(), &["storage", "move", to.to_str().unwrap()]);
@@ -143,7 +156,8 @@ fn a_download_delete_is_refused_while_the_data_folder_moves() {
     assert!(err.contains("an export or import is running"), "{err}");
     drop(deleting);
 
+    // A delete shares the lease, so a child still sharing the dropped one doesn't refuse it.
     let out = mangas(home.path(), &["storage", "delete", "a"]);
     assert!(out.status.success(), "{out:?}");
-    assert!(!dir.exists(), "deleted once the move is gone");
+    assert!(!dir.exists(), "deleted when no move runs");
 }
