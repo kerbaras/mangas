@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use anyhow::bail;
 use clap::Args as ClapArgs;
-use mangas_core::export::kindle::{export, part_book, BookMeta, ExportRequest};
+use mangas_core::export::kindle::{export, BookMeta, ExportRequest};
 use mangas_core::export::target::{book_path, is_folder};
 use mangas_core::export::{ExportPreset, Format, PROFILES};
 use mangas_core::library;
@@ -18,6 +18,7 @@ use super::export_preset::note_series_preset;
 use super::export_report::Report;
 use super::export_size::warn_too_big;
 use super::kindle_library::from_library;
+use super::kindle_print;
 use super::kindle_record;
 use crate::output::outln;
 use crate::paths;
@@ -151,34 +152,11 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let started = Instant::now();
     let mut report = Report::new(detectors);
     let stats = export(&req, penalizer, &mut print_progress)
-        .or_else(|e| report.export_failed(&req.output, e, args.json))?;
+        .or_else(|e| report.export_failed(&req.output, req.replace, e, args.json))?;
     warn_too_big(&stats.oversized);
     report.add(&stats, &req.title, &req.chapter_dirs);
     if !args.json {
-        let (book, parts) = match stats.parts.len() {
-            0 => (stats.output.clone(), String::new()),
-            n => (part_book(&stats.output), format!(" in {n} parts")),
-        };
-        outln!(
-            "{}: {} pages{parts} from {} chapters ({} strips, {} source rows); pagination {} ms, filters {} ms, total {} ms",
-            book.display(),
-            stats.pages,
-            req.chapter_dirs.len(),
-            stats.strips,
-            stats.source_rows,
-            stats.pagination_ms,
-            stats.filters_ms,
-            started.elapsed().as_millis()
-        )?;
-    }
-    for part in stats.parts.iter().filter(|_| !args.json) {
-        outln!("  {}: {} pages", part.path.display(), part.pages)?;
-    }
-    if stats.skipped > 0 && !args.json {
-        outln!(
-            "skipped {} unsupported file(s), listed in the warnings above",
-            stats.skipped
-        )?;
+        kindle_print::print_book(&stats, req.chapter_dirs.len(), started)?;
     }
     let to = args.send.map(|via| (via, args.kindle.as_deref()));
     let done =

@@ -3,6 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
+use mangas_core::export::free_names_in;
 use mangas_core::export::kindle::ExportStats;
 use mangas_core::export::volume::VolumeOutcome;
 use mangas_core::library::ExportedChapter;
@@ -140,10 +141,11 @@ impl Report {
     pub fn export_failed<T>(
         &mut self,
         output: &Path,
+        replace: bool,
         e: mangas_core::Error,
         json: bool,
     ) -> anyhow::Result<T> {
-        self.fail(output, e.to_string());
+        self.fail(&planned_book(output, replace), e.to_string());
         if json {
             self.print()?;
         }
@@ -152,5 +154,35 @@ impl Report {
 
     pub fn print(&self) -> anyhow::Result<()> {
         print_json(self)
+    }
+}
+
+/// The book `export` writes for `output`: `output` itself when replacing, else its first free name
+/// in the folder, as the writer picks it (a failed write leaves nothing that would move it).
+pub fn planned_book(output: &Path, replace: bool) -> PathBuf {
+    let dir = output.parent().filter(|d| !d.as_os_str().is_empty());
+    let name = output.file_name().map(|n| n.to_string_lossy().into_owned());
+    let free = match (replace, name) {
+        (false, Some(name)) => free_names_in(dir.unwrap_or(Path::new(".")), &[name]).ok(),
+        _ => None,
+    };
+    match free.as_ref().and_then(|f| f.first()) {
+        Some(name) => output.with_file_name(name),
+        None => output.to_path_buf(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_failed_book_is_named_as_the_writer_names_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let book = dir.path().join("Book.epub");
+        assert_eq!(planned_book(&book, false), book);
+        std::fs::write(&book, b"older").unwrap();
+        assert_eq!(planned_book(&book, false), dir.path().join("Book (2).epub"));
+        assert_eq!(planned_book(&book, true), book);
     }
 }
