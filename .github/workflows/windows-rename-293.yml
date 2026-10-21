@@ -159,9 +159,15 @@ jobs:
           $v = Invoke-Mangas $exe @("--version")
           if ($v -notmatch [regex]::Escape($env:NEW_VERSION)) { throw "installed exe is not the new build: $v" }
           $after = Invoke-Mangas $exe @("settings", "show")
-          $before = Get-Content "$env:RUNNER_TEMP\settings-before.txt" -Raw
-          if ($after.Trim() -ne $before.Trim()) { throw "settings changed across the upgrade" }
-          Write-Host "settings identical before and after the upgrade"
+          # main since v0.5.0 adds settings rows (e.g. export JPEG quality), so every row the old CLI
+          # printed must come back unchanged; rows only the new build knows are listed as additions.
+          $beforeRows = @(Get-Content "$env:RUNNER_TEMP\settings-before.txt" | Where-Object { $_.Trim() })
+          $afterRows = @(("$after" -split "`r?`n") | Where-Object { $_.Trim() })
+          $lost = @($beforeRows | Where-Object { $afterRows -cnotcontains $_ })
+          if ($lost.Count) { $lost | ForEach-Object { Write-Host "changed or missing: $_" }; throw "settings changed across the upgrade" }
+          $added = @($afterRows | Where-Object { $beforeRows -cnotcontains $_ })
+          $added | ForEach-Object { Write-Host "new row (not in 0.5.0-rc.1): $_" }
+          Write-Host "all $($beforeRows.Count) settings rows from 0.5.0-rc.1 unchanged after the upgrade"
           $lnks = @(Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs", "$env:USERPROFILE\Desktop" -File | Where-Object Name -match '^mangas\.lnk')
           $lnks | ForEach-Object { Write-Host "shortcut on disk: $($_.FullName)" }
           if ($lnks.Count -ne 2) { throw "expected the Start menu and desktop shortcuts, got $($lnks.Count)" }
