@@ -10,9 +10,21 @@ import { throttleProgress } from "@/lib/progress-throttle";
 export type ExportState =
   | { kind: "idle" }
   | { kind: "running"; progress: ExportProgress | null }
-  | { kind: "done"; results: ExportResult[] }
+  | { kind: "done"; results: ExportResult[]; kept?: ExportResult[] }
   | { kind: "error"; message: string }
-  | { kind: "stopped"; stopped: ExportStopped };
+  | { kind: "stopped"; stopped: ExportStopped; kept?: ExportResult[] };
+
+/**
+ * What "Try again" after a stopped run writes: only the failed book and the ones after it
+ * (`only`, by title). The books written before are `kept`, reported as already there instead of
+ * written again as ` (2)` copies.
+ */
+export function retryOf(state: ExportState): { only: string[] | null; kept: ExportResult[] } {
+  if (state.kind !== "stopped") return { only: null, kept: [] };
+  const { failed, notWritten, results } = state.stopped;
+  const only = [failed.title, ...notWritten.map((b) => b.title)];
+  return { only, kept: [...(state.kept ?? []), ...results] };
+}
 
 type Options = {
   /** Whether the export dialog is open, so its panel can show the failure. */
@@ -36,6 +48,8 @@ export function useExport({ visible = () => false }: Options = {}) {
     if (shown.current() && panelInSight()) toast.dismiss("export");
     else notifyError(title, e, { id: "export" });
   }, []);
+  const current = useRef(state);
+  current.current = state;
   const running = useRef(false);
   const [throttle] = useState(() =>
     throttleProgress((progress) => {
@@ -67,17 +81,18 @@ export function useExport({ visible = () => false }: Options = {}) {
    */
   const run = useCallback(
     async (job: () => Promise<ExportResult[]>) => {
+      const { kept } = retryOf(current.current);
       running.current = true;
       throttle.reset();
       setState({ kind: "running", progress: null });
       try {
         const results = await job();
-        setState({ kind: "done", results });
+        setState({ kind: "done", results, kept });
         notifyExported(combineResults(results));
         return results;
       } catch (e) {
         if (e instanceof ExportStopped) {
-          setState({ kind: "stopped", stopped: e });
+          setState({ kind: "stopped", stopped: e, kept });
           report("Export stopped", e);
           return e.results.length ? e.results : null;
         }

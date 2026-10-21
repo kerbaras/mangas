@@ -61,6 +61,7 @@ pub(super) async fn the_export_embeds_the_cached_series_cover(home: &Path) {
         None,
         None,
         None,
+        None,
     )
     .await
     .unwrap()

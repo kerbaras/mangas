@@ -20,7 +20,7 @@ import {
 import { VolumePreview } from "@/components/volume-preview";
 import { useClearOnChange } from "@/hooks/use-clear-on-change";
 import { useDetectorSupport } from "@/hooks/use-detector-support";
-import { useExport } from "@/hooks/use-export";
+import { retryOf, useExport } from "@/hooks/use-export";
 import { useExportPlan } from "@/hooks/use-export-plan";
 import { useFreeNames } from "@/hooks/use-free-names";
 import { type Book, refused, runningVia, useSend } from "@/hooks/use-send";
@@ -126,6 +126,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
         quality: target.quality,
         splitMb,
         direction,
+        only: retryOf(job.state).only,
       }),
     );
     setRuns((n) => n + 1);

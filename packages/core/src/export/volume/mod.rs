@@ -7,6 +7,7 @@ mod meta;
 mod name;
 mod outcome;
 mod plan;
+mod retry;
 mod unwritten;
 
 use serde::{Deserialize, Serialize};
@@ -24,6 +25,7 @@ pub use plan::{
     find_volume, first_part_names, named_as_written, one_file_each, plan, request, written_names,
     VolumePlan,
 };
+pub use retry::only_titles;
 
 /// How a manga's chapters are split into books.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

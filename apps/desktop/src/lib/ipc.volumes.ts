@@ -41,6 +41,8 @@ export type VolumeExport = VolumeRequest & {
   splitMb?: number | null;
   /** Which way the pages turn; null: the series preset's, else the source's. */
   direction?: ReadingDirection | null;
+  /** Titles of the only planned books to write; null writes them all. */
+  only?: string[] | null;
 };
 
 /** What `estimate_export` is asked: each book's chapter folders with the dialog's choices. */

@@ -26,6 +26,8 @@ export type ExportChoices = {
   splitMb: number | null;
   /** Which way the pages turn; null: each series' preset or source decides. */
   direction: ReadingDirection | null;
+  /** Titles of the only books to write (a retry after a stopped run); null writes them all. */
+  only?: string[] | null;
 };
 
 /**
@@ -64,6 +66,7 @@ function writeBooks(c: ExportChoices): () => Promise<ExportResult[]> {
         title: c.title,
         ...common,
         outputDir: c.outputDir,
+        only: c.only ?? null,
       });
   }
   const title = c.title.trim() || exportTitle(c.picks);
