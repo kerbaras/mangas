@@ -13,6 +13,9 @@ pub(crate) struct FileEntry {
     pub bytes: u64,
 }
 
+/// The files a move copies, per app subfolder (`chapters`, `models`) of the data folder.
+pub(crate) type Plan<'a> = [(&'a str, Vec<FileEntry>)];
+
 /// Total size of the regular files under `path`; 0 when it doesn't exist. Unreadable entries
 /// are skipped: usage is informational and shouldn't fail on one bad file.
 pub fn dir_size(path: &Path) -> u64 {

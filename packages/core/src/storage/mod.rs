@@ -2,8 +2,10 @@
 //! that free or move that space. Backups live in [`crate::backup`].
 
 mod caches;
+mod copy;
 mod delete;
 mod layout;
+mod manifest;
 mod move_dir;
 mod partial;
 mod reading;
