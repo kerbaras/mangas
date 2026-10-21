@@ -57,8 +57,10 @@ describe("DownloadRow progress", () => {
     expect(screen.queryByText(/pages\/s/)).toBeNull();
   });
 
-  it("keeps the busy pulse on a starting row", () => {
-    expect(bar(makeJob({ state: "running" }))).toContain("animate-pulse");
+  it("shows a static busy third on a starting row, with no animation", () => {
+    expect(bar(makeJob({ state: "running" }))).not.toMatch(/animate-|transition/);
+    const fill = screen.getByRole("progressbar").firstElementChild as HTMLElement;
+    expect(fill.style.transform).toBe("scaleX(0.33)");
   });
 
   it("steps a row that is receiving pages by scale, with no transition", () => {
