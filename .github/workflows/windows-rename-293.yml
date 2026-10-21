@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 env:
-  PR_HEAD: eccd686f0c98dcb94d5f66ea6f4a0a5c4b6dd23e
+  PR_HEAD: e4affed37bcda8fa52bdc38583e267dbdc69fe3a
   TARGET: x86_64-pc-windows-msvc
   OLD_TAG: v0.5.0-rc.1
   # release.yml runs scripts/set-version.sh before building; the next release is 0.6.0.
