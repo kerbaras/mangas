@@ -60,11 +60,13 @@ export function useSeriesTarget(picks: ExportPick[]) {
     /** Picking a direction for one series saves it as that series' setting. */
     setDirection: (d: ReadingDirection) => {
       const before = own;
-      setOwn({ key, direction: d });
+      const picked = { key, direction: d };
+      setOwn(picked);
       if (!info) return;
       const saved = { ...series.preset, direction: d };
       setExportPreset(info.source, info.id, saved).then(series.reload, (e: unknown) => {
-        setOwn(before);
+        // A later pick wins over this failed save.
+        setOwn((now) => (now === picked ? before : now));
         toast.error("Couldn't save the page turn for this series", {
           description: errorMessage(e),
         });

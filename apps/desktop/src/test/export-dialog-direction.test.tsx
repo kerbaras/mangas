@@ -73,6 +73,27 @@ describe("export dialog: page turn", () => {
     await waitFor(async () => expect((await pageTurn()).textContent).toBe("Right to left (manga)"));
   });
 
+  it("keeps a later pick when an earlier save fails after it", async () => {
+    let failFirst: (e: Error) => void = () => {};
+    const setExportPreset = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise<void>((_, reject) => (failFirst = reject)))
+      .mockResolvedValue(undefined);
+    const { exportVolumes } = exportBackend({ getExportPreset: async () => null, setExportPreset });
+    render(dialog());
+    const pick = async (name: string) => {
+      fireEvent.keyDown(await pageTurn(), { key: "Enter" });
+      fireEvent.keyDown(await screen.findByRole("option", { name }), { key: "Enter" });
+    };
+    await pick("Left to right");
+    await pick("Right to left (manga)");
+    await waitFor(() => expect(setExportPreset).toHaveBeenCalledTimes(2));
+    failFirst(new Error("library is read-only"));
+    fireEvent.click(await enabledButton(/Export/));
+    await waitFor(() => expect(exportVolumes).toHaveBeenCalledOnce());
+    expect(exportVolumes.mock.calls[0][0]).toMatchObject({ direction: "rtl" });
+  });
+
   it("starts another picked series from its own way", async () => {
     const presets = new Map<string, ExportPreset>();
     exportBackend({
