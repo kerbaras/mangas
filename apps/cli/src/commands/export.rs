@@ -76,8 +76,8 @@ pub struct Args {
     #[command(flatten)]
     pub cut: CutArgs,
     /// Manage the series export preset instead of exporting. Exports of the series use it for
-    /// every option not given on the command line; `save` stores the cut, format and profile
-    /// flags given with it
+    /// every option not given on the command line; `save` stores the cut, format, profile and
+    /// direction flags given with it
     #[arg(long, value_enum, value_name = "ACTION")]
     pub preset: Option<PresetAction>,
 }
@@ -149,6 +149,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             )
             .with_format(format)
             .with_page(preset.page())
+            .with_direction(preset.direction)
             .with_replace(args.replace)
             .with_split(args.cut.split())
         })

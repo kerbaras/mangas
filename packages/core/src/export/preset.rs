@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::page::{PageSettings, JPEG_QUALITY, PAGE_HEIGHT, TONE};
 use super::{profile, Format, Profile};
-use crate::domain::{Error, Result};
+use crate::domain::{Error, ReadingDirection, Result};
 use crate::library::Settings;
 use crate::smartcut::{Options, Preset};
 
@@ -41,6 +41,9 @@ pub struct ExportPreset {
     /// Profile id (`export::PROFILES`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub profile: Option<String>,
+    /// Which way the book's pages turn; the source's direction, else left to right, when unset.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub direction: Option<ReadingDirection>,
 }
 
 macro_rules! layer {
@@ -65,7 +68,8 @@ impl ExportPreset {
             sharpen,
             jpeg_quality,
             format,
-            profile
+            profile,
+            direction
         )
     }
 

@@ -5,7 +5,7 @@ use std::path::Path;
 use rusqlite::{params, OptionalExtension};
 
 use super::Library;
-use crate::domain::{Error, Result};
+use crate::domain::{Error, MangaId, ReadingDirection, Result};
 use crate::export::ExportPreset;
 
 /// The preset saved for `source`/`manga_id`. A row that no longer parses is ignored (logged),
@@ -79,6 +79,31 @@ pub fn clear_export_preset(lib: &Library, source: &str, manga_id: &str) -> Resul
 pub fn series_of_dirs(lib: &Library, dirs: &[&Path]) -> Result<Option<(String, String)>> {
     let each: Vec<Vec<&Path>> = dirs.iter().map(|d| vec![*d]).collect();
     series_of_spelled(lib, &each)
+}
+
+/// The reading direction the source gives `source`/`manga_id`; none when it isn't followed or
+/// its source doesn't say.
+pub fn source_direction(
+    lib: &Library,
+    source: &str,
+    manga_id: &str,
+) -> Result<Option<ReadingDirection>> {
+    let manga = super::get_manga(lib, source, &MangaId(manga_id.to_string()))?;
+    Ok(manga.and_then(|m| m.direction))
+}
+
+/// [`preset_for_dirs`] over what the series' source says (its reading direction): the layer
+/// between the explicit choices and the defaults when exporting chapter folders.
+pub fn series_layer_for_dirs(lib: &Library, dirs: &[&Path]) -> Result<Option<ExportPreset>> {
+    let Some((source, id)) = series_of_dirs(lib, dirs)? else {
+        return Ok(None);
+    };
+    let below = ExportPreset {
+        direction: source_direction(lib, &source, &id)?,
+        ..Default::default()
+    };
+    let preset = get_export_preset(lib, &source, &id)?.unwrap_or_default();
+    Ok(Some(preset.over(&below)))
 }
 
 /// [`series_of_dirs`] with each folder in several spellings (as typed, absolute, resolved):

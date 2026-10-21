@@ -8,34 +8,60 @@ use mangas_core::library::{self, Library};
 use super::kindle_titles::{spellings, titles_in};
 use crate::paths;
 
-pub(super) type FromLibrary = (Labels, Option<String>, Vec<String>, Option<ExportPreset>);
+pub(super) type FromLibrary = (
+    Labels,
+    Option<String>,
+    Vec<String>,
+    Option<ExportPreset>,
+    ExportPreset,
+);
 
 /// Series/chapter/volume labels from the library (folders it doesn't know export unlabelled),
 /// the first chapter's series for the default title (a mixed export lacks it in `Labels`), the
-/// TOC entries, and the series export preset when every folder belongs to one series.
+/// TOC entries, the series export preset when every folder belongs to one series, and below it
+/// what the series' source says (its reading direction).
 pub(super) fn from_library(chapters: &[PathBuf]) -> FromLibrary {
     paths::library_db()
         .and_then(|db| Ok(library::open(&db)?))
         .and_then(|lib| {
-            let titles = titles_in(&lib, chapters)?;
-            let preset = series_preset(&lib, chapters)?;
+            let series = series_of(&lib, chapters)?;
+            let (preset, source) = match &series {
+                Some((source, id)) => (
+                    library::get_export_preset(&lib, source, id)?,
+                    library::source_direction(&lib, source, id)?,
+                ),
+                None => (None, None),
+            };
             Ok((
                 labels_in(&lib, chapters)?,
                 first_series(&lib, chapters)?,
-                titles,
+                titles_in(&lib, chapters)?,
                 preset,
+                ExportPreset {
+                    direction: source,
+                    ..Default::default()
+                },
             ))
         })
         .unwrap_or_else(|e: anyhow::Error| {
             eprintln!("warning: could not read the chapters' series and numbers: {e}");
-            (Labels::default(), None, Vec::new(), None)
+            Default::default()
         })
 }
 
+#[cfg(test)]
 pub(super) fn series_preset(
     lib: &Library,
     chapters: &[PathBuf],
 ) -> anyhow::Result<Option<ExportPreset>> {
+    Ok(match series_of(lib, chapters)? {
+        Some((source, id)) => library::get_export_preset(lib, &source, &id)?,
+        None => None,
+    })
+}
+
+/// The one series every folder (in any of its spellings) belongs to.
+fn series_of(lib: &Library, chapters: &[PathBuf]) -> anyhow::Result<Option<(String, String)>> {
     let spelled = chapters
         .iter()
         .map(|c| spellings(lib, &[c.as_path()]))
@@ -44,10 +70,7 @@ pub(super) fn series_preset(
         .iter()
         .map(|s| s.iter().map(PathBuf::as_path).collect())
         .collect();
-    Ok(match library::series_of_spelled(lib, &refs)? {
-        Some((source, id)) => library::get_export_preset(lib, &source, &id)?,
-        None => None,
-    })
+    Ok(library::series_of_spelled(lib, &refs)?)
 }
 
 pub(super) fn first_series(lib: &Library, chapters: &[PathBuf]) -> anyhow::Result<Option<String>> {

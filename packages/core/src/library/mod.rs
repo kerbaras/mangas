@@ -45,8 +45,8 @@ pub use entries::{list_entries, LibraryEntry};
 pub use export_history::{list_exports, record_export, record_sent, ExportRecord};
 pub use export_labels::{chapter_titles, export_labels};
 pub use export_presets::{
-    clear_export_preset, get_export_preset, preset_for_dirs, series_of_dirs, series_of_spelled,
-    set_export_preset,
+    clear_export_preset, get_export_preset, preset_for_dirs, series_layer_for_dirs, series_of_dirs,
+    series_of_spelled, set_export_preset, source_direction,
 };
 pub use folders::{export_folders, openable_folder};
 pub use gate_repo::{

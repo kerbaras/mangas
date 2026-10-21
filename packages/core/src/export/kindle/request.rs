@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::parts::Oversized;
 use super::Device;
+use crate::domain::ReadingDirection;
 use crate::export::epub::Series;
 use crate::export::{Format, Labels, PageSettings};
 use crate::smartcut::Options;
@@ -25,6 +26,9 @@ pub struct BookMeta {
     /// What the book is (source, manga, chapters), hashed into its identifier; the title and
     /// chapter folders when absent.
     pub identity: Option<String>,
+    /// Which way the pages turn: the spine's `page-progression-direction` and the
+    /// `primary-writing-mode` Kindle reads.
+    pub direction: ReadingDirection,
 }
 
 #[derive(Debug, Clone)]
@@ -52,6 +56,12 @@ impl ExportRequest {
     /// The same export with `page` tweaks.
     pub fn with_page(self, page: PageSettings) -> ExportRequest {
         ExportRequest { page, ..self }
+    }
+
+    /// The same export turning its pages `direction` when given, else as the series reads.
+    pub fn with_direction(mut self, direction: Option<ReadingDirection>) -> ExportRequest {
+        self.meta.direction = direction.unwrap_or(self.meta.direction);
+        self
     }
 
     /// The same export, replacing an existing file at the output path when `replace`.

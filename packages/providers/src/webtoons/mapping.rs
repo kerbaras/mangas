@@ -1,7 +1,8 @@
 //! Pure mapping from Webtoons responses to domain types.
 
 use mangas_core::domain::{
-    season_label, sort_by_number, Chapter, Error, Manga, MangaId, MangaStatus, Result,
+    season_label, sort_by_number, Chapter, Error, Manga, MangaId, MangaStatus, ReadingDirection,
+    Result,
 };
 use mangas_core::sources::PageUrls;
 
@@ -37,6 +38,7 @@ pub fn cover_url(raw: &str) -> String {
 
 fn manga(title: &Title, name: String, cover: Option<String>, description: String) -> Manga {
     Manga {
+        direction: Some(ReadingDirection::Ltr),
         id: title.id(),
         source: SOURCE_NAME.to_string(),
         title: name,
@@ -64,6 +66,7 @@ pub fn parse_search(body: &str, language: &str) -> Result<Vec<Manga>> {
             let title = Title::original(language, number);
             let authors = e.author_name_list.iter().map(|a| unescape(a)).collect();
             Some(Manga {
+                direction: Some(ReadingDirection::Ltr),
                 authors,
                 ..manga(&title, name, e.thumbnail_mobile, description)
             })
@@ -92,6 +95,7 @@ pub fn parse_canvas_search(html: &str, language: &str) -> Vec<Manga> {
 pub fn parse_title_page(id: &MangaId, html: &str) -> Result<Manga> {
     let name = og(html, "og:title").ok_or_else(|| Error::NotFound(format!("webtoon {id}")))?;
     Ok(Manga {
+        direction: Some(ReadingDirection::Ltr),
         id: id.clone(),
         source: SOURCE_NAME.to_string(),
         title: name,

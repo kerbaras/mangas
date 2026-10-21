@@ -76,7 +76,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const useDetectors =
     detectorsUsable(detectors.status) && (detectorsOn ?? detectorsDefault(detectors.status));
   const planned = inFormat(plans, target.format);
-  const { device, format, replace, quality } = target;
+  const { device, format, replace, quality, direction } = target;
   const { files, named, blocked } = useFreeNames(planned, folder.resolved, runs, replace, splitMb);
   const preview = { folder: folder.resolved, stale: !fresh || !named, blocked };
   const books = files.kind === "ready" ? files.data.length : 0;
@@ -102,7 +102,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
     setWritten([]);
   }, [resetJob, resetSend]);
   const picked = [mode, size, title, preset, useDetectors, folder.output, splitMb];
-  const choice = [...picked, device, format, replace, quality].join("|");
+  const choice = [...picked, device, format, replace, quality, direction].join("|");
   useClearOnChange(choice, busy, clearResult);
   const keepFailed = useCallback(() => !failed && clearResult(), [failed, clearResult]);
   useClearOnChange(via, busy, keepFailed, true);
@@ -123,6 +123,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
         replace: target.replace,
         quality: target.quality,
         splitMb,
+        direction,
       }),
     );
     setRuns((n) => n + 1);

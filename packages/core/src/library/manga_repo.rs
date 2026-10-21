@@ -1,10 +1,10 @@
 use rusqlite::{params, Connection, OptionalExtension, Row};
 
 use super::Library;
-use crate::domain::{Manga, MangaId, MangaStatus, Result};
+use crate::domain::{Manga, MangaId, MangaStatus, ReadingDirection, Result};
 
 pub(super) const COLUMNS: &str =
-    "id, source, title, description, cover_url, status, authors, artists, year, tags";
+    "id, source, title, description, cover_url, status, authors, artists, year, tags, direction";
 
 /// Inserts the manga or refreshes its metadata if it is already followed.
 pub fn upsert_manga(lib: &Library, manga: &Manga) -> Result<()> {
@@ -14,13 +14,15 @@ pub fn upsert_manga(lib: &Library, manga: &Manga) -> Result<()> {
 pub(super) fn upsert_on(conn: &Connection, manga: &Manga) -> Result<()> {
     conn.execute(
         "INSERT INTO manga
-            (id, source, title, description, cover_url, status, authors, artists, year, tags)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+            (id, source, title, description, cover_url, status, authors, artists, year, tags,
+             direction)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
          ON CONFLICT (source, id) DO UPDATE SET
             title = excluded.title, description = excluded.description,
             cover_url = excluded.cover_url, status = excluded.status,
             authors = excluded.authors, artists = excluded.artists,
-            year = excluded.year, tags = excluded.tags",
+            year = excluded.year, tags = excluded.tags,
+            direction = COALESCE(excluded.direction, manga.direction)",
         params![
             manga.id.0,
             manga.source,
@@ -32,6 +34,7 @@ pub(super) fn upsert_on(conn: &Connection, manga: &Manga) -> Result<()> {
             list_to_json(&manga.artists),
             manga.year,
             list_to_json(&manga.tags),
+            manga.direction.map(direction_to_str),
         ],
     )?;
     Ok(())
@@ -51,7 +54,7 @@ pub(crate) fn list_manga_with_added(lib: &Library) -> Result<Vec<(Manga, String)
     let mut stmt = conn.prepare(&format!(
         "SELECT {COLUMNS}, added_at FROM manga ORDER BY rowid"
     ))?;
-    let rows = stmt.query_map([], |r| Ok((row_to_manga(r)?, r.get(10)?)))?;
+    let rows = stmt.query_map([], |r| Ok((row_to_manga(r)?, r.get(11)?)))?;
     Ok(rows.collect::<std::result::Result<_, _>>()?)
 }
 
@@ -97,7 +100,26 @@ pub(super) fn row_to_manga(row: &Row<'_>) -> rusqlite::Result<Manga> {
         artists: list_from_json(&row.get::<_, String>(7)?),
         year: row.get(8)?,
         tags: list_from_json(&row.get::<_, String>(9)?),
+        direction: row
+            .get::<_, Option<String>>(10)?
+            .as_deref()
+            .and_then(direction_from_str),
     })
+}
+
+fn direction_to_str(d: ReadingDirection) -> &'static str {
+    match d {
+        ReadingDirection::Ltr => "ltr",
+        ReadingDirection::Rtl => "rtl",
+    }
+}
+
+fn direction_from_str(s: &str) -> Option<ReadingDirection> {
+    match s {
+        "ltr" => Some(ReadingDirection::Ltr),
+        "rtl" => Some(ReadingDirection::Rtl),
+        _ => None,
+    }
 }
 
 fn list_to_json(items: &[String]) -> String {

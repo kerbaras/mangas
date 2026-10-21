@@ -1,7 +1,7 @@
 //! Pure mapping from MANGA Plus replies (protobuf bytes) to domain types.
 
 use mangas_core::domain::{
-    sort_by_number, Availability, Chapter, ChapterId, Manga, MangaId, Result,
+    sort_by_number, Availability, Chapter, ChapterId, Manga, MangaId, ReadingDirection, Result,
 };
 use mangas_core::sources::PageUrls;
 
@@ -60,6 +60,7 @@ pub fn parse_title(body: &[u8], id: &MangaId) -> Result<Manga> {
         .collect::<Vec<_>>()
         .join("\n\n");
     Ok(Manga {
+        direction: Some(ReadingDirection::Rtl),
         id: id.clone(),
         description,
         status: status(&detail),
@@ -133,6 +134,7 @@ fn detail(body: &[u8], id: &MangaId) -> Result<TitleDetailView> {
 
 fn to_manga(title: &Title) -> Manga {
     Manga {
+        direction: Some(ReadingDirection::Rtl),
         id: MangaId(title.title_id.to_string()),
         source: SOURCE_NAME.to_string(),
         title: title.name.trim().to_string(),

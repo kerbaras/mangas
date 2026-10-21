@@ -3,6 +3,7 @@ import { type ExportPick, exportTitle, joinPath } from "./export-name";
 import { type BundleMode, groupingOf } from "./export-plan";
 import { ExportStopped } from "./export-stopped";
 import { type ExportFormat, type ExportResult, exportChapters, type Preset } from "./ipc";
+import type { ReadingDirection } from "./ipc.domain";
 import { exportFileName, exportVolumes } from "./ipc.volumes";
 import { storageChanged } from "./storage-changed";
 
@@ -23,6 +24,8 @@ export type ExportChoices = {
   quality: number | null;
   /** Write a bigger book as numbered parts of at most this many MB. */
   splitMb: number | null;
+  /** Which way the pages turn; null: each series' preset or source decides. */
+  direction: ReadingDirection | null;
 };
 
 /**
@@ -48,8 +51,8 @@ function reloadDetectors(results: ExportResult[]): ExportResult[] {
 }
 
 function writeBooks(c: ExportChoices): () => Promise<ExportResult[]> {
-  const { device, format, preset, detectors, replace, quality, splitMb } = c;
-  const common = { device, format, preset, detectors, replace, quality, splitMb };
+  const { device, format, preset, detectors, replace, quality, splitMb, direction } = c;
+  const common = { device, format, preset, detectors, replace, quality, splitMb, direction };
   if (c.picks.length === 1) {
     const [{ manga, chapters }] = c.picks;
     return () =>

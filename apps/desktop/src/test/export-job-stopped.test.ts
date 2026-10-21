@@ -29,6 +29,7 @@ const job = () =>
     replace: false,
     quality: null,
     splitMb: null,
+    direction: null,
   });
 
 describe("export job", () => {

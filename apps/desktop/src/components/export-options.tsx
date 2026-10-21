@@ -1,6 +1,7 @@
 import { type Delivery, DeliveryPicker } from "@/components/delivery-picker";
 import { DeviceSelect } from "@/components/device-select";
 import { DevicesPending } from "@/components/devices-pending";
+import { DirectionField } from "@/components/direction-field";
 import { Field } from "@/components/field";
 import { FormatPicker } from "@/components/format-picker";
 import { KindleSizeField } from "@/components/kindle-size-field";
@@ -10,8 +11,8 @@ import { SmartCutButton } from "@/components/smart-cut-preview";
 import { SmartCutSection } from "@/components/smart-cut-section";
 import type { Async } from "@/hooks/use-async";
 import type { DetectorSupport } from "@/hooks/use-detector-support";
-import type { ExportTarget } from "@/hooks/use-export-target";
 import type { Series } from "@/hooks/use-series-preset";
+import type { SeriesTarget } from "@/hooks/use-series-target";
 import { chapterLabel } from "@/lib/chapters";
 import { formatLabel } from "@/lib/export-formats";
 import type { Chapter, Preset } from "@/lib/ipc";
@@ -19,7 +20,7 @@ import type { ExportPreset } from "@/lib/ipc.cut-preview";
 import type { VolumePlan } from "@/lib/ipc.volumes";
 
 type Props = {
-  target: ExportTarget;
+  target: SeriesTarget;
   preset: Preset;
   onPreset: (p: Preset) => void;
   detectorSupport: DetectorSupport;
@@ -69,6 +70,12 @@ export function ExportOptions(p: Props) {
       >
         <FormatPicker value={target.format} onChange={target.setFormat} compact />
       </Field>
+      <DirectionField
+        value={target.shownDirection}
+        saved={target.directionSaved}
+        series={p.cut.series !== null}
+        onChange={target.setDirection}
+      />
       <SmartCutSection
         preset={p.preset}
         onPreset={p.onPreset}

@@ -43,6 +43,7 @@ describe("export request", () => {
       replace: false,
       quality: null,
       splitMb: null,
+      direction: null,
     });
   });
 
@@ -58,6 +59,19 @@ describe("export request", () => {
       splitMb: 45,
     });
     expect(args).toMatchObject({ quality: 60, splitMb: 45 });
+  });
+
+  it("passes the page turn", () => {
+    const args = toExportArgs({
+      chapter_dirs: [],
+      device: "d",
+      format: "epub",
+      preset: "balanced",
+      detectors: false,
+      output: "/o",
+      direction: "rtl",
+    });
+    expect(args).toMatchObject({ direction: "rtl" });
   });
 
   it("passes the replace choice", () => {

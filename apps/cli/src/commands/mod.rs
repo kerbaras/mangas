@@ -4,6 +4,7 @@ pub mod backup;
 pub mod chapters;
 mod cut_args;
 mod deliver;
+mod direction_arg;
 pub mod download;
 mod download_releases;
 pub mod export;

@@ -4,6 +4,8 @@ import { type Series, useSeriesPreset } from "@/hooks/use-series-preset";
 import { effectiveFormat } from "@/lib/export-formats";
 import type { ExportPick } from "@/lib/export-name";
 import type { Preset } from "@/lib/ipc";
+import { setExportPreset } from "@/lib/ipc.cut-preview";
+import type { ReadingDirection } from "@/lib/ipc.domain";
 import { withQuality } from "@/lib/kindle-size";
 import { useSettings } from "@/lib/settings";
 
@@ -15,6 +17,7 @@ export function useSeriesTarget(picks: ExportPick[]) {
   const [settings, update] = useSettings();
   const stored = useExportTarget();
   const [ownPreset, setOwnPreset] = useState<Preset>(settings.defaultPreset);
+  const [ownDirection, setOwnDirection] = useState<ReadingDirection | null>(null);
   const [pick] = picks;
   const info: Series | null =
     picks.length === 1 && pick
@@ -40,6 +43,22 @@ export function useSeriesTarget(picks: ExportPick[]) {
       series.touch("format");
       stored.setFormat(f);
     },
+    /** Picked here; null lets the series preset, else the source, decide for each series. */
+    direction: ownDirection,
+    /** What one series' book turns by; null when several series each turn their own way. */
+    shownDirection: info
+      ? (ownDirection ?? series.preset?.direction ?? pick?.manga.direction ?? "ltr")
+      : ownDirection,
+    directionSaved:
+      series.preset?.direction != null &&
+      (ownDirection ?? series.preset.direction) === series.preset.direction,
+    /** Picking a direction for one series saves it as that series' setting. */
+    setDirection: (d: ReadingDirection) => {
+      setOwnDirection(d);
+      if (!info) return;
+      const saved = { ...series.preset, direction: d };
+      setExportPreset(info.source, info.id, saved).then(series.reload, () => undefined);
+    },
   };
   const setPreset = (p: Preset) => {
     series.touch("cut_preset");
@@ -54,3 +73,5 @@ export function useSeriesTarget(picks: ExportPick[]) {
     settled: series.settled,
   };
 }
+
+export type SeriesTarget = ReturnType<typeof useSeriesTarget>["target"];

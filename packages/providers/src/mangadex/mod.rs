@@ -2,6 +2,7 @@
 
 mod api;
 mod dedupe;
+mod direction;
 mod external;
 mod mapping;
 mod options;

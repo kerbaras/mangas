@@ -43,6 +43,7 @@ pub fn parse_status(raw: Option<&str>) -> MangaStatus {
 
 pub fn to_manga(entry: MangaEntry) -> Manga {
     Manga {
+        direction: None,
         id: MangaId(entry.id.to_string()),
         source: SOURCE_NAME.to_string(),
         title: entry.title,

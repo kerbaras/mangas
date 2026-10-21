@@ -29,9 +29,9 @@ const errorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e)
 import type { Device, Preset } from "@/lib/ipc";
 import {
   cancelCutPreview,
-  clearExportPreset,
   type ExportPreset,
   previewCut,
+  resetExportPreset,
   setExportPreset,
 } from "@/lib/ipc.cut-preview";
 import type { ExportFormat } from "@/lib/ipc.export";
@@ -131,6 +131,7 @@ function SmartCutPreview(props: Props & { onClose: () => void }) {
         ...form,
         format,
         profile: device.id,
+        direction: saved?.direction,
       });
       setNote("Saved cut settings, device and format for this series.");
       props.onSaved();
@@ -143,7 +144,7 @@ function SmartCutPreview(props: Props & { onClose: () => void }) {
     setForm({});
     if (!series || !saved) return;
     try {
-      await clearExportPreset(series.source, series.id);
+      await resetExportPreset(series.source, series.id, saved);
       setNote("Series preset removed: exports use the defaults.");
       props.onSaved();
     } catch (e) {

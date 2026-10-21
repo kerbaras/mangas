@@ -84,7 +84,7 @@ pub fn export(
         },
         language: src.language.clone().unwrap_or_else(|| "en".into()),
         series: src.series.clone(),
-        right_to_left: false,
+        right_to_left: src.direction.is_rtl(),
         chapters,
         labels: req.labels.clone().or_series(src.series.as_ref()),
         title_explicit: req.title_explicit,

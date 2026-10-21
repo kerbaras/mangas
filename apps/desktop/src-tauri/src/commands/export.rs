@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use mangas_core::domain::ReadingDirection;
 use mangas_core::export::kindle::{self, BookMeta, ExportRequest, ExportStats, Progress};
 use mangas_core::export::{ExportPreset, Format, Labels};
 use mangas_core::library;
@@ -58,6 +59,7 @@ pub async fn export_chapters<R: Runtime>(
     replace: Option<bool>,
     quality: Option<u8>,
     split_mb: Option<u64>,
+    direction: Option<ReadingDirection>,
 ) -> Result<ExportStats, String> {
     let _reading = hold_for_export().map_err(to_ipc)?;
     let explicit = ExportPreset {
@@ -65,6 +67,7 @@ pub async fn export_chapters<R: Runtime>(
         format,
         profile: device,
         jpeg_quality: quality,
+        direction,
         ..Default::default()
     };
     let settings = settings_or_default();
@@ -92,6 +95,7 @@ pub async fn export_chapters<R: Runtime>(
         replace: replace.unwrap_or(false),
         meta: BookMeta {
             chapter_titles: titles_of(&req_dirs),
+            direction: resolved.direction.unwrap_or_default(),
             ..Default::default()
         },
     };
@@ -126,7 +130,7 @@ pub(super) fn resolve(
 pub(super) fn series_preset(dirs: &[PathBuf]) -> Option<ExportPreset> {
     let refs: Vec<&std::path::Path> = dirs.iter().map(PathBuf::as_path).collect();
     open_library()
-        .and_then(|lib| library::preset_for_dirs(&lib, &refs).map_err(to_ipc))
+        .and_then(|lib| library::series_layer_for_dirs(&lib, &refs).map_err(to_ipc))
         .unwrap_or_else(|e| {
             tracing::warn!("could not read the series export preset: {e}");
             None

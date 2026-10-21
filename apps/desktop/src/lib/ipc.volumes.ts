@@ -1,5 +1,7 @@
 /** Volume export part of the IPC contract: plan a manga's books, then write them. */
+
 import { backend, type Chapter, type ExportFormat, type ExportResult, type Preset } from "./ipc";
+import type { ReadingDirection } from "./ipc.domain";
 
 /** Mirrors `mangas_core::export::volume::Grouping` (serde tag = "kind", content = "size"). */
 export type Grouping =
@@ -37,6 +39,8 @@ export type VolumeExport = VolumeRequest & {
   quality?: number | null;
   /** Write a bigger book as numbered parts of at most this many MB. */
   splitMb?: number | null;
+  /** Which way the pages turn; null: the series preset's, else the source's. */
+  direction?: ReadingDirection | null;
 };
 
 /** What `estimate_export` is asked: each book's chapter folders with the dialog's choices. */

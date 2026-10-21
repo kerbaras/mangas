@@ -58,6 +58,7 @@ pub fn parse_comic_page(id: &MangaId, html: &str) -> Result<Manga> {
         script_json(html, "comic-data").ok_or_else(|| Error::NotFound(format!("manga {id}")))?;
     let comic: ComicData = json(data)?;
     Ok(Manga {
+        direction: None,
         id: MangaId(comic.slug),
         source: SOURCE_NAME.to_string(),
         title: comic.title.trim().to_string(),

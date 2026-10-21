@@ -1,5 +1,7 @@
 /** Export part of the IPC contract. */
+
 import type { Preset } from "./ipc";
+import type { ReadingDirection } from "./ipc.domain";
 
 /** Mirrors `mangas_core::export::Format` (lowercase on the wire). */
 export type ExportFormat = "epub" | "cbz" | "pdf";
@@ -38,6 +40,8 @@ export type ExportRequest = {
   quality?: number | null;
   /** Write a bigger book as numbered parts of at most this many MB. */
   splitMb?: number | null;
+  /** Which way the pages turn; null: the series preset's, else the source's. */
+  direction?: ReadingDirection | null;
 };
 
 export type ExportResult = {

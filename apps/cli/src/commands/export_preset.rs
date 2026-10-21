@@ -10,7 +10,7 @@ use crate::output::outln;
 pub enum PresetAction {
     /// Print the saved preset
     Show,
-    /// Save the cut, format and profile flags given with it as the preset
+    /// Save the cut, format, profile and direction flags given with it as the preset
     Save,
     /// Forget the preset; exports go back to the defaults
     Clear,
