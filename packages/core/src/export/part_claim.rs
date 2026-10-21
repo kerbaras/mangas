@@ -60,14 +60,16 @@ pub(super) fn claim_part(target: &Path) -> std::io::Result<Option<File>> {
     if let Some(file) = create_part(&part)? {
         return Ok(Some(file));
     }
-    let Some(_held) = stale(&part)? else {
+    let Some(held) = stale(&part)? else {
         return Ok(None);
     };
     match std::fs::remove_file(&part) {
         Err(e) if e.kind() != ErrorKind::NotFound => return Err(e),
         _ => {}
     }
-    // Windows may keep a removed name until the handle closes; the next name is free then.
+    // Closed first: Windows keeps a removed name until its last handle closes. Another process
+    // still holding it open leaves the name taken; the next name is free then.
+    drop(held);
     match create_part(&part) {
         Err(e) if e.kind() == ErrorKind::PermissionDenied => Ok(None),
         claimed => claimed,
