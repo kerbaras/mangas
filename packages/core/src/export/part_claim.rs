@@ -52,39 +52,89 @@ pub(super) fn claim_free_name(path: &Path) -> std::io::Result<Claim> {
     unreachable!("candidate_names is infinite")
 }
 
-/// `target`'s `.part`, emptied and locked, or `None` when another export holds it. A part left by
-/// an interrupted export is taken over.
+/// `target`'s `.part`, new and locked, or `None` when another export holds it. A part left by an
+/// interrupted export is removed and created again: never emptied in place, since its file may be
+/// the published book too (a kill between [`publish`]'s link and unlink).
 pub(super) fn claim_part(target: &Path) -> std::io::Result<Option<File>> {
-    let file = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .open(part_file(target))?;
-    if !lock(&file)? {
+    let part = part_file(target);
+    if let Some(file) = create_part(&part)? {
+        return Ok(Some(file));
+    }
+    let Some(_held) = stale(&part)? else {
+        return Ok(None);
+    };
+    match std::fs::remove_file(&part) {
+        Err(e) if e.kind() != ErrorKind::NotFound => return Err(e),
+        _ => {}
+    }
+    // Windows may keep a removed name until the handle closes; the next name is free then.
+    match create_part(&part) {
+        Err(e) if e.kind() == ErrorKind::PermissionDenied => Ok(None),
+        claimed => claimed,
+    }
+}
+
+/// A new `part`, locked; `None` when the name is there or another export locked it first. Without
+/// locks (some network shares) the exclusive create alone decides.
+fn create_part(part: &Path) -> std::io::Result<Option<File>> {
+    match OpenOptions::new().write(true).create_new(true).open(part) {
+        Ok(file) => Ok((lock(&file)? != Lock::Held).then_some(file)),
+        Err(e) if e.kind() == ErrorKind::AlreadyExists => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+/// `part` locked, when it is a leftover: nobody holds its lock and it is still the file at that
+/// name (not one an export published or replaced while we opened it). Without locks a live part
+/// can't be told from a leftover, so it counts as live.
+fn stale(part: &Path) -> std::io::Result<Option<File>> {
+    let file = match OpenOptions::new().write(true).open(part) {
+        Ok(file) => file,
+        Err(e) if e.kind() == ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(e),
+    };
+    if lock(&file)? != Lock::Ours {
         return Ok(None);
     }
-    file.set_len(0)?;
-    Ok(Some(file))
+    let at_name = match same_file::Handle::from_path(part) {
+        Ok(handle) => handle,
+        Err(e) if e.kind() == ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(e),
+    };
+    let ours = same_file::Handle::from_file(file.try_clone()?)?;
+    Ok((ours == at_name).then_some(file))
 }
 
-/// Moves the finished part onto its name, unless a file appeared there meanwhile.
+/// Publishes the finished part under its name, never over a file that appeared there meanwhile:
+/// a hard link fails on an existing name. Disks without hard links (FAT) check, then rename.
 pub(super) fn publish(claim: &Claim) -> std::io::Result<()> {
-    if exists(&claim.target)? {
-        return Err(std::io::Error::new(
+    let appeared = || {
+        std::io::Error::new(
             ErrorKind::AlreadyExists,
             format!("{} appeared while exporting", claim.target.display()),
-        ));
+        )
+    };
+    match std::fs::hard_link(&claim.part, &claim.target) {
+        Ok(()) => std::fs::remove_file(&claim.part),
+        Err(e) if e.kind() == ErrorKind::AlreadyExists => Err(appeared()),
+        Err(_) if exists(&claim.target)? => Err(appeared()),
+        Err(_) => std::fs::rename(&claim.part, &claim.target),
     }
-    std::fs::rename(&claim.part, &claim.target)
 }
 
-/// Whether we now hold the part's lock: false when another export holds it. A file system with
-/// no locks (some network shares) counts as ours, as before locks were used.
-fn lock(file: &File) -> std::io::Result<bool> {
+#[derive(PartialEq, Eq)]
+enum Lock {
+    Ours,
+    Held,
+    Unsupported,
+}
+
+/// Tries the part's lock: `Held` when another export holds it.
+fn lock(file: &File) -> std::io::Result<Lock> {
     match file.try_lock() {
-        Ok(()) => Ok(true),
-        Err(TryLockError::WouldBlock) => Ok(false),
-        Err(TryLockError::Error(e)) if e.kind() == ErrorKind::Unsupported => Ok(true),
+        Ok(()) => Ok(Lock::Ours),
+        Err(TryLockError::WouldBlock) => Ok(Lock::Held),
+        Err(TryLockError::Error(e)) if e.kind() == ErrorKind::Unsupported => Ok(Lock::Unsupported),
         Err(TryLockError::Error(e)) => Err(e),
     }
 }
@@ -98,55 +148,5 @@ fn exists(path: &Path) -> std::io::Result<bool> {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::io::Write;
-
-    use crate::export::output::write_file;
-
-    fn fill(text: &'static str) -> impl FnOnce(std::fs::File) -> crate::Result<()> {
-        move |mut f| Ok(f.write_all(text.as_bytes())?)
-    }
-
-    #[test]
-    fn a_part_left_by_a_killed_export_is_taken_over() {
-        let dir = tempfile::tempdir().unwrap();
-        let book = dir.path().join("Book.epub");
-        std::fs::write(dir.path().join("Book.epub.part"), b"stale and longer").unwrap();
-        assert_eq!(write_file(&book, false, fill("new")).unwrap(), book);
-        assert_eq!(std::fs::read(&book).unwrap(), b"new");
-        assert!(!dir.path().join("Book.epub.part").exists());
-    }
-
-    #[test]
-    fn a_part_another_export_is_writing_moves_this_one_to_the_next_name() {
-        let dir = tempfile::tempdir().unwrap();
-        let busy = std::fs::File::create(dir.path().join("Book.epub.part")).unwrap();
-        busy.try_lock().unwrap();
-        let written = write_file(&dir.path().join("Book.epub"), false, fill("b")).unwrap();
-        assert_eq!(written, dir.path().join("Book (2).epub"));
-        assert!(!dir.path().join("Book.epub").exists());
-    }
-
-    #[test]
-    fn a_replacement_takes_over_the_part_left_by_a_killed_export() {
-        let dir = tempfile::tempdir().unwrap();
-        let book = dir.path().join("Book.epub");
-        std::fs::write(&book, b"old").unwrap();
-        std::fs::write(dir.path().join("Book.epub.part"), b"stale and longer").unwrap();
-        assert_eq!(write_file(&book, true, fill("new")).unwrap(), book);
-        assert_eq!(std::fs::read(&book).unwrap(), b"new");
-        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
-    }
-
-    #[test]
-    fn a_failed_write_leaves_neither_the_book_nor_its_part() {
-        let dir = tempfile::tempdir().unwrap();
-        let book = dir.path().join("Book.epub");
-        let failed = write_file(&book, false, |mut f| {
-            f.write_all(b"half")?;
-            Err(crate::Error::Other("stopped".into()))
-        });
-        assert!(failed.is_err());
-        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
-    }
-}
+#[path = "part_claim_tests.rs"]
+mod tests;
