@@ -110,7 +110,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   useClearOnChange(via, busy, keepFailed, true);
 
   const run = async () => {
-    if (!job.retry.skip) send.reset();
+    if (!job.retry.kept.length) send.reset();
     const results = await job.run(
       exportJob({
         picks,
@@ -126,12 +126,12 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
         quality: target.quality,
         splitMb,
         direction,
-        skip: job.retry.skip,
+        written: job.retry.written,
       }),
     );
     if (!results) return;
     onExported?.(results);
-    const sent = [...(job.retry.skip ? send.unsent() : []), ...results.flatMap(booksOf)];
+    const sent = [...(job.retry.kept.length ? send.unsent() : []), ...results.flatMap(booksOf)];
     setWritten(sent);
     // A book over the email limit on disk is never emailed: the alert offers the split.
     if (via === "email" && oversizedOf(results).length > 0) return;

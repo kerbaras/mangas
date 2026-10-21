@@ -54,6 +54,8 @@ export type ExportResult = {
   detectors_error?: string | null;
   /** Files written over the Send-to-Kindle email limit, measured on disk (not estimated). */
   oversized?: Oversized[];
+  /** Ids of the book's chapters (volume exports): how Try again recognises a kept book. */
+  chapters?: string[];
 };
 
 /** A written file and its size on disk (`export::kindle::Oversized`). */

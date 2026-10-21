@@ -137,6 +137,7 @@ mod tests {
             detectors_error: None,
             oversized: Vec::new(),
             parts: Vec::new(),
+            chapters: Vec::new(),
         }
     }
 

@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { retryOf, useExport } from "@/hooks/use-export";
 import { ExportStopped } from "@/lib/export-stopped";
 import { type ExportResult, setBackend } from "@/lib/ipc";
-import { chapters, enabledButton, exportBackend, solo } from "./export-backend";
+import { ch, chapters, enabledButton, exportBackend, solo } from "./export-backend";
 
 const stats = (title: string) => ({
   pages: 6,
@@ -15,6 +15,7 @@ const stats = (title: string) => ({
   filters_ms: 0,
   skipped: 0,
   output: `/k/${title}.epub`,
+  chapters: [`id ${title}`],
 });
 const stoppedAt = (written: string[], failed: string, rest: string[] = []) =>
   new ExportStopped({
@@ -38,12 +39,12 @@ describe("Try again after a stopped export (#337)", () => {
     const stop = (e: ExportStopped) => () => Promise.reject(e);
     await act(() => result.current.run(stop(stoppedAt(["Solo v1"], "Solo v2", ["Solo v3"]))));
     let retry = retryOf(result.current.state);
-    expect(retry.skip).toBe(1);
+    expect(retry.written).toEqual([["id Solo v1"]]);
     expect(outputs(retry.kept)).toEqual(["/k/Solo v1.epub"]);
 
     await act(() => result.current.run(stop(stoppedAt(["Solo v2"], "Solo v3"))));
     retry = retryOf(result.current.state);
-    expect(retry.skip).toBe(2);
+    expect(retry.written).toEqual([["id Solo v1"], ["id Solo v2"]]);
     expect(outputs(retry.kept)).toEqual(["/k/Solo v1.epub", "/k/Solo v2.epub"]);
     expect(result.current.settled).toBe(0);
 
@@ -57,7 +58,7 @@ describe("Try again after a stopped export (#337)", () => {
       "/k/Solo v1.epub",
       "/k/Solo v2.epub",
     ]);
-    expect(retryOf(done)).toEqual({ skip: 0, kept: [] });
+    expect(retryOf(done)).toEqual({ written: [], kept: [] });
     expect(result.current.settled).toBe(1);
   });
 
@@ -67,7 +68,7 @@ describe("Try again after a stopped export (#337)", () => {
     await act(() => result.current.run(() => Promise.reject(new Error("io: disk full"))));
     expect(result.current.state.kind).toBe("error");
     const retry = retryOf(result.current.state);
-    expect(retry.skip).toBe(1);
+    expect(retry.written).toEqual([["id Solo v1"]]);
     expect(outputs(retry.kept)).toEqual(["/k/Solo v1.epub"]);
     expect(result.current.settled).toBe(0);
   });
@@ -88,15 +89,44 @@ describe("Try again after a stopped export (#337)", () => {
       if (replace) fireEvent.click(await screen.findByRole("switch", { name: /Replace/ }));
       fireEvent.click(await enabledButton(/^Export 2 books/));
       expect(await screen.findByText("Export stopped")).toBeTruthy();
-      expect(exportVolumes.mock.calls[0][0]).toMatchObject({ skip: 0, replace });
+      expect(exportVolumes.mock.calls[0][0]).toMatchObject({ written: [], replace });
       fireEvent.click(await enabledButton(/^Try again$/));
       expect(
         await screen.findByText(/Already there from the last try: Solo v1\.epub/),
       ).toBeTruthy();
       expect(exportVolumes).toHaveBeenCalledTimes(2);
-      expect(exportVolumes.mock.calls[1][0]).toMatchObject({ skip: 1, replace });
+      expect(exportVolumes.mock.calls[1][0]).toMatchObject({ written: [["id Solo v1"]], replace });
     },
   );
+
+  it("dialog: a chapter downloaded since the stop doesn't shift which book counts as kept", async () => {
+    const v1 = { ...stats("Solo v1"), chapters: ["c1", "c2"] };
+    const exportVolumes = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new ExportStopped({
+          written: [v1],
+          failed: { title: "Solo v2", output: "/k/Solo v2.epub", reason: "io: bad page" },
+          not_written: [],
+        }),
+      )
+      .mockResolvedValueOnce([book("Solo v0"), book("Solo v2")]);
+    exportBackend({ exportVolumes });
+    const dialog = (picked: typeof chapters) => (
+      <TooltipProvider>
+        <ExportDialog open onOpenChange={() => {}} picks={[{ manga: solo, chapters: picked }]} />
+      </TooltipProvider>
+    );
+    const { rerender } = render(dialog(chapters));
+    fireEvent.click(await enabledButton(/^Export 2 books/));
+    expect(await screen.findByText("Export stopped")).toBeTruthy();
+    rerender(dialog([ch("0", "0"), ...chapters]));
+    fireEvent.click(await enabledButton(/^Try again$/));
+    expect(await screen.findByText(/Already there from the last try: Solo v1\.epub/)).toBeTruthy();
+    const retry = exportVolumes.mock.calls[1][0];
+    expect(retry.chapterIds).toEqual(["c0", "c1", "c2", "c3"]);
+    expect(retry.written).toEqual([["c1", "c2"]]);
+  });
 
   it.each([
     [false, ["/k/Solo v1.epub", "/k/Solo v2.epub"]],

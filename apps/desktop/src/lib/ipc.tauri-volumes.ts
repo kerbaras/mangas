@@ -26,7 +26,7 @@ export const tauriVolumes: VolumesBackend = {
       quality: r.quality ?? null,
       splitMb: r.splitMb ?? null,
       direction: r.direction ?? null,
-      skip: r.skip ?? 0,
+      written: r.written ?? [],
     });
     return outcomeResults(outcome);
   },

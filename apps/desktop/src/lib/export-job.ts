@@ -26,8 +26,8 @@ export type ExportChoices = {
   splitMb: number | null;
   /** Which way the pages turn; null: each series' preset or source decides. */
   direction: ReadingDirection | null;
-  /** Planned books a stopped run already wrote, skipped by "Try again". */
-  skip?: number;
+  /** Chapter ids of each book a stopped run already wrote, left out by "Try again". */
+  written?: string[][];
 };
 
 /**
@@ -66,7 +66,7 @@ function writeBooks(c: ExportChoices): () => Promise<ExportResult[]> {
         title: c.title,
         ...common,
         outputDir: c.outputDir,
-        skip: c.skip ?? 0,
+        written: c.written ?? [],
       });
   }
   const title = c.title.trim() || exportTitle(c.picks);

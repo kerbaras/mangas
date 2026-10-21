@@ -15,18 +15,20 @@ export type ExportState =
   | { kind: "stopped"; stopped: ExportStopped; before: Retry };
 
 /**
- * What "Try again" skips: the planned books that earlier stopped runs wrote (`skip`; a run stops
- * at its first failure, so they lead the plan), reported as `kept` instead of written again as
- * ` (2)` copies. A plain failure in between writes nothing, so it keeps them for the next try.
+ * What "Try again" leaves out: the books earlier stopped runs wrote, by their chapter ids
+ * (`written`, matched against the new plan, since downloads finishing meanwhile can change it),
+ * reported as `kept` instead of written again as ` (2)` copies. A plain failure in between writes
+ * nothing, so it keeps them for the next try.
  */
-export type Retry = { skip: number; kept: ExportResult[] };
-const FRESH: Retry = { skip: 0, kept: [] };
+export type Retry = { written: string[][]; kept: ExportResult[] };
+const FRESH: Retry = { written: [], kept: [] };
 
 export function retryOf(state: ExportState): Retry {
   if (state.kind === "error") return state.before ?? FRESH;
   if (state.kind !== "stopped") return FRESH;
   const { before, stopped } = state;
-  return { skip: before.skip + stopped.results.length, kept: [...before.kept, ...stopped.results] };
+  const written = stopped.results.map((r) => r.chapters ?? []);
+  return { written: [...before.written, ...written], kept: [...before.kept, ...stopped.results] };
 }
 
 type Options = {

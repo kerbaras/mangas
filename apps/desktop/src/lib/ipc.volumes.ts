@@ -41,8 +41,8 @@ export type VolumeExport = VolumeRequest & {
   splitMb?: number | null;
   /** Which way the pages turn; null: the series preset's, else the source's. */
   direction?: ReadingDirection | null;
-  /** Leading planned books to skip: the ones a stopped run already wrote. */
-  skip?: number;
+  /** Chapter ids of each book a stopped run already wrote: Try again leaves those books out. */
+  written?: string[][];
 };
 
 /** What `estimate_export` is asked: each book's chapter folders with the dialog's choices. */

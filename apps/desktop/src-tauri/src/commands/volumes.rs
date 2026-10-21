@@ -96,7 +96,7 @@ pub async fn export_volumes<R: Runtime>(
     quality: Option<u8>,
     split_mb: Option<u64>,
     direction: Option<ReadingDirection>,
-    skip: Option<usize>,
+    written: Option<Vec<Vec<String>>>,
 ) -> Result<VolumeOutcome, String> {
     // Before the chapter folders are looked up: a data-folder move can't start under the export.
     let _reading = hold_for_export().map_err(to_ipc)?;
@@ -124,13 +124,14 @@ pub async fn export_volumes<R: Runtime>(
     let (src, plans) = plans(&source, &manga_id, &chapter_ids, grouping, title.as_deref())?;
     let replace = replace.unwrap_or(false);
     let plans = volume::one_file_each(plans, replace);
-    let plans = volume::skip_written(plans, skip.unwrap_or(0));
+    let plans = volume::skip_written(plans, &written.unwrap_or_default());
     check_export_folder(&output_dir, split_mb.is_some(), replace).map_err(to_ipc)?;
     let plans =
         volume::named_as_written(plans, &output_dir, format.id(), replace).map_err(to_ipc)?;
     if plans.is_empty() {
         return Err(to_ipc("none of these chapters is downloaded"));
     }
+    let book_chapters: Vec<_> = plans.iter().map(volume::chapter_ids).collect();
     let detection = penalizer(&app, detectors, &settings).await?;
     let cover = cover_file(&src.manga).await;
     let reqs: Vec<_> = plans
@@ -172,8 +173,9 @@ pub async fn export_volumes<R: Runtime>(
     })
     .await
     .map_err(to_ipc)?;
-    for stats in &mut outcome.written {
+    for (stats, chapters) in outcome.written.iter_mut().zip(book_chapters) {
         stats.detectors_error = detectors_error.clone();
+        stats.chapters = chapters;
     }
     Ok(outcome)
 }
