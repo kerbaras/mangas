@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { errorMessage } from "@/lib/format";
+import { isFinalError } from "@/lib/ipc.downloads";
 import { findKindles, onCopyProgress, sendEmail, sendUsb } from "@/lib/ipc.send";
 import { fileName, megabytes } from "@/lib/send-labels";
 
@@ -25,6 +26,10 @@ export const runningVia = (state: SendState): Via | undefined =>
     : ["looking", "copying"].includes(state.kind)
       ? "usb"
       : undefined;
+
+/** Whether a delivery by `via` failed in a way Retry cannot fix (the Kindle is full). */
+export const refused = (state: SendState, via?: Via | "save") =>
+  state.kind === "error" && state.via === via && isFinalError(state.message);
 
 /** What a failed delivery still has to send (from the book it failed on) and what it already did. */
 type Pending = { books: Book[]; via: Via; lines: string[] };

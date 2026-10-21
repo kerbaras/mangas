@@ -23,7 +23,7 @@ import { useDetectorSupport } from "@/hooks/use-detector-support";
 import { useExport } from "@/hooks/use-export";
 import { useExportPlan } from "@/hooks/use-export-plan";
 import { useFreeNames } from "@/hooks/use-free-names";
-import { type Book, runningVia, useSend } from "@/hooks/use-send";
+import { type Book, refused, runningVia, useSend } from "@/hooks/use-send";
 import { useSeriesTarget } from "@/hooks/use-series-target";
 import { exportJob } from "@/lib/export-job";
 import type { ExportPick } from "@/lib/export-name";
@@ -84,7 +84,8 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const busy = job.state.kind === "running" || sending !== undefined;
   const failed = written.length > 0 && ["error", "no-device"].includes(send.state.kind);
   const sendVia = via === "save" ? undefined : via;
-  const resend = failed && sendVia !== undefined;
+  const stuck = failed && refused(send.state, via);
+  const resend = failed && sendVia !== undefined && !stuck;
   const ready =
     fresh &&
     named &&
@@ -188,7 +189,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
           </Button>
           <Button
             variant="primary"
-            disabled={busy || !ready}
+            disabled={busy || !ready || stuck}
             onClick={() => void (resend ? send.retry(sendVia) : run())}
           >
             <Send /> {exportAction(books, via, resend, sending)}
