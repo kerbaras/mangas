@@ -8,7 +8,7 @@ use crate::export::free_names_in;
 use crate::export::kindle::ExportRequest;
 
 /// Each request's file name as the writer would pick it now, in order: later books also skip the
-/// names taken by the ones before them. A folder that cannot be listed keeps the planned names.
+/// names taken by the ones before them. A folder that cannot be listed is asked name by name.
 pub(super) fn unwritten_paths(reqs: &[ExportRequest]) -> Vec<PathBuf> {
     reqs.iter()
         .enumerate()

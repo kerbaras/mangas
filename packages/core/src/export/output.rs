@@ -128,7 +128,7 @@ fn folded(names: &[String]) -> HashSet<String> {
 }
 
 /// `name`, then `stem (2).ext`, `stem (3).ext`, ...: the order every export tries names in.
-fn candidate_names(name: &str) -> impl Iterator<Item = String> + '_ {
+pub(super) fn candidate_names(name: &str) -> impl Iterator<Item = String> + '_ {
     let path = Path::new(name);
     let stem = path
         .file_stem()
@@ -159,9 +159,15 @@ pub fn resolve_free_names(existing: &[String], wanted: &[String]) -> Vec<String>
         .collect()
 }
 
-/// [`resolve_free_names`] against the files in `dir` now.
+/// [`resolve_free_names`] against the files in `dir` now. A folder we may write to but not list
+/// is asked name by name instead ([`unlisted`](super::unlisted)), so its plan matches the files.
 pub fn free_names_in(dir: &Path, wanted: &[String]) -> Result<Vec<String>> {
-    Ok(resolve_free_names(&file_names(dir)?, wanted))
+    match std::fs::read_dir(dir) {
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+            Ok(super::unlisted::free_names(dir, wanted))
+        }
+        _ => Ok(resolve_free_names(&file_names(dir)?, wanted)),
+    }
 }
 
 /// XML text/attribute escaping shared by the EPUB, ComicInfo and other XML writers.

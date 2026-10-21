@@ -14,6 +14,7 @@ mod space;
 mod spool;
 mod spool_file;
 pub mod target;
+mod unlisted;
 pub mod volume;
 
 pub use exporter::{Exporter, Format, Labels, Meta};

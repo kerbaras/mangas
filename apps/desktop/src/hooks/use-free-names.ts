@@ -7,8 +7,8 @@ import { freeExportNames, type VolumePlan } from "@/lib/ipc.volumes";
  * there gets ` (2)`, ` (3)`… as the writer does, unless `replace` writes over it. `named` is false
  * while the folder is being read; `epoch` rereads it (after an export filled it). `blocked` is the
  * `couldn't list` line when a split or replacing export into `dir` would be refused (checked again
- * until it clears); a plain export into an unlistable folder keeps its planned names (the writer's
- * claim guards them).
+ * until it clears); a plain export into an unlistable folder is named by looking each name up
+ * there (`free_names_in`), so `Book (2).epub` shows when `Book.epub` is already in it.
  */
 export function useFreeNames(
   plans: Async<VolumePlan[]>,
