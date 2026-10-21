@@ -3,12 +3,14 @@
 //! exclusively; loading the detectors for an export shares it. The OS releases the lock when
 //! its process ends, so a crashed holder never leaves the folder locked.
 
-use std::fs::{self, File, OpenOptions, TryLockError};
+use std::fs::{self, OpenOptions, TryLockError};
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+pub use super::lease_fds::spawn as spawn_child;
+use super::lease_fds::LeaseFile;
 use crate::domain::{Error, Result};
 
 pub const LEASE_FILE: &str = ".detectors.lease";
@@ -33,7 +35,7 @@ struct Owner {
 
 /// Held while the folder is in use; dropping it, or the process ending, releases it.
 pub struct Lease {
-    _file: File,
+    _file: LeaseFile,
     owner: Option<PathBuf>,
 }
 
@@ -49,7 +51,7 @@ pub fn acquire(models_dir: &Path, purpose: Purpose) -> Result<Lease> {
 /// [`acquire`] on the lock file `name` in `dir` (its owner record is `<name>.owner`).
 pub fn acquire_at(dir: &Path, name: &str, purpose: Purpose) -> Result<Lease> {
     let file = open(dir, name)?;
-    locked(file.try_lock(), dir, name)?;
+    locked(file.file().try_lock(), dir, name)?;
     let owner = owner_path(dir, name);
     let record = Owner {
         pid: std::process::id(),
@@ -71,7 +73,7 @@ pub fn share(models_dir: &Path) -> Result<Lease> {
 /// [`share`] on the lock file `name` in `dir`.
 pub fn share_at(dir: &Path, name: &str) -> Result<Lease> {
     let file = open(dir, name)?;
-    locked(file.try_lock_shared(), dir, name)?;
+    locked(file.file().try_lock_shared(), dir, name)?;
     // Nobody can hold it exclusively now, so an owner record left is from a crashed holder.
     if let Err(e) = remove_if_present(&owner_path(dir, name)) {
         log::warn!("clear a stale lease owner: {e}");
@@ -82,14 +84,16 @@ pub fn share_at(dir: &Path, name: &str) -> Result<Lease> {
     })
 }
 
-fn open(dir: &Path, name: &str) -> Result<File> {
+fn open(dir: &Path, name: &str) -> Result<LeaseFile> {
     fs::create_dir_all(dir)?;
-    let file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .open(dir.join(name))?;
+    let file = LeaseFile::open(|| {
+        OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(dir.join(name))
+    })?;
     Ok(file)
 }
 

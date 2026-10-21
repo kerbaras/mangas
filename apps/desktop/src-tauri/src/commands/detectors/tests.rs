@@ -2,11 +2,6 @@ use std::net::TcpListener;
 
 use super::*;
 
-/// The status check spawns a child process, which inherits any lease file open at that moment
-/// and keeps its lock until it execs: the tests that spawn and the ones that check a lease is
-/// free take turns.
-static SERIAL: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
-
 /// One test: the claim and the Cancel flag are process-wide.
 #[tokio::test]
 async fn cancel_hits_only_the_running_download() {
@@ -58,7 +53,6 @@ async fn cancel_hits_only_the_running_download() {
 #[cfg(feature = "ml")]
 #[tokio::test]
 async fn status_reports_a_runtime_that_wont_load() {
-    let _serial = SERIAL.lock().await;
     let dir = tempfile::tempdir().unwrap();
     let spec = ml::runtime::current().unwrap();
     let lib = ml::runtime::lib_path(dir.path(), &spec);
@@ -80,7 +74,6 @@ async fn status_reports_a_runtime_that_wont_load() {
 /// A Remove refused by another holder, or failing half-way, leaves the lease free (#159/#163).
 #[tokio::test]
 async fn remove_releases_the_lease_on_error() {
-    let _serial = SERIAL.lock().await;
     use ml::lease::{acquire, Purpose};
     let dir = tempfile::tempdir().unwrap();
     let models = dir.path().to_path_buf();
