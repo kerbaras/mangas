@@ -55,10 +55,12 @@ export function DataFolderField({ onMoved, partial }: Props) {
         ? ` Couldn't delete ${moved.leftovers.join(", ")}; delete it by hand.`
         : "";
       toast.success("Data folder moved", {
+        id: "data-folder-move",
+        action: null,
         description: `${plural(moved.files, "file")} (${formatBytes(moved.bytes)}) now live in ${moved.data_dir}.${left}`,
       });
     } catch (e: unknown) {
-      notifyError("Couldn't move the data folder", e);
+      notifyError("Couldn't move the data folder", e, { id: "data-folder-move" });
     } finally {
       unlisten?.();
       setProgress(null);

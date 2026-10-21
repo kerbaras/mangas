@@ -10,6 +10,9 @@ import { notifyError } from "@/lib/notify";
 import { proxyUrlError } from "@/lib/proxy-url";
 import { useSettings } from "@/lib/settings";
 
+/** The proxy test's one toast: a later result replaces an earlier failure. */
+const PROXY_TOAST = "proxy-test";
+
 const MODES: { id: ProxyMode; label: string }[] = [
   { id: "system", label: "Use the system proxy" },
   { id: "none", label: "No proxy" },
@@ -33,10 +36,16 @@ export function NetworkSettings() {
     setTesting(true);
     try {
       const status = await testProxy(settings.proxyMode, draft.trim());
-      if (status.state === "unreachable") notifyError("Proxy test failed", status.reason);
-      else toast.success("Proxy works", { description: "MangaDex answered through it." });
+      if (status.state === "unreachable")
+        notifyError("Proxy test failed", status.reason, { id: PROXY_TOAST });
+      else
+        toast.success("Proxy works", {
+          id: PROXY_TOAST,
+          action: null,
+          description: "MangaDex answered through it.",
+        });
     } catch (e: unknown) {
-      notifyError("Proxy test failed", e);
+      notifyError("Proxy test failed", e, { id: PROXY_TOAST });
     } finally {
       setTesting(false);
     }

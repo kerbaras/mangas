@@ -99,6 +99,7 @@ export function notifyError(title: string, error: unknown, options: Options = {}
     id,
     description,
     duration: 10_000,
-    action: retry ? { label: "Retry", onClick: () => setTimeout(retry, TOAST_EXIT_MS) } : undefined,
+    // null, not undefined: a toast this one replaces may carry another action (e.g. Connect).
+    action: retry ? { label: "Retry", onClick: () => setTimeout(retry, TOAST_EXIT_MS) } : null,
   });
 }

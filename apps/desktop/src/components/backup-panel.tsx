@@ -21,10 +21,12 @@ export function BackupPanel() {
         ? ` ${plural(summary.skipped_local, "imported title was", "imported titles were")} left out: their files aren't part of a backup.`
         : "";
       toast.success("Backup saved", {
+        id: `backup-save-${path}`,
+        action: null,
         description: `${plural(summary.titles, "title")} in ${path}.${local}`,
       });
     } catch (e: unknown) {
-      notifyError("Couldn't save the backup", e);
+      notifyError("Couldn't save the backup", e, { id: `backup-save-${path}` });
     }
   };
 
@@ -36,9 +38,13 @@ export function BackupPanel() {
     try {
       const restored = await importBackup(path, keep ? "keep" : "backup");
       await loadSettings();
-      toast.success("Backup imported", { description: restoreSummary(restored) });
+      toast.success("Backup imported", {
+        id: "backup-import",
+        action: null,
+        description: restoreSummary(restored),
+      });
     } catch (e: unknown) {
-      notifyError("Couldn't import the backup", e);
+      notifyError("Couldn't import the backup", e, { id: "backup-import" });
     }
   };
 

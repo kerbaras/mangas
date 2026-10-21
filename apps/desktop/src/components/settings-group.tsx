@@ -21,6 +21,7 @@ type Props = {
 /** One Settings group: title, an optional reset with confirmation, then its fields. */
 export function SettingsGroup({ title, resets = [], resetHint, onReset, children }: Props) {
   const [asking, setAsking] = useState(false);
+  const resetToast = `settings-reset-${title}`;
   const reset = async () => {
     setAsking(false);
     const saved = await writeSettings(defaultsOf(resets));
@@ -28,11 +29,11 @@ export function SettingsGroup({ title, resets = [], resetHint, onReset, children
     // While loading, the reset is kept in memory like any other edit.
     if (!saved && load.kind !== "loading") {
       const why = load.kind === "failed" ? load.error : "settings not saved; try again";
-      notifyError(`Couldn't reset ${title.toLowerCase()} settings`, why);
+      notifyError(`Couldn't reset ${title.toLowerCase()} settings`, why, { id: resetToast });
       return;
     }
     if (onReset && !(await onReset())) return;
-    toast.success(`${title} settings reset`);
+    toast.success(`${title} settings reset`, { id: resetToast, description: null, action: null });
   };
   return (
     <section aria-label={title} className="flex flex-col gap-6">

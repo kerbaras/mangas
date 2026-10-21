@@ -23,6 +23,7 @@ export function TitleUsageList({ titles, onChange }: Props) {
   const largest = titles[0]?.bytes ?? 0;
 
   const remove = async (t: TitleUsage) => {
+    const deleteToast = `delete-downloads-${t.source}-${t.manga_id}`;
     setPending(null);
     try {
       const deleted = await deleteDownloads(t.source, t.manga_id);
@@ -31,6 +32,8 @@ export function TitleUsageList({ titles, onChange }: Props) {
         return c?.source === t.source && c.mangaId === t.manga_id;
       });
       toast.success(`Deleted the downloads of ${t.title}`, {
+        id: deleteToast,
+        action: null,
         description: `${chaptersLabel(deleted.chapters)}, ${formatBytes(deleted.bytes)} freed.${
           deleted.kept.length
             ? ` ${plural(deleted.kept.length, "folder outside the data folder was", "folders outside the data folder were")} left alone.`
@@ -38,7 +41,7 @@ export function TitleUsageList({ titles, onChange }: Props) {
         }`,
       });
     } catch (e: unknown) {
-      notifyError(`Couldn't delete the downloads of ${t.title}`, e);
+      notifyError(`Couldn't delete the downloads of ${t.title}`, e, { id: deleteToast });
     }
     onChange();
   };

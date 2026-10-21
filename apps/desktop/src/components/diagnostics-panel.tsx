@@ -23,9 +23,13 @@ export function DiagnosticsPanel() {
   const copy = async () => {
     try {
       await copyText((await diagnostics()).report);
-      toast.success("Diagnostics copied", { description: "Paste them into your bug report." });
+      toast.success("Diagnostics copied", {
+        id: "diagnostics-copy",
+        action: null,
+        description: "Paste them into your bug report.",
+      });
     } catch (e: unknown) {
-      notifyError("Couldn't copy diagnostics", e);
+      notifyError("Couldn't copy diagnostics", e, { id: "diagnostics-copy" });
     }
   };
 

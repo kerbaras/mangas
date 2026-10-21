@@ -1,7 +1,7 @@
 import { RefreshCw } from "lucide-react";
 import { HeaderAction } from "@/components/header-action";
 import { notifyError } from "@/lib/notify";
-import { toastRun } from "@/lib/update-toast";
+import { toastRun, UPDATE_TOAST } from "@/lib/update-toast";
 import { runCheck, useUpdates } from "@/lib/updates";
 
 /**
@@ -15,7 +15,9 @@ export function CheckUpdatesButton() {
   const check = () =>
     runCheck(false)
       .then(toastRun)
-      .catch((e: unknown) => notifyError("Couldn't check for updates", e, { retry: check }));
+      .catch((e: unknown) =>
+        notifyError("Couldn't check for updates", e, { retry: check, id: UPDATE_TOAST }),
+      );
   return (
     <HeaderAction
       icon={<RefreshCw />}

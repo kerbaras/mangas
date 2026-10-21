@@ -40,10 +40,14 @@ export function StoragePanel() {
       // A download failure from before the delete no longer applies once the models are gone.
       if (cache === "models") clearFailure();
       toast.success(CACHES[cache].done, {
+        id: `storage-clear-${cache}`,
+        action: null,
         description: `${formatBytes(cleared.bytes)} freed; ${CACHES[cache].hint}.`,
       });
     } catch (e: unknown) {
-      notifyError(`Couldn't ${CACHES[cache].label.toLowerCase()}`, e);
+      notifyError(`Couldn't ${CACHES[cache].label.toLowerCase()}`, e, {
+        id: `storage-clear-${cache}`,
+      });
     }
     storageChanged();
   };
