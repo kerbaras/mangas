@@ -1,6 +1,7 @@
 import { ExternalLink, Lock } from "lucide-react";
 import { Hint } from "@/components/hint";
 import { Badge } from "@/components/ui/badge";
+import { useT } from "@/i18n/use-t";
 import { openExternal } from "@/lib/dialogs";
 import type { Availability } from "@/lib/ipc";
 import { notifyError } from "@/lib/notify";
@@ -15,11 +16,12 @@ const hostOf = (url: string) => {
 
 /** Badge for a chapter the source lists but does not serve: locked, or read on another site. */
 export function AvailabilityCell({ availability }: { availability: Availability }) {
+  const t = useT();
   if (availability.kind === "locked") {
     return (
-      <Hint hint="Paid, wait-until-free or early access on the site">
+      <Hint hint={t("details.lockedHint")}>
         <Badge>
-          <Lock className="size-3" /> Locked
+          <Lock className="size-3" /> {t("details.locked")}
         </Badge>
       </Hint>
     );
@@ -28,17 +30,17 @@ export function AvailabilityCell({ availability }: { availability: Availability 
   const { url } = availability;
   if (!url) {
     return (
-      <Hint hint="Published on another site">
+      <Hint hint={t("details.anotherSiteHint")}>
         <Badge>
-          <ExternalLink className="size-3" /> Another site
+          <ExternalLink className="size-3" /> {t("details.anotherSite")}
         </Badge>
       </Hint>
     );
   }
   const open = () =>
-    openExternal(url).catch((e: unknown) => notifyError("Couldn't open the browser", e));
+    openExternal(url).catch((e: unknown) => notifyError(t("details.browserFailed"), e));
   return (
-    <Hint hint={`Read on ${url}`} focusable={false}>
+    <Hint hint={t("details.readOn", { url })} focusable={false}>
       <button
         type="button"
         onClick={(e) => {

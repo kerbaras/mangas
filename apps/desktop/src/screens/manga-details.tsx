@@ -20,6 +20,7 @@ import { useChapterSelection } from "@/hooks/use-chapter-selection";
 import { useDownloads } from "@/hooks/use-downloads";
 import { useLibraryEntry } from "@/hooks/use-library-entry";
 import { useMangaDetails } from "@/hooks/use-manga-details";
+import { useT } from "@/i18n/use-t";
 import { filterByGroup, groupsOf } from "@/lib/chapter-groups";
 import {
   chapterSummary,
@@ -38,6 +39,7 @@ import { useSettingsKnown } from "@/lib/settings";
 type Props = { manga: Manga };
 
 export function MangaDetailsScreen({ manga: card }: Props) {
+  const t = useT();
   const { source, id } = card;
   const { manga, loading, reload: reloadManga } = useMangaDetails(card);
   const known = useSettingsKnown();
@@ -54,7 +56,7 @@ export function MangaDetailsScreen({ manga: card }: Props) {
     () =>
       loadChapters(source, id, (e) => {
         if (!mounted.current) return;
-        notifyError("Couldn't refresh chapters; showing the saved list", e, {
+        notifyError(t("details.refreshFailed"), e, {
           source,
           retry: chapters.reload,
           id: refreshToast,
@@ -151,14 +153,16 @@ export function MangaDetailsScreen({ manga: card }: Props) {
         />
       </div>
       <div ref={pane} className="relative min-h-0 flex-1 overflow-auto overscroll-contain">
-        {chapters.state.kind === "loading" && <p className="p-4 text-ink-3">Loading chapters…</p>}
+        {chapters.state.kind === "loading" && (
+          <p className="p-4 text-ink-3">{t("details.loadingChapters")}</p>
+        )}
         {chapters.state.kind === "error" &&
           (isChallenge(chapters.state.message) ? (
             <ChallengePrompt source={source} onConnected={chapters.reload} />
           ) : (
             <div className="p-4">
               <ErrorAlert
-                title="Couldn't list chapters"
+                title={t("details.listFailed")}
                 message={chapters.state.message}
                 onRetry={chapters.reload}
               />

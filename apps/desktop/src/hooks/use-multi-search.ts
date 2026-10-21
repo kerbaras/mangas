@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { tr } from "@/i18n/tr";
 import { errorMessage } from "@/lib/format";
 import { type SearchGroup, searchAll } from "@/lib/ipc";
 import { isFinalError } from "@/lib/ipc.downloads";
@@ -57,7 +58,7 @@ export function useMultiSearch(query: string, ids: string[]) {
       .then((list) =>
         list === null
           ? null
-          : (list.find((g) => g.provider === id) ?? failed(id, "provider is disabled")),
+          : (list.find((g) => g.provider === id) ?? failed(id, tr("search.providerDisabled"))),
       )
       .catch((e: unknown) => failed(id, errorMessage(e)))
       .then((group) => {

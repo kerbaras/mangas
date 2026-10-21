@@ -4,6 +4,7 @@ import { AvailabilityCell } from "@/components/availability-cell";
 import { Hint } from "@/components/hint";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
+import { useT } from "@/i18n/use-t";
 import { sourceRef, splitGroup } from "@/lib/chapter-groups";
 import { isUnavailable } from "@/lib/chapters";
 import { cn } from "@/lib/cn";
@@ -51,29 +52,30 @@ function StateCell({
   progress,
   proxied,
 }: Pick<Props, "chapter" | "progress" | "proxied">) {
+  const t = useT();
   // Kept only for its download job; cleared from the Downloads screen.
   if (progress && !chapter.local_path && isUnlisted({ error: progress.error ?? progress.retrying }))
     return (
       <Waiting
         icon={<EyeOff className="size-3.5" />}
-        label="No longer listed"
-        hint="The source stopped listing this chapter. Clear it from Downloads."
+        label={t("details.unlisted")}
+        hint={t("details.unlistedHint")}
       />
     );
   if (progress?.state === "queued") {
-    const label = progress.retrying ? "Retrying" : "Queued";
+    const label = progress.retrying ? t("details.retrying") : t("details.queued");
     const hint = progress.retrying ?? undefined;
     return <Waiting icon={<Clock className="size-3.5" />} label={label} hint={hint} />;
   }
   if (progress?.state === "paused") {
-    return <Waiting icon={<Pause className="size-3.5" />} label="Paused" />;
+    return <Waiting icon={<Pause className="size-3.5" />} label={t("details.paused")} />;
   }
   if (progress?.state === "running") {
     return (
       <div className="flex items-center gap-2">
         <Progress value={progress.page} max={progress.pages} className="w-24" />
         <span className="text-caption text-ink-3 tabular-nums">
-          {progress.pages > 0 ? `${progress.page}/${progress.pages}` : "Starting"}
+          {progress.pages > 0 ? `${progress.page}/${progress.pages}` : t("details.starting")}
         </span>
       </div>
     );
@@ -84,12 +86,12 @@ function StateCell({
         hint={describeFailure(progress.error, proxied).tooltip}
         className="text-accent-text"
       >
-        <AlertCircle className="size-3.5" /> Failed
+        <AlertCircle className="size-3.5" /> {t("details.failed")}
       </StateLabel>
     );
   }
   if (progress?.state === "cancelled" && !chapter.local_path) {
-    return <Waiting icon={<Ban className="size-3.5" />} label="Cancelled" />;
+    return <Waiting icon={<Ban className="size-3.5" />} label={t("details.cancelled")} />;
   }
   if (chapter.availability && isUnavailable(chapter)) {
     return <AvailabilityCell availability={chapter.availability} />;
@@ -97,17 +99,17 @@ function StateCell({
   if (chapter.local_path && chapter.exported_at) {
     return (
       <StateLabel
-        hint={`Exported ${new Date(chapter.exported_at).toLocaleString()}`}
+        hint={t("details.exportedAt", { when: new Date(chapter.exported_at).toLocaleString() })}
         className="text-ok"
       >
-        <Send className="size-3.5" /> Exported
+        <Send className="size-3.5" /> {t("details.exported")}
       </StateLabel>
     );
   }
   if (chapter.local_path || progress?.state === "done") {
     return (
       <span className="flex items-center gap-1 text-caption text-ink-2">
-        <Check className="size-3.5" /> On disk
+        <Check className="size-3.5" /> {t("details.onDisk")}
       </span>
     );
   }
@@ -136,6 +138,7 @@ export const ChapterRow = memo(function ChapterRow({
   onToggle,
   proxied,
 }: Props) {
+  const t = useT();
   const off = isUnavailable(chapter);
   const handle = (e: MouseEvent) => {
     if (!off) onToggle(chapter.id, e.shiftKey);
@@ -160,7 +163,7 @@ export const ChapterRow = memo(function ChapterRow({
         <Checkbox
           checked={selected && !off}
           disabled={off}
-          aria-label={`Select chapter ${chapter.number}`}
+          aria-label={t("details.selectChapter", { number: chapter.number })}
           onClick={(e) => e.stopPropagation()}
           onChange={() => onToggle(chapter.id, false)}
         />
@@ -168,7 +171,7 @@ export const ChapterRow = memo(function ChapterRow({
       <td className="w-16 text-ink-2 tabular-nums">{chapter.volume ?? "—"}</td>
       <td className="w-16 font-medium tabular-nums">{chapter.number}</td>
       <td className={cn("truncate pr-4", off ? "text-ink-3" : "text-ink")}>
-        {chapter.title ?? <span className="text-ink-3">Untitled</span>}
+        {chapter.title ?? <span className="text-ink-3">{t("details.untitled")}</span>}
       </td>
       <td className="w-40 max-w-40 pr-4 text-ink-2">
         <Hint hint={chapter.group} focusable={false} truncated>

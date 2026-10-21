@@ -8,6 +8,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useT } from "@/i18n/use-t";
 import { type LibrarySort, SORTS } from "@/lib/library-view";
 
 export function SortMenu({
@@ -17,15 +18,16 @@ export function SortMenu({
   value: LibrarySort;
   onChange: (s: LibrarySort) => void;
 }) {
+  const t = useT();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Sort">
+        <Button variant="ghost" size="icon" aria-label={t("library.sort")}>
           <ArrowUpDown />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("library.sortBy")}</DropdownMenuLabel>
         <DropdownMenuRadioGroup value={value} onValueChange={(v) => onChange(v as LibrarySort)}>
           {SORTS.map((o) => (
             <DropdownMenuRadioItem key={o.id} value={o.id}>

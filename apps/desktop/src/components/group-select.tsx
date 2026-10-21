@@ -5,6 +5,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useT } from "@/i18n/use-t";
 import type { GroupCount } from "@/lib/chapter-groups";
 
 const ALL = "\u0000all";
@@ -18,6 +19,7 @@ type Props = {
 
 /** Narrows the chapter list to one scanlation group; a saved group no longer listed stays pickable. */
 export function GroupSelect({ groups, value, onChange }: Props) {
+  const t = useT();
   const options =
     value && !groups.some((g) => g.name === value)
       ? [...groups, { name: value, chapters: 0 }]
@@ -25,11 +27,11 @@ export function GroupSelect({ groups, value, onChange }: Props) {
   const total = groups.reduce((n, g) => n + g.chapters, 0);
   return (
     <Select value={value ?? ALL} onValueChange={(v) => onChange(v === ALL ? null : v)}>
-      <SelectTrigger aria-label="Group" className="h-7 w-56">
+      <SelectTrigger aria-label={t("details.group")} className="h-7 w-56">
         <SelectValue />
       </SelectTrigger>
       <SelectContent className="w-auto min-w-[var(--radix-select-trigger-width)] max-w-80">
-        <SelectItem value={ALL}>All groups ({total})</SelectItem>
+        <SelectItem value={ALL}>{t("details.allGroups", { total })}</SelectItem>
         {options.map((g) => (
           <SelectItem
             key={g.name}

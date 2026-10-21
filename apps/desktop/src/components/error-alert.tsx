@@ -1,13 +1,14 @@
 import { AlertCircle, RotateCw } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { tr } from "@/i18n/tr";
 import { describeError } from "@/lib/errors";
 import { isFinalError } from "@/lib/ipc.downloads";
 
 export function RetryButton({ onClick, className }: { onClick: () => void; className?: string }) {
   return (
     <Button size="sm" className={className} onClick={onClick}>
-      <RotateCw /> Try again
+      <RotateCw /> {tr("common.tryAgain")}
     </Button>
   );
 }

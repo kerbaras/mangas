@@ -1,4 +1,6 @@
 /** Pure filtering, sorting and persistence of the library screen's view choices. */
+
+import { tr } from "@/i18n/tr";
 import { type LibraryEntry, READING_STATUSES, type ReadingStatus } from "./ipc.library";
 
 export type LibrarySort = "title" | "updated" | "unread" | "added";
@@ -22,10 +24,10 @@ export const DEFAULT_VIEW: LibraryView = {
 };
 
 export const SORTS: { id: LibrarySort; label: string }[] = [
-  { id: "title", label: "Title" },
-  { id: "updated", label: "Last updated" },
-  { id: "unread", label: "Unread" },
-  { id: "added", label: "Date added" },
+  { id: "title", label: tr("sort.title") },
+  { id: "updated", label: tr("sort.updated") },
+  { id: "unread", label: tr("sort.unread") },
+  { id: "added", label: tr("sort.added") },
 ];
 
 const oneOf = <T extends string>(value: unknown, allowed: readonly T[]): T | undefined =>

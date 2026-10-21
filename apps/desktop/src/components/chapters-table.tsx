@@ -3,6 +3,7 @@ import { ChapterRow } from "@/components/chapter-row";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { DownloadMap } from "@/hooks/use-downloads";
 import { useRowWindow } from "@/hooks/use-row-window";
+import { useT } from "@/i18n/use-t";
 import { duplicateIds } from "@/lib/chapter-groups";
 import { isUnavailable, type Selection } from "@/lib/chapters";
 import type { Chapter } from "@/lib/ipc";
@@ -33,6 +34,7 @@ function Gap({ height }: { height: number }) {
 export function ChaptersTable(props: Props) {
   const { chapters, selected, downloads, onToggle, onToggleAll, scrollRef } = props;
   const proxied = useProxyInUse();
+  const t = useT();
   const selectable = chapters.filter((c) => !isUnavailable(c));
   const allOn = selectable.length > 0 && selectable.every((c) => selected.has(c.id));
   const someOn = !allOn && selectable.some((c) => selected.has(c.id));
@@ -49,16 +51,16 @@ export function ChaptersTable(props: Props) {
                 if (el) el.indeterminate = someOn;
               }}
               disabled={selectable.length === 0}
-              aria-label="Select all chapters"
+              aria-label={t("details.selectAll")}
               onChange={onToggleAll}
             />
           </th>
-          <th className="w-16">Vol.</th>
-          <th className="w-16">Ch.</th>
-          <th>Title</th>
-          <th className="w-40">Group</th>
-          <th className="w-28">Language</th>
-          <th className="w-44">State</th>
+          <th className="w-16">{t("details.colVolume")}</th>
+          <th className="w-16">{t("details.colChapter")}</th>
+          <th>{t("details.colTitle")}</th>
+          <th className="w-40">{t("details.colGroup")}</th>
+          <th className="w-28">{t("details.colLanguage")}</th>
+          <th className="w-44">{t("details.colState")}</th>
         </tr>
       </thead>
       <tbody onFocus={rows.onFocus} onBlur={rows.onBlur}>

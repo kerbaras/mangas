@@ -11,6 +11,7 @@ import {
   ContextMenuSubContent,
   ContextMenuSubTrigger,
 } from "@/components/ui/context-menu";
+import { useT } from "@/i18n/use-t";
 import { isLocal } from "@/lib/ipc";
 import {
   type Category,
@@ -32,14 +33,15 @@ type Props = EntryHandlers & { entry: LibraryEntry; categories: Category[] };
 
 /** Right-click menu shared by the grid card and the list row. */
 export function EntryMenu({ entry, categories, ...on }: Props) {
+  const t = useT();
   return (
     <ContextMenuContent>
       <ContextMenuItem onSelect={() => on.onOpen(entry)}>
-        <ExternalLink /> Open
+        <ExternalLink /> {t("library.menuOpen")}
       </ContextMenuItem>
       <ContextMenuSeparator />
       <ContextMenuSub>
-        <ContextMenuSubTrigger>Reading status</ContextMenuSubTrigger>
+        <ContextMenuSubTrigger>{t("library.readingStatus")}</ContextMenuSubTrigger>
         <ContextMenuSubContent>
           <ContextMenuRadioGroup
             value={entry.reading_status}
@@ -54,9 +56,11 @@ export function EntryMenu({ entry, categories, ...on }: Props) {
         </ContextMenuSubContent>
       </ContextMenuSub>
       <ContextMenuSub>
-        <ContextMenuSubTrigger>Categories</ContextMenuSubTrigger>
+        <ContextMenuSubTrigger>{t("library.menuCategories")}</ContextMenuSubTrigger>
         <ContextMenuSubContent>
-          {categories.length === 0 && <ContextMenuLabel>No categories yet</ContextMenuLabel>}
+          {categories.length === 0 && (
+            <ContextMenuLabel>{t("library.noCategories")}</ContextMenuLabel>
+          )}
           {categories.map((c) => {
             const on_ = entry.categories.includes(c.id);
             return (
@@ -72,13 +76,13 @@ export function EntryMenu({ entry, categories, ...on }: Props) {
           })}
           <ContextMenuSeparator />
           <ContextMenuItem onSelect={on.onEditCategories}>
-            <Tags /> Edit categories…
+            <Tags /> {t("library.menuEditCategories")}
           </ContextMenuItem>
         </ContextMenuSubContent>
       </ContextMenuSub>
       <ContextMenuSeparator />
       <ContextMenuItem onSelect={() => on.onUnfollow(entry)}>
-        <Trash2 /> {isLocal(entry) ? "Remove" : "Unfollow"}
+        <Trash2 /> {isLocal(entry) ? t("library.remove") : t("library.unfollow")}
       </ContextMenuItem>
     </ContextMenuContent>
   );

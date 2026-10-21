@@ -1,3 +1,4 @@
+import { tr } from "@/i18n/tr";
 import { describeFailure } from "./errors";
 import { connectProvider, getSettings, onProviderConnectEnd, type ProviderStatus } from "./ipc";
 import { certificateFailure } from "./ipc.downloads";
@@ -73,8 +74,8 @@ export async function connectAndWait(id: string, timeoutMs = TIMEOUT_MS): Promis
 /** The line under the providers list after Connect; null once connected. */
 export function connectNote(outcome: ConnectOutcome, name: string): string | null {
   if (outcome === "connected") return null;
-  if (outcome === "cancelled") return "Connection cancelled";
-  return `No session captured for ${name}; close its window and try again.`;
+  if (outcome === "cancelled") return tr("provider.connectCancelled");
+  return tr("provider.noSession", { name });
 }
 
 type Detail = {
@@ -107,15 +108,15 @@ export type Tone = "ok" | "warn" | "bad" | "pending";
 
 /** Badge for a provider: `undefined` while a check runs. */
 export function statusBadge(status: ProviderStatus | undefined): { label: string; tone: Tone } {
-  if (!status) return { label: "Checking", tone: "pending" };
+  if (!status) return { label: tr("provider.checking"), tone: "pending" };
   switch (status.state) {
     case "ready":
-      return { label: "Ready", tone: "ok" };
+      return { label: tr("provider.ready"), tone: "ok" };
     case "needs_session":
-      return { label: "Needs connection", tone: "warn" };
+      return { label: tr("provider.needsConnection"), tone: "warn" };
     case "unreachable":
       return certificateFailure(status.reason)
-        ? { label: "Certificate refused", tone: "bad" }
-        : { label: "Unreachable", tone: "bad" };
+        ? { label: tr("provider.certificateRefused"), tone: "bad" }
+        : { label: tr("provider.unreachable"), tone: "bad" };
   }
 }

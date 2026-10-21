@@ -1,3 +1,4 @@
+import { tr } from "@/i18n/tr";
 import type { Chapter } from "./ipc";
 
 /** Natural numeric order, so "2" sorts before "10" and "12.5" lands between 12 and 13. */
@@ -24,7 +25,11 @@ export const filterByLanguage = (chapters: Chapter[], language: string | null): 
   language ? chapters.filter((c) => c.language === language) : chapters;
 
 export function chapterLabel(c: Chapter): string {
-  const parts = [c.volume ? `Vol. ${c.volume}` : null, `Ch. ${c.number}`, c.title];
+  const parts = [
+    c.volume ? tr("chapters.volume", { volume: c.volume }) : null,
+    tr("chapters.number", { number: c.number }),
+    c.title,
+  ];
   return parts.filter(Boolean).join(" · ");
 }
 
@@ -77,8 +82,8 @@ export function unavailableSummary(chapters: Chapter[]): string | null {
   const off = chapters.filter(isUnavailable);
   const locked = off.filter((c) => c.availability?.kind === "locked").length;
   const parts = [
-    locked > 0 ? `${locked} locked` : null,
-    off.length > locked ? `${off.length - locked} on another site` : null,
+    locked > 0 ? tr("chapters.locked", { count: locked }) : null,
+    off.length > locked ? tr("chapters.anotherSite", { count: off.length - locked }) : null,
   ];
   return off.length > 0 ? parts.filter(Boolean).join(", ") : null;
 }
@@ -110,17 +115,21 @@ export function selectionSummary(
   shown: Chapter[] = chapters,
 ): string {
   const skipped = unavailableSummary(shown);
-  const tail = skipped ? ` · ${skipped} skipped` : "";
+  const tail = skipped ? ` · ${tr("chapters.skipped", { list: skipped })}` : "";
   const n = pickSelected(chapters, selected).length;
-  if (n === 0) return `No chapters selected${tail}`;
+  if (n === 0) return `${tr("chapters.noneSelected")}${tail}`;
   const toGet = downloadable(chapters, selected).length;
-  const base = `${n} selected`;
-  return (toGet === 0 ? `${base}, all downloaded` : `${base}, ${toGet} to download`) + tail;
+  const base =
+    toGet === 0
+      ? tr("chapters.selectedAll", { count: n })
+      : tr("chapters.selectedToGet", { count: n, toGet });
+  return base + tail;
 }
 
 /** "24 chapters · 5 on disk · 2 exported" under a title on its details screen. */
 export function chapterSummary(all: Chapter[]) {
   const onDisk = all.filter((c) => c.local_path).length;
   const exported = all.filter((c) => c.local_path && c.exported_at).length;
-  return `${all.length} chapters · ${onDisk} on disk${exported ? ` · ${exported} exported` : ""}`;
+  const head = tr("chapters.summary", { total: all.length, onDisk });
+  return exported ? `${head} · ${tr("chapters.exported", { count: exported })}` : head;
 }

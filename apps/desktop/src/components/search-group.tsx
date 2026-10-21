@@ -6,6 +6,7 @@ import { ProviderIcon } from "@/components/provider-icon";
 import { ProviderStatusBadge } from "@/components/provider-status-badge";
 import { SearchResult } from "@/components/search-result";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/i18n/use-t";
 import { describeFailure } from "@/lib/errors";
 import { mangaKey } from "@/lib/format";
 import type { Manga, ProviderInfo } from "@/lib/ipc";
@@ -39,6 +40,7 @@ export function SearchGroupView({
   onShowAll,
   ...rest
 }: Props) {
+  const t = useT();
   const group = state?.kind === "done" ? state.group : null;
   const items = group?.status.state === "ready" ? group.items : [];
   const more = items.length - shown(items, filtered).length;
@@ -62,30 +64,32 @@ export function SearchGroupView({
         )}
         {more > 0 && (
           <Button size="sm" variant="ghost" className="ml-auto" onClick={onShowAll}>
-            Show all {items.length}
+            {t("search.showAll", { count: items.length })}
           </Button>
         )}
       </header>
       {!group && (
         <Note>
-          <Hourglass aria-hidden className="size-3.5" /> Searching…
+          <Hourglass aria-hidden className="size-3.5" /> {t("search.searchingNote")}
         </Note>
       )}
       {group?.status.state === "needs_session" && (
         <Note
           action={
             <Button size="sm" variant="primary" onClick={connect}>
-              <Link2 /> Connect
+              <Link2 /> {t("search.connect")}
             </Button>
           }
         >
-          {p.name} asks for a browser check before it can search.
+          {t("search.needsSession", { name: p.name })}
         </Note>
       )}
       {group?.status.state === "unreachable" && (
         <Unreachable name={p.name} reason={group.status.reason} onRetry={onRetry} />
       )}
-      {group?.status.state === "ready" && items.length === 0 && <Note>No results here.</Note>}
+      {group?.status.state === "ready" && items.length === 0 && (
+        <Note>{t("search.noResults")}</Note>
+      )}
       {items.length > 0 && (
         <ul className="flex flex-col gap-1">
           {shown(items, filtered).map((m) => (
@@ -105,14 +109,17 @@ export function SearchGroupView({
 }
 
 function Unreachable(props: { name: string; reason: string; onRetry: () => void }) {
+  const t = useT();
   const { label, tooltip } = describeFailure(props.reason);
   const retry = isFinalError(props.reason) ? undefined : <RetryButton onClick={props.onRetry} />;
   return (
     <Note action={retry}>
       <Hint hint={tooltip}>
         <span className="min-w-0 [overflow-wrap:anywhere]">
-          {certificateFailure(props.reason) ? "Couldn't connect to" : "Couldn't reach"} {props.name}
-          : {label}
+          {t(certificateFailure(props.reason) ? "search.certificateFailed" : "search.unreachable", {
+            name: props.name,
+            reason: label,
+          })}
         </span>
       </Hint>
     </Note>

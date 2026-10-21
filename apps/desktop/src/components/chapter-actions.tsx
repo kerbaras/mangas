@@ -1,6 +1,7 @@
 import { Download, FolderOpen, RotateCcw } from "lucide-react";
 import { ExportButton } from "@/components/export-button";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/i18n/use-t";
 import { chapterFolder } from "@/lib/chapter-folder";
 import {
   exportable,
@@ -28,6 +29,7 @@ type Props = {
  * folder, else the title's).
  */
 export function ChapterActions({ manga, pool, visible, selected, onExported, download }: Props) {
+  const t = useT();
   const toExport = exportable(pool, selected);
   const toDownload = pickSelected(pool, selected).filter((c) => !isUnavailable(c));
   const exportButton = (
@@ -43,7 +45,7 @@ export function ChapterActions({ manga, pool, visible, selected, onExported, dow
       <div className="ml-auto flex gap-2">
         {exportButton}
         <Button size="sm" disabled={!folder} onClick={() => folder && void revealFolder(folder)}>
-          <FolderOpen /> Open folder
+          <FolderOpen /> {t("details.openFolder")}
         </Button>
       </div>
     );
@@ -53,7 +55,7 @@ export function ChapterActions({ manga, pool, visible, selected, onExported, dow
       {exportButton}
       {toExport.length > 0 && (
         <Button size="sm" onClick={() => void download(toExport, true)}>
-          <RotateCcw /> Download again
+          <RotateCcw /> {t("details.downloadAgain")}
         </Button>
       )}
       <Button
@@ -62,7 +64,7 @@ export function ChapterActions({ manga, pool, visible, selected, onExported, dow
         disabled={toDownload.length === 0}
         onClick={() => void download(toDownload)}
       >
-        <Download /> Download selected
+        <Download /> {t("details.downloadSelected")}
       </Button>
     </div>
   );
