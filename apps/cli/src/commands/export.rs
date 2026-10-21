@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use anyhow::bail;
 use clap::Args as ClapArgs;
 use mangas_core::domain::MangaId;
-use mangas_core::export::kindle::{check_export_folder, ExportStats};
+use mangas_core::export::kindle::check_export_folder;
 use mangas_core::export::volume::{self, VolumeOutcome};
 use mangas_core::export::{ExportPreset, Format};
 use mangas_core::{library, storage};
@@ -15,7 +15,7 @@ use super::export_cover::cover_file;
 use super::export_plans::plans;
 use super::export_preset::{self, PresetAction};
 use super::export_report::Report;
-use super::export_size::{warn_too_big, written_pages};
+use super::export_size::{print_written, warn_too_big};
 use super::followed::followed_source;
 use super::kindle_record;
 use super::{export_progress::export_printing, hint, stored_settings};
@@ -190,17 +190,4 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         report.print()?;
     }
     unsent(report.failed.len())
-}
-
-fn print_written(stats: &ExportStats) -> std::io::Result<()> {
-    for (file, pages) in written_pages(stats) {
-        outln!("{}: {pages} pages", file.display())?;
-    }
-    if stats.skipped > 0 {
-        outln!(
-            "skipped {} unsupported file(s), listed in the warnings above",
-            stats.skipped
-        )?;
-    }
-    Ok(())
 }

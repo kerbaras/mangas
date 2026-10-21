@@ -9,6 +9,7 @@ use mangas_core::library::{self, Library};
 use super::deliver::{deliver, not_sent, SendArg};
 use super::export_report::Recorded;
 use super::kindle_titles::spellings;
+use crate::output::outln;
 use crate::{paths, Exit};
 
 /// Where each file went, and the files that couldn't be sent with why.
@@ -31,6 +32,17 @@ impl Delivery {
             }
         };
         Err(Exit { code: 2, message }.into())
+    }
+
+    /// Says each send on stdout, or on stderr when stdout carries the JSON report.
+    pub fn print_sent(&self, json: bool) -> std::io::Result<()> {
+        for line in &self.sent {
+            match json {
+                true => eprintln!("{line}"),
+                false => outln!("{line}")?,
+            }
+        }
+        Ok(())
     }
 }
 
@@ -88,22 +100,25 @@ pub async fn record_and_send(
 /// folders from elsewhere are ignored. Each folder is matched under every spelling the library
 /// may store and as a moved or copied download ([`spellings`], the match the book's title uses).
 pub fn mark_exported(lib: &Library, stats: &ExportStats, dirs: &[PathBuf]) -> Vec<Recorded> {
-    let marked = |dir: &&Path| -> anyhow::Result<Option<Recorded>> {
+    let marked = |dir: &&Path| -> anyhow::Result<Vec<Recorded>> {
         let spellings = spellings(lib, &[dir])?;
         let refs: Vec<&Path> = spellings.iter().map(PathBuf::as_path).collect();
-        let chapter = library::mark_exported_folder(lib, &refs)?;
-        Ok(chapter.map(|chapter| Recorded {
-            path: dir.to_path_buf(),
-            chapter,
-        }))
+        let chapters = library::mark_exported_folder(lib, &refs)?;
+        Ok(chapters
+            .into_iter()
+            .map(|chapter| Recorded {
+                path: dir.to_path_buf(),
+                chapter,
+            })
+            .collect())
     };
     stats
         .exported_chapters(dirs)
         .iter()
-        .filter_map(|dir| {
+        .flat_map(|dir| {
             marked(dir).unwrap_or_else(|e| {
                 eprintln!("warning: could not mark {} as exported: {e}", dir.display());
-                None
+                Vec::new()
             })
         })
         .collect()

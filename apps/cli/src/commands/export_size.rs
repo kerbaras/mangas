@@ -5,6 +5,8 @@ use std::path::{Path, PathBuf};
 
 use mangas_core::export::kindle::{ExportStats, Oversized, PART_SIZE, SEND_TO_KINDLE_LIMIT};
 
+use crate::output::outln;
+
 /// Size of `file` in bytes; 0 when it can't be read.
 pub fn bytes(file: &Path) -> u64 {
     std::fs::metadata(file).map(|m| m.len()).unwrap_or(0)
@@ -43,6 +45,20 @@ pub fn written_pages(stats: &ExportStats) -> Vec<(PathBuf, usize)> {
             .map(|p| (p.path.clone(), p.pages))
             .collect(),
     }
+}
+
+/// The files a book was written to, with their pages, and the files it skipped.
+pub fn print_written(stats: &ExportStats) -> std::io::Result<()> {
+    for (file, pages) in written_pages(stats) {
+        outln!("{}: {pages} pages", file.display())?;
+    }
+    if stats.skipped > 0 {
+        outln!(
+            "skipped {} unsupported file(s), listed in the warnings above",
+            stats.skipped
+        )?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

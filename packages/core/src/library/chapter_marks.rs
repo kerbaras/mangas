@@ -52,9 +52,9 @@ pub struct ExportedChapter {
     pub chapter: String,
 }
 
-/// Marks the chapter stored at one of `spellings` (one folder, spelled the ways the library may
-/// store it) as just exported and returns it; `None` when no library chapter is stored there.
-pub fn mark_exported_folder(lib: &Library, spellings: &[&Path]) -> Result<Option<ExportedChapter>> {
+/// Marks the chapters stored at one of `spellings` (one folder, spelled the ways the library may
+/// store it) as just exported and returns each; empty when no library chapter is stored there.
+pub fn mark_exported_folder(lib: &Library, spellings: &[&Path]) -> Result<Vec<ExportedChapter>> {
     let conn = lib.conn()?;
     let mut stmt = conn.prepare(
         "UPDATE chapter SET exported_at = datetime('now')
@@ -62,10 +62,20 @@ pub fn mark_exported_folder(lib: &Library, spellings: &[&Path]) -> Result<Option
          RETURNING number, (SELECT title FROM manga m
                             WHERE m.source = chapter.source AND m.id = chapter.manga_id)",
     )?;
+    // One stored path matches one spelling only: without repeats, each chapter is named once.
+    let mut paths: Vec<String> = spellings
+        .iter()
+        .map(|p| {
+            p.to_string_lossy()
+                .trim_end_matches(['/', '\\'])
+                .to_string()
+        })
+        .collect();
+    paths.sort();
+    paths.dedup();
     let mut found = Vec::new();
-    for path in spellings {
-        let path = path.to_string_lossy();
-        let rows = stmt.query_map(params![path.trim_end_matches(['/', '\\'])], |r| {
+    for path in &paths {
+        let rows = stmt.query_map(params![path], |r| {
             Ok(ExportedChapter {
                 chapter: r.get(0)?,
                 manga: r.get::<_, Option<String>>(1)?.unwrap_or_default(),
@@ -73,5 +83,5 @@ pub fn mark_exported_folder(lib: &Library, spellings: &[&Path]) -> Result<Option
         })?;
         found.extend(rows.collect::<rusqlite::Result<Vec<_>>>()?);
     }
-    Ok(found.into_iter().next())
+    Ok(found)
 }
