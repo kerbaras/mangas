@@ -41,6 +41,10 @@ pub enum Error {
     /// A local import found nothing it could use; the message is meant for the user as is.
     #[error("{0}")]
     Import(String),
+    /// A Kindle (`device`, its USB product name) is on the bus but has no mounted folder: it
+    /// talks MTP only, which a USB copy can't use. Email still works.
+    #[error("{}", crate::send::usb::MTP_HINT)]
+    KindleOverMtp { device: String },
     /// Email or USB delivery failed; the message is meant for the user as is.
     #[error("{0}")]
     Send(String),

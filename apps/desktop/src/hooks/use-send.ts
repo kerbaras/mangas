@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { errorMessage } from "@/lib/format";
 import { isFinalError } from "@/lib/ipc.downloads";
-import { findKindles, onCopyProgress, sendEmail, sendUsb } from "@/lib/ipc.send";
+import { findKindles, onCopyProgress, sendEmail, sendUsb, usbKindles } from "@/lib/ipc.send";
 import { fileName, megabytes } from "@/lib/send-labels";
 
 export type Via = "email" | "usb";
@@ -13,6 +13,8 @@ export type SendState =
   | { kind: "idle" }
   | { kind: "looking" }
   | { kind: "no-device" }
+  /** A Kindle on the USB bus with no mounted folder: MTP only, so no copy; email still works. */
+  | { kind: "mtp"; device: string }
   | { kind: "copying"; device: string; done: number; total: number }
   | { kind: "emailing" }
   | { kind: "done"; via: Via; message: string }
@@ -71,7 +73,10 @@ export function useSend(onSent?: () => void) {
         if (via === "usb") {
           setState({ kind: "looking" });
           const [kindle] = await findKindles();
-          if (!kindle) return setState({ kind: "no-device" });
+          if (!kindle) {
+            const [mtp] = await usbKindles();
+            return setState(mtp ? { kind: "mtp", device: mtp.name } : { kind: "no-device" });
+          }
           device.current = kindle.name;
           for (const [i, { file, title }] of books.entries()) {
             setState({ kind: "copying", device: kindle.name, done: 0, total: 0 });

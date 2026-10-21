@@ -35,7 +35,8 @@ describe("send panel", () => {
     const findKindles = vi.fn().mockResolvedValueOnce([]).mockResolvedValue([kindle]);
     let finish: (copy: UsbCopy) => void = () => {};
     const sendUsb = vi.fn(() => new Promise<UsbCopy>((r) => (finish = r)));
-    const progress = stub({ findKindles, sendUsb });
+    const usbKindles = vi.fn().mockResolvedValue([]);
+    const progress = stub({ findKindles, usbKindles, sendUsb });
     const onSent = vi.fn();
     render(<SendPanel file={FILE} onSent={onSent} />);
     fireEvent.click(screen.getByRole("button", { name: /Copy over USB/ }));

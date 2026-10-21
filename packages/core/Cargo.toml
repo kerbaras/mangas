@@ -49,6 +49,7 @@ same-file = "1"
 # OS keychain for the SMTP password: macOS Keychain, Windows Credential Manager, Secret Service
 # over zbus on Linux (pure Rust, no libdbus).
 keyring = "4.2"
+nusb = "0.2"
 
 [features]
 default = []

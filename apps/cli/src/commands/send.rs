@@ -61,12 +61,17 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
 }
 
 fn list_devices() -> anyhow::Result<()> {
-    let found = usb::find_kindles();
-    if found.is_empty() {
-        eprintln!("Device not found: connect your Kindle over USB and unlock it");
+    let found = usb::scan_kindles();
+    match (found.volumes.is_empty(), found.mtp.first()) {
+        (false, _) => {}
+        (true, Some(device)) => eprintln!("{}: {}\n  {EMAIL_INSTEAD}", device.name, usb::MTP_HINT),
+        (true, None) => eprintln!("Device not found: connect your Kindle over USB and unlock it"),
     }
-    for k in found {
+    for k in found.volumes {
         outln!("{}\t{}", k.name, k.documents.display())?;
     }
     Ok(())
 }
+
+/// How to send a book when the Kindle is connected over MTP only.
+pub const EMAIL_INSTEAD: &str = "send it by email instead: mangas send --via email <file>";

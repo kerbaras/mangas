@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use mangas_core::send::usb::{choose, copy_to_kindle, find_kindles_in, looks_like_kindle};
+use mangas_core::send::usb::{choose, copy_to_kindle, find_kindles_in, looks_like_kindle, KindleScan};
 
 fn mkdirs(root: &Path, dirs: &[&str]) {
     for d in dirs {
@@ -102,13 +102,13 @@ fn unplugged_device_and_missing_file_leave_nothing_behind() {
 fn choose_takes_an_explicit_mount_or_reports_device_not_found() {
     let tmp = tempfile::tempdir().unwrap();
     mkdirs(tmp.path(), &["Reader/documents"]);
-    let picked = choose(Some(&tmp.path().join("Reader")), Vec::new()).unwrap();
+    let picked = choose(Some(&tmp.path().join("Reader")), KindleScan::default()).unwrap();
     assert_eq!(picked.name, "Reader");
-    let err = choose(Some(tmp.path()), Vec::new())
+    let err = choose(Some(tmp.path()), KindleScan::default())
         .unwrap_err()
         .to_string();
     assert!(err.starts_with("Device not found"), "{err}");
-    let err = choose(None, Vec::new()).unwrap_err().to_string();
+    let err = choose(None, KindleScan::default()).unwrap_err().to_string();
     assert!(
         err.starts_with("Device not found: connect your Kindle"),
         "{err}"

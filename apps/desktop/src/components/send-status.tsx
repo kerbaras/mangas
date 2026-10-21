@@ -1,8 +1,9 @@
-import { RefreshCw, Usb } from "lucide-react";
+import { Mail, RefreshCw, Usb } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { refused, type SendState, type Via } from "@/hooks/use-send";
+import { MTP_HINT } from "@/lib/ipc.send";
 import { megabytes } from "@/lib/send-labels";
 
 type Props = {
@@ -10,10 +11,12 @@ type Props = {
   /** The delivery picked now: a failure of another one is no longer what Retry does. */
   via?: Via | "save";
   onRetry?: () => void;
+  /** Sends by email instead, offered when a Kindle is connected over MTP only. */
+  onEmail?: () => void;
 };
 
-/** Where a delivery is: looking, copying with progress, Device not found or failed (+ Retry when given), done. */
-export function SendStatus({ state, via, onRetry }: Props) {
+/** Where a delivery is: looking, copying with progress, Device not found, MTP only (+ Use Email) or failed (+ Retry when given), done. */
+export function SendStatus({ state, via, onRetry, onEmail }: Props) {
   const failed = failedVia(state);
   if (via !== undefined && failed !== undefined && failed !== via) {
     return state.kind === "error" && state.sent ? <Sent lines={state.sent} /> : null;
@@ -54,6 +57,28 @@ export function SendStatus({ state, via, onRetry }: Props) {
           </AlertDescription>
         </Alert>
       );
+    case "mtp":
+      return (
+        <Alert>
+          <Usb />
+          <AlertTitle>{state.device} connected over MTP</AlertTitle>
+          <AlertDescription>
+            {MTP_HINT}.
+            <div className="mt-1 flex gap-2">
+              {onEmail && (
+                <Button size="sm" onClick={onEmail}>
+                  <Mail /> Use Email
+                </Button>
+              )}
+              {onRetry && (
+                <Button size="sm" onClick={onRetry}>
+                  <RefreshCw /> Retry
+                </Button>
+              )}
+            </div>
+          </AlertDescription>
+        </Alert>
+      );
     case "done":
       return (
         <p
@@ -89,7 +114,7 @@ export function SendStatus({ state, via, onRetry }: Props) {
 /** The delivery a failed `state` was for, or `undefined` when nothing failed. */
 function failedVia(state: SendState): Via | undefined {
   if (state.kind === "error") return state.via;
-  if (state.kind === "no-device") return "usb";
+  if (state.kind === "no-device" || state.kind === "mtp") return "usb";
   return undefined;
 }
 
