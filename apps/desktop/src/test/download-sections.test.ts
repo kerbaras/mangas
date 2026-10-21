@@ -66,6 +66,13 @@ describe("downloads sections", () => {
     expect(jobActions(makeJob({ state: "failed", error: UNLISTED }))).toEqual(["dismiss"]);
     const refused = "refused: cdn.example resolves to a non-public address 10.1.2.3";
     expect(jobActions(makeJob({ state: "failed", error: refused }))).toEqual(["dismiss"]);
+    // #309: through a proxy the proxy resolves page hosts, so a refusal stored before it was set
+    // may download now.
+    const stored = makeJob({ state: "failed", error: refused });
+    expect(jobActions(stored, true)).toEqual(["retry", "dismiss"]);
+    const literal = "refused: 10.0.0.5 resolves to a non-public address 10.0.0.5";
+    expect(jobActions(makeJob({ state: "failed", error: literal }), true)).toEqual(["dismiss"]);
+    expect(jobActions(makeJob({ state: "failed", error: UNLISTED }), true)).toEqual(["dismiss"]);
     const noCerts =
       "network: no CA certificates found on this system, so secure connections can't be checked; install the ca-certificates package (e.g. `sudo apt install ca-certificates`)";
     expect(jobActions(makeJob({ state: "failed", error: noCerts }))).toEqual(["dismiss"]);

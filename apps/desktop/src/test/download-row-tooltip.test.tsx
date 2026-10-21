@@ -9,11 +9,14 @@ import { makeJob } from "./job-fixture";
 const REASON = "refused: webtoon-phinf.pstatic.net resolves to a non-public address 10.0.0.1";
 const LABEL = "The image host points at a local or private address, so the app won't fetch it.";
 
-function row(job: DownloadJob) {
+const PROXIED =
+  "The image host points at a private address. Retry fetches it through the configured proxy.";
+
+function row(job: DownloadJob, proxied = false) {
   render(
     <TooltipProvider delayDuration={0}>
       <ul>
-        <DownloadRow job={job} speed={null} />
+        <DownloadRow job={job} speed={null} proxied={proxied} />
       </ul>
     </TooltipProvider>,
   );
@@ -32,6 +35,13 @@ describe("DownloadRow failure tooltip", () => {
     await userEvent.tab();
     expect(reason).toHaveFocus();
     expect(await screen.findByRole("tooltip")).toHaveTextContent(REASON);
+  });
+
+  it("says Retry goes through the proxy when one is in use", () => {
+    row(makeJob({ state: "failed", error: REASON }), true);
+    expect(screen.getByText(PROXIED)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    expect(screen.queryByText(LABEL)).toBeNull();
   });
 
   it("shows the reason on hover", async () => {

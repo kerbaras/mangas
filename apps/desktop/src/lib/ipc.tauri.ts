@@ -59,6 +59,7 @@ export const tauriBackend: Backend = {
   onProviderConnectEnd: (cb) => listen<ConnectEnd>("provider-connect", (e) => cb(e.payload)),
   providerStatus: (provider) => invoke<ProviderStatus>("provider_status", { provider }),
   testProxy: (mode, url) => invoke<ProviderStatus>("test_proxy", { mode, url }),
+  proxyInUse: (mode, url) => invoke<boolean>("proxy_in_use", { mode, url }),
   searchAll: (query, providers) =>
     invoke<SearchGroup[]>("search_all", { query, providers, limit: SEARCH_LIMIT }),
   coverSrc: async ({ source, id, cover_url }) =>

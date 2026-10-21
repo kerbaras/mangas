@@ -6,6 +6,7 @@ import { useRowWindow } from "@/hooks/use-row-window";
 import { duplicateIds } from "@/lib/chapter-groups";
 import { isUnavailable, type Selection } from "@/lib/chapters";
 import type { Chapter } from "@/lib/ipc";
+import { useProxyInUse } from "@/lib/proxy-in-use";
 
 type Props = {
   chapters: Chapter[];
@@ -31,6 +32,7 @@ function Gap({ height }: { height: number }) {
 
 export function ChaptersTable(props: Props) {
   const { chapters, selected, downloads, onToggle, onToggleAll, scrollRef } = props;
+  const proxied = useProxyInUse();
   const selectable = chapters.filter((c) => !isUnavailable(c));
   const allOn = selectable.length > 0 && selectable.every((c) => selected.has(c.id));
   const someOn = !allOn && selectable.some((c) => selected.has(c.id));
@@ -74,6 +76,7 @@ export function ChaptersTable(props: Props) {
               showSourceId={twins.has(c.id)}
               progress={downloads.get(c.id)}
               onToggle={onToggle}
+              proxied={proxied}
             />
           );
         })}

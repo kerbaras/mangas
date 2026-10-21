@@ -42,14 +42,24 @@ pub fn paused_report(settled: &Settled) -> Option<(Vec<String>, Exit)> {
     ))
 }
 
+/// Whether downloads go through a proxy now, so a stored refusal may download on a retry.
+pub fn proxied() -> bool {
+    mangas_providers::http::proxied(&super::stored_settings().network())
+}
+
 /// The note for failed `noun`s. `mangas queue retry --all` is only offered for the ones a retry
-/// can fix: a refused host or a chapter gone from the source fails the same way again.
-pub fn failed_note(jobs: &[Job], noun: &str) -> Option<String> {
+/// can fix: a chapter gone from the source, or a refused host without a proxy, fails the same way
+/// again.
+pub fn failed_note(jobs: &[Job], noun: &str, proxied: bool) -> Option<String> {
     let failed: Vec<&Job> = jobs
         .iter()
         .filter(|j| j.state == JobState::Failed)
         .collect();
-    let fixed = |j: &&&Job| j.error.as_deref().is_some_and(is_final_error);
+    let fixed = |j: &&&Job| {
+        j.error
+            .as_deref()
+            .is_some_and(|e| is_final_error(e, proxied))
+    };
     let (total, stuck) = (failed.len(), failed.iter().filter(fixed).count());
     let mut note = match total {
         0 => return None,
@@ -155,23 +165,35 @@ mod tests {
 
     #[test]
     fn a_refused_download_is_not_offered_a_retry() {
-        let note = failed_note(&[failed(refused())], "chapter").unwrap();
+        let note = failed_note(&[failed(refused())], "chapter", false).unwrap();
         assert!(!note.contains("retry --all"), "{note}");
         assert!(note.contains("1 can't succeed on a retry"), "{note}");
     }
 
     #[test]
-    fn retry_is_offered_for_the_failures_it_can_fix() {
-        let jobs = [failed(refused()), failed("network: timed out".into())];
-        let note = failed_note(&jobs, "download").unwrap();
-        assert!(note.starts_with("2 download(s) failed"), "{note}");
-        assert!(note.ends_with("retry the other 1 one at a time with `mangas queue retry <id>`"));
-        assert!(!note.contains("--all"), "{note}");
-        let note = failed_note(&jobs[1..], "chapter").unwrap();
+    fn through_a_proxy_a_stored_refusal_is_offered_a_retry() {
+        let note = failed_note(&[failed(refused())], "chapter", true).unwrap();
         assert_eq!(
             note,
             "1 chapter(s) failed; `mangas queue retry --all` tries them again"
         );
-        assert_eq!(failed_note(&[job("1", JobState::Done)], "chapter"), None);
+    }
+
+    #[test]
+    fn retry_is_offered_for_the_failures_it_can_fix() {
+        let jobs = [failed(refused()), failed("network: timed out".into())];
+        let note = failed_note(&jobs, "download", false).unwrap();
+        assert!(note.starts_with("2 download(s) failed"), "{note}");
+        assert!(note.ends_with("retry the other 1 one at a time with `mangas queue retry <id>`"));
+        assert!(!note.contains("--all"), "{note}");
+        let note = failed_note(&jobs[1..], "chapter", false).unwrap();
+        assert_eq!(
+            note,
+            "1 chapter(s) failed; `mangas queue retry --all` tries them again"
+        );
+        assert_eq!(
+            failed_note(&[job("1", JobState::Done)], "chapter", false),
+            None
+        );
     }
 }

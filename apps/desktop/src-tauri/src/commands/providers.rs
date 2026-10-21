@@ -47,6 +47,18 @@ pub async fn test_proxy(mode: ProxyMode, url: String) -> Result<ProviderStatus, 
     Ok(mangas_providers::status("mangadex", &settings).await)
 }
 
+/// Whether downloads go through the proxy setting `mode`, `url` (passed in, so an edit still
+/// being saved counts): a stored "non-public address" refusal may then download on a retry (#309).
+#[tauri::command]
+pub fn proxy_in_use(mode: ProxyMode, url: String) -> bool {
+    let settings = Settings {
+        proxy_mode: Some(mode),
+        proxy_url: Some(url),
+        ..settings_or_default()
+    };
+    mangas_providers::http::proxied(&settings.network())
+}
+
 /// Opens `provider`'s site in a private window, so only a clearance earned there is seen. Once
 /// the verification cookie appears the session is saved and the window closes itself; closing it
 /// or a page that fails to load ends the UI's wait (`connect_window`).

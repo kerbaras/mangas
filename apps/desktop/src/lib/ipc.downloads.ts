@@ -78,18 +78,32 @@ export const isUnlisted = (job: Pick<DownloadJob, "error">) =>
 export const REFUSED = "resolves to a non-public address";
 export const isRefused = (error: string | null | undefined) =>
   (error?.startsWith("refused:") && error.includes(REFUSED)) ?? false;
+/** A refusal of a host the URL names as private (IP literal, `localhost`): refused before any
+ * proxy, so it stays final even through one. */
+const refusedLiteral = (error: string) => {
+  const named = error.replace(/^refused:\s*/, "").split(" resolves")[0] ?? "";
+  const host = named.replace(/^\[|\]$/g, "");
+  return (
+    /^[\d.]+$/.test(host) ||
+    host.includes(":") ||
+    host === "localhost" ||
+    host.endsWith(".localhost")
+  );
+};
 /** `mangas_core::Error::NoRootCertificates`: a network error no connection check can fix. */
 export const NO_ROOT_CERTIFICATES = "no CA certificates found";
 /** `mangas_core::Error::NoSpace`: an export filled the disk; it removed what it wrote. */
 export const NO_SPACE = "not enough space in ";
 /** `mangas_core::Error::DeviceFull`: a USB copy filled the Kindle; the partial book was removed. */
 export const DEVICE_FULL = "not enough space on ";
-/** A failure a retry cannot fix: the source no longer has the chapter, its host is refused, the
- * system has no root certificates, or the export folder's disk or the Kindle is full. */
-export const isFinalError = (error: string) =>
+/** A failure a retry cannot fix: the source no longer has the chapter, its host is refused while
+ * no proxy is in use (through one the proxy resolves page hosts, so a refusal stored before it
+ * was set may download on a retry), the system has no root certificates, or the export folder's
+ * disk or the Kindle is full. Mirrors `mangas_core::download::queue::is_final_error`. */
+export const isFinalError = (error: string, proxied = false) =>
   error.includes(UNLISTED) ||
   error.startsWith("not found") ||
-  isRefused(error) ||
+  (isRefused(error) && (!proxied || refusedLiteral(error))) ||
   error.includes(NO_ROOT_CERTIFICATES) ||
   error.startsWith(NO_SPACE) ||
   error.startsWith(DEVICE_FULL);

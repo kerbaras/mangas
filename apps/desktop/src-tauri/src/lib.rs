@@ -48,6 +48,7 @@ pub fn run() {
             commands::providers::list_providers,
             commands::providers::provider_status,
             commands::providers::test_proxy,
+            commands::providers::proxy_in_use,
             commands::providers::connect_provider,
             commands::providers::disconnect_provider,
             commands::catalog::search_all,

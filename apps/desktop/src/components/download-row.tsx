@@ -68,7 +68,7 @@ const TONE: Record<DownloadJob["state"], string> = {
   done: "text-ok",
 };
 
-function Detail({ job, speed }: { job: DownloadJob; speed: number | null }) {
+function Detail({ job, speed, proxied }: Props) {
   if (job.state === "running" || job.state === "paused") {
     const pages = job.pages_total > 0 ? `${job.pages_done}/${job.pages_total} pages` : null;
     const moving = isMoving(job);
@@ -93,7 +93,7 @@ function Detail({ job, speed }: { job: DownloadJob; speed: number | null }) {
   if (job.state === "done" && job.pages_total > 0)
     return <span className="text-caption text-ink-3">{job.pages_total} pages</span>;
   if (!text) return null;
-  const { label, tooltip } = describeFailure(text);
+  const { label, tooltip } = describeFailure(text, proxied);
   return (
     <Hint hint={tooltip}>
       <span className="truncate text-caption text-ink-2">{label}</span>
@@ -101,10 +101,11 @@ function Detail({ job, speed }: { job: DownloadJob; speed: number | null }) {
   );
 }
 
-type Props = { job: DownloadJob; speed: number | null };
+/** `proxied`: a proxy is in use, so a stored refusal gets Retry. */
+type Props = { job: DownloadJob; speed: number | null; proxied?: boolean };
 
 /** One job. Memoised: a progress event re-renders only the row whose job changed. */
-export const DownloadRow = memo(function DownloadRow({ job, speed }: Props) {
+export const DownloadRow = memo(function DownloadRow({ job, speed, proxied }: Props) {
   const unlisted = isUnlisted(job);
   return (
     <li
@@ -133,10 +134,10 @@ export const DownloadRow = memo(function DownloadRow({ job, speed }: Props) {
         )}
       </div>
       <div className="flex min-w-0 items-center">
-        <Detail job={job} speed={speed} />
+        <Detail job={job} speed={speed} proxied={proxied} />
       </div>
       <div className="flex justify-end gap-1">
-        {jobActions(job).map((a) => (
+        {jobActions(job, proxied).map((a) => (
           <ActionButton key={a} job={job} action={a} />
         ))}
       </div>

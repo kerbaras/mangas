@@ -10,6 +10,7 @@ type ProvidersPart = Pick<
   | "onProviderConnectEnd"
   | "providerStatus"
   | "testProxy"
+  | "proxyInUse"
 >;
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -52,5 +53,6 @@ export function mockProviderSessions(providers: ProviderInfo[], store: Store): P
         };
       return { state: "ready" };
     },
+    proxyInUse: async (mode, url) => mode === "custom" && !!url.trim(),
   };
 }

@@ -6,6 +6,11 @@ use mangas_core::library::Network;
 pub(crate) use mangas_core::net::{apply, transport_error};
 pub use mangas_core::net::{effective, override_network, shown};
 
+/// Whether provider requests go through a proxy: the configured one, or the system's.
+pub fn proxied(network: &Network) -> bool {
+    !proxy_hosts(network).is_empty()
+}
+
 /// The host names of the proxies provider clients go through, lowercased: the configured one,
 /// or in system mode the environment's and the OS settings' (macOS, Windows), read the way
 /// reqwest's `system-proxy` reads them.
