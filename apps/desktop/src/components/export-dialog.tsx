@@ -25,7 +25,7 @@ import { useExportPlan } from "@/hooks/use-export-plan";
 import { useFreeNames } from "@/hooks/use-free-names";
 import { type Book, refused, runningVia, useSend } from "@/hooks/use-send";
 import { useSeriesTarget } from "@/hooks/use-series-target";
-import { exportJob } from "@/lib/export-job";
+import { booksToSend, exportJob } from "@/lib/export-job";
 import type { ExportPick } from "@/lib/export-name";
 import {
   type BundleMode,
@@ -36,7 +36,6 @@ import {
   initialMode,
   pickSummary,
 } from "@/lib/export-plan";
-import { booksOf } from "@/lib/export-summary";
 import type { ExportResult } from "@/lib/ipc";
 import { oversizedOf, PART_MB } from "@/lib/kindle-size";
 
@@ -126,12 +125,12 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
         quality: target.quality,
         splitMb,
         direction,
-        written: job.retry.written,
+        kept: job.retry.kept,
       }),
     );
     if (!results) return;
     onExported?.(results);
-    const sent = [...(job.retry.kept.length ? send.unsent() : []), ...results.flatMap(booksOf)];
+    const sent = booksToSend(send.unsent(), job.retry.kept, results);
     setWritten(sent);
     // A book over the email limit on disk is never emailed: the alert offers the split.
     if (via === "email" && oversizedOf(results).length > 0) return;

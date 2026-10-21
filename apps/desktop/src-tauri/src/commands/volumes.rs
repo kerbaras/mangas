@@ -96,7 +96,7 @@ pub async fn export_volumes<R: Runtime>(
     quality: Option<u8>,
     split_mb: Option<u64>,
     direction: Option<ReadingDirection>,
-    written: Option<Vec<Vec<String>>>,
+    kept: Option<Vec<volume::KeptBook>>,
 ) -> Result<VolumeOutcome, String> {
     // Before the chapter folders are looked up: a data-folder move can't start under the export.
     let _reading = hold_for_export().map_err(to_ipc)?;
@@ -123,8 +123,7 @@ pub async fn export_volumes<R: Runtime>(
     let format = Format::resolve(None, None, resolved.format, &dev).map_err(to_ipc)?;
     let (src, plans) = plans(&source, &manga_id, &chapter_ids, grouping, title.as_deref())?;
     let replace = replace.unwrap_or(false);
-    let plans = volume::one_file_each(plans, replace);
-    let plans = volume::skip_written(plans, &written.unwrap_or_default());
+    let plans = volume::retry_plans(plans, &kept.unwrap_or_default(), format.id(), replace);
     check_export_folder(&output_dir, split_mb.is_some(), replace).map_err(to_ipc)?;
     let plans =
         volume::named_as_written(plans, &output_dir, format.id(), replace).map_err(to_ipc)?;

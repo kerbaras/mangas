@@ -39,12 +39,10 @@ describe("Try again after a stopped export (#337)", () => {
     const stop = (e: ExportStopped) => () => Promise.reject(e);
     await act(() => result.current.run(stop(stoppedAt(["Solo v1"], "Solo v2", ["Solo v3"]))));
     let retry = retryOf(result.current.state);
-    expect(retry.written).toEqual([["id Solo v1"]]);
     expect(outputs(retry.kept)).toEqual(["/k/Solo v1.epub"]);
 
     await act(() => result.current.run(stop(stoppedAt(["Solo v2"], "Solo v3"))));
     retry = retryOf(result.current.state);
-    expect(retry.written).toEqual([["id Solo v1"], ["id Solo v2"]]);
     expect(outputs(retry.kept)).toEqual(["/k/Solo v1.epub", "/k/Solo v2.epub"]);
     expect(result.current.settled).toBe(0);
 
@@ -58,7 +56,7 @@ describe("Try again after a stopped export (#337)", () => {
       "/k/Solo v1.epub",
       "/k/Solo v2.epub",
     ]);
-    expect(retryOf(done)).toEqual({ written: [], kept: [] });
+    expect(retryOf(done)).toEqual({ kept: [] });
     expect(result.current.settled).toBe(1);
   });
 
@@ -68,7 +66,6 @@ describe("Try again after a stopped export (#337)", () => {
     await act(() => result.current.run(() => Promise.reject(new Error("io: disk full"))));
     expect(result.current.state.kind).toBe("error");
     const retry = retryOf(result.current.state);
-    expect(retry.written).toEqual([["id Solo v1"]]);
     expect(outputs(retry.kept)).toEqual(["/k/Solo v1.epub"]);
     expect(result.current.settled).toBe(0);
   });
@@ -89,13 +86,16 @@ describe("Try again after a stopped export (#337)", () => {
       if (replace) fireEvent.click(await screen.findByRole("switch", { name: /Replace/ }));
       fireEvent.click(await enabledButton(/^Export 2 books/));
       expect(await screen.findByText("Export stopped")).toBeTruthy();
-      expect(exportVolumes.mock.calls[0][0]).toMatchObject({ written: [], replace });
+      expect(exportVolumes.mock.calls[0][0]).toMatchObject({ kept: [], replace });
       fireEvent.click(await enabledButton(/^Try again$/));
       expect(
         await screen.findByText(/Already there from the last try: Solo v1\.epub/),
       ).toBeTruthy();
       expect(exportVolumes).toHaveBeenCalledTimes(2);
-      expect(exportVolumes.mock.calls[1][0]).toMatchObject({ written: [["id Solo v1"]], replace });
+      expect(exportVolumes.mock.calls[1][0]).toMatchObject({
+        kept: [{ chapters: ["id Solo v1"], file: "Solo v1.epub" }],
+        replace,
+      });
     },
   );
 
@@ -125,7 +125,7 @@ describe("Try again after a stopped export (#337)", () => {
     expect(await screen.findByText(/Already there from the last try: Solo v1\.epub/)).toBeTruthy();
     const retry = exportVolumes.mock.calls[1][0];
     expect(retry.chapterIds).toEqual(["c0", "c1", "c2", "c3"]);
-    expect(retry.written).toEqual([["c1", "c2"]]);
+    expect(retry.kept).toEqual([{ chapters: ["c1", "c2"], file: "Solo v1.epub" }]);
   });
 
   it.each([
@@ -156,4 +156,41 @@ describe("Try again after a stopped export (#337)", () => {
       await waitFor(() => expect(sendUsb.mock.calls.map((c) => c[0])).toEqual(copied));
     },
   );
+
+  it("USB: a kept book the retry rewrites with more chapters is copied once, as the new book", async () => {
+    const findKindles = vi.fn(async () => [
+      { name: "Kindle", root: "/media/k", documents: "/media/k/documents" },
+    ]);
+    findKindles.mockResolvedValueOnce([]);
+    const sendUsb = vi.fn(async (file: string) => ({ path: file, already_there: false }));
+    const v1 = { ...stats("Solo v1"), chapters: ["c1", "c2"] };
+    const grown = { ...book("Solo v1 (2)"), chapters: ["c0", "c1", "c2"] };
+    const exportVolumes = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new ExportStopped({
+          written: [v1],
+          failed: { title: "Solo v2", output: "/k/Solo v2.epub", reason: "io: bad page" },
+          not_written: [],
+        }),
+      )
+      .mockResolvedValueOnce([grown, { ...book("Solo v2"), chapters: ["c3"] }]);
+    exportBackend({ exportVolumes, findKindles, sendUsb });
+    render(
+      <TooltipProvider>
+        <ExportDialog open onOpenChange={() => {}} picks={[{ manga: solo, chapters }]} />
+      </TooltipProvider>,
+    );
+    fireEvent.mouseDown(await screen.findByRole("tab", { name: "Kindle over USB" }));
+    fireEvent.click(await enabledButton(/Export 2 books and copy/));
+    expect(await screen.findByText("Export stopped")).toBeTruthy();
+    await waitFor(() => expect(findKindles).toHaveBeenCalledTimes(1));
+    fireEvent.click(await enabledButton(/^Try again$/));
+    await waitFor(() =>
+      expect(sendUsb.mock.calls.map((c) => c[0])).toEqual([
+        "/k/Solo v1 (2).epub",
+        "/k/Solo v2.epub",
+      ]),
+    );
+  });
 });

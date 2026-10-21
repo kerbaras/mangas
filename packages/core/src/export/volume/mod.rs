@@ -25,7 +25,7 @@ pub use plan::{
     find_volume, first_part_names, named_as_written, one_file_each, plan, request, written_names,
     VolumePlan,
 };
-pub use retry::{chapter_ids, skip_written};
+pub use retry::{chapter_ids, retry_plans, skip_written, KeptBook};
 
 /// How a manga's chapters are split into books.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

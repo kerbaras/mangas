@@ -2,9 +2,10 @@
 import { type ExportPick, exportTitle, joinPath } from "./export-name";
 import { type BundleMode, groupingOf } from "./export-plan";
 import { ExportStopped } from "./export-stopped";
+import { booksOf } from "./export-summary";
 import { type ExportFormat, type ExportResult, exportChapters, type Preset } from "./ipc";
 import type { ReadingDirection } from "./ipc.domain";
-import { exportFileName, exportVolumes } from "./ipc.volumes";
+import { exportFileName, exportVolumes, type KeptBook } from "./ipc.volumes";
 import { storageChanged } from "./storage-changed";
 
 export type ExportChoices = {
@@ -26,8 +27,8 @@ export type ExportChoices = {
   splitMb: number | null;
   /** Which way the pages turn; null: each series' preset or source decides. */
   direction: ReadingDirection | null;
-  /** Chapter ids of each book a stopped run already wrote, left out by "Try again". */
-  written?: string[][];
+  /** The books stopped runs already wrote: "Try again" leaves them out and never writes over them. */
+  kept?: ExportResult[];
 };
 
 /**
@@ -66,7 +67,7 @@ function writeBooks(c: ExportChoices): () => Promise<ExportResult[]> {
         title: c.title,
         ...common,
         outputDir: c.outputDir,
-        written: c.written ?? [],
+        kept: keptBooks(c.kept ?? []),
       });
   }
   const title = c.title.trim() || exportTitle(c.picks);
@@ -76,4 +77,28 @@ function writeBooks(c: ExportChoices): () => Promise<ExportResult[]> {
     const output = c.outputDir ? joinPath(c.outputDir, file) : file;
     return [await exportChapters({ chapter_dirs: dirs, ...common, output, title })];
   };
+}
+
+const baseName = (path: string) => path.split(/[\\/]/).pop() ?? path;
+
+/** What the planner needs about the kept books: each one's chapters and the file it went to. */
+export const keptBooks = (kept: ExportResult[]): KeptBook[] =>
+  kept.flatMap((r) =>
+    r.chapters?.length ? [{ chapters: r.chapters, file: baseName(r.output) }] : [],
+  );
+
+/**
+ * What a run delivers: `unsent` (the kept books the last delivery didn't get to), minus the ones
+ * a book of this run now covers (the same chapters or more) so no book goes out twice, then the
+ * books it wrote.
+ */
+export function booksToSend<B extends { file: string; title: string }>(
+  unsent: B[],
+  kept: ExportResult[],
+  written: ExportResult[],
+): { file: string; title: string }[] {
+  const covered = (k: ExportResult) =>
+    !!k.chapters?.length && written.some((w) => k.chapters?.every((c) => w.chapters?.includes(c)));
+  const replaced = new Set(kept.filter(covered).flatMap((r) => booksOf(r).map((b) => b.file)));
+  return [...unsent.filter((b) => !replaced.has(b.file)), ...written.flatMap(booksOf)];
 }
