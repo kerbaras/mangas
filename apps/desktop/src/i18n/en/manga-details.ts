@@ -52,4 +52,11 @@ export const mangaDetails = {
   "details.noChaptersBody":
     "{source} lists no chapters in {languages} for this title. Pick other chapter languages for this source, or try the same title on another one.",
   "details.groupSaveFailed": "Couldn't save the group",
+  "details.chapterOf": "Chapter {number} of {title}",
+  "details.downloadFailed": "Download failed",
+  "details.chapters": "{count} chapters",
+  "details.chapters_one": "{count} chapter",
+  "details.alreadyOnDisk": "{chapters} already on disk",
+  "details.queuedSkipped": "Queued {queued}, skipped {skipped}",
+  "details.skipped": "Skipped {skipped}",
 } as const;

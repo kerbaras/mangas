@@ -1,5 +1,6 @@
 /** The toast closing a manual update check. */
 import { toast } from "sonner";
+import { tr } from "@/i18n/tr";
 import { describeFailure } from "./errors";
 import { summaryLine, type UpdateRun } from "./ipc.updates";
 import { connectThen } from "./notify";
@@ -9,7 +10,7 @@ export const UPDATE_TOAST = "update-check";
 
 export function toastRun(run: UpdateRun) {
   const title = summaryLine(run.summary);
-  const queued = run.queued > 0 ? ` · ${run.queued} queued for download` : "";
+  const queued = run.queued > 0 ? ` · ${tr("updates.queued", { count: run.queued })}` : "";
   if (run.failures.length === 0) {
     const show = run.summary.chapters > 0 ? toast.success : toast.info;
     const titles = run.updates.map((u) => u.title).join(", ");
@@ -28,11 +29,14 @@ export function toastRun(run: UpdateRun) {
     id: UPDATE_TOAST,
     duration: 10_000,
     description: [
-      `Not checked: ${run.failures.map((f) => f.title).join(", ")} (${providers.join(", ")})`,
+      tr("updates.notChecked", {
+        titles: run.failures.map((f) => f.title).join(", "),
+        providers: providers.join(", "),
+      }),
       ...reasons(run),
     ].join(". "),
     action: challenged
-      ? { label: "Connect", onClick: () => void connectThen(challenged.source) }
+      ? { label: tr("updates.connect"), onClick: () => void connectThen(challenged.source) }
       : null,
   });
 }

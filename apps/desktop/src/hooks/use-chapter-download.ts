@@ -1,5 +1,6 @@
 import { toast } from "sonner";
 import { chapterFailed } from "@/hooks/use-downloads";
+import { tr } from "@/i18n/tr";
 import { rememberDownloads } from "@/lib/download-labels";
 import { enqueueSummary } from "@/lib/enqueue-summary";
 import { type Chapter, downloadChapters } from "@/lib/ipc";
@@ -14,7 +15,10 @@ type Target = { source: string; mangaId: string; title: string };
 export function useChapterDownload({ source, mangaId, title }: Target, onQueued: () => void) {
   const download = async (picked: Chapter[], force = false) => {
     rememberDownloads(
-      picked.map((c) => [c.id, { label: `Chapter ${c.number} of ${title}`, source, mangaId }]),
+      picked.map((c) => [
+        c.id,
+        { label: tr("details.chapterOf", { number: c.number, title }), source, mangaId },
+      ]),
     );
     try {
       const report = await downloadChapters(
@@ -31,11 +35,14 @@ export function useChapterDownload({ source, mangaId, title }: Target, onQueued:
       if (summary)
         toast(summary, {
           id: `skipped-${source}-${mangaId}`,
-          action: { label: "Download again", onClick: () => void download(skipped, true) },
+          action: {
+            label: tr("details.downloadAgain"),
+            onClick: () => void download(skipped, true),
+          },
         });
       onQueued();
     } catch (e: unknown) {
-      notifyError("Download failed", e, {
+      notifyError(tr("details.downloadFailed"), e, {
         source,
         retry: () => void download(picked, force),
         id: `download-${source}`,
