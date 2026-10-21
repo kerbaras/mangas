@@ -45,6 +45,7 @@ describe("Try again after a stopped export (#337)", () => {
     retry = retryOf(result.current.state);
     expect(retry.only).toEqual(["Solo v3"]);
     expect(outputs(retry.kept)).toEqual(["/k/Solo v1.epub", "/k/Solo v2.epub"]);
+    expect(result.current.settled).toBe(0);
 
     let written: ExportResult[] | null = null;
     await act(async () => {
@@ -57,6 +58,7 @@ describe("Try again after a stopped export (#337)", () => {
       "/k/Solo v2.epub",
     ]);
     expect(retryOf(done)).toEqual({ only: null, kept: [] });
+    expect(result.current.settled).toBe(1);
   });
 
   it.each([false, true])(

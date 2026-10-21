@@ -63,7 +63,6 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const [delivery, setDelivery] = useState<Delivery>("save");
   const [splitMb, setSplitMb] = useState<number | null>(null);
   const [written, setWritten] = useState<Book[]>([]);
-  const [runs, setRuns] = useState(0);
   const folder = useOutputFolder();
   const { target, preset, setPreset, cut, settled } = useSeriesTarget(picks);
   const detectors = useDetectorSupport();
@@ -76,7 +75,8 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
     detectorsUsable(detectors.status) && (detectorsOn ?? detectorsDefault(detectors.status));
   const planned = inFormat(plans, target.format);
   const { device, format, replace, quality, direction } = target;
-  const { files, named, blocked } = useFreeNames(planned, folder.resolved, runs, replace, splitMb);
+  const epoch = job.settled;
+  const { files, named, blocked } = useFreeNames(planned, folder.resolved, epoch, replace, splitMb);
   const preview = { folder: folder.resolved, stale: !fresh || !named, blocked };
   const books = files.kind === "ready" ? files.data.length : 0;
   const oversized = job.state.kind === "done" ? oversizedOf(job.state.results) : [];
@@ -129,7 +129,6 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
         only: retryOf(job.state).only,
       }),
     );
-    setRuns((n) => n + 1);
     if (!results) return;
     onExported?.(results);
     const sent = results.flatMap(booksOf);

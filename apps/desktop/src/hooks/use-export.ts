@@ -50,6 +50,8 @@ export function useExport({ visible = () => false }: Options = {}) {
   }, []);
   const current = useRef(state);
   current.current = state;
+  /** Runs that finished or failed; one that stopped keeps the books it wrote for "Try again". */
+  const [settled, setSettled] = useState(0);
   const running = useRef(false);
   const [throttle] = useState(() =>
     throttleProgress((progress) => {
@@ -88,6 +90,7 @@ export function useExport({ visible = () => false }: Options = {}) {
       try {
         const results = await job();
         setState({ kind: "done", results, kept });
+        setSettled((n) => n + 1);
         notifyExported(combineResults(results));
         return results;
       } catch (e) {
@@ -97,6 +100,7 @@ export function useExport({ visible = () => false }: Options = {}) {
           return e.results.length ? e.results : null;
         }
         setState({ kind: "error", message: errorMessage(e) });
+        setSettled((n) => n + 1);
         report("Export failed", e);
         return null;
       } finally {
@@ -108,5 +112,5 @@ export function useExport({ visible = () => false }: Options = {}) {
   );
 
   const reset = useCallback(() => setState({ kind: "idle" }), []);
-  return { state, run, reset };
+  return { state, run, reset, settled };
 }
