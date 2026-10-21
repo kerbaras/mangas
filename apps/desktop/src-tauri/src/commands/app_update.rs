@@ -144,12 +144,13 @@ pub async fn install_app_update(
     app.restart()
 }
 
-/// The updater's error, naming missing root certificates like every other connection does.
+/// The updater's error with its causes ("Connection refused"), naming missing root certificates
+/// like every other connection does.
 fn update_error(e: tauri_plugin_updater::Error) -> String {
     if mangas_core::domain::missing_root_certificates(&e) {
         to_ipc(mangas_core::Error::NoRootCertificates)
     } else {
-        to_ipc(e)
+        to_ipc(mangas_core::domain::with_causes(&e))
     }
 }
 

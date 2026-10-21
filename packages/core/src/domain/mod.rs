@@ -1,6 +1,7 @@
 //! Domain types shared by every module.
 
 mod availability;
+mod causes;
 mod chapter;
 mod chapter_group;
 mod chapter_tag;
@@ -10,6 +11,7 @@ mod season_label;
 mod tls;
 
 pub use availability::Availability;
+pub use causes::with_causes;
 pub use chapter::{compare_numbers, parse_number, sort_by_number, Chapter, ChapterId};
 pub use chapter_group::{
     already_have, collapse_groups, groups_of, in_group, normalize_group, same_slot, GroupCount,
