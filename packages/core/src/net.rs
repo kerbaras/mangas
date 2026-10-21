@@ -6,7 +6,7 @@ use std::sync::OnceLock;
 
 use reqwest::{ClientBuilder, Proxy, Url};
 
-use crate::domain::Error;
+use crate::domain::{certificate_problem, Error};
 use crate::library::Network;
 
 static OVERRIDE: OnceLock<Network> = OnceLock::new();
@@ -82,8 +82,12 @@ fn proxy_host(raw: &str) -> Option<String> {
 }
 
 /// A transport error, naming the proxy when a configured one could not be reached (a
-/// connection failure then means the proxy, not the site, is down, refusing or silent).
+/// connection failure then means the proxy, not the site, is down, refusing or silent). A
+/// refused certificate is the site's own, answered through the proxy's tunnel.
 pub fn transport_error(e: reqwest::Error, network: &Network) -> Error {
+    if certificate_problem(&e).is_some() {
+        return e.into();
+    }
     match effective(network) {
         Network::Proxy(url) if e.is_connect() && e.is_timeout() => Error::Other(format!(
             "network: no answer through the proxy {}",

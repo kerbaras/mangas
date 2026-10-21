@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 use chrono::Utc;
-use mangas_core::domain::Result;
+use mangas_core::domain::{certificate_problem, Result};
 use reqwest::Response;
 
 use super::{edge_error, parse_retry_after, retryable_status, Reply};
@@ -44,7 +44,11 @@ pub fn retry_after(response: &Response) -> Option<Duration> {
 }
 
 /// A failed connection never reached the server; a timeout or a dropped connection might have,
-/// so only idempotent requests retry those.
+/// so only idempotent requests retry those. A refused certificate never retries: the server
+/// answers with the same one.
 pub fn retryable_transport(e: &reqwest::Error, idempotent: bool) -> bool {
+    if certificate_problem(e).is_some() {
+        return false;
+    }
     e.is_connect() || (idempotent && (e.is_timeout() || e.is_request()))
 }

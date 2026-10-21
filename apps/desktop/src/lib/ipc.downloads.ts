@@ -97,7 +97,8 @@ export const NO_SPACE = "not enough space in ";
 /** `mangas_core::Error::DeviceFull`: a USB copy filled the Kindle; the partial book was removed. */
 export const DEVICE_FULL = "not enough space on ";
 /** `mangas_core::Error::Certificate`: the host answered with a certificate that failed checks. */
-const CERTIFICATE = /network: the certificate of (\S+) couldn't be verified \((.+)\)/;
+const CERTIFICATE =
+  /network: the certificate of (\S+) couldn't be verified \(([^()]*(?:\([^()]*\)[^()]*)*)\)/;
 /** The host and problem of a refused certificate in `error` (also inside "incomplete chapter"). */
 export function certificateFailure(error: string): { host: string; problem: string } | null {
   const match = CERTIFICATE.exec(error);

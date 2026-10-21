@@ -34,7 +34,11 @@ describe("describeError", () => {
     expect(statusBadge({ state: "unreachable", reason: "network: timed out" }).label).toBe(
       "Unreachable",
     );
-    expect(isFinalError(`incomplete chapter: 1 of 3 pages failed (page 2: ${message})`)).toBe(true);
+    const wrapped = `incomplete chapter: 1 of 3 pages failed (page 2: ${message})`;
+    expect(isFinalError(wrapped)).toBe(true);
+    expect(describeError(wrapped).hint).toMatch(/unknown authority\.$/);
+    const flags = "network: the certificate of x.io couldn't be verified (Flags(GENERIC_ERROR))";
+    expect(describeError(`failed (page 1: ${flags})`).hint).toMatch(/: Flags\(GENERIC_ERROR\)\.$/);
   });
   it("flags challenge errors", () => {
     const info = describeError("challenge: mangadot needs a browser session for https://m");

@@ -3126,6 +3126,7 @@ dependencies = [
  "prost-build",
  "protox",
  "reqwest",
+ "rustls",
  "scraper",
  "serde",
  "serde_json",
