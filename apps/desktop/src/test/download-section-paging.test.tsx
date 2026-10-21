@@ -48,6 +48,14 @@ describe("DownloadSection paging", () => {
     expect(screen.getByText("71 not shown")).toBeInTheDocument();
   });
 
+  it("starts again from one page after the section is cleared", async () => {
+    const { rerender } = render(<Section jobs={done(120)} pageSize={50} />);
+    await userEvent.click(screen.getByRole("button", { name: "Show 50 more" }));
+    rerender(<Section jobs={[]} pageSize={50} />);
+    rerender(<Section jobs={done(120)} pageSize={50} />);
+    expect(rows()).toHaveLength(50);
+  });
+
   it("shows every row without a page size", () => {
     render(<Section jobs={done(120)} />);
     expect(rows()).toHaveLength(120);

@@ -13,9 +13,13 @@ type Props = {
   pageSize?: number;
 };
 
-export function DownloadSection({ title, jobs, samples, action, pageSize }: Props) {
+/** Nothing while empty, so a cleared section starts again from one page. */
+export function DownloadSection(props: Props) {
+  return props.jobs.length === 0 ? null : <PagedSection {...props} />;
+}
+
+function PagedSection({ title, jobs, samples, action, pageSize }: Props) {
   const [limit, setLimit] = useState(pageSize ?? Number.POSITIVE_INFINITY);
-  if (jobs.length === 0) return null;
   const id = `downloads-${title.toLowerCase()}`;
   const shown = jobs.slice(0, limit);
   const hidden = jobs.length - shown.length;
