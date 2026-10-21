@@ -19,6 +19,7 @@ mod unlisted;
 pub mod volume;
 
 pub use exporter::{Exporter, Format, Labels, Meta};
+pub(crate) use output::write_file;
 pub use output::{free_names_in, in_export_folder, resolve_free_names};
 pub use page::{default_quality, PageSettings, JPEG_QUALITY};
 pub use preset::ExportPreset;
