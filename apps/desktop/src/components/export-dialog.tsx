@@ -1,8 +1,7 @@
 import { Send } from "lucide-react";
 import { useCallback, useState } from "react";
 import { BundleField } from "@/components/bundle-field";
-import type { Delivery } from "@/components/delivery-picker";
-import { useEmailBlock } from "@/components/delivery-picker";
+import { type Delivery, useEmailBlock } from "@/components/delivery-picker";
 import { ExportOptions } from "@/components/export-options";
 import { ExportProgressPanel } from "@/components/export-progress";
 import { ExportTitleField } from "@/components/export-title-field";
@@ -68,7 +67,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const folder = useOutputFolder();
   const { target, preset, setPreset, cut, settled } = useSeriesTarget(picks);
   const detectors = useDetectorSupport();
-  const job = useExport();
+  const job = useExport({ visible: () => open });
   const send = useSend(onSent);
   const { plans, fresh, joined } = useExportPlan({ open, picks, mode, size, title });
   const emailBlocked = useEmailBlock(target.format) !== null;
