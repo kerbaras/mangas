@@ -99,3 +99,51 @@ fn a_move_is_refused_while_an_import_copies_pages() {
     assert!(err.contains("an export or import is running"), "{err}");
     drop(importing);
 }
+
+/// `storage delete` during a move would leave the move's copies of the deleted chapters behind.
+#[test]
+fn a_download_delete_is_refused_while_the_data_folder_moves() {
+    use mangas_core::domain::{Chapter, ChapterId, Manga, MangaId};
+    use mangas_core::library::{mark_downloaded, open, upsert_chapters, upsert_manga};
+    let home = tempfile::tempdir().unwrap();
+    let lib = open(&data(home.path()).join("mangas.db")).unwrap();
+    let id = MangaId("a".into());
+    let manga = Manga {
+        id: id.clone(),
+        source: "mangadex".into(),
+        title: "A".into(),
+        ..Default::default()
+    };
+    upsert_manga(&lib, &manga).unwrap();
+    let chapter = Chapter {
+        id: ChapterId("a-1".into()),
+        manga_id: id.clone(),
+        language: "en".into(),
+        number: "1".into(),
+        ..Default::default()
+    };
+    upsert_chapters(&lib, "mangadex", &id, "en", &[chapter]).unwrap();
+    let dir = data(home.path()).join("chapters/mangadex/a/1");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("001.jpg"), b"page").unwrap();
+    mark_downloaded(&lib, "mangadex", &ChapterId("a-1".into()), &dir).unwrap();
+
+    let moving = acquire_at(&data(home.path()), EXPORT_LEASE, Purpose::Move).unwrap();
+    let out = mangas(home.path(), &["storage", "delete", "a"]);
+    assert!(!out.status.success(), "{out:?}");
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(err.contains("the data folder is moving"), "{err}");
+    assert!(dir.join("001.jpg").exists(), "nothing deleted");
+    drop(moving);
+
+    let deleting = hold_for_export(|| Ok::<_, mangas_core::Error>(data(home.path()))).unwrap();
+    let to = home.path().join("elsewhere");
+    let out = mangas(home.path(), &["storage", "move", to.to_str().unwrap()]);
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(err.contains("an export or import is running"), "{err}");
+    drop(deleting);
+
+    let out = mangas(home.path(), &["storage", "delete", "a"]);
+    assert!(out.status.success(), "{out:?}");
+    assert!(!dir.exists(), "deleted once the move is gone");
+}

@@ -60,7 +60,11 @@ pub fn run(args: Args) -> anyhow::Result<()> {
         Command::Usage => print_usage(&storage::usage(&lib, &folders)?),
         Command::Delete { id, source } => {
             let source = followed_source(&lib, &MangaId(id.clone()), source.as_deref())?;
-            let deleted = storage::delete_downloads(&lib, &folders.chapters(), &source, &id)?;
+            // Not during a data-folder move, which would keep copies of what this deletes; the
+            // folders are read again under the lease, as a move may have just switched them.
+            let _deleting = storage::hold_for_export(paths::data_dir)?;
+            let chapters = paths::folders()?.chapters();
+            let deleted = storage::delete_downloads(&lib, &chapters, &source, &id)?;
             outln!(
                 "Deleted {} of {id} ({}); the title stays in your library",
                 super::plural(deleted.chapters, "chapter", "chapters"),
