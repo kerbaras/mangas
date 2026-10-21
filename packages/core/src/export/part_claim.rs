@@ -80,7 +80,7 @@ pub(super) fn claim_part(target: &Path) -> std::io::Result<Option<File>> {
 /// locks (some network shares) the exclusive create alone decides.
 fn create_part(part: &Path) -> std::io::Result<Option<File>> {
     match OpenOptions::new().write(true).create_new(true).open(part) {
-        Ok(file) => Ok((lock(&file)? != Lock::Held).then_some(file)),
+        Ok(file) => Ok((lock(&file) != Lock::Held).then_some(file)),
         Err(e) if e.kind() == ErrorKind::AlreadyExists => Ok(None),
         Err(e) => Err(e),
     }
@@ -95,7 +95,7 @@ fn stale(part: &Path) -> std::io::Result<Option<File>> {
         Err(e) if e.kind() == ErrorKind::NotFound => return Ok(None),
         Err(e) => return Err(e),
     };
-    if lock(&file)? != Lock::Ours {
+    if lock(&file) != Lock::Ours {
         return Ok(None);
     }
     let at_name = match same_file::Handle::from_path(part) {
@@ -131,13 +131,16 @@ enum Lock {
     Unsupported,
 }
 
-/// Tries the part's lock: `Held` when another export holds it.
-fn lock(file: &File) -> std::io::Result<Lock> {
+/// Tries the part's lock: `Held` when another export holds it. Any other failure means the disk
+/// has no locks (`ENOLCK` on NFS without lockd, unsupported on some SMB shares).
+fn lock(file: &File) -> Lock {
     match file.try_lock() {
-        Ok(()) => Ok(Lock::Ours),
-        Err(TryLockError::WouldBlock) => Ok(Lock::Held),
-        Err(TryLockError::Error(e)) if e.kind() == ErrorKind::Unsupported => Ok(Lock::Unsupported),
-        Err(TryLockError::Error(e)) => Err(e),
+        Ok(()) => Lock::Ours,
+        Err(TryLockError::WouldBlock) => Lock::Held,
+        Err(TryLockError::Error(e)) => {
+            tracing::debug!("no lock on the export part: {e}");
+            Lock::Unsupported
+        }
     }
 }
 
