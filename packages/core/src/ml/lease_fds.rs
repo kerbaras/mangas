@@ -5,13 +5,14 @@
 
 use std::fs::File;
 use std::io;
+use std::mem::ManuallyDrop;
 use std::process::{Child, Command};
 use std::sync::{PoisonError, RwLock};
 
 static SPAWNING: RwLock<()> = RwLock::new(());
 
 /// An open lease file, closed in every child this process starts (see [`spawn`]).
-pub(super) struct LeaseFile(File);
+pub(super) struct LeaseFile(ManuallyDrop<File>);
 
 impl LeaseFile {
     pub(super) fn open(open: impl FnOnce() -> io::Result<File>) -> io::Result<LeaseFile> {
@@ -19,7 +20,7 @@ impl LeaseFile {
         let file = open()?;
         #[cfg(unix)]
         fds::add(&file);
-        Ok(LeaseFile(file))
+        Ok(LeaseFile(ManuallyDrop::new(file)))
     }
 
     pub(super) fn file(&self) -> &File {
@@ -29,10 +30,13 @@ impl LeaseFile {
 
 impl Drop for LeaseFile {
     fn drop(&mut self) {
-        // The file itself closes right after, still under the guard.
+        // Closed under the guard: a child started between forgetting the fd and closing it
+        // would keep the lock.
         let _no_spawn = SPAWNING.read().unwrap_or_else(PoisonError::into_inner);
         #[cfg(unix)]
         fds::remove(&self.0);
+        // SAFETY: `self.0` is never used again; this is the only place it is dropped.
+        unsafe { ManuallyDrop::drop(&mut self.0) }
     }
 }
 
