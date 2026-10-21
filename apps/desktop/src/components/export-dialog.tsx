@@ -25,7 +25,7 @@ import { useExportPlan } from "@/hooks/use-export-plan";
 import { useFreeNames } from "@/hooks/use-free-names";
 import { type Book, refused, runningVia, useSend } from "@/hooks/use-send";
 import { useSeriesTarget } from "@/hooks/use-series-target";
-import { exportJob } from "@/lib/export-job";
+import { booksToSend, exportJob, keptBooks } from "@/lib/export-job";
 import type { ExportPick } from "@/lib/export-name";
 import {
   type BundleMode,
@@ -36,7 +36,6 @@ import {
   initialMode,
   pickSummary,
 } from "@/lib/export-plan";
-import { booksOf } from "@/lib/export-summary";
 import type { ExportResult } from "@/lib/ipc";
 import { oversizedOf, PART_MB } from "@/lib/kindle-size";
 
@@ -63,7 +62,6 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const [delivery, setDelivery] = useState<Delivery>("save");
   const [splitMb, setSplitMb] = useState<number | null>(null);
   const [written, setWritten] = useState<Book[]>([]);
-  const [runs, setRuns] = useState(0);
   const folder = useOutputFolder();
   const { target, preset, setPreset, cut, settled } = useSeriesTarget(picks);
   const detectors = useDetectorSupport();
@@ -76,7 +74,8 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
     detectorsUsable(detectors.status) && (detectorsOn ?? detectorsDefault(detectors.status));
   const planned = inFormat(plans, target.format);
   const { device, format, replace, quality, direction } = target;
-  const { files, named, blocked } = useFreeNames(planned, folder.resolved, runs, replace, splitMb);
+  const [epoch, kept, dir] = [job.settled, keptBooks(job.retry.kept), folder.resolved];
+  const { files, named, blocked } = useFreeNames(planned, dir, epoch, replace, splitMb, kept);
   const preview = { folder: folder.resolved, stale: !fresh || !named, blocked };
   const books = files.kind === "ready" ? files.data.length : 0;
   const oversized = job.state.kind === "done" ? oversizedOf(job.state.results) : [];
@@ -110,7 +109,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   useClearOnChange(via, busy, keepFailed, true);
 
   const run = async () => {
-    send.reset();
+    if (!job.retry.kept.length) send.reset();
     const results = await job.run(
       exportJob({
         picks,
@@ -126,12 +125,12 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
         quality: target.quality,
         splitMb,
         direction,
+        kept: job.retry.kept,
       }),
     );
-    setRuns((n) => n + 1);
     if (!results) return;
     onExported?.(results);
-    const sent = results.flatMap(booksOf);
+    const sent = booksToSend(send.unsent(), job.retry.kept, results);
     setWritten(sent);
     // A book over the email limit on disk is never emailed: the alert offers the split.
     if (via === "email" && oversizedOf(results).length > 0) return;

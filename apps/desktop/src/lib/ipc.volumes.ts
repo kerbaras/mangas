@@ -41,7 +41,12 @@ export type VolumeExport = VolumeRequest & {
   splitMb?: number | null;
   /** Which way the pages turn; null: the series preset's, else the source's. */
   direction?: ReadingDirection | null;
+  /** The books a stopped run already wrote: Try again leaves them out and never writes over them. */
+  kept?: KeptBook[];
 };
+
+/** Mirrors `volume::KeptBook`: a kept book's chapter ids and the file it was written to. */
+export type KeptBook = { chapters: string[]; file: string };
 
 /** What `estimate_export` is asked: each book's chapter folders with the dialog's choices. */
 export type EstimateRequest = {

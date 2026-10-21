@@ -11,3 +11,16 @@ describe("ownNames", () => {
     ]);
   });
 });
+
+describe("ownNames around kept books (Try again, #337)", () => {
+  it("never names a book as a kept file, like volume::retry_plans", () => {
+    expect(ownNames(["X ch 1.epub", "X ch 1.epub"], ["X ch 1.epub"])).toEqual([
+      "X ch 1 (2).epub",
+      "X ch 1 (3).epub",
+    ]);
+  });
+
+  it("skips a name whose first part a split kept book holds", () => {
+    expect(ownNames(["X.epub"], ["X (part 1).epub"])).toEqual(["X (2).epub"]);
+  });
+});

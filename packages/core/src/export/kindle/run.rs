@@ -58,6 +58,7 @@ fn empty_stats() -> ExportStats {
         parts: Vec::new(),
         detectors_error: None,
         oversized: Vec::new(),
+        chapters: Vec::new(),
     }
 }
 

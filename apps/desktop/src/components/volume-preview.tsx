@@ -35,7 +35,7 @@ export function VolumePreview({ plans, folder, stale = false, blocked = null }: 
       >
         {plans.data.map((p) => (
           <li
-            key={p.file_name}
+            key={p.chapters.map((c) => c.id).join(" ")}
             className="flex items-center gap-3 border-b border-stroke px-3 py-2 last:border-b-0"
           >
             <BookOpen className="size-4 shrink-0 text-ink-3" aria-hidden />

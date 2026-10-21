@@ -127,6 +127,10 @@ pub struct ExportStats {
     /// Files written over the Send-to-Kindle email limit, measured on disk.
     #[serde(default)]
     pub oversized: Vec<Oversized>,
+    /// Ids of the book's chapters, set by the volume export that planned it: how "Try again"
+    /// recognises a book a stopped run already wrote.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub chapters: Vec<String>,
 }
 
 /// One file of a book written in parts.

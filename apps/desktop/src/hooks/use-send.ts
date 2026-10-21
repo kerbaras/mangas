@@ -124,9 +124,11 @@ export function useSend(onSent?: () => void) {
     },
     [deliver],
   );
+  /** The books the last delivery didn't get to (none once it finished). */
+  const unsent = useCallback(() => pending.current?.books ?? [], []);
   const reset = useCallback(() => {
     pending.current = null;
     setState({ kind: "idle" });
   }, []);
-  return { state, deliver, usb, email, retry, reset };
+  return { state, deliver, usb, email, retry, reset, unsent };
 }

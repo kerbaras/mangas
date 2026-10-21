@@ -135,7 +135,7 @@ pub fn first_part_names(names: &[String], dir: &Path, replace: bool) -> Result<V
 }
 
 /// `name` for `n` = 1, else `stem (n).ext`.
-fn numbered(name: &str, n: usize) -> String {
+pub(super) fn numbered(name: &str, n: usize) -> String {
     let path = Path::new(name);
     match (n, path.file_stem(), path.extension()) {
         (1, _, _) => name.to_string(),

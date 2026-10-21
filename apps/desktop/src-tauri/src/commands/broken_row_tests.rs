@@ -170,6 +170,7 @@ async fn relative_folders_land_under_the_default_export_folder(home: &Path) {
             None,
             None,
             None,
+            None,
         )
     };
     let written = volume(None).await.unwrap().written;

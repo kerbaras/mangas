@@ -10,9 +10,24 @@ import { throttleProgress } from "@/lib/progress-throttle";
 export type ExportState =
   | { kind: "idle" }
   | { kind: "running"; progress: ExportProgress | null }
-  | { kind: "done"; results: ExportResult[] }
-  | { kind: "error"; message: string }
-  | { kind: "stopped"; stopped: ExportStopped };
+  | { kind: "done"; results: ExportResult[]; kept?: ExportResult[] }
+  | { kind: "error"; message: string; before?: Retry }
+  | { kind: "stopped"; stopped: ExportStopped; before: Retry };
+
+/**
+ * The books earlier stopped runs wrote: "Try again" leaves them out (matched by chapter ids, since
+ * downloads finishing meanwhile can change the plan) and reports them as `kept`. A plain failure
+ * in between writes nothing, so it keeps them for the next try.
+ */
+export type Retry = { kept: ExportResult[] };
+const FRESH: Retry = { kept: [] };
+
+export function retryOf(state: ExportState): Retry {
+  if (state.kind === "error") return state.before ?? FRESH;
+  if (state.kind !== "stopped") return FRESH;
+  const { before, stopped } = state;
+  return { kept: [...before.kept, ...stopped.results] };
+}
 
 type Options = {
   /** Whether the export dialog is open, so its panel can show the failure. */
@@ -36,6 +51,10 @@ export function useExport({ visible = () => false }: Options = {}) {
     if (shown.current() && panelInSight()) toast.dismiss("export");
     else notifyError(title, e, { id: "export" });
   }, []);
+  const current = useRef(state);
+  current.current = state;
+  /** Runs that finished; one that stopped or failed keeps the books written for "Try again". */
+  const [settled, setSettled] = useState(0);
   const running = useRef(false);
   const [throttle] = useState(() =>
     throttleProgress((progress) => {
@@ -67,21 +86,23 @@ export function useExport({ visible = () => false }: Options = {}) {
    */
   const run = useCallback(
     async (job: () => Promise<ExportResult[]>) => {
+      const before = retryOf(current.current);
       running.current = true;
       throttle.reset();
       setState({ kind: "running", progress: null });
       try {
         const results = await job();
-        setState({ kind: "done", results });
+        setState({ kind: "done", results, kept: before.kept });
+        setSettled((n) => n + 1);
         notifyExported(combineResults(results));
         return results;
       } catch (e) {
         if (e instanceof ExportStopped) {
-          setState({ kind: "stopped", stopped: e });
+          setState({ kind: "stopped", stopped: e, before });
           report("Export stopped", e);
           return e.results.length ? e.results : null;
         }
-        setState({ kind: "error", message: errorMessage(e) });
+        setState({ kind: "error", message: errorMessage(e), before });
         report("Export failed", e);
         return null;
       } finally {
@@ -93,5 +114,5 @@ export function useExport({ visible = () => false }: Options = {}) {
   );
 
   const reset = useCallback(() => setState({ kind: "idle" }), []);
-  return { state, run, reset };
+  return { state, run, reset, settled, retry: retryOf(state) };
 }

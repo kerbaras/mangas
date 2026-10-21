@@ -1,5 +1,5 @@
 import { FolderOpen } from "lucide-react";
-import { ExportStoppedPanel } from "@/components/export-stopped-panel";
+import { ExportStoppedPanel, KeptNote } from "@/components/export-stopped-panel";
 import { Hint } from "@/components/hint";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -58,7 +58,14 @@ export function ExportProgressPanel({
     );
   }
   if (state.kind === "stopped")
-    return <ExportStoppedPanel stopped={state.stopped} onReset={onRetry} canRetry={canRetry} />;
+    return (
+      <ExportStoppedPanel
+        stopped={state.stopped}
+        kept={state.before.kept}
+        onReset={onRetry}
+        canRetry={canRetry}
+      />
+    );
   const { results } = state;
   const [first] = results;
   const { pages } = combineResults(results);
@@ -81,6 +88,7 @@ export function ExportProgressPanel({
             {results.length === 1 && parts < 2 ? first.output : folder}
           </p>
         </Hint>
+        <KeptNote kept={state.kept} className="text-caption text-ink-3" />
         {warning && (
           <p className="text-caption text-accent-text [overflow-wrap:anywhere]">{warning}</p>
         )}
