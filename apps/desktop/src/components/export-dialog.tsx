@@ -86,6 +86,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const sendVia = via === "save" ? undefined : via;
   const stuck = failed && refused(send.state, via);
   const resend = failed && sendVia !== undefined && !stuck;
+  const retrySend = sendVia && (() => void send.retry(sendVia));
   const ready =
     fresh &&
     named &&
@@ -177,11 +178,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
             email={via === "email"}
             onSplit={splitMb === null ? () => setSplitMb(PART_MB) : undefined}
           />
-          <SendStatus
-            state={send.state}
-            via={via}
-            onRetry={sendVia && (() => void send.retry(sendVia))}
-          />
+          <SendStatus state={send.state} via={via} onRetry={retrySend} />
         </div>
         <DialogFooter>
           <Button disabled={busy} onClick={() => onOpenChange(false)}>

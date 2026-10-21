@@ -114,6 +114,9 @@ pub async fn try_deliver(
     Err(message)
 }
 
+/// Between the file and the error in a [`not_sent`] line.
+pub const NOT_SENT: &str = " was written but not sent: ";
+
 /// "<file> was written but not sent: <why>", with the command that sends that same file again:
 /// retrying a delivery never exports the book again. `kindle` is the USB mount it was sent to.
 pub fn not_sent(file: &Path, via: SendArg, kindle: Option<&Path>, e: &anyhow::Error) -> String {
@@ -123,7 +126,7 @@ pub fn not_sent(file: &Path, via: SendArg, kindle: Option<&Path>, e: &anyhow::Er
         (SendArg::Usb, Some(mount)) => format!("usb --kindle \"{}\"", mount.display()),
     };
     format!(
-        "{} was written but not sent: {}\n  send it again with: mangas send --via {via} \"{}\"",
+        "{}{NOT_SENT}{}\n  send it again with: mangas send --via {via} \"{}\"",
         file.display(),
         crate::exit::describe(e),
         file.display()

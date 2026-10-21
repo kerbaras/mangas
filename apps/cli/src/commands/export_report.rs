@@ -10,6 +10,7 @@ use mangas_core::library::ExportedChapter;
 use mangas_core::ml::DetectorReport;
 use serde::Serialize;
 
+use super::deliver::NOT_SENT;
 use super::export_size::bytes;
 use crate::output::print_json;
 
@@ -64,14 +65,19 @@ pub struct Item {
     pub error: Option<&'static str>,
 }
 
-/// The class of a failure from the core's message ([`Error::NoSpace`], [`Error::DeviceFull`]).
+/// The class of a failure from the core's message ([`Error::NoSpace`], [`Error::DeviceFull`]):
+/// the message itself, or the error after [`NOT_SENT`], must start with the line, so a path that
+/// happens to hold the words doesn't class another failure.
 ///
 /// [`Error::NoSpace`]: mangas_core::Error::NoSpace
 /// [`Error::DeviceFull`]: mangas_core::Error::DeviceFull
 pub fn error_class(reason: &str) -> Option<&'static str> {
+    let error = reason
+        .rsplit_once(NOT_SENT)
+        .map_or(reason, |(_, error)| error);
     ["not enough space in ", "not enough space on "]
         .iter()
-        .any(|line| reason.contains(line))
+        .any(|line| error.starts_with(line))
         .then_some("no_space")
 }
 
@@ -209,5 +215,12 @@ mod tests {
         assert_eq!(error_class(sent), Some("no_space"));
         assert_eq!(error_class("not enough space in /out"), Some("no_space"));
         assert_eq!(error_class("io: Permission denied (os error 13)"), None);
+        let denied =
+            "/not enough space on k/A.epub was written but not sent: io: Permission denied";
+        assert_eq!(error_class(denied), None);
+        assert_eq!(
+            error_class("io: /not enough space in x: Permission denied"),
+            None
+        );
     }
 }
