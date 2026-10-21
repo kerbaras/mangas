@@ -16,7 +16,11 @@ fn a_file_added_by_hand_survives_a_force_reuse() {
     let to = tmp.path().join("big");
     killed_move(&lib, tmp.path(), &to);
     let marker = fs::read_to_string(to.join(MOVE_MARKER)).unwrap();
-    assert!(marker.contains("chapters/mangadex/a/2/001.jpg"), "{marker}");
+    assert!(marker.contains("chapters/mangadex/a/1/001.jpg"), "{marker}");
+    assert!(
+        !marker.contains("a/2/"),
+        "not started, so not listed: {marker}"
+    );
     fs::create_dir_all(to.join("chapters/mine")).unwrap();
     fs::write(to.join("chapters/mine/notes.txt"), "mine").unwrap();
     fs::write(to.join("chapters/mangadex/a/scan.png"), "mine too").unwrap();
@@ -100,8 +104,14 @@ fn a_listed_path_outside_the_copy_is_never_deleted() {
     fs::create_dir_all(to.join("chapters")).unwrap();
     fs::write(tmp.path().join("outside.txt"), "keep").unwrap();
     fs::write(to.join("top.txt"), "keep").unwrap();
-    let copies = r#"["../outside.txt", "chapters/../../outside.txt", "top.txt", "chapters"]"#;
-    let marker = format!(r#"{{"from": "/nowhere", "copies": {copies}}}"#);
+    let copies = [
+        "../outside.txt",
+        "chapters/../../outside.txt",
+        "top.txt",
+        "chapters",
+    ];
+    let lines: Vec<_> = copies.iter().map(|c| format!("{c:?}")).collect();
+    let marker = format!("{{\"from\": \"/nowhere\"}}\n{}\n", lines.join("\n"));
     fs::write(to.join(MOVE_MARKER), marker).unwrap();
 
     let err = move_data_dir_with(&lib, &f.data_dir, &to, true, &mut |_| {}).unwrap_err();
@@ -109,4 +119,46 @@ fn a_listed_path_outside_the_copy_is_never_deleted() {
     fs::remove_file(to.join("top.txt")).unwrap();
     move_data_dir_with(&lib, &f.data_dir, &to, true, &mut |_| {}).unwrap();
     assert!(tmp.path().join("outside.txt").exists());
+}
+
+#[test]
+fn a_file_added_where_the_killed_move_had_not_copied_yet_stays() {
+    let tmp = tempfile::tempdir().unwrap();
+    let f = folders(tmp.path());
+    let lib = library_with_two_chapters(&f);
+    let to = tmp.path().join("big");
+    killed_move(&lib, tmp.path(), &to);
+    fs::create_dir_all(to.join("chapters/mangadex/a/2")).unwrap();
+    fs::write(to.join("chapters/mangadex/a/2/001.jpg"), "mine").unwrap();
+    fs::write(to.join("chapters/mangadex/a/1/001.JPG"), "mine").unwrap();
+
+    let err = move_data_dir_with(&lib, &f.data_dir, &to, true, &mut |_| {}).unwrap_err();
+    assert!(err.to_string().contains("a/2/001.jpg"), "{err}");
+    assert!(
+        err.to_string().contains("a/1/001.JPG"),
+        "same name but for case: {err}"
+    );
+    remove_leftover_copy(&lib, &f.data_dir).unwrap();
+    assert_eq!(
+        fs::read(to.join("chapters/mangadex/a/2/001.jpg")).unwrap(),
+        b"mine"
+    );
+    assert!(!to.join("chapters/mangadex/a/1/001.jpg").exists());
+}
+
+#[test]
+fn a_file_where_a_listed_copy_folder_goes_does_not_block_removal() {
+    let tmp = tempfile::tempdir().unwrap();
+    let f = folders(tmp.path());
+    let lib = library_with_two_chapters(&f);
+    let to = tmp.path().join("big");
+    killed_move(&lib, tmp.path(), &to);
+    let mut marker = fs::read_to_string(to.join(MOVE_MARKER)).unwrap();
+    marker.push_str("\"chapters/mangadex/a/2/001.jpg\"\n");
+    fs::write(to.join(MOVE_MARKER), marker).unwrap();
+    fs::write(to.join("chapters/mangadex/a/2"), "mine").unwrap();
+
+    remove_leftover_copy(&lib, &f.data_dir).unwrap();
+    assert!(to.join("chapters/mangadex/a/2").is_file());
+    assert!(!to.join(MOVE_MARKER).exists());
 }

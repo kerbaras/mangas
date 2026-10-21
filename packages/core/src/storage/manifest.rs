@@ -1,7 +1,8 @@
-//! The files a move copies, listed in its marker before the first one is copied: reusing or
-//! removing the partial copy a killed move left deletes only those, so files added there by
-//! hand stay. A marker written before the list existed only names the source folder; the files
-//! that folder holds stand in for the list then.
+//! The files a move copied, listed in its marker: a JSON header line, then one JSON string per
+//! file, appended just before that file's copy starts. Reusing or removing the partial copy a
+//! killed move left deletes only those, so files added there by hand stay, even where the move
+//! would have copied one later. A marker written before the list existed only names the source
+//! folder; the files that folder holds stand in for the list then.
 
 use std::cmp::Reverse;
 use std::collections::BTreeSet;
@@ -17,10 +18,8 @@ use super::tree::{list_files, Plan};
 use crate::domain::{Error, Result};
 
 #[derive(Serialize, Deserialize)]
-struct Marker {
+struct Header {
     from: String,
-    /// Paths relative to the target, under its `chapters/` and `models/`.
-    copies: Vec<String>,
 }
 
 /// The paths (relative to the target) a move copying `plan` writes.
@@ -30,24 +29,35 @@ pub(crate) fn planned(plan: &Plan) -> BTreeSet<PathBuf> {
         .collect()
 }
 
-/// The marker of a move from `from` that copies `plan`.
-pub(crate) fn marker_text(from: &Path, plan: &Plan) -> Result<String> {
-    let marker = Marker {
+/// The first line of the marker of a move from `from`.
+pub(crate) fn header(from: &Path) -> Result<String> {
+    let header = Header {
         from: from.to_string_lossy().into_owned(),
-        copies: planned(plan)
-            .iter()
-            .map(|p| p.to_string_lossy().into_owned())
-            .collect(),
     };
-    serde_json::to_string(&marker).map_err(|e| Error::Other(e.to_string()))
+    Ok(json(&header)? + "\n")
+}
+
+/// The marker line for a copy of `rel` (relative to the target) about to start.
+pub(crate) fn copy_line(rel: &Path) -> Result<String> {
+    Ok(json(&rel.to_string_lossy())? + "\n")
+}
+
+fn json(value: &impl Serialize) -> Result<String> {
+    serde_json::to_string(value).map_err(|e| Error::Other(e.to_string()))
 }
 
 /// The files the partial copy in `dir` was made of, relative to `dir`.
 pub(crate) fn copies(dir: &Path) -> Result<BTreeSet<PathBuf>> {
     let text = fs::read_to_string(dir.join(MOVE_MARKER))?;
-    let listed = match serde_json::from_str::<Marker>(&text) {
-        Ok(marker) => marker.copies.into_iter().map(PathBuf::from).collect(),
-        Err(_) => source_files(Path::new(text.lines().next().unwrap_or_default()))?,
+    let mut lines = text.lines();
+    let first = lines.next().unwrap_or_default();
+    let listed = match serde_json::from_str::<Header>(first) {
+        // A line cut short by the kill named a copy that hadn't started.
+        Ok(_) => lines
+            .filter_map(|l| serde_json::from_str::<String>(l).ok())
+            .map(PathBuf::from)
+            .collect(),
+        Err(_) => source_files(Path::new(first))?,
     };
     Ok(listed.into_iter().filter(|p| in_data_subdir(p)).collect())
 }
@@ -82,8 +92,12 @@ pub(crate) fn reuse(dir: &Path, plan: &Plan) -> Result<BTreeSet<PathBuf>> {
     }
     let copied = copies(dir)?;
     let added: BTreeSet<_> = added_by_hand(dir, &copied)?.into_iter().collect();
-    let planned = planned(plan);
-    let mut clash: Vec<_> = added.intersection(&planned).map(|p| p.display()).collect();
+    // Compared ignoring case: on a case-insensitive volume the copy would overwrite them.
+    let planned: BTreeSet<_> = planned(plan).iter().map(|p| folded(p)).collect();
+    let mut clash: Vec<_> = (added.iter())
+        .filter(|p| planned.contains(&folded(p)))
+        .map(|p| p.display())
+        .collect();
     if !foreign.is_empty() || !clash.is_empty() {
         let (what, mut names) = match foreign.is_empty() {
             false => ("other files besides the partial copy", foreign),
@@ -102,6 +116,10 @@ pub(crate) fn reuse(dir: &Path, plan: &Plan) -> Result<BTreeSet<PathBuf>> {
     }
     remove_copies(dir, &copied)?;
     Ok(added)
+}
+
+fn folded(path: &Path) -> String {
+    path.to_string_lossy().to_lowercase()
 }
 
 /// Files under the app's subfolders of `dir` that are not among `copies`.
@@ -129,7 +147,10 @@ pub(crate) fn size(dir: &Path, copies: &BTreeSet<PathBuf>) -> u64 {
 pub(crate) fn remove_copies(dir: &Path, copies: &BTreeSet<PathBuf>) -> Result<()> {
     for rel in copies.iter().filter(|rel| !through_link(dir, rel)) {
         match fs::remove_file(dir.join(rel)) {
-            Err(e) if e.kind() != ErrorKind::NotFound => return Err(e.into()),
+            // Not a directory: a file added by hand where the copy's folder would go.
+            Err(e) if !matches!(e.kind(), ErrorKind::NotFound | ErrorKind::NotADirectory) => {
+                return Err(e.into())
+            }
             _ => {}
         }
     }

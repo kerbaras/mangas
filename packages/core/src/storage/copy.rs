@@ -1,10 +1,12 @@
 //! The copy steps of a data-folder move: what to copy, copying it, checking it, undoing it.
 
 use std::collections::BTreeSet;
-use std::fs;
+use std::fs::{self, File};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use super::layout::DATA_SUBDIRS;
+use super::manifest::copy_line;
 use super::move_dir::MoveProgress;
 use super::tree::{list_files, FileEntry, Plan};
 use crate::domain::{Error, Result};
@@ -48,13 +50,16 @@ pub(crate) fn copy_all(
     to: &Path,
     plan: &Plan,
     total: u64,
+    marker: &mut File,
     on_progress: &mut dyn FnMut(MoveProgress),
 ) -> Result<()> {
     let mut copied = 0;
     on_progress(MoveProgress { copied, total });
     for (sub, files) in plan {
         for file in files {
-            let dst = to.join(sub).join(&file.rel);
+            let rel = Path::new(sub).join(&file.rel);
+            marker.write_all(copy_line(&rel)?.as_bytes())?;
+            let dst = to.join(&rel);
             if let Some(parent) = dst.parent() {
                 fs::create_dir_all(parent)?;
             }

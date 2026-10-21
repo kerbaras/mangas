@@ -85,13 +85,14 @@ fn move_held(
     let total: u64 = plan.iter().flat_map(|(_, f)| f).map(|f| f.bytes).sum();
     let files = plan.iter().map(|(_, f)| f.len()).sum();
     let created: Vec<bool> = DATA_SUBDIRS.iter().map(|s| !to.join(s).exists()).collect();
-    mark(lib, &to, &from_resolved, &plan)?;
-    let switched = copy_all(&from_resolved, &to, &plan, total, on_progress)
+    let mut marker = mark(lib, &to, &from_resolved)?;
+    let switched = copy_all(&from_resolved, &to, &plan, total, &mut marker, on_progress)
         .and_then(|()| verify(&to, &plan, &kept))
         .and_then(|()| switch(lib, &[from, &from_resolved], &to));
     if switched.is_err() {
         discard_copy(&to, &plan, &created);
     }
+    drop(marker);
     if let Err(e) = unmark(lib, &to) {
         log::warn!("clear the move marker: {e}");
     }

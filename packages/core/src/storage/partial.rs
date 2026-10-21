@@ -1,17 +1,17 @@
 //! A data-folder move marks its target while it copies, like a chapter's `.part` pages: a move
 //! killed midway leaves a marked partial copy. The next move to that folder may delete and reuse
 //! it, and the storage status lists it, with a way to remove it, until then. The marker lists
-//! the files the move copies (see [`super::manifest`]); only those are ever deleted.
+//! the files the move started copying (see [`super::manifest`]); only those are ever deleted.
 
 use std::collections::BTreeSet;
-use std::fs;
+use std::fs::{self, File};
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
 use super::layout::DATA_SUBDIRS;
-use super::manifest::{copies, marker_text, remove_copies, reuse, size};
+use super::manifest::{copies, header, remove_copies, reuse, size};
 use super::tree::{dir_size, Plan};
 use crate::domain::{Error, Result};
 use crate::download::queue::now_ms;
@@ -136,18 +136,19 @@ pub(crate) fn is_marked(dir: &Path) -> bool {
     dir.join(MOVE_MARKER).is_file()
 }
 
-/// Marks `to` as a move target, listing what `plan` copies, before anything is copied into it.
-pub(crate) fn mark(lib: &Library, to: &Path, from: &Path, plan: &Plan) -> Result<()> {
-    let text = marker_text(from, plan)?;
+/// Marks `to` as a move from `from` before anything is copied into it; the copy appends each
+/// file it starts to the returned marker.
+pub(crate) fn mark(lib: &Library, to: &Path, from: &Path) -> Result<File> {
+    let text = header(from)?;
     // Recorded first: a record without a marker is dropped by the next listing, while a marker
     // without a record would block the folder with nothing offering to remove it.
     set_pending_move(lib, Some(&to.to_string_lossy()))?;
-    let marked = fs::write(to.join(MOVE_MARKER), text);
-    if let Err(e) = marked {
+    let path = to.join(MOVE_MARKER);
+    let marked = fs::write(&path, text).and_then(|()| File::options().append(true).open(&path));
+    marked.or_else(|e| {
         set_pending_move(lib, None)?;
-        return Err(e.into());
-    }
-    Ok(())
+        Err(e.into())
+    })
 }
 
 /// Clears the mark once the copy is either the data folder or gone.
