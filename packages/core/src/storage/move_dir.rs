@@ -3,12 +3,13 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
+use super::copy::{check_empty, copy_all, discard_copy, plan, verify};
 use super::layout::DATA_SUBDIRS;
 use super::partial::{mark, prepare_target, unmark};
 use super::reading::{hold_for_move, EXPORT_LEASE_FILES};
 use super::relocate::{check_target, rebase};
-use super::tree::{empty_dir, list_files, missing_dirs, remove_empty, FileEntry};
-use crate::domain::{Error, Result};
+use super::tree::{empty_dir, missing_dirs, remove_empty};
+use crate::domain::Result;
 use crate::library::{downloaded_chapters, get_settings, switch_data_dir, Library};
 use crate::ml::lease::{self, Purpose};
 
@@ -43,8 +44,8 @@ pub fn move_data_dir(
 }
 
 /// [`move_data_dir`]; with `replace_partial`, a partial copy a killed move left in `to` is
-/// deleted first and the move starts over there. Folders created for `to` go again when the
-/// move fails or is refused.
+/// deleted first (the files it copied; files added there by hand stay) and the move starts
+/// over there. Folders created for `to` go again when the move fails or is refused.
 pub fn move_data_dir_with(
     lib: &Library,
     from: &Path,
@@ -78,27 +79,15 @@ fn move_held(
     // may need for its detectors.
     let reading = hold_for_move(&from_resolved)?;
     let lease = lease::acquire(&from_resolved.join("models"), Purpose::Move)?;
-    prepare_target(lib, &from_resolved, &to, replace_partial)?;
-    let mut plan = Vec::new();
-    for sub in DATA_SUBDIRS {
-        if !list_files(&to.join(sub))?.is_empty() {
-            return Err(Error::Other(format!(
-                "{} already has a {sub} folder with files in it; choose an empty folder",
-                to.display()
-            )));
-        }
-        let mut files = list_files(&from_resolved.join(sub))?;
-        if sub == "models" {
-            files.retain(|f| !lease::LEASE_FILES.iter().any(|l| f.rel == Path::new(l)));
-        }
-        plan.push((sub, files));
-    }
+    let plan = plan(&from_resolved)?;
+    let kept = prepare_target(lib, &from_resolved, &to, replace_partial, &plan)?;
+    check_empty(&to, &kept)?;
     let total: u64 = plan.iter().flat_map(|(_, f)| f).map(|f| f.bytes).sum();
     let files = plan.iter().map(|(_, f)| f.len()).sum();
     let created: Vec<bool> = DATA_SUBDIRS.iter().map(|s| !to.join(s).exists()).collect();
-    mark(lib, &to, &from_resolved)?;
+    mark(lib, &to, &from_resolved, &plan)?;
     let switched = copy_all(&from_resolved, &to, &plan, total, on_progress)
-        .and_then(|()| verify(&to, &plan))
+        .and_then(|()| verify(&to, &plan, &kept))
         .and_then(|()| switch(lib, &[from, &from_resolved], &to));
     if switched.is_err() {
         discard_copy(&to, &plan, &created);
@@ -133,42 +122,6 @@ fn move_held(
     })
 }
 
-type Plan<'a> = [(&'a str, Vec<FileEntry>)];
-
-fn copy_all(
-    from: &Path,
-    to: &Path,
-    plan: &Plan,
-    total: u64,
-    on_progress: &mut dyn FnMut(MoveProgress),
-) -> Result<()> {
-    let mut copied = 0;
-    on_progress(MoveProgress { copied, total });
-    for (sub, files) in plan {
-        for file in files {
-            let dst = to.join(sub).join(&file.rel);
-            if let Some(parent) = dst.parent() {
-                fs::create_dir_all(parent)?;
-            }
-            fs::copy(from.join(sub).join(&file.rel), &dst)?;
-            copied += file.bytes;
-            on_progress(MoveProgress { copied, total });
-        }
-    }
-    Ok(())
-}
-
-fn verify(to: &Path, plan: &Plan) -> Result<()> {
-    for (sub, files) in plan {
-        if list_files(&to.join(sub))? != *files {
-            return Err(Error::Other(format!(
-                "the copied {sub} folder doesn't match the original; nothing was changed"
-            )));
-        }
-    }
-    Ok(())
-}
-
 /// Chapter paths are re-rooted against both the stored and the resolved old folder, since
 /// either form may be on record; chapters stored elsewhere keep their path.
 fn switch(lib: &Library, from: &[&Path], to: &Path) -> Result<()> {
@@ -183,18 +136,4 @@ fn switch(lib: &Library, from: &[&Path], to: &Path) -> Result<()> {
     let mut settings = get_settings(lib)?;
     settings.data_dir = Some(to.to_string_lossy().into_owned());
     switch_data_dir(lib, &moved, &settings)
-}
-
-/// Undoes a failed copy: folders the move created go entirely; in folders that were already
-/// there (empty of files), only the copied files go.
-fn discard_copy(to: &Path, plan: &Plan, created: &[bool]) {
-    for ((sub, files), created) in plan.iter().zip(created) {
-        if *created {
-            fs::remove_dir_all(to.join(sub)).ok();
-        } else {
-            for file in files {
-                fs::remove_file(to.join(sub).join(&file.rel)).ok();
-            }
-        }
-    }
 }

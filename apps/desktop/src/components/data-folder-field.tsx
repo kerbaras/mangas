@@ -111,7 +111,7 @@ export function DataFolderField({ onMoved, partial }: Props) {
         title={target?.partial ? "Replace the partial copy and move?" : "Move the data folder?"}
         description={
           target?.partial
-            ? `${target.dir} holds a partial copy (${formatBytes(target.partial.bytes)}) left by an interrupted move. Everything in its chapters and models folders is deleted, including files added there by hand, then chapters and detector models are copied there again and checked before the app switches to it.`
+            ? `${target.dir} holds a partial copy (${formatBytes(target.partial.bytes)}) left by an interrupted move. The files that move copied there are deleted (files added there by hand stay), then chapters and detector models are copied there again and checked before the app switches to it.`
             : `Chapters and detector models are copied to ${target?.dir ?? ""} and checked; only then the app switches to it and deletes the old copies.`
         }
         confirm={target?.partial ? "Replace and move" : "Move"}

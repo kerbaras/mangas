@@ -1,15 +1,18 @@
 //! A data-folder move marks its target while it copies, like a chapter's `.part` pages: a move
-//! killed midway leaves a marked partial copy. The next move to that folder may wipe and reuse
-//! it, and the storage status lists it, with a way to remove it, until then.
+//! killed midway leaves a marked partial copy. The next move to that folder may delete and reuse
+//! it, and the storage status lists it, with a way to remove it, until then. The marker lists
+//! the files the move copies (see [`super::manifest`]); only those are ever deleted.
 
+use std::collections::BTreeSet;
 use std::fs;
 use std::io::ErrorKind;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
 use super::layout::DATA_SUBDIRS;
-use super::tree::dir_size;
+use super::manifest::{copies, marker_text, remove_copies, reuse, size};
+use super::tree::{dir_size, Plan};
 use crate::domain::{Error, Result};
 use crate::download::queue::now_ms;
 use crate::library::{pending_move, queue_gate, set_pending_move, take_queue_hold, Library};
@@ -17,7 +20,7 @@ use crate::library::{pending_move, queue_gate, set_pending_move, take_queue_hold
 /// The marker file in the root of a folder a move is copying into.
 pub const MOVE_MARKER: &str = ".mangas-move-partial";
 
-/// What an interrupted move left in a folder: only the app's own subfolders.
+/// What an interrupted move left in a folder: the files it copied there.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct PartialCopy {
     pub path: String,
@@ -26,12 +29,15 @@ pub struct PartialCopy {
 
 /// The partial copy in `dir`, when a move marked it.
 pub fn partial_copy_at(dir: &Path) -> Option<PartialCopy> {
-    is_marked(dir).then(|| PartialCopy {
-        path: dir.to_string_lossy().into_owned(),
-        bytes: DATA_SUBDIRS
+    let all = || {
+        DATA_SUBDIRS
             .iter()
             .map(|sub| dir_size(&dir.join(sub)))
-            .sum(),
+            .sum()
+    };
+    is_marked(dir).then(|| PartialCopy {
+        path: dir.to_string_lossy().into_owned(),
+        bytes: copies(dir).map_or_else(|_| all(), |c| size(dir, &c)),
     })
 }
 
@@ -58,8 +64,9 @@ pub fn leftover_copy(lib: &Library, data_dir: &Path) -> Result<Option<PartialCop
     Ok(copy)
 }
 
-/// Deletes the partial copy [`leftover_copy`] lists: the app's subfolders in it and the marker;
-/// anything else in that folder stays. Refused while a move runs.
+/// Deletes the partial copy [`leftover_copy`] lists: the files the move copied and the marker;
+/// anything else in that folder, files added by hand to its subfolders too, stays. Refused
+/// while a move runs.
 pub fn remove_leftover_copy(lib: &Library, data_dir: &Path) -> Result<Option<PartialCopy>> {
     if leftover_copy(lib, data_dir)?.is_none() {
         return Ok(None);
@@ -90,10 +97,17 @@ fn wipe_recorded(lib: &Library, data_dir: &Path) -> Result<Option<PartialCopy>> 
     Ok(Some(copy))
 }
 
-/// Readies `to` for a move from `from`: a partial copy there is wiped when `replace_partial`
-/// allows it. Refused while another folder still holds a listed partial copy, so starting a
-/// new move never hides it from the storage status.
-pub(crate) fn prepare_target(lib: &Library, from: &Path, to: &Path, replace: bool) -> Result<()> {
+/// Readies `to` for a move from `from` copying `plan`: a partial copy there is deleted when
+/// `replace` allows it, keeping the files added there by hand, which are returned. Refused while
+/// another folder still holds a listed partial copy, so a new move never hides it from the
+/// storage status.
+pub(crate) fn prepare_target(
+    lib: &Library,
+    from: &Path,
+    to: &Path,
+    replace: bool,
+    plan: &Plan,
+) -> Result<BTreeSet<PathBuf>> {
     if let Some(other) = pending_move(lib)? {
         let other = Path::new(&other);
         if is_marked(other) && !same_dir(other, to) && !same_dir(other, from) {
@@ -105,29 +119,30 @@ pub(crate) fn prepare_target(lib: &Library, from: &Path, to: &Path, replace: boo
         }
     }
     if !is_marked(to) {
-        return Ok(());
+        return Ok(BTreeSet::new());
     }
     if !replace {
         return Err(Error::Other(format!(
             "{} holds a partial copy left by an interrupted move; move again replacing it \
-             (--force deletes everything in its chapters/ and models/), or remove it from the \
-             storage status",
+             (--force deletes the files it copied there; files added by hand stay), or remove it \
+             from the storage status",
             to.display()
         )));
     }
-    wipe_for_reuse(to)
+    wipe_for_reuse(to, plan)
 }
 
 pub(crate) fn is_marked(dir: &Path) -> bool {
     dir.join(MOVE_MARKER).is_file()
 }
 
-/// Marks `to` as a move target before anything is copied into it.
-pub(crate) fn mark(lib: &Library, to: &Path, from: &Path) -> Result<()> {
+/// Marks `to` as a move target, listing what `plan` copies, before anything is copied into it.
+pub(crate) fn mark(lib: &Library, to: &Path, from: &Path, plan: &Plan) -> Result<()> {
+    let text = marker_text(from, plan)?;
     // Recorded first: a record without a marker is dropped by the next listing, while a marker
     // without a record would block the folder with nothing offering to remove it.
     set_pending_move(lib, Some(&to.to_string_lossy()))?;
-    let marked = fs::write(to.join(MOVE_MARKER), format!("{}\n", from.display()));
+    let marked = fs::write(to.join(MOVE_MARKER), text);
     if let Err(e) = marked {
         set_pending_move(lib, None)?;
         return Err(e.into());
@@ -141,35 +156,16 @@ pub(crate) fn unmark(lib: &Library, to: &Path) -> Result<()> {
     set_pending_move(lib, None)
 }
 
-/// Wipes a marked folder for a new move, unless it also holds files that aren't the app's.
-fn wipe_for_reuse(dir: &Path) -> Result<()> {
-    let mut foreign = Vec::new();
-    for entry in fs::read_dir(dir)? {
-        let name = entry?.file_name().to_string_lossy().into_owned();
-        if name != MOVE_MARKER && !DATA_SUBDIRS.contains(&name.as_str()) {
-            foreign.push(name);
-        }
-    }
-    if !foreign.is_empty() {
-        foreign.sort();
-        return Err(Error::Other(format!(
-            "{} holds other files besides the partial copy ({}); remove the partial copy from \
-             the storage status, then move there again",
-            dir.display(),
-            foreign.join(", ")
-        )));
-    }
-    wipe(dir)
+/// [`reuse`] of a marked folder, then its marker goes.
+fn wipe_for_reuse(dir: &Path, plan: &Plan) -> Result<BTreeSet<PathBuf>> {
+    let added = reuse(dir, plan)?;
+    remove_marker(dir)?;
+    Ok(added)
 }
 
-/// Removes the app's subfolders from a marked folder, then the marker.
+/// Deletes the files the partial copy in a marked folder is made of, then the marker.
 pub(crate) fn wipe(dir: &Path) -> Result<()> {
-    for sub in DATA_SUBDIRS {
-        match fs::remove_dir_all(dir.join(sub)) {
-            Err(e) if e.kind() != ErrorKind::NotFound => return Err(e.into()),
-            _ => {}
-        }
-    }
+    remove_copies(dir, &copies(dir)?)?;
     remove_marker(dir)
 }
 

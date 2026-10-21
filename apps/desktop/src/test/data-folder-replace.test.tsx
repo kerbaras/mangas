@@ -36,6 +36,7 @@ describe("DataFolderField: a folder an interrupted move left a partial copy in",
     fireEvent.click(screen.getByRole("button", { name: /Move/ }));
     expect(await screen.findByText("Replace the partial copy and move?")).toBeTruthy();
     expect(screen.getByText(/holds a partial copy \(250 MB\)/)).toBeTruthy();
+    expect(screen.getByText(/files added there by hand stay/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Replace and move" }));
     await waitFor(() => expect(moveDataDir).toHaveBeenCalledWith("/mnt/big", true));
   });
