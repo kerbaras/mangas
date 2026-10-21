@@ -29,7 +29,7 @@ export function useChapterDownload({ source, mangaId, title }: Target, onQueued:
       );
       // Queued chapters report through the queue; these ids were not queued at all.
       for (const gone of report.missing)
-        chapterFailed(gone, "not found: the source no longer lists this chapter");
+        chapterFailed(gone, `not found: ${tr("details.chapterGone")}`);
       const skipped = picked.filter((c) => report.on_disk.includes(c.id));
       const summary = enqueueSummary(report);
       if (summary)

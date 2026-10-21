@@ -54,6 +54,7 @@ export const mangaDetails = {
   "details.groupSaveFailed": "Couldn't save the group",
   "details.chapterOf": "Chapter {number} of {title}",
   "details.downloadFailed": "Download failed",
+  "details.chapterGone": "the source no longer lists this chapter",
   "details.chapters": "{count} chapters",
   "details.chapters_one": "{count} chapter",
   "details.alreadyOnDisk": "{chapters} already on disk",
