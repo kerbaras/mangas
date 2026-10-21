@@ -70,8 +70,11 @@ mod fds {
         open.retain(|&fd| fd != file.as_raw_fd());
     }
 
+    /// The child's stdin, stdout and stderr must all be set (null or piped): they are put in
+    /// place before this runs, over any lease that had one of their numbers here.
     pub(super) fn close_in_child(command: &mut Command) {
-        let fds = OPEN.lock().unwrap_or_else(PoisonError::into_inner).clone();
+        let mut fds = OPEN.lock().unwrap_or_else(PoisonError::into_inner).clone();
+        fds.retain(|&fd| fd > 2);
         // SAFETY: between fork and exec the closure only calls `close` (async-signal-safe) on
         // a list built before the fork, and every lease file is close-on-exec anyway.
         unsafe {
