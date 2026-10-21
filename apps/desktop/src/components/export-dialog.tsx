@@ -85,7 +85,8 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const failed = written.length > 0 && ["error", "no-device", "mtp"].includes(send.state.kind);
   const sendVia = via === "save" ? undefined : via;
   const stuck = failed && refused(send.state, via);
-  const resend = failed && sendVia !== undefined && !stuck;
+  const resend =
+    failed && sendVia !== undefined && !stuck && !(via === "email" && oversized.length > 0);
   const retrySend = sendVia && (() => void send.retry(sendVia));
   const ready =
     fresh &&
