@@ -55,7 +55,7 @@ export function SearchGroupView({
     <section aria-label={p.name} className="flex flex-col gap-1">
       <header className="flex h-8 items-center gap-2 px-2">
         <ProviderIcon provider={p} />
-        <h3 className="text-body font-semibold">{p.name}</h3>
+        <h2 className="text-body font-semibold">{p.name}</h2>
         {group && group.status.state !== "ready" && <ProviderStatusBadge status={group.status} />}
         {group?.status.state === "ready" && (
           <span className="text-caption text-ink-3 tabular-nums">{items.length}</span>

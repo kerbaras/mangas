@@ -16,7 +16,9 @@ export function LibraryList({ entries, categories, ...on }: Props) {
     <table className="w-full table-fixed border-collapse">
       <thead className="sticky top-0 z-10 bg-canvas text-left text-caption font-medium text-ink-3">
         <tr className="h-8 border-b border-stroke">
-          <th className="w-14 pl-4" aria-label="Cover" />
+          <th className="w-14 pl-4">
+            <span className="sr-only">Cover</span>
+          </th>
           <th>Title</th>
           <th className="w-28">Source</th>
           <th className="w-28">Status</th>
