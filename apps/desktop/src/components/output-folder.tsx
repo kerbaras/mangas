@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Field } from "@/components/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { parentFolder } from "@/lib/chapter-folder";
 import { pickFolder } from "@/lib/dialogs";
 import { isWindows } from "@/lib/platform";
 import { useSettings } from "@/lib/settings";
@@ -33,7 +34,8 @@ type Props = { value: string; fallback: string; onChange: (dir: string) => void 
 
 export function OutputFolder({ value, fallback, onChange }: Props) {
   const choose = async () => {
-    const dir = await pickFolder("Choose where to write the exported files", fallback);
+    const start = parentFolder(exportFolder(fallback, value));
+    const dir = await pickFolder("Choose where to write the exported files", fallback, start);
     if (dir) onChange(dir);
   };
   return (

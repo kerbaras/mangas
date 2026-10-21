@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { useAsync } from "@/hooks/use-async";
+import { parentFolder } from "@/lib/chapter-folder";
 import { pickFolder } from "@/lib/dialogs";
 import { listDevices } from "@/lib/ipc";
 import { type MoveProgress, moveDataDir, onMoveProgress } from "@/lib/ipc.storage";
@@ -22,7 +23,11 @@ export function FolderStep({ onBusy }: StepProps) {
   const [settings] = useSettings();
   const [progress, setProgress] = useState<MoveProgress | null>(null);
   const change = async () => {
-    const dir = await pickFolder("Choose the data folder", "~/mangas");
+    const dir = await pickFolder(
+      "Choose the data folder",
+      "~/mangas",
+      parentFolder(settings.dataDir),
+    );
     if (!dir || dir === settings.dataDir) return;
     onBusy(true);
     setProgress({ copied: 0, total: 0 });

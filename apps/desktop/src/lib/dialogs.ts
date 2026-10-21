@@ -3,10 +3,19 @@ import { isTauri } from "./ipc";
 import { openFolder } from "./ipc.folders";
 import { notifyError } from "./notify";
 
-export async function pickFolder(title: string, fallback: string): Promise<string | null> {
+/**
+ * A folder from the native picker, opened at `start` (the OS picks when it is empty or missing);
+ * null when cancelled.
+ */
+export async function pickFolder(
+  title: string,
+  fallback: string,
+  start = "",
+): Promise<string | null> {
   if (!isTauri()) return fallback;
   const { open } = await import("@tauri-apps/plugin-dialog");
-  const picked = await open({ directory: true, multiple: false, title });
+  const defaultPath = start || undefined;
+  const picked = await open({ directory: true, multiple: false, title, defaultPath });
   return typeof picked === "string" ? picked : null;
 }
 
