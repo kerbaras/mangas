@@ -49,5 +49,6 @@ pub fn book_meta(manga: &Manga, volume: &Volume, cover: Option<PathBuf>) -> Book
         cover,
         chapter_titles: volume.chapters.iter().map(chapter_label).collect(),
         identity: Some(identity(manga, &volume.chapters)),
+        direction: manga.direction.unwrap_or_default(),
     }
 }

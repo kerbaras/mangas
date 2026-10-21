@@ -76,6 +76,8 @@ fn writes_valid_fixed_layout_epub() {
         "resolution is the device canvas even when a page is smaller"
     );
     assert!(opf.contains("<meta name=\"book-type\" content=\"comic\"/>"));
+    assert!(opf.contains("<meta name=\"primary-writing-mode\" content=\"horizontal-lr\"/>"));
+    assert!(opf.contains("<spine page-progression-direction=\"ltr\">"));
     assert!(opf.contains("<dc:title>Test &lt;Book&gt;</dc:title>"));
     assert_eq!(opf.matches("<itemref idref=").count(), 3);
     assert!(opf.contains("properties=\"nav\""));

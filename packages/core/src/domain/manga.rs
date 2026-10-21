@@ -15,6 +15,21 @@ pub enum MangaStatus {
     Unknown,
 }
 
+/// Which way a title's pages turn: manga read right to left, most others left to right.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReadingDirection {
+    #[default]
+    Ltr,
+    Rtl,
+}
+
+impl ReadingDirection {
+    pub fn is_rtl(self) -> bool {
+        self == Self::Rtl
+    }
+}
+
 /// A title as a source describes it. The credits, `year` and `tags` are optional: sources fill
 /// what they publish and leave the rest empty.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -37,6 +52,9 @@ pub struct Manga {
     /// Genres and themes as the source labels them.
     #[serde(default)]
     pub tags: Vec<String>,
+    /// Which way its pages turn, when the source says (or its kind makes it plain).
+    #[serde(default)]
+    pub direction: Option<ReadingDirection>,
 }
 
 impl std::fmt::Display for MangaId {

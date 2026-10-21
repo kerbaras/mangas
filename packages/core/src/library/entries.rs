@@ -45,11 +45,11 @@ pub fn list_entries(lib: &Library) -> Result<Vec<LibraryEntry>> {
     let rows = stmt.query_map([], |r| {
         Ok((
             row_to_manga(r)?,
-            ReadingStatus::parse(&r.get::<_, String>(10)?),
-            r.get::<_, Option<String>>(11)?.unwrap_or_default(),
+            ReadingStatus::parse(&r.get::<_, String>(11)?),
             r.get::<_, Option<String>>(12)?.unwrap_or_default(),
-            r.get::<_, bool>(13)?,
-            r.get::<_, Option<String>>(14)?,
+            r.get::<_, Option<String>>(13)?.unwrap_or_default(),
+            r.get::<_, bool>(14)?,
+            r.get::<_, Option<String>>(15)?,
         ))
     })?;
     let mut entries = Vec::new();

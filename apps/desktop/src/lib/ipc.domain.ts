@@ -14,7 +14,12 @@ export type Manga = {
   artists?: string[];
   year?: number | null;
   tags?: string[];
+  /** Which way the pages turn, when the source says. */
+  direction?: ReadingDirection | null;
 };
+
+/** Mirrors `mangas_core::domain::ReadingDirection`. */
+export type ReadingDirection = "ltr" | "rtl";
 
 /** Mirrors `mangas_core::domain::Chapter`. */
 export type Chapter = {

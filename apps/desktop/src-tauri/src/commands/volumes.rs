@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use mangas_core::domain::ReadingDirection;
 use mangas_core::export::kindle::{self, check_export_folder, Progress};
 use mangas_core::export::volume::{self, Grouping, VolumeOutcome, VolumePlan};
 use mangas_core::export::{ExportPreset, Format};
@@ -94,6 +95,7 @@ pub async fn export_volumes<R: Runtime>(
     replace: Option<bool>,
     quality: Option<u8>,
     split_mb: Option<u64>,
+    direction: Option<ReadingDirection>,
 ) -> Result<VolumeOutcome, String> {
     // Before the chapter folders are looked up: a data-folder move can't start under the export.
     let _reading = hold_for_export().map_err(to_ipc)?;
@@ -107,6 +109,7 @@ pub async fn export_volumes<R: Runtime>(
         format,
         profile: device,
         jpeg_quality: quality,
+        direction,
         ..Default::default()
     };
     let series =
@@ -141,6 +144,7 @@ pub async fn export_volumes<R: Runtime>(
             )
             .with_format(format)
             .with_page(resolved.page())
+            .with_direction(resolved.direction)
             .with_replace(replace)
             .with_split(split_mb.map(|mb| mb * 1_000_000))
         })

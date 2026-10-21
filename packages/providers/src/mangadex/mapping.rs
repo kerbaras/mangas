@@ -2,6 +2,7 @@
 
 use super::api::{ChapterData, Collection, Entity, ErrorBody, Localized, MangaData, Relationship};
 use super::dedupe::FeedChapter;
+use super::direction::direction;
 use super::external::{availability, is_listed};
 use mangas_core::domain::{Chapter, ChapterId, Error, Manga, MangaId, MangaStatus};
 
@@ -102,6 +103,7 @@ fn manga_from_data(m: &MangaData) -> Manga {
         .find_map(|r| r.attributes.as_ref()?.file_name.as_deref())
         .map(|file| cover_url(&m.id, file));
     Manga {
+        direction: direction(attrs),
         id: MangaId(m.id.clone()),
         source: SOURCE_NAME.to_string(),
         title,

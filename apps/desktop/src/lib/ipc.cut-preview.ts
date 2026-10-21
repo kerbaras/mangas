@@ -1,5 +1,7 @@
 /** Series export presets and the smart-cut preview (`commands/cut_preview.rs`). */
+
 import { backend, type Preset } from "./ipc";
+import type { ReadingDirection } from "./ipc.domain";
 import type { ExportFormat } from "./ipc.export";
 
 /** Mirrors `mangas_core::export::ExportPreset`: every field optional, unset = the default. */
@@ -16,6 +18,8 @@ export type ExportPreset = {
   format?: ExportFormat;
   /** Profile id. */
   profile?: string;
+  /** Which way the pages turn; unset: the source's direction, else left to right. */
+  direction?: ReadingDirection;
 };
 
 export type PreviewPage = { src: string; width: number; height: number };
@@ -59,6 +63,11 @@ export const setExportPreset = async (source: string, mangaId: string, preset: E
   (await backend()).setExportPreset(source, mangaId, compact(preset));
 export const clearExportPreset = async (source: string, mangaId: string) =>
   (await backend()).clearExportPreset(source, mangaId);
+/** Forgets the cut, format and device of `saved`; the page turn is a series setting and stays. */
+export const resetExportPreset = async (source: string, mangaId: string, saved: ExportPreset) =>
+  saved.direction
+    ? setExportPreset(source, mangaId, { direction: saved.direction })
+    : clearExportPreset(source, mangaId);
 export const previewCut = async (
   dir: string,
   options: ExportPreset,

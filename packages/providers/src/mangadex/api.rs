@@ -46,6 +46,8 @@ pub struct MangaAttributes {
     pub year: Option<u16>,
     #[serde(default)]
     pub tags: Vec<Tag>,
+    #[serde(default, rename = "originalLanguage")]
+    pub original_language: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

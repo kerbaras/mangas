@@ -16,7 +16,7 @@ pub use chapter_group::{
 };
 pub use chapter_tag::{chapter_tag, season_tag, toc_label};
 pub use error::{Error, Result};
-pub use manga::{Manga, MangaId, MangaStatus};
+pub use manga::{Manga, MangaId, MangaStatus, ReadingDirection};
 pub use season_label::season_label;
 pub use tls::{
     missing_root_certificates, system_has_root_certificates, webview_tls_failure,

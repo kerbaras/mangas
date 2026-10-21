@@ -94,7 +94,10 @@ pub fn content_opf(book: &Book, pages: &[PageEntry], modified: &str) -> String {
     } else {
         "img0"
     };
-    let direction = if book.right_to_left { "rtl" } else { "ltr" };
+    let (direction, writing_mode) = match book.right_to_left {
+        true => ("rtl", "horizontal-rl"),
+        false => ("ltr", "horizontal-lr"),
+    };
     format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid" prefix="rendition: http://www.idpf.org/vocab/rendition/#">
@@ -110,7 +113,7 @@ pub fn content_opf(book: &Book, pages: &[PageEntry], modified: &str) -> String {
     <meta name="fixed-layout" content="true"/>
     <meta name="original-resolution" content="{w}x{h}"/>
     <meta name="book-type" content="comic"/>
-    <meta name="primary-writing-mode" content="horizontal-{direction}"/>
+    <meta name="primary-writing-mode" content="{writing_mode}"/>
     <meta name="zero-gutter" content="true"/>
     <meta name="zero-margin" content="true"/>
     <meta name="orientation-lock" content="portrait"/>

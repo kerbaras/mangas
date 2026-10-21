@@ -104,6 +104,9 @@ mod tests {
             position: Some("2".into()),
         });
         assert_ne!(date, date_of(&series), "so is the series");
+        let mut rtl = book(b"one");
+        rtl.right_to_left = true;
+        assert_ne!(date, date_of(&rtl), "and the page turn");
         assert_eq!(date.len(), "2000-01-01T00:00:00Z".len());
         assert!(
             date.as_str() >= "2000-01-01" && date.as_str() < "2020-01-01",

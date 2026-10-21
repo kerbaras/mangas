@@ -1,7 +1,8 @@
 //! Pure mapping from Tapas pages and the episodes JSON to domain types.
 
 use mangas_core::domain::{
-    sort_by_number, Availability, Chapter, ChapterId, Error, Manga, MangaId, MangaStatus, Result,
+    sort_by_number, Availability, Chapter, ChapterId, Error, Manga, MangaId, MangaStatus,
+    ReadingDirection, Result,
 };
 use mangas_core::sources::PageUrls;
 
@@ -41,6 +42,7 @@ fn search_item(item: &str) -> Option<Manga> {
     let title_section = &item[item.find("class=\"title-section\"")?..];
     let title = text_after(title_section, "<a ", "</a>")?;
     Some(Manga {
+        direction: Some(ReadingDirection::Ltr),
         id: MangaId(id),
         source: SOURCE_NAME.to_string(),
         title,
@@ -58,6 +60,7 @@ pub fn parse_series(id: &MangaId, html: &str) -> Result<Manga> {
         .or_else(|| meta(html, "og:site_name").map(|t| t.trim_start_matches("Read ").to_string()))
         .ok_or_else(|| Error::NotFound(format!("tapas series {id}")))?;
     Ok(Manga {
+        direction: Some(ReadingDirection::Ltr),
         id: id.clone(),
         source: SOURCE_NAME.to_string(),
         title,

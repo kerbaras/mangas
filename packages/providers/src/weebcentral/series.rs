@@ -25,6 +25,7 @@ pub fn parse_series(id: &MangaId, body: &str) -> Result<Manga> {
         .and_then(|li| html::first(li, "span").ok().flatten())
         .and_then(|span| html::text(span).parse().ok());
     Ok(Manga {
+        direction: None,
         id: id.clone(),
         source: SOURCE_NAME.to_string(),
         title,

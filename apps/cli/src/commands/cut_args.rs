@@ -46,6 +46,9 @@ pub struct CutArgs {
     /// smaller books
     #[arg(long, value_name = "40-95", value_parser = clap::value_parser!(u8).range(40..=95))]
     pub quality: Option<u8>,
+    /// Which way the pages turn [default: the series preset, else the source's, else ltr]
+    #[arg(long, value_enum)]
+    pub direction: Option<super::direction_arg::DirectionArg>,
     /// Write a book bigger than this many MB as numbered parts, "Title (part 1).epub", ... (45
     /// keeps each part under the 50 MB Send-to-Kindle email limit)
     #[arg(long, value_name = "MB", value_parser = clap::value_parser!(u64).range(1..))]
@@ -106,6 +109,7 @@ impl CutArgs {
             jpeg_quality: self.quality,
             format,
             profile: self.device.clone(),
+            direction: self.direction.map(Into::into),
         };
         preset.validate()?;
         Ok(preset)
