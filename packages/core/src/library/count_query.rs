@@ -3,19 +3,20 @@
 use std::collections::HashMap;
 
 use rusqlite::functions::FunctionFlags;
+use rusqlite::types::Value;
 use rusqlite::Connection;
 
-use super::counts::{chapter_key, ChapterCounts};
-use crate::domain::Result;
+use super::counts::ChapterCounts;
+use crate::domain::{parse_number, Result};
 
 /// `(source, manga id)`.
 pub(super) type Key = (String, String);
 
 /// What [`super::count_chapters`] counts, one row per title: each chapter number (its
-/// `chapter_key`) once, of the saved group only when the title is narrowed to one.
+/// `number_identity`) once, of the saved group only when the title is narrowed to one.
 const COUNTS: &str = "
     WITH keyed AS (
-        SELECT c.source, c.manga_id, chapter_key(c.number, c.id) AS k,
+        SELECT c.source, c.manga_id, number_identity(c.number, c.id) AS k,
                c.availability = 'available' AS available,
                c.local_path IS NOT NULL AS downloaded,
                c.exported_at IS NOT NULL AS exported,
@@ -32,10 +33,25 @@ const COUNTS: &str = "
            COALESCE(SUM(fresh), 0)
     FROM numbers GROUP BY source, manga_id";
 
-fn register_chapter_key(conn: &Connection) -> rusqlite::Result<()> {
+/// `counts::number_key` as one SQL value: the number itself, the label as written, or (no
+/// number) the id as a blob. Values of different kinds never compare equal in SQLite, and a
+/// numeric key needs no string, which keeps the scan as fast as reading the rows was.
+fn number_identity(number: &str, id: &str) -> Value {
+    match number.trim() {
+        "" => Value::Blob(id.as_bytes().to_vec()),
+        n => match parse_number(n) {
+            // SQLite says -0.0 = 0.0, `number_key` keeps "-0" apart.
+            Some(v) if v == 0.0 && v.is_sign_negative() => Value::Text(v.to_string()),
+            Some(v) => Value::Real(v),
+            None => Value::Text(n.to_string()),
+        },
+    }
+}
+
+fn register_number_identity(conn: &Connection) -> rusqlite::Result<()> {
     let flags = FunctionFlags::SQLITE_UTF8 | FunctionFlags::SQLITE_DETERMINISTIC;
-    conn.create_scalar_function("chapter_key", 2, flags, |ctx| {
-        Ok(chapter_key(
+    conn.create_scalar_function("number_identity", 2, flags, |ctx| {
+        Ok(number_identity(
             ctx.get_raw(0).as_str()?,
             ctx.get_raw(1).as_str()?,
         ))
@@ -48,7 +64,7 @@ fn count(n: i64) -> usize {
 
 /// Chapter counts of every title that has chapters; titles without any are absent.
 pub(super) fn counts_by_manga(conn: &Connection) -> Result<HashMap<Key, ChapterCounts>> {
-    register_chapter_key(conn)?;
+    register_number_identity(conn)?;
     let mut stmt = conn.prepare(COUNTS)?;
     let rows = stmt.query_map([], |r| {
         let counts = ChapterCounts {

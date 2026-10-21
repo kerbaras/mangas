@@ -44,8 +44,9 @@ fn counted_row_by_row(conn: &Connection) -> HashMap<Key, ChapterCounts> {
         .collect()
 }
 
-const NUMBERS: [&str; 14] = [
+const NUMBERS: [&str; 17] = [
     "1", "1.0", "01", " 2 ", "2.5", "2.50", "10", "1e1", "Oneshot", "", "  ", "inf", "NaN", "3",
+    "0", "-0", "-0.0",
 ];
 const AVAILABILITY: [&str; 3] = ["available", "locked", "external"];
 const GROUPS: [Option<&str>; 3] = [Some("A"), Some("B"), None];

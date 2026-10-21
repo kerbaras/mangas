@@ -31,24 +31,12 @@ pub struct ChapterMark {
 /// "12" and "12.0" are the same chapter; labels that aren't numbers compare as written, and a
 /// chapter without a number is only ever itself.
 fn number_key(mark: &ChapterMark) -> (bool, String) {
-    key_of(&mark.number, &mark.id)
-}
-
-fn key_of(number: &str, id: &str) -> (bool, String) {
-    match number.trim() {
-        "" => (true, id.to_string()),
+    match mark.number.trim() {
+        "" => (true, mark.id.clone()),
         n => (
             false,
             parse_number(n).map_or_else(|| n.to_string(), |v| v.to_string()),
         ),
-    }
-}
-
-/// [`number_key`] as one string, for the counts query: chapters with equal keys are one number.
-pub(crate) fn chapter_key(number: &str, id: &str) -> String {
-    match key_of(number, id) {
-        (true, id) => format!("id:{id}"),
-        (false, n) => format!("no:{n}"),
     }
 }
 
