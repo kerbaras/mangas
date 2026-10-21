@@ -25,7 +25,7 @@ import { useExportPlan } from "@/hooks/use-export-plan";
 import { useFreeNames } from "@/hooks/use-free-names";
 import { type Book, refused, runningVia, useSend } from "@/hooks/use-send";
 import { useSeriesTarget } from "@/hooks/use-series-target";
-import { booksToSend, exportJob } from "@/lib/export-job";
+import { booksToSend, exportJob, keptBooks } from "@/lib/export-job";
 import type { ExportPick } from "@/lib/export-name";
 import {
   type BundleMode,
@@ -74,8 +74,8 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
     detectorsUsable(detectors.status) && (detectorsOn ?? detectorsDefault(detectors.status));
   const planned = inFormat(plans, target.format);
   const { device, format, replace, quality, direction } = target;
-  const epoch = job.settled;
-  const { files, named, blocked } = useFreeNames(planned, folder.resolved, epoch, replace, splitMb);
+  const [epoch, kept, dir] = [job.settled, keptBooks(job.retry.kept), folder.resolved];
+  const { files, named, blocked } = useFreeNames(planned, dir, epoch, replace, splitMb, kept);
   const preview = { folder: folder.resolved, stale: !fresh || !named, blocked };
   const books = files.kind === "ready" ? files.data.length : 0;
   const oversized = job.state.kind === "done" ? oversizedOf(job.state.results) : [];
