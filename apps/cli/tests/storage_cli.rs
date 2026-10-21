@@ -77,6 +77,47 @@ fn moving_the_data_folder_switches_where_downloads_go() {
     assert!(usage.contains("big-disk"), "{usage}");
 }
 
+/// A refused move leaves no folder behind for its target, nor for the parents it would create.
+#[test]
+fn a_refused_move_creates_no_target_folder() {
+    let home = tempfile::tempdir().unwrap();
+    let reading = mangas_core::storage::hold_for_export(|| {
+        Ok::<_, mangas_core::Error>(home.path().join("data/mangas"))
+    })
+    .unwrap();
+    let to = home.path().join("new/deeper/elsewhere");
+    let out = mangas(home.path(), &["storage", "move", to.to_str().unwrap()]);
+    assert!(!out.status.success(), "{out:?}");
+    assert!(!home.path().join("new").exists(), "{out:?}");
+    drop(reading);
+
+    let existing = home.path().join("existing");
+    std::fs::create_dir(&existing).unwrap();
+    let reading = mangas_core::storage::hold_for_export(|| {
+        Ok::<_, mangas_core::Error>(home.path().join("data/mangas"))
+    })
+    .unwrap();
+    let out = mangas(
+        home.path(),
+        &["storage", "move", existing.to_str().unwrap()],
+    );
+    assert!(!out.status.success(), "{out:?}");
+    assert!(existing.is_dir(), "a folder that was there stays");
+    let through_parent = home.path().join("made/../existing");
+    let out = mangas(
+        home.path(),
+        &["storage", "move", through_parent.to_str().unwrap()],
+    );
+    assert!(!out.status.success(), "{out:?}");
+    assert!(existing.is_dir(), "{out:?}");
+    assert!(!home.path().join("made").exists(), "{out:?}");
+    drop(reading);
+
+    let out = mangas(home.path(), &["storage", "move", to.to_str().unwrap()]);
+    assert!(out.status.success(), "{out:?}");
+    assert!(to.is_dir());
+}
+
 #[test]
 fn backup_import_keeps_preferences_when_the_library_has_titles_unless_asked() {
     let (from, to) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());

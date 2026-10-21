@@ -7,7 +7,7 @@ use super::layout::DATA_SUBDIRS;
 use super::partial::{mark, prepare_target, unmark};
 use super::reading::{hold_for_move, EXPORT_LEASE_FILES};
 use super::relocate::{check_target, rebase};
-use super::tree::{empty_dir, list_files, FileEntry};
+use super::tree::{empty_dir, list_files, missing_dirs, remove_empty, FileEntry};
 use crate::domain::{Error, Result};
 use crate::library::{downloaded_chapters, get_settings, switch_data_dir, Library};
 use crate::ml::lease::{self, Purpose};
@@ -43,7 +43,8 @@ pub fn move_data_dir(
 }
 
 /// [`move_data_dir`]; with `replace_partial`, a partial copy a killed move left in `to` is
-/// deleted first and the move starts over there.
+/// deleted first and the move starts over there. Folders created for `to` go again when the
+/// move fails or is refused.
 pub fn move_data_dir_with(
     lib: &Library,
     from: &Path,
@@ -54,7 +55,10 @@ pub fn move_data_dir_with(
     // A download in any process (app or CLI) would keep writing into the old folder.
     use crate::download::queue::{hold_queue, MOVE_SETTLE};
     hold_queue(lib, MOVE_SETTLE, || {
+        // Under the hold, so no other move creates `to` in between.
+        let missing = missing_dirs(to);
         move_held(lib, from, to, replace_partial, on_progress)
+            .inspect_err(|_| remove_empty(&missing))
     })
 }
 

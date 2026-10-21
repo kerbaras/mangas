@@ -2,7 +2,7 @@
 //! folders are not followed.
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use crate::domain::Result;
 
@@ -107,4 +107,27 @@ pub(crate) fn empty_dir(dir: &Path, keep: &[&str]) -> Result<(usize, u64)> {
         }
     }
     Ok((files.len(), files.iter().map(|f| f.bytes).sum()))
+}
+
+/// `dir` and those of its ancestors that don't exist yet, deepest first. Only up to a `..`:
+/// once the folders before it exist, the rest may name a folder that was there all along.
+pub(crate) fn missing_dirs(dir: &Path) -> Vec<PathBuf> {
+    let plain: PathBuf = (dir.components())
+        .take_while(|c| *c != Component::ParentDir)
+        .collect();
+    plain
+        .ancestors()
+        .take_while(|d| !d.as_os_str().is_empty() && fs::symlink_metadata(d).is_err())
+        .map(Path::to_path_buf)
+        .collect()
+}
+
+/// Removes the folders in `dirs` (deepest first) that are empty; a folder something was put in
+/// since stays, and so do its ancestors.
+pub(crate) fn remove_empty(dirs: &[PathBuf]) {
+    for dir in dirs {
+        if fs::remove_dir(dir).is_err() && dir.exists() {
+            return;
+        }
+    }
 }
