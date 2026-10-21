@@ -3,6 +3,7 @@
 //! that doesn't resolve now won't in the next seconds, so these get one retry, not ten.
 
 use mangas_core::domain::Error;
+use mangas_core::download::unreached_through;
 use mangas_core::library::Network;
 use reqwest::Response;
 use url::Url;
@@ -56,7 +57,5 @@ pub(super) fn through_proxy(network: &Network, url: &str, what: &str) -> Error {
         .ok()
         .and_then(|u| u.host_str().map(str::to_string))
         .unwrap_or_else(|| url.to_string());
-    Error::Other(format!(
-        "network: {proxy} couldn't reach {host} ({what}); it may not resolve that name"
-    ))
+    unreached_through(&proxy, &host, what)
 }

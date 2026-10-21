@@ -12,7 +12,7 @@ use std::fmt;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use mangas_core::domain::Error;
-use mangas_core::download::{is_public_ip, unmapped};
+use mangas_core::download::{is_public_ip, unmapped, unresolved};
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use url::{Host, Url};
 
@@ -84,7 +84,7 @@ impl Refusal {
     pub(super) fn into_error(self, source: &str) -> Error {
         match self {
             Self::NonPublic { host, ip } => Error::BlockedAddress { host, ip },
-            Self::Unresolved { .. } => Error::Other(format!("network: {self}")),
+            Self::Unresolved { host, cause } => unresolved(&host, &cause),
             other => Error::Source {
                 name: source.to_string(),
                 message: other.to_string(),
