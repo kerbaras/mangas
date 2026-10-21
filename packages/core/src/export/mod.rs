@@ -11,6 +11,7 @@ pub mod pdf;
 pub mod preset;
 mod profiles;
 mod space;
+pub(crate) use space::is_out_of_space;
 mod spool;
 mod spool_file;
 pub mod target;

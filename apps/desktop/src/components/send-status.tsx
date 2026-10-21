@@ -2,7 +2,7 @@ import { RefreshCw, Usb } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import type { SendState, Via } from "@/hooks/use-send";
+import { refused, type SendState, type Via } from "@/hooks/use-send";
 import { megabytes } from "@/lib/send-labels";
 
 type Props = {
@@ -74,7 +74,7 @@ export function SendStatus({ state, via, onRetry }: Props) {
               {state.left && (state.sent || state.left.length > 1) && (
                 <p className="[overflow-wrap:anywhere]">Not sent: {state.left.join(", ")}</p>
               )}
-              {onRetry && (
+              {onRetry && !refused(state, state.via) && (
                 <Button size="sm" onClick={onRetry} className="mt-1">
                   <RefreshCw /> Retry
                 </Button>

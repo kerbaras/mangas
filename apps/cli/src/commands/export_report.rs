@@ -10,6 +10,7 @@ use mangas_core::library::ExportedChapter;
 use mangas_core::ml::DetectorReport;
 use serde::Serialize;
 
+use super::deliver::Unsent;
 use super::export_size::bytes;
 use crate::output::print_json;
 
@@ -59,6 +60,21 @@ pub struct PartNo {
 pub struct Item {
     pub path: PathBuf,
     pub reason: String,
+    /// The kind of failure a script can act on: `no_space` when the disk or the Kindle is full.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<&'static str>,
+}
+
+/// The class of a failure from the core's message ([`Error::NoSpace`], [`Error::DeviceFull`]),
+/// which starts with the line; a path later in the message can't class it.
+///
+/// [`Error::NoSpace`]: mangas_core::Error::NoSpace
+/// [`Error::DeviceFull`]: mangas_core::Error::DeviceFull
+pub fn error_class(error: &str) -> Option<&'static str> {
+    ["not enough space in ", "not enough space on "]
+        .iter()
+        .any(|line| error.starts_with(line))
+        .then_some("no_space")
 }
 
 /// Why a chapter folder is not in its book.
@@ -114,13 +130,24 @@ impl Report {
             .extend(stats.empty_chapters.iter().map(|dir| Item {
                 path: dir.clone(),
                 reason: EMPTY_CHAPTER.to_string(),
+                error: None,
             }));
     }
 
     pub fn fail(&mut self, book: &Path, reason: String) {
         self.failed.push(Item {
             path: book.to_path_buf(),
+            error: error_class(&reason),
             reason,
+        });
+    }
+
+    /// Adds a written book that wasn't sent, with its delivery error's class.
+    pub fn unsent(&mut self, book: &Path, unsent: &Unsent) {
+        self.failed.push(Item {
+            path: book.to_path_buf(),
+            reason: unsent.message.clone(),
+            error: unsent.class,
         });
     }
 
@@ -133,6 +160,7 @@ impl Report {
             .extend(outcome.not_written.iter().map(|p| Item {
                 path: p.output.clone(),
                 reason: NOT_STARTED.to_string(),
+                error: None,
             }));
     }
 
@@ -184,5 +212,27 @@ mod tests {
         std::fs::write(&book, b"older").unwrap();
         assert_eq!(planned_book(&book, false), dir.path().join("Book (2).epub"));
         assert_eq!(planned_book(&book, true), book);
+    }
+
+    #[test]
+    fn a_full_disk_or_kindle_is_classed_no_space() {
+        assert_eq!(
+            error_class("not enough space in /out: 3 MB needed"),
+            Some("no_space")
+        );
+        assert_eq!(error_class("io: Permission denied (os error 13)"), None);
+        assert_eq!(error_class("io: /not enough space in x: denied"), None);
+    }
+
+    #[test]
+    fn an_unsent_book_is_classed_by_its_error_not_its_path() {
+        use crate::commands::deliver::{not_sent, SendArg};
+        let book = Path::new("/a/B.epub was written but not sent: x/B.epub");
+        let full = anyhow::anyhow!("not enough space on Kindle at /media/k");
+        let unsent = not_sent(book, SendArg::Usb, None, &full);
+        assert_eq!(unsent.class, Some("no_space"));
+        let tricky = Path::new("/not enough space on k/B.epub");
+        let denied = anyhow::anyhow!("io: Permission denied (os error 13)");
+        assert_eq!(not_sent(tricky, SendArg::Usb, None, &denied).class, None);
     }
 }

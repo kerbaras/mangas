@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use mangas_core::export::kindle::ExportStats;
 use mangas_core::library::{self, Library};
 
-use super::deliver::{deliver, not_sent, SendArg};
+use super::deliver::{deliver, not_sent, SendArg, Unsent};
 use super::export_report::Recorded;
 use super::kindle_titles::spellings;
 use crate::output::outln;
@@ -17,7 +17,7 @@ use crate::{paths, Exit};
 pub struct Delivery {
     pub recorded: Vec<Recorded>,
     pub sent: Vec<String>,
-    pub failed: Vec<(PathBuf, String)>,
+    pub failed: Vec<(PathBuf, Unsent)>,
 }
 
 impl Delivery {
@@ -25,9 +25,9 @@ impl Delivery {
     pub fn result(&self) -> anyhow::Result<()> {
         let message = match self.failed.as_slice() {
             [] => return Ok(()),
-            [(_, message)] => message.clone(),
+            [(_, unsent)] => unsent.message.clone(),
             many => {
-                many.iter().for_each(|(_, m)| eprintln!("{m}"));
+                many.iter().for_each(|(_, u)| eprintln!("{}", u.message));
                 format!("{} parts were written but not sent", many.len())
             }
         };

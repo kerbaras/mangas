@@ -8,6 +8,7 @@ use mangas_core::library::{self, Library};
 use mangas_core::send::password;
 use mangas_core::send::{email, usb, SendVia};
 
+use super::export_report::error_class;
 use super::settings_email::warn_unencrypted;
 use crate::Exit;
 
@@ -104,30 +105,44 @@ pub async fn try_deliver(
     title: &str,
     via: SendArg,
     kindle: Option<&Path>,
-) -> Result<String, String> {
+) -> Result<String, Unsent> {
     let e = match deliver(lib, file, title, via, kindle).await {
         Ok(line) => return Ok(line),
         Err(e) => e,
     };
-    let message = not_sent(file, via, kindle, &e);
-    eprintln!("{message}");
-    Err(message)
+    let unsent = not_sent(file, via, kindle, &e);
+    eprintln!("{}", unsent.message);
+    Err(unsent)
+}
+
+/// Between the file and the error in a [`not_sent`] line.
+pub const NOT_SENT: &str = " was written but not sent: ";
+
+/// A written book that wasn't sent: the [`not_sent`] line, and the class of its error (classed
+/// from the error itself, so no path in the line can change it).
+pub struct Unsent {
+    pub message: String,
+    pub class: Option<&'static str>,
 }
 
 /// "<file> was written but not sent: <why>", with the command that sends that same file again:
 /// retrying a delivery never exports the book again. `kindle` is the USB mount it was sent to.
-pub fn not_sent(file: &Path, via: SendArg, kindle: Option<&Path>, e: &anyhow::Error) -> String {
+pub fn not_sent(file: &Path, via: SendArg, kindle: Option<&Path>, e: &anyhow::Error) -> Unsent {
     let via = match (via, kindle) {
         (SendArg::Email, _) => "email".to_string(),
         (SendArg::Usb, None) => "usb".to_string(),
         (SendArg::Usb, Some(mount)) => format!("usb --kindle \"{}\"", mount.display()),
     };
-    format!(
-        "{} was written but not sent: {}\n  send it again with: mangas send --via {via} \"{}\"",
+    let why = crate::exit::describe(e);
+    let message = format!(
+        "{}{NOT_SENT}{why}\n  send it again with: mangas send --via {via} \"{}\"",
         file.display(),
-        crate::exit::describe(e),
         file.display()
-    )
+    );
+    Unsent {
+        class: error_class(&why),
+        message,
+    }
 }
 
 /// Exit code 2 when some written books weren't sent (each was named as it failed).

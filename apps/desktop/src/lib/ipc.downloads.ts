@@ -82,14 +82,17 @@ export const isRefused = (error: string | null | undefined) =>
 export const NO_ROOT_CERTIFICATES = "no CA certificates found";
 /** `mangas_core::Error::NoSpace`: an export filled the disk; it removed what it wrote. */
 export const NO_SPACE = "not enough space in ";
+/** `mangas_core::Error::DeviceFull`: a USB copy filled the Kindle; the partial book was removed. */
+export const DEVICE_FULL = "not enough space on ";
 /** A failure a retry cannot fix: the source no longer has the chapter, its host is refused, the
- * system has no root certificates, or the export folder's disk is full. */
+ * system has no root certificates, or the export folder's disk or the Kindle is full. */
 export const isFinalError = (error: string) =>
   error.includes(UNLISTED) ||
   error.startsWith("not found") ||
   isRefused(error) ||
   error.includes(NO_ROOT_CERTIFICATES) ||
-  error.startsWith(NO_SPACE);
+  error.startsWith(NO_SPACE) ||
+  error.startsWith(DEVICE_FULL);
 
 export type DownloadsBackend = {
   /** Every job in queue order. */

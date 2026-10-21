@@ -164,8 +164,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     done.print_sent(args.json)?;
     if args.json {
         report.recorded.clone_from(&done.recorded);
-        for (file, why) in &done.failed {
-            report.fail(file, why.clone());
+        for (file, unsent) in &done.failed {
+            report.unsent(file, unsent);
         }
         report.print()?;
     }
