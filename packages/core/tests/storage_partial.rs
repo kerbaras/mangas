@@ -181,6 +181,7 @@ fn a_move_elsewhere_waits_until_the_partial_copy_is_removed() {
     let second = tmp.path().join("second");
     let err = move_data_dir(&lib, &f.data_dir, &second, &mut |_| {}).unwrap_err();
     assert!(err.to_string().contains("first"), "{err}");
+    assert!(!second.exists(), "a refused move leaves no folder behind");
     assert!(usage(&lib, &f).unwrap().partial_move.is_some());
     remove_leftover_copy(&lib, &f.data_dir).unwrap().unwrap();
     move_data_dir(&lib, &f.data_dir, &second, &mut |_| {}).unwrap();
