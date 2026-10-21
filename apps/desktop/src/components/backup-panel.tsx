@@ -21,12 +21,12 @@ export function BackupPanel() {
         ? ` ${plural(summary.skipped_local, "imported title was", "imported titles were")} left out: their files aren't part of a backup.`
         : "";
       toast.success("Backup saved", {
-        id: "backup-save",
+        id: `backup-save-${path}`,
         action: null,
         description: `${plural(summary.titles, "title")} in ${path}.${local}`,
       });
     } catch (e: unknown) {
-      notifyError("Couldn't save the backup", e, { id: "backup-save" });
+      notifyError("Couldn't save the backup", e, { id: `backup-save-${path}` });
     }
   };
 

@@ -34,7 +34,7 @@ describe("notifyError", () => {
       { retry, id: "d" },
     );
     notifyError("Download failed", new Error("network: dns error: no such host"), { retry });
-    expect(error.mock.calls[0]?.[1].action).toBeUndefined();
+    expect(error.mock.calls[0]?.[1].action).toBeNull();
     expect(error.mock.calls[1]?.[1].action?.label).toBe("Retry");
   });
 });

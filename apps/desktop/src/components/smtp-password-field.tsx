@@ -48,7 +48,8 @@ export async function clearSmtpPassword(): Promise<boolean> {
     await loadSettings();
     return true;
   } catch (e: unknown) {
-    notifyError("Couldn't clear the SMTP password", e);
+    // The Kindle reset's own toast id, so a later successful reset replaces this failure.
+    notifyError("Couldn't clear the SMTP password", e, { id: "settings-reset-Kindle" });
     return false;
   }
 }
