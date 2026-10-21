@@ -8,6 +8,7 @@ import { revealFolder } from "@/lib/dialogs";
 import { describeError } from "@/lib/errors";
 import { parentDir } from "@/lib/export-name";
 import { combineResults, exportSummary } from "@/lib/export-summary";
+import { ioRest } from "@/lib/io-hint";
 import { isFinalError } from "@/lib/ipc.downloads";
 
 /** Export progress, its failure with "Try again" (`onRetry` exports again), or what it wrote. */
@@ -40,7 +41,8 @@ export function ExportProgressPanel({
   }
   if (state.kind === "error") {
     const final = isFinalError(state.message);
-    const { hint } = describeError(state.message);
+    const { hint } = describeError(state.message, { export: state.folder });
+    const io = ioRest(state.message) !== null;
     return (
       <div
         className="rounded-md border border-accent/40 bg-accent-soft/40 p-3 text-body"
@@ -48,7 +50,7 @@ export function ExportProgressPanel({
       >
         <p className="font-medium text-accent-text">Export failed</p>
         <p className="mt-1 text-ink-2 [overflow-wrap:anywhere]">{state.message}</p>
-        {final && hint && <p className="mt-1 text-ink-2">{hint}</p>}
+        {(final || io) && hint && <p className="mt-1 text-ink-2">{hint}</p>}
         {!final && (
           <Button size="sm" className="mt-3" disabled={!canRetry} onClick={onRetry}>
             Try again

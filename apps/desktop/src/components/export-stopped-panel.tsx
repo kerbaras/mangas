@@ -4,6 +4,7 @@ import { revealFolder } from "@/lib/dialogs";
 import { describeError } from "@/lib/errors";
 import { parentDir } from "@/lib/export-name";
 import type { ExportStopped } from "@/lib/export-stopped";
+import { ioRest } from "@/lib/io-hint";
 import type { ExportResult } from "@/lib/ipc";
 import { isFinalError } from "@/lib/ipc.downloads";
 
@@ -29,7 +30,8 @@ export function ExportStoppedPanel({
   const { results, failed, notWritten } = stopped;
   const folder = parentDir(failed.output);
   const final = isFinalError(failed.reason);
-  const { hint } = describeError(failed.reason);
+  const { hint } = describeError(failed.reason, { export: folder });
+  const io = ioRest(failed.reason) !== null;
   return (
     <div
       className="rounded-md border border-accent/40 bg-accent-soft/40 p-3 text-body"
@@ -52,7 +54,7 @@ export function ExportStoppedPanel({
           Not written: {notWritten.map((b) => fileName(b.output)).join(", ")}.
         </p>
       )}
-      {final && hint && <p className="mt-1 text-ink-2">{hint}</p>}
+      {(final || io) && hint && <p className="mt-1 text-ink-2">{hint}</p>}
       <div className="mt-3 flex gap-2">
         {!final && (
           <Button size="sm" disabled={!canRetry} onClick={onReset}>

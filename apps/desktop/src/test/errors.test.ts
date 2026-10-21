@@ -56,11 +56,11 @@ describe("describeError", () => {
     const host = "refused: cdn.example resolves to a non-public address 10.0.0.1";
     const literal = "refused: 10.0.0.1 resolves to a non-public address 10.0.0.1";
     const final = "The image host points at a local or private address, so the app won't fetch it.";
-    expect(describeError(host, true).hint).toBe(
+    expect(describeError(host, { proxied: true }).hint).toBe(
       "The image host points at a private address. Retry fetches it through the configured proxy.",
     );
     expect(describeError(host).hint).toBe(final);
-    expect(describeError(literal, true).hint).toBe(final);
+    expect(describeError(literal, { proxied: true }).hint).toBe(final);
   });
   it("never returns an empty detail", () => {
     expect(describeError("  ").detail).toBe("Unknown error");
