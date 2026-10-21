@@ -66,14 +66,18 @@ pub struct Item {
 }
 
 /// The class of `book`'s failure from the core's message ([`Error::NoSpace`],
-/// [`Error::DeviceFull`]): the message itself, or the error after `<book>`[`NOT_SENT`], must
-/// start with the line, so a path that holds those words doesn't class (or hide) a failure.
+/// [`Error::DeviceFull`]): the message itself, or the error after `<book's name>`[`NOT_SENT`]
+/// (the sent path may be absolute where `book` is relative), must start with the line, so a
+/// path that holds those words doesn't class (or hide) a failure.
 ///
 /// [`Error::NoSpace`]: mangas_core::Error::NoSpace
 /// [`Error::DeviceFull`]: mangas_core::Error::DeviceFull
 pub fn error_class(book: &Path, reason: &str) -> Option<&'static str> {
-    let unsent = format!("{}{NOT_SENT}", book.display());
-    let error = reason.strip_prefix(&unsent).unwrap_or(reason);
+    let name = book.file_name().unwrap_or_default().to_string_lossy();
+    let unsent = format!("{name}{NOT_SENT}");
+    let error = reason
+        .find(&unsent)
+        .map_or(reason, |at| &reason[at + unsent.len()..]);
     ["not enough space in ", "not enough space on "]
         .iter()
         .any(|line| error.starts_with(line))
@@ -213,6 +217,7 @@ mod tests {
         let class = |book: &str, reason: &str| error_class(Path::new(book), reason);
         let sent = "/b/A.epub was written but not sent: not enough space on Kindle at /media/k";
         assert_eq!(class("/b/A.epub", sent), Some("no_space"));
+        assert_eq!(class("b/A.epub", sent), Some("no_space"));
         let full = "not enough space in /out was written but not sent: x";
         assert_eq!(
             class("/out was written but not sent: x/A.epub", full),
