@@ -14,9 +14,21 @@ export type ExportState =
   | { kind: "error"; message: string }
   | { kind: "stopped"; stopped: ExportStopped };
 
+type Options = {
+  /** Whether the export dialog shows the failure inline; a toast reports it only otherwise. */
+  visible?: () => boolean;
+};
+
 /** Runs one export job (one or more books) and follows its progress events. */
-export function useExport() {
+export function useExport({ visible = () => false }: Options = {}) {
   const [state, setState] = useState<ExportState>({ kind: "idle" });
+  const shown = useRef(visible);
+  shown.current = visible;
+  /** One surface for a failure: the dialog's panel while it is open, else a toast. */
+  const report = useCallback((title: string, e: unknown) => {
+    if (shown.current()) toast.dismiss("export");
+    else notifyError(title, e, { id: "export" });
+  }, []);
   const running = useRef(false);
   const [throttle] = useState(() =>
     throttleProgress((progress) => {
@@ -59,18 +71,18 @@ export function useExport() {
       } catch (e) {
         if (e instanceof ExportStopped) {
           setState({ kind: "stopped", stopped: e });
-          notifyError("Export stopped", e, { id: "export" });
+          report("Export stopped", e);
           return e.results.length ? e.results : null;
         }
         setState({ kind: "error", message: errorMessage(e) });
-        notifyError("Export failed", e, { id: "export" });
+        report("Export failed", e);
         return null;
       } finally {
         running.current = false;
         throttle.reset();
       }
     },
-    [throttle],
+    [throttle, report],
   );
 
   const reset = useCallback(() => setState({ kind: "idle" }), []);
