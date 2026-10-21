@@ -1,4 +1,4 @@
-import { Link2, Loader2 } from "lucide-react";
+import { Hourglass, Link2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { RetryButton } from "@/components/error-alert";
 import { Hint } from "@/components/hint";
@@ -68,7 +68,7 @@ export function SearchGroupView({
       </header>
       {!group && (
         <Note>
-          <Loader2 className="size-3.5 animate-spin" /> Searching…
+          <Hourglass aria-hidden className="size-3.5" /> Searching…
         </Note>
       )}
       {group?.status.state === "needs_session" && (

@@ -1,4 +1,4 @@
-import { FileArchive, FolderInput, Import, Loader2 } from "lucide-react";
+import { FileArchive, FolderInput, Import } from "lucide-react";
 import { HeaderAction } from "@/components/header-action";
 import {
   DropdownMenu,
@@ -10,14 +10,18 @@ import type { ImportKind } from "@/lib/dialogs";
 
 type Props = { busy: boolean; onPick: (kind: ImportKind) => void };
 
+/** Library header Import menu. While importing it reads "Importing…" with a still icon: an
+ * endless spin keeps WebKitGTK repainting the window without a GPU for the whole import. */
 export function ImportMenu({ busy, onPick }: Props) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <HeaderAction
-          icon={busy ? <Loader2 className="animate-spin" /> : <Import />}
-          label="Import"
+          icon={<Import />}
+          label={busy ? "Importing…" : "Import"}
+          keepLabel={busy}
           disabled={busy}
+          aria-busy={busy}
         />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

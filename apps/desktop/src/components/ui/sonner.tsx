@@ -1,12 +1,18 @@
+import { Hourglass } from "lucide-react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
-/** shadcn's sonner Toaster on the app tokens; follows the OS colour scheme like the rest. */
+/**
+ * shadcn's sonner Toaster on the app tokens; follows the OS colour scheme like the rest. Loading
+ * toasts (an import, a Connect window) get a still hourglass, not sonner's spinner: an endless
+ * spin keeps WebKitGTK repainting without a GPU for as long as the wait lasts.
+ */
 export function Toaster(props: ToasterProps) {
   return (
     <Sonner
       theme="system"
       position="bottom-right"
       closeButton
+      icons={{ loading: <Hourglass className="size-4 text-ink-3" /> }}
       className="toaster group"
       style={
         {

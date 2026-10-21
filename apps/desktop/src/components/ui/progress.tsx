@@ -5,14 +5,15 @@ import { cn } from "@/lib/cn";
 type Props = ComponentProps<typeof ProgressPrimitive.Root> & {
   value: number;
   max?: number;
-  /** Off for bars that are not moving (paused, queued, stalled): no pulse. */
+  /** Off for bars that are not moving (paused, queued, stalled): no busy third. */
   animated?: boolean;
 };
 
 /**
- * Indeterminate (no value, pulsing third while `animated`) until `max` is known (not 0). The fill
+ * Indeterminate (no value, a static third while `animated`) until `max` is known (not 0). The fill
  * scales instead of changing width, so a moving bar never triggers layout, and steps without a
- * transition: WebKitGTK without a GPU repaints the window on every animation frame (#115).
+ * transition or pulse: WebKitGTK without a GPU repaints the window on every animation frame
+ * (#115), and a pulsing bar kept the webview at ~350% CPU while visible (#302).
  */
 export function Progress({ className, value, max = 100, animated = true, ...props }: Props) {
   const known = max > 0;
@@ -26,10 +27,7 @@ export function Progress({ className, value, max = 100, animated = true, ...prop
       {...props}
     >
       <ProgressPrimitive.Indicator
-        className={cn(
-          "h-full w-full origin-left bg-accent will-change-transform",
-          animated && !known && "animate-pulse",
-        )}
+        className="h-full w-full origin-left bg-accent will-change-transform"
         style={{ transform: `scaleX(${pct / 100})` }}
       />
     </ProgressPrimitive.Root>
