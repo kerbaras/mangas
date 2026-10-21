@@ -61,7 +61,7 @@ export function ExportProgressPanel({
     return (
       <ExportStoppedPanel
         stopped={state.stopped}
-        kept={state.kept}
+        kept={state.before.kept}
         onReset={onRetry}
         canRetry={canRetry}
       />

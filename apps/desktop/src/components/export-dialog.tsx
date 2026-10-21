@@ -20,7 +20,7 @@ import {
 import { VolumePreview } from "@/components/volume-preview";
 import { useClearOnChange } from "@/hooks/use-clear-on-change";
 import { useDetectorSupport } from "@/hooks/use-detector-support";
-import { retryOf, useExport } from "@/hooks/use-export";
+import { useExport } from "@/hooks/use-export";
 import { useExportPlan } from "@/hooks/use-export-plan";
 import { useFreeNames } from "@/hooks/use-free-names";
 import { type Book, refused, runningVia, useSend } from "@/hooks/use-send";
@@ -110,7 +110,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   useClearOnChange(via, busy, keepFailed, true);
 
   const run = async () => {
-    send.reset();
+    if (!job.retry.skip) send.reset();
     const results = await job.run(
       exportJob({
         picks,
@@ -126,12 +126,12 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
         quality: target.quality,
         splitMb,
         direction,
-        only: retryOf(job.state).only,
+        skip: job.retry.skip,
       }),
     );
     if (!results) return;
     onExported?.(results);
-    const sent = results.flatMap(booksOf);
+    const sent = [...(job.retry.skip ? send.unsent() : []), ...results.flatMap(booksOf)];
     setWritten(sent);
     // A book over the email limit on disk is never emailed: the alert offers the split.
     if (via === "email" && oversizedOf(results).length > 0) return;

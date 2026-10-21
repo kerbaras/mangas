@@ -11,19 +11,22 @@ export type ExportState =
   | { kind: "idle" }
   | { kind: "running"; progress: ExportProgress | null }
   | { kind: "done"; results: ExportResult[]; kept?: ExportResult[] }
-  | { kind: "error"; message: string }
-  | { kind: "stopped"; stopped: ExportStopped; kept?: ExportResult[] };
+  | { kind: "error"; message: string; before?: Retry }
+  | { kind: "stopped"; stopped: ExportStopped; before: Retry };
 
 /**
- * What "Try again" after a stopped run writes: only the failed book and the ones after it
- * (`only`, by title). The books written before are `kept`, reported as already there instead of
- * written again as ` (2)` copies.
+ * What "Try again" skips: the planned books that earlier stopped runs wrote (`skip`; a run stops
+ * at its first failure, so they lead the plan), reported as `kept` instead of written again as
+ * ` (2)` copies. A plain failure in between writes nothing, so it keeps them for the next try.
  */
-export function retryOf(state: ExportState): { only: string[] | null; kept: ExportResult[] } {
-  if (state.kind !== "stopped") return { only: null, kept: [] };
-  const { failed, notWritten, results } = state.stopped;
-  const only = [failed.title, ...notWritten.map((b) => b.title)];
-  return { only, kept: [...(state.kept ?? []), ...results] };
+export type Retry = { skip: number; kept: ExportResult[] };
+const FRESH: Retry = { skip: 0, kept: [] };
+
+export function retryOf(state: ExportState): Retry {
+  if (state.kind === "error") return state.before ?? FRESH;
+  if (state.kind !== "stopped") return FRESH;
+  const { before, stopped } = state;
+  return { skip: before.skip + stopped.results.length, kept: [...before.kept, ...stopped.results] };
 }
 
 type Options = {
@@ -50,7 +53,7 @@ export function useExport({ visible = () => false }: Options = {}) {
   }, []);
   const current = useRef(state);
   current.current = state;
-  /** Runs that finished or failed; one that stopped keeps the books it wrote for "Try again". */
+  /** Runs that finished; one that stopped or failed keeps the books written for "Try again". */
   const [settled, setSettled] = useState(0);
   const running = useRef(false);
   const [throttle] = useState(() =>
@@ -83,24 +86,23 @@ export function useExport({ visible = () => false }: Options = {}) {
    */
   const run = useCallback(
     async (job: () => Promise<ExportResult[]>) => {
-      const { kept } = retryOf(current.current);
+      const before = retryOf(current.current);
       running.current = true;
       throttle.reset();
       setState({ kind: "running", progress: null });
       try {
         const results = await job();
-        setState({ kind: "done", results, kept });
+        setState({ kind: "done", results, kept: before.kept });
         setSettled((n) => n + 1);
         notifyExported(combineResults(results));
         return results;
       } catch (e) {
         if (e instanceof ExportStopped) {
-          setState({ kind: "stopped", stopped: e, kept });
+          setState({ kind: "stopped", stopped: e, before });
           report("Export stopped", e);
           return e.results.length ? e.results : null;
         }
-        setState({ kind: "error", message: errorMessage(e) });
-        setSettled((n) => n + 1);
+        setState({ kind: "error", message: errorMessage(e), before });
         report("Export failed", e);
         return null;
       } finally {
@@ -112,5 +114,5 @@ export function useExport({ visible = () => false }: Options = {}) {
   );
 
   const reset = useCallback(() => setState({ kind: "idle" }), []);
-  return { state, run, reset, settled };
+  return { state, run, reset, settled, retry: retryOf(state) };
 }
