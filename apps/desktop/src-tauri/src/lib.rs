@@ -33,6 +33,12 @@ pub fn run() {
             if fresh {
                 first_run::mark_setup_pending();
             }
+            if let (Ok(url), Ok(out)) = (
+                std::env::var("MANGAS_SCRATCH_CONNECT_URL"),
+                std::env::var("MANGAS_SCRATCH_OUT"),
+            ) {
+                commands::scratch_connect(app.handle(), &url, out.into());
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

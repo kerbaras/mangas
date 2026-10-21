@@ -195,3 +195,57 @@ fn link_cli(exe: &std::path::Path) -> Result<String, String> {
         exe.display()
     ))
 }
+
+/// SCRATCH ONLY (never merged): opens a Connect window on `url` under `connect_window::watch`
+/// and writes when the wait ends to `out`, for the #284 runner proof.
+pub fn scratch_connect(app: &tauri::AppHandle, url: &str, out: std::path::PathBuf) {
+    use std::io::Write;
+    use tauri::Listener;
+    let started = std::time::Instant::now();
+    let log = move |line: String| {
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&out)
+        {
+            let _ = writeln!(f, "{line}");
+        }
+    };
+    let on_event = log.clone();
+    app.listen(connect_window::CONNECT_EVENT, move |e| {
+        let ms = started.elapsed().as_millis();
+        on_event(format!("event after {ms} ms: {}", e.payload()));
+        if e.payload().contains("\"closed\"") {
+            std::process::exit(0);
+        }
+    });
+    let window = match url.parse() {
+        Ok(u) => {
+            tauri::WebviewWindowBuilder::new(app, "connect-scratch", tauri::WebviewUrl::External(u))
+                .incognito(true)
+                .build()
+        }
+        Err(e) => {
+            log(format!("bad url: {e}"));
+            std::process::exit(3)
+        }
+    };
+    match window {
+        Ok(w) => {
+            log(format!(
+                "window opened after {} ms on {url}",
+                started.elapsed().as_millis()
+            ));
+            connect_window::watch(&w, "scratch");
+        }
+        Err(e) => {
+            log(format!("window not opened: {e}"));
+            std::process::exit(4)
+        }
+    }
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(20));
+        log("TIMEOUT: still waiting after 20 s".to_string());
+        std::process::exit(2)
+    });
+}
