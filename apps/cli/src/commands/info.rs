@@ -2,6 +2,7 @@ use clap::Args as ClapArgs;
 use mangas_core::domain::{Manga, MangaId, MangaStatus};
 use mangas_core::library;
 
+use super::followed::source_or_default;
 use super::source_by_name;
 use crate::paths;
 
@@ -9,17 +10,19 @@ use crate::paths;
 pub struct Args {
     /// Manga id on the source (see `mangas search` or `mangas list`)
     pub id: String,
-    #[arg(long, default_value = "mangadex")]
-    pub source: String,
+    /// Source of the title [default: the one your library follows it on, else mangadex]
+    #[arg(long)]
+    pub source: Option<String>,
 }
 
 /// The stored record when the manga is followed, otherwise the source's details.
 pub async fn run(args: Args) -> anyhow::Result<()> {
     let id = MangaId(args.id);
     let lib = library::open(&paths::library_db()?)?;
-    let manga = match library::get_manga(&lib, &args.source, &id)? {
+    let source = source_or_default(&lib, &id, args.source.as_deref())?;
+    let manga = match library::get_manga(&lib, &source, &id)? {
         Some(stored) => stored,
-        None => source_by_name(&args.source)?.manga(&id).await?,
+        None => source_by_name(&source)?.manga(&id).await?,
     };
     println!("{}", describe(&manga));
     Ok(())

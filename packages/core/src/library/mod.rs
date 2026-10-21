@@ -59,7 +59,7 @@ pub use languages::{
     in_languages, parse_languages, prefer_languages, requested_languages, validate_languages,
 };
 pub(crate) use manga_repo::list_manga_with_added;
-pub use manga_repo::{get_manga, list_manga, remove_manga, upsert_manga};
+pub use manga_repo::{followed_sources, get_manga, list_manga, remove_manga, upsert_manga};
 pub use pending_move::{pending_move, set_pending_move};
 pub use reading_status::{set_reading_status, ReadingStatus};
 pub use refresh::{refresh_from_source, Refreshed};

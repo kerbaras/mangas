@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::bail;
 use clap::Args as ClapArgs;
+use mangas_core::domain::MangaId;
 use mangas_core::export::kindle::{check_export_folder, ExportStats};
 use mangas_core::export::volume::{self, VolumeOutcome};
 use mangas_core::export::{ExportPreset, Format};
@@ -15,6 +16,7 @@ use super::export_plans::plans;
 use super::export_preset::{self, PresetAction};
 use super::export_report::Report;
 use super::export_size::{warn_too_big, written_pages};
+use super::followed::followed_source;
 use super::kindle_record;
 use super::{export_progress::export_printing, hint, stored_settings};
 use crate::output::outln;
@@ -25,8 +27,9 @@ use crate::paths;
 pub struct Args {
     /// Manga id on the source (see `mangas list`)
     pub manga_id: String,
-    #[arg(long, default_value = "mangadex")]
-    pub source: String,
+    /// Source of the title [default: the one your library follows it on]
+    #[arg(long)]
+    pub source: Option<String>,
     /// Export one volume, as numbered by the provider
     #[arg(long)]
     pub volume: Option<String>,
@@ -82,18 +85,20 @@ pub struct Args {
 pub async fn run(args: Args) -> anyhow::Result<()> {
     let lib = library::open(&paths::library_db()?)?;
     let explicit = args.cut.explicit(args.format.map(Format::from))?;
+    let id = MangaId(args.manga_id.clone());
+    let source = followed_source(&lib, &id, args.source.as_deref())?;
     if let Some(action) = args.preset {
-        return export_preset::manage(&lib, &args.source, &args.manga_id, action, &explicit);
+        return export_preset::manage(&lib, &source, &args.manga_id, action, &explicit);
     }
     // Before the chapter folders are looked up: a data-folder move can't start under the export.
     let _reading = storage::hold_for_export(paths::data_dir)?;
-    let src = volume::load(&lib, &args.source, &args.manga_id, None)?;
+    let src = volume::load(&lib, &source, &args.manga_id, None)?;
     let plans = volume::one_file_each(plans(&args, &src.manga, &src.chapters)?, args.replace);
     if plans.is_empty() {
-        let list = hint(&format!("chapters {}", args.manga_id), &args.source);
+        let list = hint(&format!("chapters {}", args.manga_id), &source);
         bail!("nothing to export: no downloaded chapters match (see {list})");
     }
-    let series = library::get_export_preset(&lib, &args.source, &args.manga_id)?;
+    let series = library::get_export_preset(&lib, &source, &args.manga_id)?;
     let stored = stored_settings();
     let fallback = ExportPreset::from_settings(&stored);
     let preset = ExportPreset::resolve(&explicit, series.as_ref(), &fallback)

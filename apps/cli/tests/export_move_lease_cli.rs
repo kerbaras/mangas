@@ -4,6 +4,8 @@
 use std::path::Path;
 use std::process::{Command, Output};
 
+use mangas_core::domain::{Manga, MangaId};
+use mangas_core::library;
 use mangas_core::ml::lease::{acquire_at, Purpose};
 use mangas_core::storage::{hold_for_export, EXPORT_LEASE};
 
@@ -39,8 +41,30 @@ fn a_move_is_refused_while_an_export_reads_chapters() {
 #[test]
 fn an_export_is_refused_while_the_data_folder_moves_before_it_reads_a_chapter() {
     let home = tempfile::tempdir().unwrap();
+    // The title must be followed on `--source` for the library lookup to pass before the lease
+    // is checked; the lookup reads only the library, never a chapter.
+    std::fs::create_dir_all(data(home.path())).unwrap();
+    let lib = library::open(&data(home.path()).join("mangas.db")).unwrap();
+    let manga = Manga {
+        id: MangaId("any-series".into()),
+        source: "mangadex".into(),
+        title: "Any series".into(),
+        ..Default::default()
+    };
+    library::upsert_manga(&lib, &manga).unwrap();
+    drop(lib);
     let moving = acquire_at(&data(home.path()), EXPORT_LEASE, Purpose::Move).unwrap();
-    let out = mangas(home.path(), &["export", "any-series", "-o", "/nonexistent"]);
+    let out = mangas(
+        home.path(),
+        &[
+            "export",
+            "any-series",
+            "--source",
+            "mangadex",
+            "-o",
+            "/nonexistent",
+        ],
+    );
     assert!(!out.status.success(), "{out:?}");
     let err = String::from_utf8_lossy(&out.stderr);
     assert!(err.contains("the data folder is moving"), "{err}");
