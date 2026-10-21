@@ -8,12 +8,17 @@ const LISTED: usize = 3;
 
 /// `failed` holds the 1-based index and error of every page that could not be fetched. A
 /// browser verification wins over the count: the app turns it into a "Connect" prompt. A
-/// refused address or a system without root certificates comes next: both are final, so the queue
+/// refused address, a refused certificate or a system without root certificates comes next: both are final, so the queue
 /// must not retry the chapter. When every failed page is a host that can't be looked up, the
 /// first one's error leads, so the queue fails the chapter at once ([`is_unresolved`]).
 pub fn incomplete(mut failed: Vec<(usize, Error)>, total: usize) -> Error {
     let challenge = |e: &Error| matches!(e, Error::Challenge { .. });
-    let blocked = |e: &Error| matches!(e, Error::BlockedAddress { .. } | Error::NoRootCertificates);
+    let blocked = |e: &Error| {
+        matches!(
+            e,
+            Error::BlockedAddress { .. } | Error::NoRootCertificates | Error::Certificate { .. }
+        )
+    };
     let first = |wanted: &dyn Fn(&Error) -> bool| failed.iter().position(|(_, e)| wanted(e));
     if let Some(at) = first(&challenge).or_else(|| first(&blocked)) {
         return failed.swap_remove(at).1;

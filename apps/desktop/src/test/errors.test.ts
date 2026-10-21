@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { crashReport, describeError } from "@/lib/errors";
 import { isFinalError } from "@/lib/ipc.downloads";
+import { statusBadge } from "@/lib/providers";
 
 describe("describeError", () => {
   it("explains network errors and keeps the raw message", () => {
@@ -17,6 +18,23 @@ describe("describeError", () => {
     expect(info.detail).toBe(message);
     expect(isFinalError(message)).toBe(true);
     expect(isFinalError("network: connection reset by peer")).toBe(false);
+  });
+  it("names a refused certificate, without the connection hint, and makes it final (#285)", () => {
+    const message =
+      "network: the certificate of comick.live couldn't be verified (self-signed or from an unknown authority)";
+    const info = describeError(message);
+    expect(info.hint).toBe(
+      "comick.live answered, but its certificate couldn't be verified: self-signed or from an unknown authority.",
+    );
+    expect(info.hint).not.toMatch(/connection/);
+    expect(isFinalError(message)).toBe(true);
+    expect(statusBadge({ state: "unreachable", reason: message }).label).toBe(
+      "Certificate refused",
+    );
+    expect(statusBadge({ state: "unreachable", reason: "network: timed out" }).label).toBe(
+      "Unreachable",
+    );
+    expect(isFinalError(`incomplete chapter: 1 of 3 pages failed (page 2: ${message})`)).toBe(true);
   });
   it("flags challenge errors", () => {
     const info = describeError("challenge: mangadot needs a browser session for https://m");

@@ -3,6 +3,8 @@
 
 use std::error::Error as StdError;
 
+use super::CertProblem;
+
 /// What the user sees when no TLS client can be built for lack of root certificates.
 pub const NO_ROOT_CERTIFICATES: &str = "no CA certificates found on this system, so secure \
      connections can't be checked; install the ca-certificates package (e.g. `sudo apt install \
@@ -30,9 +32,13 @@ pub fn system_has_root_certificates() -> bool {
 
 /// Why a page failed TLS in a webview (the Connect window): the missing store when the system
 /// has no roots, else the certificate problem WebKit reported for `host`.
-pub fn webview_tls_failure(host: &str, problem: &str, has_roots: bool) -> String {
+pub fn webview_tls_failure(host: &str, problem: &CertProblem, has_roots: bool) -> String {
     if has_roots {
-        format!("network: the certificate of {host} couldn't be verified ({problem})")
+        super::Error::Certificate {
+            host: host.to_string(),
+            problem: problem.clone(),
+        }
+        .to_string()
     } else {
         NO_ROOT_CERTIFICATES.to_string()
     }
@@ -57,10 +63,10 @@ mod tests {
     #[test]
     fn webview_tls_failure_names_the_empty_store_or_the_certificate() {
         assert_eq!(
-            webview_tls_failure("comick.io", "unknown CA", false),
+            webview_tls_failure("comick.io", &CertProblem::UnknownIssuer, false),
             NO_ROOT_CERTIFICATES
         );
-        let bad = webview_tls_failure("comick.io", "expired", true);
+        let bad = webview_tls_failure("comick.io", &CertProblem::Expired, true);
         assert_eq!(
             bad,
             "network: the certificate of comick.io couldn't be verified (expired)"

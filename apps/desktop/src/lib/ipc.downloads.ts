@@ -96,15 +96,24 @@ export const NO_ROOT_CERTIFICATES = "no CA certificates found";
 export const NO_SPACE = "not enough space in ";
 /** `mangas_core::Error::DeviceFull`: a USB copy filled the Kindle; the partial book was removed. */
 export const DEVICE_FULL = "not enough space on ";
+/** `mangas_core::Error::Certificate`: the host answered with a certificate that failed checks. */
+const CERTIFICATE = /network: the certificate of (\S+) couldn't be verified \((.+)\)/;
+/** The host and problem of a refused certificate in `error` (also inside "incomplete chapter"). */
+export function certificateFailure(error: string): { host: string; problem: string } | null {
+  const match = CERTIFICATE.exec(error);
+  return match ? { host: match[1], problem: match[2] } : null;
+}
 /** A failure a retry cannot fix: the source no longer has the chapter, its host is refused while
  * no proxy is in use (through one the proxy resolves page hosts, so a refusal stored before it
- * was set may download on a retry), the system has no root certificates, or the export folder's
- * disk or the Kindle is full. Mirrors `mangas_core::download::queue::is_final_error`. */
+ * was set may download on a retry) or answers with a refused certificate, the system has no root
+ * certificates, or the export folder's disk or the Kindle is full. Mirrors
+ * `mangas_core::download::queue::is_final_error`. */
 export const isFinalError = (error: string, proxied = false) =>
   error.includes(UNLISTED) ||
   error.startsWith("not found") ||
   (isRefused(error) && (!proxied || refusedLiteral(error))) ||
   error.includes(NO_ROOT_CERTIFICATES) ||
+  certificateFailure(error) !== null ||
   error.startsWith(NO_SPACE) ||
   error.startsWith(DEVICE_FULL);
 

@@ -58,6 +58,7 @@ pub fn classify(error: &Error) -> Failure {
             Error::Challenge { .. }
                 | Error::BlockedAddress { .. }
                 | Error::NoRootCertificates
+                | Error::Certificate { .. }
                 | Error::Unavailable { .. }
                 | Error::NotFound(_)
                 | Error::Io(_)
@@ -80,6 +81,7 @@ pub fn is_final_error(error: &str, proxied: bool) -> bool {
     error.contains(super::UNLISTED)
         || error.starts_with("not found")
         || (is_refused(error) && (!proxied || refused_literal(error)))
+        || is_certificate_error(error)
 }
 
 /// Whether a refusal names an IP literal or a `localhost` host rather than a DNS name.
@@ -93,6 +95,11 @@ fn refused_literal(error: &str) -> bool {
 /// [`Error::BlockedAddress`]'s message.
 pub fn is_refused(error: &str) -> bool {
     error.starts_with("refused:") && error.contains("resolves to a non-public address")
+}
+
+/// A stored [`Error::Certificate`] message, also when it is a page inside "incomplete chapter".
+fn is_certificate_error(error: &str) -> bool {
+    error.contains("network: the certificate of ") && error.contains(" couldn't be verified (")
 }
 
 /// The provider's "HTTP 404 for /path" style message for a resource that no longer exists.
@@ -118,6 +125,22 @@ mod tests {
         ] {
             assert!(is_final_error(literal, true), "{literal}");
         }
+    }
+
+    #[test]
+    fn a_refused_certificate_fails_at_once_and_stays_final() {
+        let error = Error::Certificate {
+            host: "comick.live".into(),
+            problem: crate::domain::CertProblem::Expired,
+        };
+        let failure = classify(&error);
+        assert!(!failure.retryable);
+        assert!(
+            is_final_error(&failure.message, false),
+            "{}",
+            failure.message
+        );
+        assert!(!is_final_error("network: error sending request", false));
     }
 
     #[test]

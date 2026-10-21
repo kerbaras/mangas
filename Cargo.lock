@@ -3058,6 +3058,7 @@ dependencies = [
  "reqwest",
  "roxmltree",
  "rusqlite",
+ "rustls",
  "rustls-native-certs",
  "same-file",
  "semver",

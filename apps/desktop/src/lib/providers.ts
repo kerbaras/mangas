@@ -1,5 +1,6 @@
 import { describeFailure } from "./errors";
 import { connectProvider, getSettings, onProviderConnectEnd, type ProviderStatus } from "./ipc";
+import { certificateFailure } from "./ipc.downloads";
 
 const POLL_MS = 2000;
 const TIMEOUT_MS = 180_000;
@@ -113,6 +114,8 @@ export function statusBadge(status: ProviderStatus | undefined): { label: string
     case "needs_session":
       return { label: "Needs connection", tone: "warn" };
     case "unreachable":
-      return { label: "Unreachable", tone: "bad" };
+      return certificateFailure(status.reason)
+        ? { label: "Certificate refused", tone: "bad" }
+        : { label: "Unreachable", tone: "bad" };
   }
 }
