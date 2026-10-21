@@ -188,6 +188,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         }
     }
     if args.json {
+        report.recorded.clone_from(&done.recorded);
         for (file, why) in &done.failed {
             report.fail(file, why.clone());
         }

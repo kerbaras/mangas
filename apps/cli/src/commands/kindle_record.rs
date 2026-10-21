@@ -7,11 +7,14 @@ use mangas_core::export::kindle::ExportStats;
 use mangas_core::library::{self, Library};
 
 use super::deliver::{deliver, not_sent, SendArg};
+use super::export_report::Recorded;
+use super::kindle_titles::spellings;
 use crate::{paths, Exit};
 
 /// Where each file went, and the files that couldn't be sent with why.
 #[derive(Default)]
 pub struct Delivery {
+    pub recorded: Vec<Recorded>,
     pub sent: Vec<String>,
     pub failed: Vec<(PathBuf, String)>,
 }
@@ -53,16 +56,18 @@ pub async fn record_and_send(
                 |(out, _): &(PathBuf, String)| (out.clone(), not_sent(out, via, kindle, &e));
             let failed = outputs.iter().map(unsent).collect();
             return Delivery {
-                sent: Vec::new(),
                 failed,
+                ..Delivery::default()
             };
         }
     };
-    mark_exported(&lib, &stats.exported_chapters(dirs));
+    let mut done = Delivery {
+        recorded: mark_exported(&lib, stats, dirs),
+        ..Delivery::default()
+    };
     for (output, title) in &outputs {
         record_export(&lib, output, title, device);
     }
-    let mut done = Delivery::default();
     let Some((via, kindle)) = to else {
         return done;
     };
@@ -78,21 +83,30 @@ pub async fn record_and_send(
     done
 }
 
-/// Library chapters among `dirs` count as read from now on; folders from elsewhere are ignored.
-/// Each folder is matched as made absolute and as resolved (symlinks), since the library may
-/// store either spelling.
-pub fn mark_exported(lib: &Library, dirs: &[&Path]) {
-    let mut spellings: Vec<PathBuf> = dirs
+/// Library chapters among the folders of `dirs` in the book `stats` describes count as read
+/// from now on, and are returned with their folder;
+/// folders from elsewhere are ignored. Each folder is matched under every spelling the library
+/// may store and as a moved or copied download ([`spellings`], the match the book's title uses).
+pub fn mark_exported(lib: &Library, stats: &ExportStats, dirs: &[PathBuf]) -> Vec<Recorded> {
+    let marked = |dir: &&Path| -> anyhow::Result<Option<Recorded>> {
+        let spellings = spellings(lib, &[dir])?;
+        let refs: Vec<&Path> = spellings.iter().map(PathBuf::as_path).collect();
+        let chapter = library::mark_exported_folder(lib, &refs)?;
+        Ok(chapter.map(|chapter| Recorded {
+            path: dir.to_path_buf(),
+            chapter,
+        }))
+    };
+    stats
+        .exported_chapters(dirs)
         .iter()
-        .flat_map(|d| [std::path::absolute(d).ok(), d.canonicalize().ok()])
-        .flatten()
-        .collect();
-    spellings.sort();
-    spellings.dedup();
-    let dirs: Vec<&Path> = spellings.iter().map(PathBuf::as_path).collect();
-    if let Err(e) = library::mark_exported(lib, &dirs) {
-        eprintln!("warning: could not mark the chapters as exported: {e}");
-    }
+        .filter_map(|dir| {
+            marked(dir).unwrap_or_else(|e| {
+                eprintln!("warning: could not mark {} as exported: {e}", dir.display());
+                None
+            })
+        })
+        .collect()
 }
 
 /// Adds the EPUB at `output` (made absolute) to the export history.

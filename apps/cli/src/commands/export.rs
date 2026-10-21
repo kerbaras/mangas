@@ -171,7 +171,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             print_written(&stats)?;
         }
         warn_too_big(&stats.oversized);
-        kindle_record::mark_exported(&lib, &stats.exported_chapters(&req.chapter_dirs));
+        let recorded = kindle_record::mark_exported(&lib, &stats, &req.chapter_dirs);
+        report.recorded.extend(recorded);
         for (output, title) in &stats.titled_outputs(&req.title) {
             kindle_record::record_export(&lib, output, title, device.id);
             let Some(via) = args.send else { continue };

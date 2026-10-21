@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 use mangas_core::export::kindle::ExportStats;
 use mangas_core::export::volume::VolumeOutcome;
+use mangas_core::library::ExportedChapter;
 use mangas_core::ml::DetectorReport;
 use serde::Serialize;
 
@@ -18,7 +19,17 @@ pub struct Report {
     pub failed: Vec<Item>,
     /// Books planned after one that failed: the run stopped before them.
     pub not_written: Vec<Item>,
+    /// Chapter folders recorded as exported in the library, with the chapter each one is.
+    pub recorded: Vec<Recorded>,
     pub detectors: DetectorReport,
+}
+
+/// A chapter folder and the library chapter it was recorded as.
+#[derive(Debug, Clone, Serialize)]
+pub struct Recorded {
+    pub path: PathBuf,
+    #[serde(flatten)]
+    pub chapter: ExportedChapter,
 }
 
 #[derive(Debug, Serialize)]
@@ -61,6 +72,7 @@ impl Report {
             skipped: Vec::new(),
             failed: Vec::new(),
             not_written: Vec::new(),
+            recorded: Vec::new(),
             detectors,
         }
     }
