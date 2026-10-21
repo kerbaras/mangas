@@ -1,5 +1,5 @@
 import { isChallenge } from "./ipc";
-import { NO_ROOT_CERTIFICATES } from "./ipc.downloads";
+import { isFinalError, NO_ROOT_CERTIFICATES } from "./ipc.downloads";
 
 export type ErrorInfo = {
   /** A sentence a user can act on, when the error kind is known. */
@@ -25,8 +25,15 @@ const HINTS: [prefix: string, hint: string][] = [
   ["not enough space on", "Delete some books from the Kindle, then send again."],
 ];
 
-/** Splits an IPC error message into a readable hint and the raw detail. */
-export function describeError(message: string): ErrorInfo {
+/** A stored refusal that a retry through the proxy can fetch: Retry is offered, so say why. */
+const PROXIED_REFUSAL =
+  "The image host points at a private address. Retry fetches it through the configured proxy.";
+
+/**
+ * Splits an IPC error message into a readable hint and the raw detail. `proxied`: a proxy is in
+ * use, so a stored hostname refusal reads as retryable (see `isFinalError`).
+ */
+export function describeError(message: string, proxied = false): ErrorInfo {
   const detail = message.trim() || "Unknown error";
   if (isChallenge(detail))
     return {
@@ -42,12 +49,16 @@ export function describeError(message: string): ErrorInfo {
     };
   const lower = detail.toLowerCase();
   const match = HINTS.find(([prefix]) => lower.startsWith(prefix));
-  return { hint: match?.[1] ?? null, detail, challenge: false };
+  const viaProxy = proxied && isFinalError(detail) && !isFinalError(detail, true);
+  return { hint: viaProxy ? PROXIED_REFUSAL : (match?.[1] ?? null), detail, challenge: false };
 }
 
 /** A failure for a short label and its tooltip: the readable hint when known, else the raw text. */
-export function describeFailure(message: string): { label: string; tooltip: string } {
-  const { hint, detail } = describeError(message);
+export function describeFailure(
+  message: string,
+  proxied = false,
+): { label: string; tooltip: string } {
+  const { hint, detail } = describeError(message, proxied);
   return hint
     ? { label: hint, tooltip: `${hint} (${detail})` }
     : { label: detail, tooltip: detail };

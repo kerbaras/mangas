@@ -23,6 +23,8 @@ type Props = {
   showSourceId?: boolean;
   progress: DownloadProgress | undefined;
   onToggle: (id: string, shift: boolean) => void;
+  /** A proxy is in use, so a stored refusal's hint says a download goes through it. */
+  proxied?: boolean;
 };
 
 /** The state label; `hint` (an error or retry reason) shows in an edge-aware tooltip. */
@@ -44,7 +46,11 @@ function Waiting({ icon, label, hint }: { icon: ReactNode; label: string; hint?:
   );
 }
 
-function StateCell({ chapter, progress }: Pick<Props, "chapter" | "progress">) {
+function StateCell({
+  chapter,
+  progress,
+  proxied,
+}: Pick<Props, "chapter" | "progress" | "proxied">) {
   // Kept only for its download job; cleared from the Downloads screen.
   if (progress && !chapter.local_path && isUnlisted({ error: progress.error ?? progress.retrying }))
     return (
@@ -74,7 +80,10 @@ function StateCell({ chapter, progress }: Pick<Props, "chapter" | "progress">) {
   }
   if (progress?.error) {
     return (
-      <StateLabel hint={describeFailure(progress.error).tooltip} className="text-accent-text">
+      <StateLabel
+        hint={describeFailure(progress.error, proxied).tooltip}
+        className="text-accent-text"
+      >
         <AlertCircle className="size-3.5" /> Failed
       </StateLabel>
     );
@@ -125,6 +134,7 @@ export const ChapterRow = memo(function ChapterRow({
   showSourceId,
   progress,
   onToggle,
+  proxied,
 }: Props) {
   const off = isUnavailable(chapter);
   const handle = (e: MouseEvent) => {
@@ -176,7 +186,7 @@ export const ChapterRow = memo(function ChapterRow({
       </td>
       <td className="w-28 text-ink-2">{languageLabel(chapter.language)}</td>
       <td className="w-44 pr-4">
-        <StateCell chapter={chapter} progress={progress} />
+        <StateCell chapter={chapter} progress={progress} proxied={proxied} />
       </td>
     </tr>
   );
