@@ -73,6 +73,13 @@ unsafe fn hook(view: &WKWebView) {
 
 type DidFail = unsafe extern "C-unwind" fn(&AnyObject, Sel, &WKWebView, *const AnyObject, &NSError);
 
+/// `NSURLErrorFailingURLStringErrorKey`: the URL whose load failed.
+fn failing_url(error: &NSError) -> Option<String> {
+    let key = NSString::from_str("NSErrorFailingURLStringKey");
+    let value = error.userInfo().objectForKey(&key)?;
+    value.downcast::<NSString>().ok().map(|s| s.to_string())
+}
+
 /// The Secure Transport status WebKit puts in `userInfo` for a refused certificate, if any.
 fn stream_status(error: &NSError) -> Option<isize> {
     let key = NSString::from_str("_kCFStreamErrorCodeKey");
@@ -94,10 +101,12 @@ unsafe extern "C-unwind" fn did_fail(
         &error.localizedDescription().to_string(),
     );
     let key = view as *const WKWebView as usize;
-    let uri = match watched().lock() {
+    let opened = match watched().lock() {
         Ok(map) => map.get(&key).map(|w| w.uri.clone()),
         Err(_) => None,
     };
+    // The page that failed, after any redirect; the window's first page otherwise.
+    let uri = opened.map(|first| failing_url(error).unwrap_or(first));
     let Some(reason) = uri.and_then(|uri| reason(&uri, load)) else {
         return;
     };

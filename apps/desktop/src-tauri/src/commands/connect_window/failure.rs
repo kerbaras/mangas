@@ -68,9 +68,8 @@ pub fn wkwebview(domain: &str, code: isize, stream: Option<isize>, description: 
         ("NSURLErrorDomain", -1201) => Load::Certificate(CertProblem::Expired),
         ("NSURLErrorDomain", -1202 | -1203) => Load::Certificate(secure_transport(stream)),
         ("NSURLErrorDomain", -1204) => Load::Certificate(CertProblem::NotYetValid),
-        ("NSURLErrorDomain", -1200 | -1205 | -1206) => {
-            Load::Certificate(CertProblem::Other(description.to_string()))
-        }
+        // -1200 (handshake failed) and -1205/-1206 (client certificates) checked no server
+        // certificate.
         _ => Load::Network(description.to_string()),
     }
 }
@@ -112,6 +111,16 @@ mod tests {
         assert_eq!(mac(-9843), Load::Certificate(CertProblem::WrongHost));
         let unknown = wkwebview("NSURLErrorDomain", -1202, None, "untrusted");
         assert_eq!(unknown, Load::Certificate(CertProblem::UnknownIssuer));
+        let handshake = wkwebview(
+            "NSURLErrorDomain",
+            -1200,
+            None,
+            "An SSL error has occurred.",
+        );
+        assert_eq!(
+            handshake,
+            Load::Network("An SSL error has occurred.".into())
+        );
     }
 
     #[test]
