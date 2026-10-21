@@ -47,11 +47,16 @@ pub async fn test_proxy(mode: ProxyMode, url: String) -> Result<ProviderStatus, 
     Ok(mangas_providers::status("mangadex", &settings).await)
 }
 
-/// Whether downloads go through a proxy (the configured one, or the system's): a stored
-/// "non-public address" refusal may then download on a retry (#309).
+/// Whether downloads go through the proxy setting `mode`, `url` (passed in, so an edit still
+/// being saved counts): a stored "non-public address" refusal may then download on a retry (#309).
 #[tauri::command]
-pub fn proxy_in_use() -> bool {
-    mangas_providers::http::proxied(&settings_or_default().network())
+pub fn proxy_in_use(mode: ProxyMode, url: String) -> bool {
+    let settings = Settings {
+        proxy_mode: Some(mode),
+        proxy_url: Some(url),
+        ..settings_or_default()
+    };
+    mangas_providers::http::proxied(&settings.network())
 }
 
 /// Opens `provider`'s site in a private window, so only a clearance earned there is seen. Once

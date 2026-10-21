@@ -74,12 +74,20 @@ pub fn classify(error: &Error) -> Failure {
 /// Whether a failed job's stored error is one a retry cannot fix: the chapter is gone from the
 /// source, or its host is refused ([`Error::BlockedAddress`]) while no proxy is in use. Through a
 /// proxy the proxy resolves page hosts (#305), so a refusal stored before it was set may download
-/// on a retry (#309); a private IP literal is refused again at once. Mirrors the desktop's
-/// `isFinalError`.
+/// on a retry (#309). A host the URL names as private (an IP literal, `localhost`) is refused
+/// before any proxy, so it stays final. Mirrors the desktop's `isFinalError`.
 pub fn is_final_error(error: &str, proxied: bool) -> bool {
     error.contains(super::UNLISTED)
         || error.starts_with("not found")
-        || (!proxied && is_refused(error))
+        || (is_refused(error) && (!proxied || refused_literal(error)))
+}
+
+/// Whether a refusal names an IP literal or a `localhost` host rather than a DNS name.
+fn refused_literal(error: &str) -> bool {
+    let rest = error.trim_start_matches("refused:").trim_start();
+    let host = rest.split(" resolves").next().unwrap_or_default();
+    let host = host.trim_start_matches('[').trim_end_matches(']');
+    host.parse::<std::net::IpAddr>().is_ok() || host == "localhost" || host.ends_with(".localhost")
 }
 
 /// [`Error::BlockedAddress`]'s message.
@@ -97,6 +105,20 @@ fn is_gone(message: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn through_a_proxy_only_a_named_host_s_refusal_may_be_retried() {
+        let named = "refused: cdn.example resolves to a non-public address 10.0.0.1";
+        assert!(is_final_error(named, false));
+        assert!(!is_final_error(named, true));
+        for literal in [
+            "refused: 10.0.0.5 resolves to a non-public address 10.0.0.5",
+            "refused: [::1] resolves to a non-public address ::1",
+            "refused: cdn.localhost resolves to a non-public address 127.0.0.1",
+        ] {
+            assert!(is_final_error(literal, true), "{literal}");
+        }
+    }
 
     #[test]
     fn missing_root_certificates_fail_at_once() {

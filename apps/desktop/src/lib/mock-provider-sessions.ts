@@ -53,6 +53,6 @@ export function mockProviderSessions(providers: ProviderInfo[], store: Store): P
         };
       return { state: "ready" };
     },
-    proxyInUse: async () => store.get().proxy_mode === "custom" && !!store.get().proxy_url?.trim(),
+    proxyInUse: async (mode, url) => mode === "custom" && !!url.trim(),
   };
 }
