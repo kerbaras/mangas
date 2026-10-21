@@ -3089,6 +3089,9 @@ dependencies = [
  "mangas-cli",
  "mangas-core",
  "mangas-providers",
+ "objc2",
+ "objc2-foundation",
+ "objc2-web-kit",
  "rusqlite",
  "serde",
  "serde_json",
@@ -3106,6 +3109,8 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "webkit2gtk",
+ "webview2-com",
+ "windows-core",
  "windows-sys 0.59.0",
 ]
 
