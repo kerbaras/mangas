@@ -1,5 +1,6 @@
-//! WKWebView: wry's navigation delegate has no `webView:didFailProvisionalNavigation:withError:`
-//! (where a TLS or DNS failure lands), so the Connect window adds that method to the delegate's
+//! WKWebView: wry's navigation delegate has neither `webView:didFailProvisionalNavigation:withError:`
+//! (where a TLS or DNS failure lands) nor `webView:didFailNavigation:withError:` (a page that
+//! fails after it started loading), so the Connect window adds both methods to the delegate's
 //! class and sets the delegate again, because WebKit reads which optional methods a delegate
 //! has when it is set.
 
@@ -62,11 +63,16 @@ unsafe fn hook(view: &WKWebView) {
         return;
     };
     let class = ffi::object_getClass(Retained::as_ptr(&delegate).cast());
-    let sel = sel!(webView:didFailProvisionalNavigation:withError:);
-    if !ffi::class_respondsToSelector(class, sel).as_bool() {
-        let method: DidFail = did_fail;
-        let imp = std::mem::transmute::<DidFail, Imp>(method);
-        ffi::class_addMethod(class.cast_mut(), sel, imp, c"v@:@@@".as_ptr());
+    let failed = [
+        sel!(webView:didFailProvisionalNavigation:withError:),
+        sel!(webView:didFailNavigation:withError:),
+    ];
+    for sel in failed {
+        if !ffi::class_respondsToSelector(class, sel).as_bool() {
+            let method: DidFail = did_fail;
+            let imp = std::mem::transmute::<DidFail, Imp>(method);
+            ffi::class_addMethod(class.cast_mut(), sel, imp, c"v@:@@@".as_ptr());
+        }
     }
     view.setNavigationDelegate(Some(&delegate));
 }

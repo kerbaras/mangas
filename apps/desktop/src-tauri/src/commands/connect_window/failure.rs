@@ -40,7 +40,7 @@ pub fn webview2(status: i32) -> Load {
     match status {
         1 => Load::Certificate(CertProblem::WrongHost),
         2 => Load::Certificate(CertProblem::Expired),
-        3 => Load::Certificate(CertProblem::Other("client certificate refused".into())),
+        3 => net("the site asked for a client certificate"),
         4 => Load::Certificate(CertProblem::Revoked),
         5 => Load::Certificate(CertProblem::UnknownIssuer),
         6 => net("the server is unreachable"),
@@ -58,7 +58,7 @@ pub fn webview2(status: i32) -> Load {
     }
 }
 
-/// WKWebView's `NSError` from `webView:didFailProvisionalNavigation:withError:`. WebKit reports
+/// WKWebView's `NSError` from `webView:didFail(Provisional)Navigation:withError:`. WebKit reports
 /// most refused certificates as `-1202` (untrusted); `stream` (`_kCFStreamErrorCodeKey`, the
 /// Secure Transport status) says why.
 #[cfg(any(target_os = "macos", test))]
@@ -106,6 +106,12 @@ mod tests {
         }
         assert_eq!(webview2(2), Load::Certificate(CertProblem::Expired));
         assert_eq!(webview2(1), Load::Certificate(CertProblem::WrongHost));
+        assert_eq!(webview2(4), Load::Certificate(CertProblem::Revoked));
+        let client = reason(uri, webview2(3)).unwrap_or_default();
+        assert_eq!(
+            client,
+            "network: couldn't load https://comick.live/: the site asked for a client certificate"
+        );
         let mac = |stream| wkwebview("NSURLErrorDomain", -1202, Some(stream), "untrusted");
         assert_eq!(mac(-9814), Load::Certificate(CertProblem::Expired));
         assert_eq!(mac(-9843), Load::Certificate(CertProblem::WrongHost));

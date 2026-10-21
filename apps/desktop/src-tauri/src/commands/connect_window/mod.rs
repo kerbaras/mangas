@@ -2,7 +2,7 @@
 //! the wait (the UI checks for a saved session), and a page that fails to load (TLS, DNS)
 //! reports why and closes the window instead of leaving the webview's error page up. Each
 //! platform hooks its webview's own load-failed event: WebKitGTK `load-failed`, WebView2
-//! `NavigationCompleted`, WKWebView `didFailProvisionalNavigation`.
+//! `NavigationCompleted`, WKWebView `didFail(Provisional)Navigation`.
 
 mod failure;
 #[cfg(target_os = "linux")]
