@@ -93,6 +93,15 @@ describe("ChaptersTable window", () => {
     expect(row?.isConnected).toBe(true);
   });
 
+  it("keeps the focused row's neighbours mounted, so arrow keys step to them", () => {
+    render(<Harness />);
+    screen.getByText("Chapter 3").closest("tr")?.focus();
+    scrollTo(300 * 36);
+    expect(screen.getByText("Chapter 2")).toBeTruthy();
+    expect(screen.getByText("Chapter 4")).toBeTruthy();
+    expect(screen.queryByText("Chapter 5")).toBeNull();
+  });
+
   it("select all reaches the rows that aren't rendered", async () => {
     const user = userEvent.setup();
     render(<Harness />);

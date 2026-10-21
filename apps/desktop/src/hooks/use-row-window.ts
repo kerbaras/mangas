@@ -39,8 +39,10 @@ export function useRowWindow(count: number, scrollRef?: RefObject<HTMLElement | 
   const rangeExtractor = useCallback((range: Range) => {
     const indexes = defaultRangeExtractor(range);
     const f = focused.current;
-    if (f === null || f >= range.count || indexes.includes(f)) return indexes;
-    return [...indexes, f].sort((a, b) => a - b);
+    if (f === null) return indexes;
+    // The rows beside the focused one too, so ↑/↓ reach them rather than the far window.
+    const kept = [f - 1, f, f + 1].filter((i) => i >= 0 && i < range.count && !indexes.includes(i));
+    return kept.length === 0 ? indexes : [...indexes, ...kept].sort((a, b) => a - b);
   }, []);
   const windowed = scrollRef !== undefined;
   const v = useVirtualizer({
