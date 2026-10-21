@@ -35,22 +35,25 @@ jobs:
       - name: Connect windows on failing pages
         shell: bash
         run: |
+          set +e
           bin=target/release/mangas; [ "$RUNNER_OS" = Windows ] && bin=target/release/mangas.exe
           git log -1 --format='head %H %s'
           fail=0
           for url in https://self-signed.badssl.com/ https://expired.badssl.com/ https://wrong.host.badssl.com/ https://untrusted-root.badssl.com/ https://nonexistent-host.invalid/; do
-            out="$RUNNER_TEMP/proof-$(printf %s "$url" | tr -c 'a-z0-9' '_').log"
+            name="$(printf %s "$url" | tr -c 'a-z0-9' '_')"
+            out="$RUNNER_TEMP/proof-$name.log"; err="$RUNNER_TEMP/app-$name.log"
             if [ "$RUNNER_OS" = Linux ]; then
-              MANGAS_SCRATCH_CONNECT_URL="$url" MANGAS_SCRATCH_OUT="$out" xvfb-run -a "$bin" >/dev/null 2>&1 &
+              MANGAS_SCRATCH_CONNECT_URL="$url" MANGAS_SCRATCH_OUT="$out" xvfb-run -a "$bin" >"$err" 2>&1 &
             else
-              MANGAS_SCRATCH_CONNECT_URL="$url" MANGAS_SCRATCH_OUT="$out" "$bin" >/dev/null 2>&1 &
+              MANGAS_SCRATCH_CONNECT_URL="$url" MANGAS_SCRATCH_OUT="$out" "$bin" >"$err" 2>&1 &
             fi
             pid=$!
-            for _ in $(seq 120); do grep -qE '"closed"|TIMEOUT|not opened' "$out" 2>/dev/null && break; sleep 0.25; done
-            kill "$pid" 2>/dev/null || true
-            [ "$RUNNER_OS" = Windows ] && taskkill //F //IM mangas.exe >/dev/null 2>&1 || true
+            for _ in $(seq 240); do grep -qE '"closed"|TIMEOUT|not opened' "$out" 2>/dev/null && break; sleep 0.25; done
+            kill "$pid" 2>/dev/null
+            [ "$RUNNER_OS" = Windows ] && taskkill //F //IM mangas.exe >/dev/null 2>&1
+            [ "$RUNNER_OS" = Linux ] && pkill -f target/release/mangas
             sleep 1
-            echo "== $url"; cat "$out" 2>/dev/null || echo "no output"
+            echo "== $url"; cat "$out" 2>/dev/null || { echo "no output; app log:"; tail -20 "$err"; }
             { echo "### $url"; echo '```'; cat "$out" 2>/dev/null; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
             grep -q '"kind":"failed"' "$out" 2>/dev/null || fail=1
           done
