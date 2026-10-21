@@ -182,7 +182,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             match try_deliver(&lib, &file, title, via, kindle).await {
                 Ok(sent) if args.json => eprintln!("{sent}"),
                 Ok(sent) => outln!("{sent}")?,
-                Err(e) => report.fail(output, e),
+                Err(e) => report.unsent(output, &e),
             }
         }
         written.push(stats);

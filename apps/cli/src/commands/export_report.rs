@@ -10,7 +10,7 @@ use mangas_core::library::ExportedChapter;
 use mangas_core::ml::DetectorReport;
 use serde::Serialize;
 
-use super::deliver::NOT_SENT;
+use super::deliver::Unsent;
 use super::export_size::bytes;
 use crate::output::print_json;
 
@@ -65,19 +65,12 @@ pub struct Item {
     pub error: Option<&'static str>,
 }
 
-/// The class of `book`'s failure from the core's message ([`Error::NoSpace`],
-/// [`Error::DeviceFull`]): the message itself, or the error after `<book's name>`[`NOT_SENT`]
-/// (the sent path may be absolute where `book` is relative), must start with the line, so a
-/// path that holds those words doesn't class (or hide) a failure.
+/// The class of a failure from the core's message ([`Error::NoSpace`], [`Error::DeviceFull`]),
+/// which starts with the line; a path later in the message can't class it.
 ///
 /// [`Error::NoSpace`]: mangas_core::Error::NoSpace
 /// [`Error::DeviceFull`]: mangas_core::Error::DeviceFull
-pub fn error_class(book: &Path, reason: &str) -> Option<&'static str> {
-    let name = book.file_name().unwrap_or_default().to_string_lossy();
-    let unsent = format!("{name}{NOT_SENT}");
-    let error = reason
-        .find(&unsent)
-        .map_or(reason, |at| &reason[at + unsent.len()..]);
+pub fn error_class(error: &str) -> Option<&'static str> {
     ["not enough space in ", "not enough space on "]
         .iter()
         .any(|line| error.starts_with(line))
@@ -144,8 +137,17 @@ impl Report {
     pub fn fail(&mut self, book: &Path, reason: String) {
         self.failed.push(Item {
             path: book.to_path_buf(),
-            error: error_class(book, &reason),
+            error: error_class(&reason),
             reason,
+        });
+    }
+
+    /// Adds a written book that wasn't sent, with its delivery error's class.
+    pub fn unsent(&mut self, book: &Path, unsent: &Unsent) {
+        self.failed.push(Item {
+            path: book.to_path_buf(),
+            reason: unsent.message.clone(),
+            error: unsent.class,
         });
     }
 
@@ -214,24 +216,23 @@ mod tests {
 
     #[test]
     fn a_full_disk_or_kindle_is_classed_no_space() {
-        let class = |book: &str, reason: &str| error_class(Path::new(book), reason);
-        let sent = "/b/A.epub was written but not sent: not enough space on Kindle at /media/k";
-        assert_eq!(class("/b/A.epub", sent), Some("no_space"));
-        assert_eq!(class("b/A.epub", sent), Some("no_space"));
-        let full = "not enough space in /out was written but not sent: x";
         assert_eq!(
-            class("/out was written but not sent: x/A.epub", full),
+            error_class("not enough space in /out: 3 MB needed"),
             Some("no_space")
         );
-        let denied = "/not enough space on k/A.epub was written but not sent: io: denied";
-        assert_eq!(class("/not enough space on k/A.epub", denied), None);
-        assert_eq!(
-            class("/out/A.epub", "io: Permission denied (os error 13)"),
-            None
-        );
-        assert_eq!(
-            class("/x/A.epub", "io: /not enough space in x: denied"),
-            None
-        );
+        assert_eq!(error_class("io: Permission denied (os error 13)"), None);
+        assert_eq!(error_class("io: /not enough space in x: denied"), None);
+    }
+
+    #[test]
+    fn an_unsent_book_is_classed_by_its_error_not_its_path() {
+        use crate::commands::deliver::{not_sent, SendArg};
+        let book = Path::new("/a/B.epub was written but not sent: x/B.epub");
+        let full = anyhow::anyhow!("not enough space on Kindle at /media/k");
+        let unsent = not_sent(book, SendArg::Usb, None, &full);
+        assert_eq!(unsent.class, Some("no_space"));
+        let tricky = Path::new("/not enough space on k/B.epub");
+        let denied = anyhow::anyhow!("io: Permission denied (os error 13)");
+        assert_eq!(not_sent(tricky, SendArg::Usb, None, &denied).class, None);
     }
 }
