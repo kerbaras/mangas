@@ -59,6 +59,20 @@ pub struct PartNo {
 pub struct Item {
     pub path: PathBuf,
     pub reason: String,
+    /// The kind of failure a script can act on: `no_space` when the disk or the Kindle is full.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<&'static str>,
+}
+
+/// The class of a failure from the core's message ([`Error::NoSpace`], [`Error::DeviceFull`]).
+///
+/// [`Error::NoSpace`]: mangas_core::Error::NoSpace
+/// [`Error::DeviceFull`]: mangas_core::Error::DeviceFull
+pub fn error_class(reason: &str) -> Option<&'static str> {
+    ["not enough space in ", "not enough space on "]
+        .iter()
+        .any(|line| reason.contains(line))
+        .then_some("no_space")
 }
 
 /// Why a chapter folder is not in its book.
@@ -114,12 +128,14 @@ impl Report {
             .extend(stats.empty_chapters.iter().map(|dir| Item {
                 path: dir.clone(),
                 reason: EMPTY_CHAPTER.to_string(),
+                error: None,
             }));
     }
 
     pub fn fail(&mut self, book: &Path, reason: String) {
         self.failed.push(Item {
             path: book.to_path_buf(),
+            error: error_class(&reason),
             reason,
         });
     }
@@ -133,6 +149,7 @@ impl Report {
             .extend(outcome.not_written.iter().map(|p| Item {
                 path: p.output.clone(),
                 reason: NOT_STARTED.to_string(),
+                error: None,
             }));
     }
 
@@ -184,5 +201,13 @@ mod tests {
         std::fs::write(&book, b"older").unwrap();
         assert_eq!(planned_book(&book, false), dir.path().join("Book (2).epub"));
         assert_eq!(planned_book(&book, true), book);
+    }
+
+    #[test]
+    fn a_full_disk_or_kindle_is_classed_no_space() {
+        let sent = "/b/A.epub was written but not sent: not enough space on Kindle at /media/k";
+        assert_eq!(error_class(sent), Some("no_space"));
+        assert_eq!(error_class("not enough space in /out"), Some("no_space"));
+        assert_eq!(error_class("io: Permission denied (os error 13)"), None);
     }
 }

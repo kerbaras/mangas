@@ -22,6 +22,7 @@ const HINTS: [prefix: string, hint: string][] = [
     "not enough space in",
     "Free up space on that disk or choose another folder, then export again.",
   ],
+  ["not enough space on", "Delete some books from the Kindle, then send again."],
 ];
 
 /** Splits an IPC error message into a readable hint and the raw detail. */

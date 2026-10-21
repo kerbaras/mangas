@@ -51,6 +51,17 @@ describe("send panel", () => {
     expect(onSent).toHaveBeenCalledTimes(1);
   });
 
+  it("says a full Kindle in one plain line, without Retry", async () => {
+    const findKindles = vi.fn().mockResolvedValue([kindle]);
+    const sendUsb = vi.fn().mockRejectedValue("not enough space on Kindle at /media/me/Kindle");
+    stub({ findKindles, sendUsb });
+    render(<SendPanel file={FILE} />);
+    fireEvent.click(screen.getByRole("button", { name: /Copy over USB/ }));
+    expect(await screen.findByText("not enough space on Kindle at /media/me/Kindle")).toBeTruthy();
+    expect(screen.getByText("Copy failed")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Retry/ })).toBeNull();
+  });
+
   it("says the book is already on the Kindle when nothing was copied", async () => {
     const onboard = `${kindle.documents}/Solo Leveling 1-3.epub`;
     const findKindles = vi.fn().mockResolvedValue([kindle]);

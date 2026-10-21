@@ -30,6 +30,10 @@ pub enum Error {
     /// export removed what it wrote, and a retry fails the same way until space is freed.
     #[error("not enough space in {}", folder.display())]
     NoSpace { folder: std::path::PathBuf },
+    /// A USB copy filled the Kindle; `device` names it and where it is mounted. Final like
+    /// [`Error::NoSpace`]: the partial book was removed from the device.
+    #[error("not enough space on {device}")]
+    DeviceFull { device: String },
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
     #[error("image: {0}")]
