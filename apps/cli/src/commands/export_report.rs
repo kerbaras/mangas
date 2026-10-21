@@ -65,16 +65,15 @@ pub struct Item {
     pub error: Option<&'static str>,
 }
 
-/// The class of a failure from the core's message ([`Error::NoSpace`], [`Error::DeviceFull`]):
-/// the message itself, or the error after [`NOT_SENT`], must start with the line, so a path that
-/// happens to hold the words doesn't class another failure.
+/// The class of `book`'s failure from the core's message ([`Error::NoSpace`],
+/// [`Error::DeviceFull`]): the message itself, or the error after `<book>`[`NOT_SENT`], must
+/// start with the line, so a path that holds those words doesn't class (or hide) a failure.
 ///
 /// [`Error::NoSpace`]: mangas_core::Error::NoSpace
 /// [`Error::DeviceFull`]: mangas_core::Error::DeviceFull
-pub fn error_class(reason: &str) -> Option<&'static str> {
-    let error = reason
-        .rsplit_once(NOT_SENT)
-        .map_or(reason, |(_, error)| error);
+pub fn error_class(book: &Path, reason: &str) -> Option<&'static str> {
+    let unsent = format!("{}{NOT_SENT}", book.display());
+    let error = reason.strip_prefix(&unsent).unwrap_or(reason);
     ["not enough space in ", "not enough space on "]
         .iter()
         .any(|line| error.starts_with(line))
@@ -141,7 +140,7 @@ impl Report {
     pub fn fail(&mut self, book: &Path, reason: String) {
         self.failed.push(Item {
             path: book.to_path_buf(),
-            error: error_class(&reason),
+            error: error_class(book, &reason),
             reason,
         });
     }
@@ -211,15 +210,22 @@ mod tests {
 
     #[test]
     fn a_full_disk_or_kindle_is_classed_no_space() {
+        let class = |book: &str, reason: &str| error_class(Path::new(book), reason);
         let sent = "/b/A.epub was written but not sent: not enough space on Kindle at /media/k";
-        assert_eq!(error_class(sent), Some("no_space"));
-        assert_eq!(error_class("not enough space in /out"), Some("no_space"));
-        assert_eq!(error_class("io: Permission denied (os error 13)"), None);
-        let denied =
-            "/not enough space on k/A.epub was written but not sent: io: Permission denied";
-        assert_eq!(error_class(denied), None);
+        assert_eq!(class("/b/A.epub", sent), Some("no_space"));
+        let full = "not enough space in /out was written but not sent: x";
         assert_eq!(
-            error_class("io: /not enough space in x: Permission denied"),
+            class("/out was written but not sent: x/A.epub", full),
+            Some("no_space")
+        );
+        let denied = "/not enough space on k/A.epub was written but not sent: io: denied";
+        assert_eq!(class("/not enough space on k/A.epub", denied), None);
+        assert_eq!(
+            class("/out/A.epub", "io: Permission denied (os error 13)"),
+            None
+        );
+        assert_eq!(
+            class("/x/A.epub", "io: /not enough space in x: denied"),
             None
         );
     }
