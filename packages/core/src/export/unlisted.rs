@@ -1,6 +1,6 @@
 //! Free export names in a folder we may write to but not list (mode `0300`, a drop box): each
-//! candidate is looked up by name instead, so the plan names the file the writer's `create_new`
-//! claim gets (`Book (2).epub` when `Book.epub` is there).
+//! candidate is looked up by name instead, so the plan names the file the writer's `.part` claim
+//! gets (`Book (2).epub` when `Book.epub` is there).
 
 use std::collections::HashSet;
 use std::path::Path;
