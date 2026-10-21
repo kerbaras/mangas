@@ -22,8 +22,8 @@ pub fn stale_files(output: &Path, kept: usize) -> Result<Vec<PathBuf>> {
 
 /// Fails with `couldn't list <dir>: <reason>` when an export into `dir` must see what the folder
 /// holds and can't list it: a split export (its part names must agree with the folder) or a
-/// replacement (it clears the earlier set). A plain export needs no listing: the writer's
-/// `create_new` claim guards its name, so a folder we may write to but not list still takes it.
+/// replacement (it clears the earlier set). A plain export needs no listing: the writer claims
+/// its name through a locked `.part`, so a folder we may write to but not list still takes it.
 pub fn check_export_folder(dir: &Path, split: bool, replace: bool) -> Result<()> {
     match split || replace {
         true => listed(dir).map(|_| ()),

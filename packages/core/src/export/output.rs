@@ -2,10 +2,10 @@
 //! asked to (then atomically, so a failed export leaves the old file as it was).
 
 use std::collections::HashSet;
-use std::ffi::OsString;
-use std::fs::{File, OpenOptions};
+use std::fs::File;
 use std::path::{Path, PathBuf};
 
+use super::part_claim::{claim_free_name, claim_part, part_file, publish};
 use super::space;
 use crate::domain::{Error, Result};
 use crate::export::kindle::part_owner;
@@ -37,13 +37,41 @@ pub(crate) fn write_file(
 }
 
 /// Writes `path` (parent directories are created), replacing a file already there. The content
-/// is built in a uniquely named `.part` file in the same folder and renamed over `path` once
-/// complete, so readers see the old file or the new one, never a truncated one; on failure the
-/// temporary file is removed and `path` is untouched.
+/// is built in `<name>.part` in the same folder and renamed over `path` once complete, so readers
+/// see the old file or the new one, never a truncated one; on failure the part is removed and
+/// `path` is untouched. A part left by a killed export is taken over; when another replacement
+/// of `path` holds the part, a uniquely named one is used.
 fn write_over(path: &Path, fill: impl FnOnce(File) -> Result<()>) -> Result<PathBuf> {
     let dir = path.parent().filter(|d| !d.as_os_str().is_empty());
     let dir = dir.unwrap_or(Path::new("."));
     std::fs::create_dir_all(dir)?;
+    // Another replacement holds `<name>.part`, or the name is too long for a suffix.
+    let file = match claim_part(path) {
+        Ok(Some(file)) => file,
+        Ok(None) => return write_over_unique(dir, path, fill),
+        Err(e) if e.kind() == std::io::ErrorKind::InvalidFilename => {
+            return write_over_unique(dir, path, fill)
+        }
+        Err(e) => return Err(e.into()),
+    };
+    let part = part_file(path);
+    let result = file
+        .try_clone()
+        .map_err(Error::from)
+        .and_then(fill)
+        .and_then(|()| std::fs::rename(&part, path).map_err(Error::from));
+    if result.is_err() {
+        let _ = std::fs::remove_file(&part);
+    }
+    result.map(|()| path.to_path_buf())
+}
+
+/// [`write_over`] through a uniquely named `.part` in `dir`.
+fn write_over_unique(
+    dir: &Path,
+    path: &Path,
+    fill: impl FnOnce(File) -> Result<()>,
+) -> Result<PathBuf> {
     let mut builder = tempfile::Builder::new();
     builder.prefix(".mangas-").suffix(".part");
     // Same mode as `File::create` (0666 less the umask), not the temporary file's private 0600.
@@ -57,61 +85,29 @@ fn write_over(path: &Path, fill: impl FnOnce(File) -> Result<()>) -> Result<Path
 
 /// Writes a new file at `path` (parent directories are created) with `fill` and returns the
 /// file written. An existing file is never replaced: the name gets ` (2)`, ` (3)`, ... like a
-/// browser download. The target is claimed with `create_new` (two exports racing for one name
-/// get two files), the content is built in a `.part` file next to it and renamed over the claim
-/// when complete, so the final name never holds a half-written file.
+/// browser download. The content is built in `<name>.part`, held locked so two exports racing
+/// for one name get two files, and renamed to the name once complete: the final name never
+/// holds an empty or half-written file, even when the export is killed.
 fn write_new(path: &Path, fill: impl FnOnce(File) -> Result<()>) -> Result<PathBuf> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let (target, _claim) = claim_free_file(path)?;
-    let tmp = part_file(&target);
-    let result = File::create(&tmp)
+    let claim = claim_free_name(path)?;
+    let result = claim
+        .file
+        .try_clone()
         .map_err(Error::from)
         .and_then(fill)
-        .and_then(|()| std::fs::rename(&tmp, &target).map_err(Error::from));
+        .and_then(|()| publish(&claim).map_err(Error::from));
     if result.is_err() {
-        let _ = std::fs::remove_file(&tmp);
-        let _ = std::fs::remove_file(&target);
+        let _ = std::fs::remove_file(&claim.part);
     }
-    result.map(|()| target)
-}
-
-/// `<file name>.part` next to `target`; appended to the whole name so `book` and `book.epub`
-/// never share one temporary file.
-fn part_file(target: &Path) -> PathBuf {
-    let mut name = target.file_name().map(OsString::from).unwrap_or_default();
-    name.push(".part");
-    target.with_file_name(name)
-}
-
-/// Atomically creates `path`, or the first `stem (n).ext` that is free. Names already in the
-/// folder in another case count as taken, so case-insensitive disks match the preview.
-fn claim_free_file(path: &Path) -> std::io::Result<(PathBuf, File)> {
-    let name = path
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    let dir = path.parent().filter(|d| !d.as_os_str().is_empty());
-    let taken = folded(&file_names(dir.unwrap_or(Path::new(".")))?);
-    let free = candidate_names(&name).filter(|c| !taken.contains(&c.to_lowercase()));
-    for candidate in free.map(|n| path.with_file_name(n)) {
-        match OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&candidate)
-        {
-            Ok(file) => return Ok((candidate, file)),
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
-            Err(e) => return Err(e),
-        }
-    }
-    unreachable!("candidate_names is infinite")
+    result.map(|()| claim.target)
 }
 
 /// The file names in `dir`. A folder not created yet, or one we may write to but not list,
 /// counts as empty: creating the file then decides, as it did before names were compared.
-fn file_names(dir: &Path) -> std::io::Result<Vec<String>> {
+pub(super) fn file_names(dir: &Path) -> std::io::Result<Vec<String>> {
     use std::io::ErrorKind::{NotFound, PermissionDenied};
     match std::fs::read_dir(dir) {
         Ok(entries) => Ok(entries
@@ -123,7 +119,7 @@ fn file_names(dir: &Path) -> std::io::Result<Vec<String>> {
     }
 }
 
-fn folded(names: &[String]) -> HashSet<String> {
+pub(super) fn folded(names: &[String]) -> HashSet<String> {
     names.iter().map(|n| n.to_lowercase()).collect()
 }
 

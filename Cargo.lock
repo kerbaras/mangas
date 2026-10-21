@@ -3039,6 +3039,7 @@ dependencies = [
  "roxmltree",
  "rusqlite",
  "rustls-native-certs",
+ "same-file",
  "semver",
  "serde",
  "serde_json",
