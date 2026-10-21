@@ -18,17 +18,27 @@ pub(in crate::http) struct Outgoing {
     pub method: Method,
     pub url: Url,
     pub json: Option<Vec<u8>>,
+    /// The reply body is read as bytes ([`super::super::Reply::raw`]), not text.
+    pub binary: bool,
 }
 
 impl Outgoing {
     pub fn new(method: Method, url: Url, json: Option<Vec<u8>>) -> Self {
-        Self { method, url, json }
+        Self {
+            method,
+            url,
+            json,
+            binary: false,
+        }
     }
 
     /// The request a redirect asks for; the body only goes along on a 307/308.
     pub fn follow(self, hop: Hop) -> Self {
         let json = self.json.filter(|_| hop.keep_body);
-        Self::new(hop.method, hop.url, json)
+        Self {
+            binary: self.binary,
+            ..Self::new(hop.method, hop.url, json)
+        }
     }
 
     /// A POST (or PATCH) may have been acted on, so it is not repeated blindly.
@@ -57,6 +67,7 @@ impl SiteClient {
             return header_map(&self.policy.headers_for(url.as_str()));
         }
         let mut headers = self.policy.request_headers(url.as_str());
+        headers.extend(self.config.headers.iter().cloned());
         if let Some(session) = self.policy.session() {
             headers.extend(session.headers());
         }

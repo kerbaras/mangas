@@ -1,0 +1,11 @@
+{
+  "_comment": "Recorded live 2026-10-20 with a random SESSION-TOKEN. all_titles.pb is title_list/allV2 trimmed to the two Boruto series and two others; the API base maps to the mock base.",
+  "query": "boruto",
+  "language": "en",
+  "pages_need_referer": false,
+  "routes": [
+    { "path": "/title_list/allV2", "file": "all_titles.pb" },
+    { "path": "/title_detailV3", "query": { "title_id": "100269" }, "file": "title_detail.pb" },
+    { "path": "/manga_viewer_v3", "query": { "chapter_id": "1018835" }, "file": "manga_viewer.pb" }
+  ]
+}

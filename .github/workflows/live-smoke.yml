@@ -68,3 +68,17 @@ jobs:
         run: cargo test -p mangas-providers --test live -- --ignored --nocapture webtoons
       - name: providers check webtoons
         run: cargo run -q -p mangas-cli -- providers check webtoons
+
+  mangaplus:
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Contract tests (live)
+        env:
+          MANGAS_LIVE: "1"
+        run: cargo test -p mangas-providers --test live -- --ignored --nocapture mangaplus
+      - name: providers check mangaplus
+        run: cargo run -q -p mangas-cli -- providers check mangaplus

@@ -128,6 +128,14 @@ Rules: the Tauri layer and the CLI contain no business logic. Everything testabl
   `parse(body)`, `select`/`first` (CSS selectors; an invalid one is an error, not a panic),
   `text`, `text_lines`, `attr`, `meta` (`og:*` and named tags) and `absolute(base, href)`.
   WeebCentral is the reference: one module per page kind, each `fn(&str) -> Result<_>`.
+- **Protobuf** (MANGA Plus, #28): the messages the provider reads are hand-written in
+  `packages/providers/proto/mangaplus.proto`; `build.rs` compiles it with `protox` (pure Rust,
+  no `protoc`) and `prost-build`. `SiteClient::get_bytes` returns the raw body, and the mapping
+  functions take `&[u8]`. Every API request carries `ClientConfig::headers` (its
+  `SESSION-TOKEN`, a random UUID per process; without it the API answers "Account Banned").
+  Page images are XOR-encrypted per page and need the viewer's `Plus-Vw-Token`: both ride in
+  the page URL's fragment (`#key=<hex>&vw=<token>`, never sent), `Source::page_headers` adds the
+  token and `Source::decode_page` (identity by default) decrypts what `PageClient` fetched.
 
 Recipe (`packages/providers/src/<site>/mod.rs`, mapping in `mapping.rs` tested on fixtures):
 
@@ -200,7 +208,7 @@ Every registered provider goes through the same contract suite
 4. Live: add `<id>_live_contract` / `<id>_live_check` to `tests/live.rs` if CI can reach the
    site. They are `#[ignore]` and do nothing unless `MANGAS_LIVE=1`:
    `MANGAS_LIVE=1 cargo test -p mangas-providers --test live -- --ignored <id>`. The manual
-   `live-smoke` workflow runs them (MangaDex, WeebCentral, Tapas and Webtoons; Comick's
+   `live-smoke` workflow runs them (MangaDex, WeebCentral, Tapas, Webtoons and MANGA Plus; Comick's
    search is Cloudflare-gated from CI, so Comick's live tests walk its open endpoints and check
    the missing-session report instead).
 5. By hand: `mangas providers check <id> [--query q] [--lang es]` walks status → search → manga

@@ -10,13 +10,14 @@ use std::process::{Command, Output};
 use mangas_core::library::{self, ProviderSession};
 use serde_json::Value;
 
-const IDS: [&str; 6] = [
+const IDS: [&str; 7] = [
     "mangadex",
     "mangadot",
     "weebcentral",
     "tapas",
     "comick",
     "webtoons",
+    "mangaplus",
 ];
 
 /// A server answering every request with `200 {}`.
@@ -112,9 +113,9 @@ fn a_partial_outage_exits_0() {
     let text = providers(home.path(), &bases, &[]);
     assert!(text.status.success(), "{text:?}");
     let stdout = String::from_utf8_lossy(&text.stdout);
-    assert_eq!(stdout.lines().count(), 6, "{stdout}");
+    assert_eq!(stdout.lines().count(), 7, "{stdout}");
     assert!(
-        stdout.starts_with("mangadex    MangaDex    https://mangadex.org     ready\n"),
+        stdout.starts_with("mangadex    MangaDex    https://mangadex.org             ready\n"),
         "{stdout}"
     );
 }
@@ -134,7 +135,7 @@ fn every_provider_unreachable_exits_1_with_the_rows_still_printed() {
     );
     let text = providers(home.path(), &bases, &[]);
     assert_eq!(text.status.code(), Some(1), "{text:?}");
-    assert_eq!(String::from_utf8_lossy(&text.stdout).lines().count(), 6);
+    assert_eq!(String::from_utf8_lossy(&text.stdout).lines().count(), 7);
     let stderr = String::from_utf8_lossy(&text.stderr);
     assert!(stderr.contains("no provider is reachable"), "{stderr}");
 }

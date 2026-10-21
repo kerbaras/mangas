@@ -10,6 +10,7 @@ pub mod http;
 mod languages;
 pub mod mangadex;
 pub mod mangadot;
+pub mod mangaplus;
 pub mod options;
 mod provider;
 mod queue_runner;

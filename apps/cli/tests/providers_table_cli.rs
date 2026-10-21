@@ -12,7 +12,8 @@ mangadot    MangaDot    https://mangadot.net
 weebcentral WeebCentral https://weebcentral.com
 tapas       Tapas       https://tapas.io
 comick      Comick      https://comick.live
-webtoons    Webtoons    https://www.webtoons.com";
+webtoons    Webtoons    https://www.webtoons.com
+mangaplus   MANGA Plus  https://mangaplus.shueisha.co.jp";
 
 fn closed_port() -> u16 {
     TcpListener::bind("127.0.0.1:0")

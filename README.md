@@ -33,7 +33,7 @@
 </p>
 
 Mangas is a desktop manga/manhwa library and Kindle exporter. Follow series from MangaDex,
-MangaDot, WeebCentral, Tapas, Comick and Webtoons, download chapters, and turn them into
+MangaDot, WeebCentral, Tapas, Comick, Webtoons and MANGA Plus, download chapters, and turn them into
 fixed-layout EPUBs sized for a Kindle. Long webtoon strips are cut into pages at gutters instead
 of at fixed heights, so panels, speech bubbles and faces stay whole.
 
@@ -44,8 +44,9 @@ Website and downloads: https://kerbaras.github.io/mangas
 
 ## Features
 
-- **Six sources.** MangaDex, MangaDot, WeebCentral, Tapas, Comick and Webtoons behind one
-  search. Comick sits behind a browser check, so connect it once in Settings → Downloads → Sources.
+- **Seven sources.** MangaDex, MangaDot, WeebCentral, Tapas, Comick, Webtoons and MANGA Plus
+  behind one search. Comick sits behind a browser check, so connect it once in
+  Settings → Downloads → Sources.
 - **A library that keeps up.** Follow titles, check them for new chapters, and download through a
   queue that the app and the CLI share and that picks up where it left off after a restart.
 - **Smart cut for webtoons.** Long strips split at the gaps between panels, with an optional
@@ -174,7 +175,7 @@ graph TB
     end
 
     S[("SQLite library<br/>mangas.db")]
-    X["MangaDex, MangaDot, WeebCentral,<br/>Tapas, Comick, Webtoons"]
+    X["MangaDex, MangaDot, WeebCentral,<br/>Tapas, Comick, Webtoons, MANGA Plus"]
 
     D --> C
     D --> P
@@ -190,7 +191,7 @@ graph TB
 | Path | Crate / package | What it does |
 |---|---|---|
 | `packages/core` | `mangas-core` | the `Source` contract, SQLite library, downloads, smart cut, Kindle filters, EPUB writer, optional ONNX detectors |
-| `packages/providers` | `mangas-providers` | site adapters (MangaDex, MangaDot, WeebCentral, Tapas, Comick, Webtoons) on a shared rate-limited client, provider registry, browser-session support for Cloudflare-protected sites |
+| `packages/providers` | `mangas-providers` | site adapters (MangaDex, MangaDot, WeebCentral, Tapas, Comick, Webtoons, MANGA Plus) on a shared rate-limited client, provider registry, browser-session support for Cloudflare-protected sites |
 | `apps/cli` | `mangas-cli` | the command line as a library (+ a dev binary): `search`, `add`, `remove`, `chapters`, `download`, `list`, `kindle`, `export` and more (`mangas --help`) |
 | `apps/desktop` | `@mangas/desktop` | Tauri shell (`src-tauri`, IPC only) and the React UI (`src`); builds the shipped `mangas` executable, which runs the CLI when given arguments and opens the app otherwise |
 | `apps/web` | `@mangas/web` | the landing page (Astro + Tailwind, static), deployed to GitHub Pages by `.github/workflows/pages.yml` |

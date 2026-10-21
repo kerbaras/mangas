@@ -173,7 +173,7 @@ impl PageFetcher for PageClient<'_> {
     async fn fetch(&self, url: &str) -> Result<Vec<u8>> {
         let fetched = self.get(url, &[]).await?;
         if (200..300).contains(&fetched.status) {
-            return Ok(fetched.body);
+            return self.source.decode_page(url, fetched.body);
         }
         let tries = attempt::attempts(fetched.attempts);
         Err(self.error(format!("HTTP {} for {url} ({tries})", fetched.status)))

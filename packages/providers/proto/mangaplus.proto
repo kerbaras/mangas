@@ -1,0 +1,104 @@
+// MANGA Plus (jumpg-webapi.tokyo-cdn.com) responses, hand-written with only the fields the
+// provider reads. Field numbers follow HaruNeko's `ShueishaMangaPlus.proto` and Keiyoushi's
+// `MangaPlus` DTOs, checked against live responses.
+syntax = "proto3";
+
+package mangaplus;
+
+message Response {
+  SuccessResult success = 1;
+  ErrorResult error = 2;
+}
+
+message ErrorResult {
+  Popup english_popup = 2;
+}
+
+message Popup {
+  string subject = 1;
+  string body = 2;
+}
+
+message SuccessResult {
+  TitleDetailView title_detail_view = 8;
+  MangaViewer manga_viewer = 10;
+  AllTitlesViewV2 all_titles_view_v2 = 25;
+}
+
+message AllTitlesViewV2 {
+  repeated AllTitlesGroup all_titles_group = 1;
+}
+
+// One series: the same title in each language it is published in.
+message AllTitlesGroup {
+  string the_title = 1;
+  repeated Title titles = 2;
+}
+
+message Title {
+  uint32 title_id = 1;
+  string name = 2;
+  string author = 3;
+  string portrait_image_url = 4;
+  // 0 en, 1 es, 2 fr, 3 id, 4 pt-br, 5 ru, 6 th, 7 de, 9 vi.
+  int32 language = 7;
+}
+
+message TitleDetailView {
+  Title title = 1;
+  string overview = 3;
+  // When the next chapter comes out; 0 when none is scheduled.
+  uint32 next_time_stamp = 5;
+  string viewing_period_description = 7;
+  string non_appearance_info = 8;
+  repeated ChapterListGroup chapter_list_group = 28;
+  repeated Tag genre_list = 31;
+  TitleLabels title_labels = 32;
+}
+
+message TitleLabels {
+  // 0 none, 1 daily, 2 weekly, 3 biweekly, 4 monthly, 5 bimonthly, 6 trimonthly, 7 other,
+  // 8 completed, 9 one-shot (seen live on every one-shot).
+  int32 release_schedule = 1;
+}
+
+message Tag {
+  string name = 1;
+  string slug = 2;
+}
+
+// The free chapters: the first ones and the latest ones. The middle list only marks the
+// range readers need the app's subscription for.
+message ChapterListGroup {
+  repeated Chapter first_chapter_list = 2;
+  repeated Chapter mid_chapter_list = 3;
+  repeated Chapter last_chapter_list = 4;
+}
+
+message Chapter {
+  uint32 title_id = 1;
+  uint32 chapter_id = 2;
+  // "#012", "ex", "One-shot".
+  string name = 3;
+  optional string sub_title = 4;
+  uint32 start_time_stamp = 6;
+}
+
+message MangaViewer {
+  repeated Page pages = 1;
+  uint32 title_id = 9;
+  // Sent back as `Plus-Vw-Token` on every page image request.
+  string view_token = 19;
+}
+
+message Page {
+  MangaPage manga_page = 1;
+}
+
+message MangaPage {
+  string image_url = 1;
+  uint32 width = 2;
+  uint32 height = 3;
+  // Hex key the image bytes are XOR-ed with.
+  string encryption_key = 5;
+}

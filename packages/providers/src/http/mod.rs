@@ -38,6 +38,8 @@ pub const USER_AGENT: &str = concat!(
 pub struct Reply {
     pub status: u16,
     pub body: String,
+    /// The body's bytes for a binary API ([`SiteClient::get_bytes`]); empty otherwise.
+    pub raw: Vec<u8>,
 }
 
 impl Reply {
@@ -46,6 +48,7 @@ impl Reply {
         Self {
             status,
             body: String::new(),
+            raw: Vec::new(),
         }
     }
 }

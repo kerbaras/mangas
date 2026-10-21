@@ -31,6 +31,12 @@ pub trait Source: Send + Sync {
     fn page_url(&self, url: &str) -> String {
         url.to_string()
     }
+    /// The image bytes of the page at `url` as fetched: most sources serve them as they are;
+    /// some encrypt them (MANGA Plus XORs each page with a key its page URLs carry).
+    fn decode_page(&self, url: &str, bytes: Vec<u8>) -> Result<Vec<u8>> {
+        let _ = url;
+        Ok(bytes)
+    }
     /// Another URL serving the same page image, tried once when fetching `url` fails (e.g. a
     /// CDN node that is down). `None` when the source has no mirror.
     fn mirror_url(&self, url: &str) -> Option<String> {
