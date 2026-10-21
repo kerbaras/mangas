@@ -18,6 +18,9 @@ const pauseAll = attempt("Couldn't pause the queue", () => pauseDownload(null));
 const resumeAll = attempt("Couldn't resume the queue", () => resumeDownload(null));
 const clearCompleted = attempt("Couldn't clear completed downloads", clearDownloads);
 
+/** Finished jobs pile up (500+): a page of them keeps a completion from relaying every row. */
+const COMPLETED_PAGE = 50;
+
 export function DownloadsScreen() {
   const nav = useNavigation();
   const { jobs, gate, samples } = useQueue();
@@ -61,6 +64,7 @@ export function DownloadsScreen() {
               jobs={groups[key]}
               samples={samples}
               action={key === "completed" ? clear : undefined}
+              pageSize={key === "completed" ? COMPLETED_PAGE : undefined}
             />
           ))
         )}
