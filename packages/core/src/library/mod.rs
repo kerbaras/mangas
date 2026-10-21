@@ -3,6 +3,7 @@
 mod category_repo;
 mod chapter_marks;
 mod chapter_repo;
+mod count_query;
 mod counts;
 mod db;
 mod download_repo;
