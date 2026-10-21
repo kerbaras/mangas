@@ -40,7 +40,18 @@ fn a_move_is_refused_while_an_export_reads_chapters() {
 fn an_export_is_refused_while_the_data_folder_moves_before_it_reads_a_chapter() {
     let home = tempfile::tempdir().unwrap();
     let moving = acquire_at(&data(home.path()), EXPORT_LEASE, Purpose::Move).unwrap();
-    let out = mangas(home.path(), &["export", "any-series", "-o", "/nonexistent"]);
+    // `--source` so the title lookup (library only, no chapter) doesn't fail before the lease.
+    let out = mangas(
+        home.path(),
+        &[
+            "export",
+            "any-series",
+            "--source",
+            "mangadex",
+            "-o",
+            "/nonexistent",
+        ],
+    );
     assert!(!out.status.success(), "{out:?}");
     let err = String::from_utf8_lossy(&out.stderr);
     assert!(err.contains("the data folder is moving"), "{err}");
