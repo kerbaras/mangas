@@ -27,7 +27,13 @@ const row = (progress: DownloadProgress) =>
   render(
     <table>
       <tbody>
-        <ChapterRow chapter={chapter} selected={false} progress={progress} onToggle={() => {}} />
+        <ChapterRow
+          index={0}
+          chapter={chapter}
+          selected={false}
+          progress={progress}
+          onToggle={() => {}}
+        />
       </tbody>
     </table>,
   );

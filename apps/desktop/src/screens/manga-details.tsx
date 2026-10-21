@@ -96,6 +96,7 @@ export function MangaDetailsScreen({ manga: card }: Props) {
   const visibleIds = useMemo(() => selectableIds(visible), [visible]);
   const { selected, onToggle, onToggleAll, clear } = useChapterSelection(visibleIds);
 
+  const pane = useRef<HTMLDivElement>(null);
   const download = useChapterDownload({ source, mangaId: id, title: manga.title }, clear);
   return (
     <section className="flex h-full flex-col">
@@ -149,7 +150,7 @@ export function MangaDetailsScreen({ manga: card }: Props) {
           download={download}
         />
       </div>
-      <div className="relative min-h-0 flex-1 overflow-auto overscroll-contain">
+      <div ref={pane} className="relative min-h-0 flex-1 overflow-auto overscroll-contain">
         {chapters.state.kind === "loading" && <p className="p-4 text-ink-3">Loading chapters…</p>}
         {chapters.state.kind === "error" &&
           (isChallenge(chapters.state.message) ? (
@@ -171,6 +172,7 @@ export function MangaDetailsScreen({ manga: card }: Props) {
             downloads={downloads}
             onToggle={onToggle}
             onToggleAll={onToggleAll}
+            scrollRef={pane}
           />
         )}
       </div>

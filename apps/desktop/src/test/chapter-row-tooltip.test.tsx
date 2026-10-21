@@ -31,7 +31,13 @@ describe("chapter row failure tooltip", () => {
       <TooltipProvider delayDuration={0}>
         <table>
           <tbody>
-            <ChapterRow chapter={chapter} selected={false} progress={failed} onToggle={() => {}} />
+            <ChapterRow
+              index={0}
+              chapter={chapter}
+              selected={false}
+              progress={failed}
+              onToggle={() => {}}
+            />
           </tbody>
         </table>
       </TooltipProvider>,

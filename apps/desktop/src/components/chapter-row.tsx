@@ -13,6 +13,10 @@ import type { Chapter, DownloadProgress } from "@/lib/ipc";
 import { isUnlisted } from "@/lib/ipc.downloads";
 
 type Props = {
+  /** Position in the table's rows (the header row is 1 in `aria-rowindex`). */
+  index: number;
+  /** Ref that reports the row's height to a windowed table. */
+  measure?: (el: HTMLElement | null) => void;
   chapter: Chapter;
   selected: boolean;
   /** Another row has the same number, language and group: show the source's id to tell them apart. */
@@ -114,6 +118,8 @@ function GroupName({ name }: { name: string }) {
 
 /** Memoised: a progress batch re-renders only the rows whose download moved, not every chapter. */
 export const ChapterRow = memo(function ChapterRow({
+  index,
+  measure,
   chapter,
   selected,
   showSourceId,
@@ -126,6 +132,9 @@ export const ChapterRow = memo(function ChapterRow({
   };
   return (
     <tr
+      ref={measure}
+      data-index={index}
+      aria-rowindex={index + 2}
       aria-selected={selected}
       aria-disabled={off || undefined}
       data-nav-item
