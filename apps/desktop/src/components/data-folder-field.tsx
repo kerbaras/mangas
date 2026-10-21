@@ -78,8 +78,16 @@ export function DataFolderField({ onMoved, partial }: Props) {
     ? busy
     : "Downloaded chapters and detector models live here; the library database, cover cache and logs stay in the app data folder. Moving copies everything, checks the copy, then deletes the old folder.";
 
+  // While downloads run, Move stays focusable (aria-disabled, not disabled) so its reason shows on
+  // keyboard focus as well as hover.
+  const blocked = downloading && progress === null;
   const moveButton = (
-    <Button onClick={choose} disabled={downloading || progress !== null} className="shrink-0">
+    <Button
+      onClick={blocked ? undefined : choose}
+      disabled={progress !== null}
+      aria-disabled={blocked || undefined}
+      className={blocked ? "shrink-0 cursor-default opacity-50" : "shrink-0"}
+    >
       <FolderInput /> Move…
     </Button>
   );
@@ -88,11 +96,9 @@ export function DataFolderField({ onMoved, partial }: Props) {
     <Field label="Data folder" htmlFor="data-dir" hint={progress ? undefined : hint}>
       <div className="flex gap-2">
         <Input id="data-dir" readOnly value={settings.dataDir} className="font-mono text-caption" />
-        {downloading ? (
+        {blocked ? (
           <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="shrink-0">{moveButton}</span>
-            </TooltipTrigger>
+            <TooltipTrigger asChild>{moveButton}</TooltipTrigger>
             <TooltipContent>{busy}</TooltipContent>
           </Tooltip>
         ) : (

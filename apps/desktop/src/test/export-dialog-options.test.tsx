@@ -61,11 +61,14 @@ describe("export dialog: format, smart cut and delivery", () => {
     writeSettings({ defaultFormat: "cbz" });
     render(dialog());
     const email = await screen.findByRole("tab", { name: "Email to Kindle" });
-    expect(email.hasAttribute("disabled")).toBe(true);
-    const parent = email.parentElement;
-    if (!parent) throw new Error("the disabled tab has no tooltip trigger");
-    fireEvent.focus(parent);
+    expect(email.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.focus(email);
     const tip = await screen.findByRole("tooltip");
     expect(tip.textContent).toMatch(/takes EPUB or PDF, not a CBZ/);
+    fireEvent.mouseDown(email);
+    expect(email.getAttribute("aria-selected")).toBe("false");
+    expect(screen.getByRole("tab", { name: "Save to folder" }).getAttribute("aria-selected")).toBe(
+      "true",
+    );
   });
 });
