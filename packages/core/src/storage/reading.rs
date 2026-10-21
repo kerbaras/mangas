@@ -1,7 +1,8 @@
 //! An export reads chapter files out of the data folder for its whole run, so it holds the
 //! export lease (`.export.lease` in the data folder) shared until it ends, and a move takes it
 //! exclusively: a move is refused while an export reads, and an export is refused while a move
-//! runs, in this process or another. It is a lock file of its own, not the detector lease, so an
+//! runs, in this process or another. An import (writing chapters) and a download delete hold
+//! it the same way. It is a lock file of its own, not the detector lease, so an
 //! export can still take that one exclusively to download detector support.
 
 use std::path::{Path, PathBuf};

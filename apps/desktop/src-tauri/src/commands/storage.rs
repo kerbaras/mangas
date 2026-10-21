@@ -43,6 +43,8 @@ pub async fn storage_usage() -> Result<Usage, String> {
 #[tracing::instrument(level = "error", skip_all)]
 pub async fn delete_downloads(source: String, manga_id: String) -> Result<Deleted, String> {
     blocking(move || {
+        // Not during a data-folder move, which would keep copies of what this deletes.
+        let _deleting = super::export::hold_for_export().map_err(to_ipc)?;
         storage::delete_downloads(&open_library()?, &folders()?.chapters(), &source, &manga_id)
             .map_err(to_ipc)
     })
