@@ -10,11 +10,14 @@
 
 use std::fmt;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::sync::Arc;
 
 use mangas_core::domain::Error;
 use mangas_core::download::{is_public_ip, unmapped, unresolved};
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use url::{Host, Url};
+
+use super::lookup::{bounded, TimedOut, LOOKUP_TIMEOUT};
 
 /// Resolves with the system, or answers every name with `fixed` (tests only). Names in
 /// `proxies` (lowercase) may resolve to any address.
@@ -22,23 +25,22 @@ use url::{Host, Url};
 pub(super) struct PublicResolver {
     pub(super) fixed: Option<IpAddr>,
     pub(super) proxies: Vec<String>,
+    pub(super) timed_out: Arc<TimedOut>,
 }
 
 impl Resolve for PublicResolver {
     fn resolve(&self, name: Name) -> Resolving {
         let host = name.as_str().to_string();
         let fixed = self.fixed;
+        let timed_out = Arc::clone(&self.timed_out);
         let proxy = self.proxies.contains(&host.to_ascii_lowercase());
         Box::pin(async move {
             let addrs: Vec<SocketAddr> = match fixed {
                 Some(ip) => vec![SocketAddr::new(ip, 0)],
-                None => tokio::net::lookup_host((host.as_str(), 0))
-                    .await
-                    .map_err(|e| Refusal::Unresolved {
-                        host: host.clone(),
-                        cause: e.to_string(),
-                    })?
-                    .collect(),
+                None => {
+                    let lookup = tokio::net::lookup_host((host.as_str(), 0));
+                    bounded(&host, LOOKUP_TIMEOUT, &timed_out, lookup).await?
+                }
             };
             let addrs = match proxy {
                 true => addrs,

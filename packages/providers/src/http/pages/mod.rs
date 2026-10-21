@@ -5,6 +5,7 @@
 
 mod attempt;
 mod builder;
+mod lookup;
 mod redirect;
 mod resolver;
 mod unreachable;

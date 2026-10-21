@@ -69,6 +69,7 @@ fn only_the_proxy_name_may_resolve_to_a_private_address() {
     let resolver = PublicResolver {
         fixed: Some("127.0.0.1".parse().unwrap()),
         proxies: vec!["localhost".into()],
+        timed_out: Default::default(),
     };
     assert_eq!(resolve(&resolver, "LocalHost"), Ok(vec![addr("127.0.0.1")]));
     let err = resolve(&resolver, "cdn.example").unwrap_err();
