@@ -50,12 +50,19 @@ rusqlite = { version = "0.40", features = ["bundled"] }
 tempfile = "3"
 tracing-subscriber = { workspace = true }
 
-# The Connect window's page-load failures (`connect_window`); the version wry already uses.
+# The Connect window's page-load failures (`connect_window`); the versions wry already uses.
 [target.'cfg(target_os = "linux")'.dependencies]
 webkit2gtk = "2.0"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_System_Console"] }
+webview2-com = "0.39"
+windows-core = "0.62"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSDictionary", "NSError", "NSString", "NSValue"] }
+objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "WKWebView", "WKNavigationDelegate"] }
 
 [features]
 default = []
