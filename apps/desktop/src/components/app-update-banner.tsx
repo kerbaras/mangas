@@ -13,7 +13,7 @@ import { progressLine, progressPercent } from "@/lib/app-update-labels";
 import { describeFailure } from "@/lib/errors";
 import { isFinalError } from "@/lib/ipc.downloads";
 
-/** "Mangas vX is available": dismissible until Restart to update, then download progress. */
+/** "mangas vX is available": dismissible until Restart to update, then download progress. */
 export function AppUpdateBanner() {
   const state = useAppUpdate();
   const update = availableUpdate(state);
@@ -23,7 +23,7 @@ export function AppUpdateBanner() {
   return (
     <Alert className="mx-4 mt-4 w-auto pr-64" role="status">
       <Download />
-      <AlertTitle>Mangas v{update.version} is available</AlertTitle>
+      <AlertTitle>mangas v{update.version} is available</AlertTitle>
       <AlertDescription>
         {running ? (
           <div className="flex w-full max-w-md flex-col gap-1.5">

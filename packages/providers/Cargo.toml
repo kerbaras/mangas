@@ -1,6 +1,6 @@
 [package]
 name = "mangas-providers"
-description = "Mangas providers: MangaDex, MangaDot, WeebCentral and the common harness (SiteClient, HostPolicy, registry) behind the core Source trait"
+description = "mangas providers: MangaDex, MangaDot, WeebCentral and the common harness (SiteClient, HostPolicy, registry) behind the core Source trait"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

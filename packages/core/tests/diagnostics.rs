@@ -38,7 +38,7 @@ fn report_renders_every_field() {
     };
     assert_eq!(
         render(&report),
-        "Mangas 0.1.0\nOS: linux (x86_64)\nData folder: /data\nLogs: /data/logs\nProviders:\n  mangadex: ready\n"
+        "mangas 0.1.0\nOS: linux (x86_64)\nData folder: /data\nLogs: /data/logs\nProviders:\n  mangadex: ready\n"
     );
 }
 

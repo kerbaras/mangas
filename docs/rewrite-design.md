@@ -1,4 +1,4 @@
-# Mangas rewrite: Rust + Tauri + React
+# mangas rewrite: Rust + Tauri + React
 
 ## Why
 

@@ -51,7 +51,7 @@ pub fn book_message(smtp: &Smtp, title: &str, file_name: &str, book: Vec<u8>) ->
         .subject(title)
         .multipart(
             MultiPart::mixed()
-                .singlepart(SinglePart::plain(format!("{title}, sent by Mangas.")))
+                .singlepart(SinglePart::plain(format!("{title}, sent by mangas.")))
                 .singlepart(attachment),
         )
         .map_err(build_error)
@@ -62,9 +62,9 @@ pub fn test_message(smtp: &Smtp) -> Result<Message> {
     Message::builder()
         .from(smtp.from.clone())
         .to(smtp.to.clone())
-        .subject("Mangas test email")
+        .subject("mangas test email")
         .body(format!(
-            "Mangas reached {}:{} and sent this message. Books will go to your Kindle \
+            "mangas reached {}:{} and sent this message. Books will go to your Kindle \
              address from {}; make sure Amazon lists it as an approved sender.",
             smtp.host, smtp.port, smtp.from.email
         ))

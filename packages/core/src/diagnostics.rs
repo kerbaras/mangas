@@ -41,7 +41,7 @@ pub fn render(report: &Report) -> String {
         .collect::<Vec<_>>()
         .join("\n");
     format!(
-        "Mangas {}\nOS: {} ({})\nData folder: {}\nLogs: {}\nProviders:\n{}\n",
+        "mangas {}\nOS: {} ({})\nData folder: {}\nLogs: {}\nProviders:\n{}\n",
         report.version, report.os, report.arch, report.data_dir, report.log_dir, providers
     )
 }

@@ -7,7 +7,7 @@ type Step = { title: string; text: string; shot: ShotName; alt: string };
 const steps: Step[] = [
   {
     title: "Follow",
-    text: "Search MangaDex, MangaDot, WeebCentral, Tapas, Comick and Webtoons at once. Follow a title and Mangas checks it for new chapters.",
+    text: "Search MangaDex, MangaDot, WeebCentral, Tapas, Comick and Webtoons at once. Follow a title and mangas checks it for new chapters.",
     shot: "library",
     alt: "The library with followed titles and new-chapter badges.",
   },
@@ -38,7 +38,7 @@ const inlineSizes = "100vw";
   <h2 id="how-title" class="label">How it works</h2>
   <div class="layout">
     <div class="stage">
-      <AppWindow title="Mangas" class="sticky">
+      <AppWindow title="mangas" class="sticky">
         <div class="frames">
           {steps.map((s, i) => (
             <div

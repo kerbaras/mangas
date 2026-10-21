@@ -1,6 +1,6 @@
 [package]
 name = "mangas-desktop"
-description = "Mangas desktop: Tauri shell around mangas-core"
+description = "mangas desktop: Tauri shell around mangas-core"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -1,6 +1,6 @@
 [package]
 name = "mangas-core"
-description = "Mangas core: sources, library, downloads, EPUB/Kindle export, smart cut and ML detectors"
+description = "mangas core: sources, library, downloads, EPUB/Kindle export, smart cut and ML detectors"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

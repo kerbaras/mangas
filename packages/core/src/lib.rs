@@ -1,4 +1,4 @@
-//! Mangas core: everything the desktop app and the CLI share.
+//! mangas core: everything the desktop app and the CLI share.
 //!
 //! Business logic lives here; `apps/desktop` and `apps/cli` only translate input and output.
 

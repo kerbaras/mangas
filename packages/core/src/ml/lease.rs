@@ -1,4 +1,4 @@
-//! A lease on the models folder shared by every Mangas process (app and CLI), held as an OS
+//! A lease on the models folder shared by every mangas process (app and CLI), held as an OS
 //! file lock on `models/.detectors.lease`. A download, a data-folder move and a removal take it
 //! exclusively; loading the detectors for an export shares it. The OS releases the lock when
 //! its process ends, so a crashed holder never leaves the folder locked.
@@ -119,7 +119,7 @@ fn busy(dir: &Path, name: &str) -> String {
         Purpose::Move => "the data folder is moving",
         Purpose::Remove => "detector support is being removed",
     };
-    format!("{what} (Mangas process {pid}); wait for it to finish or cancel it, then try again")
+    format!("{what} (mangas process {pid}); wait for it to finish or cancel it, then try again")
 }
 
 impl Drop for Lease {

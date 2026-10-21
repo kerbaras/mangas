@@ -83,7 +83,7 @@ async fn test_email_goes_to_the_sender() {
     assert_eq!(to, "me@example.test");
     let log = log.lock().unwrap().clone();
     assert!(log.contains("RCPT TO:<me@example.test>"), "{log}");
-    assert!(log.contains("Subject: Mangas test email"), "{log}");
+    assert!(log.contains("Subject: mangas test email"), "{log}");
 }
 
 #[tokio::test]

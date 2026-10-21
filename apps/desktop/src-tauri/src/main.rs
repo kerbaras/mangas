@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-//! One executable for both faces of Mangas: `mangas <command>` runs the CLI, plain `mangas`
+//! One executable for both faces of mangas: `mangas <command>` runs the CLI, plain `mangas`
 //! opens the desktop app.
 
 fn main() {

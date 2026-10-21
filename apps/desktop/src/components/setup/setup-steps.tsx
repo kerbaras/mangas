@@ -22,7 +22,7 @@ export function FolderStep({ onBusy }: StepProps) {
   const [settings] = useSettings();
   const [progress, setProgress] = useState<MoveProgress | null>(null);
   const change = async () => {
-    const dir = await pickFolder("Choose the data folder", "~/Mangas");
+    const dir = await pickFolder("Choose the data folder", "~/mangas");
     if (!dir || dir === settings.dataDir) return;
     onBusy(true);
     setProgress({ copied: 0, total: 0 });

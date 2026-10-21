@@ -26,7 +26,7 @@ const pending = (
   removeLeftovers: vi.fn(async () => 0),
 });
 
-const notice = /Detector models removed; the runtime \(.+\) is still in use — restart Mangas/;
+const notice = /Detector models removed; the runtime \(.+\) is still in use — restart mangas/;
 
 describe("detector support after a partial remove", () => {
   it("says the runtime is still in use and offers Remove again in Settings", () => {

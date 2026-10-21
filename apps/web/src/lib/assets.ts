@@ -5,8 +5,9 @@ export type Release = { tag_name: string; html_url: string; assets: Asset[] };
 export type Target = `${Os}-${Arch}`;
 
 /** Installer patterns per target, best first. Names come from tauri-action in release.yml:
- *  Mangas_0.3.0_aarch64.dmg, Mangas_0.3.0_x64-setup.exe, Mangas_0.3.0_x64_en-US.msi,
- *  Mangas_0.3.0_amd64.AppImage, Mangas_0.3.0_arm64.deb, Mangas-0.3.0-1.x86_64.rpm. */
+ *  mangas_0.6.0_aarch64.dmg, mangas_0.6.0_x64-setup.exe, mangas_0.6.0_x64_en-US.msi,
+ *  mangas_0.6.0_amd64.AppImage, mangas_0.6.0_arm64.deb, mangas-0.6.0-1.x86_64.rpm.
+ *  Releases before 0.6.0 spell the prefix "Mangas"; the patterns only match the suffix. */
 const PATTERNS: Record<Target, RegExp[]> = {
   "macos-arm64": [/_(aarch64|arm64)\.dmg$/],
   "macos-x64": [/_(x64|x86_64)\.dmg$/],

@@ -33,7 +33,7 @@ fn exports_share_the_lease_and_a_move_excludes_them_both_ways() {
         .unwrap()
         .to_string();
     assert!(
-        err.contains("the data folder is moving (Mangas process"),
+        err.contains("the data folder is moving (mangas process"),
         "{err}"
     );
     drop(held);
