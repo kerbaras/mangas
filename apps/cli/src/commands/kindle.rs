@@ -8,6 +8,7 @@ use clap::Args as ClapArgs;
 use mangas_core::export::kindle::{export, part_book, BookMeta, ExportRequest};
 use mangas_core::export::target::{book_path, is_folder};
 use mangas_core::export::{ExportPreset, Format, PROFILES};
+use mangas_core::library;
 use mangas_core::storage;
 
 use super::cut_args::{print_progress, CutArgs, DEFAULT_PROFILE};
@@ -73,12 +74,11 @@ fn list_profiles() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// The library's series for the chapters, else the first folder's parent name.
+/// The library's series for the chapters, else the first folder's parent name unless that is
+/// a manga id (a `<source>/<manga id>/<chapter>` download folder).
 fn default_title(series: Option<&str>, chapters: &[PathBuf]) -> String {
-    let folder = || {
-        let dir = chapters.first()?.canonicalize().ok()?;
-        Some(dir.parent()?.file_name()?.to_string_lossy().into_owned())
-    };
+    let folder =
+        || library::series_folder_name(chapters.first()?, &super::kindle_titles::source_ids());
     series
         .map(str::to_owned)
         .or_else(folder)
