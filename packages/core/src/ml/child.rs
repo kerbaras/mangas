@@ -49,7 +49,7 @@ fn spawn(models_dir: &Path, exe: &Path) -> std::io::Result<Child> {
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     no_window(&mut command);
-    command.spawn()
+    super::lease_fds::spawn(&mut command)
 }
 
 #[cfg(windows)]

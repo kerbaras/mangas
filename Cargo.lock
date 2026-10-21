@@ -3026,6 +3026,7 @@ dependencies = [
  "image",
  "keyring",
  "lettre",
+ "libc",
  "libloading 0.9.0",
  "log",
  "lopdf",
