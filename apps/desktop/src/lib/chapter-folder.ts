@@ -4,7 +4,11 @@ import type { Chapter } from "./ipc";
 export function parentFolder(path: string): string {
   const trimmed = path.replace(/[\\/]+$/, "");
   const cut = Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\"));
-  return cut > 0 ? trimmed.slice(0, cut) : trimmed;
+  if (cut < 0) return trimmed;
+  const parent = trimmed.slice(0, cut);
+  // Just under a root the parent is the root: `/` for `/books`, `C:\` (not `C:`) for `C:\Books`.
+  if (!parent) return trimmed[0] ?? "";
+  return /^[A-Za-z]:$/.test(parent) ? `${parent}${trimmed[cut]}` : parent;
 }
 
 /**

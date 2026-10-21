@@ -66,6 +66,9 @@ describe("chapterFolder", () => {
   it("takes the parent folder on either separator", () => {
     expect(parentFolder("C:\\mangas\\local\\x\\1\\")).toBe("C:\\mangas\\local\\x");
     expect(parentFolder("/d/local/x/1")).toBe("/d/local/x");
+    expect(parentFolder("/books")).toBe("/");
+    expect(parentFolder("C:\\Books")).toBe("C:\\");
+    expect(parentFolder("C:/Books/")).toBe("C:/");
   });
 
   it("is null when nothing is on disk", () => {
