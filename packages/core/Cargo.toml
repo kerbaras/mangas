@@ -44,6 +44,8 @@ pdf-writer = "0.15"
 lettre = { version = "0.11", default-features = false, features = ["builder", "hostname", "smtp-transport", "tokio1", "tokio1-rustls", "aws-lc-rs", "rustls-platform-verifier"] }
 # Tells a webview TLS failure caused by an empty system store from a bad certificate.
 rustls-native-certs = "0.8"
+# Only to read the certificate error behind a reqwest failure; reqwest brings the TLS stack.
+rustls = { version = "0.23", default-features = false }
 tempfile = "3"
 same-file = "1"
 # OS keychain for the SMTP password: macOS Keychain, Windows Credential Manager, Secret Service
@@ -65,6 +67,8 @@ libc = "0.2"
 ort = { version = "=2.0.0-rc.13", optional = true, default-features = false, features = ["coreml"] }
 
 [dev-dependencies]
+# The self-signed TLS test server (`tests/tls_server.rs`); the provider reqwest already uses.
+rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs", "std"] }
 lopdf = "0.45"
 roxmltree = "0.21.1"
 tokio = { workspace = true, features = ["net", "io-util"] }

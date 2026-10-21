@@ -6,7 +6,7 @@ use std::sync::OnceLock;
 
 use reqwest::{ClientBuilder, Proxy, Url};
 
-use crate::domain::Error;
+use crate::domain::{certificate_problem, Error};
 use crate::library::Network;
 
 static OVERRIDE: OnceLock<Network> = OnceLock::new();
@@ -64,15 +64,29 @@ fn env_proxied() -> bool {
 /// The host names of the proxies requests go through (the configured one, or the
 /// environment's), lowercased: the only names a client resolves itself when proxied.
 pub fn proxy_hosts(network: &Network) -> Vec<String> {
-    let urls = match effective(network) {
+    proxy_urls(network)
+        .iter()
+        .filter_map(|url| proxy_host(url))
+        .collect()
+}
+
+fn proxy_urls(network: &Network) -> Vec<String> {
+    match effective(network) {
         Network::System => PROXY_VARS
             .iter()
             .filter_map(|var| std::env::var(var).ok())
             .collect(),
         Network::Direct => vec![],
         Network::Proxy(url) => vec![url],
-    };
-    urls.iter().filter_map(|url| proxy_host(url)).collect()
+    }
+}
+
+/// Whether requests go through an `https://` proxy, whose own certificate can be the one refused.
+fn tls_proxy(network: &Network) -> bool {
+    proxy_urls(network).iter().any(|url| {
+        url.get(..8)
+            .is_some_and(|s| s.eq_ignore_ascii_case("https://"))
+    })
 }
 
 /// The host of a proxy URL; a bare `host:port` (which reqwest takes as http) too.
@@ -82,8 +96,13 @@ fn proxy_host(raw: &str) -> Option<String> {
 }
 
 /// A transport error, naming the proxy when a configured one could not be reached (a
-/// connection failure then means the proxy, not the site, is down, refusing or silent).
+/// connection failure then means the proxy, not the site, is down, refusing or silent). A
+/// refused certificate is the site's own, answered through the proxy's tunnel, unless the proxy
+/// itself speaks TLS: then it may be the proxy's, so the proxy is named.
 pub fn transport_error(e: reqwest::Error, network: &Network) -> Error {
+    if certificate_problem(&e).is_some() && !tls_proxy(network) {
+        return e.into();
+    }
     match effective(network) {
         Network::Proxy(url) if e.is_connect() && e.is_timeout() => Error::Other(format!(
             "network: no answer through the proxy {}",

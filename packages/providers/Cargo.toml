@@ -38,6 +38,8 @@ protox = "0.10"
 test-support = []
 
 [dev-dependencies]
+# The self-signed TLS test server (`tests/tls_server.rs`); the provider reqwest already uses.
+rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs", "std"] }
 mangas-providers = { path = ".", features = ["test-support"] }
 tempfile = "3"
 tracing-subscriber = { workspace = true }

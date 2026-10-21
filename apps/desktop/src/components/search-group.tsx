@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { describeFailure } from "@/lib/errors";
 import { mangaKey } from "@/lib/format";
 import type { Manga, ProviderInfo } from "@/lib/ipc";
-import { isFinalError } from "@/lib/ipc.downloads";
+import { certificateFailure, isFinalError } from "@/lib/ipc.downloads";
 import { connectThen } from "@/lib/notify";
 import { forgetStatus } from "@/lib/provider-status";
 import { type GroupState, shown } from "@/lib/search-groups";
@@ -111,7 +111,8 @@ function Unreachable(props: { name: string; reason: string; onRetry: () => void 
     <Note action={retry}>
       <Hint hint={tooltip}>
         <span className="min-w-0 [overflow-wrap:anywhere]">
-          Couldn't reach {props.name}: {label}
+          {certificateFailure(props.reason) ? "Couldn't connect to" : "Couldn't reach"} {props.name}
+          : {label}
         </span>
       </Hint>
     </Note>

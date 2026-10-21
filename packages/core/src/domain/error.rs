@@ -23,6 +23,13 @@ pub enum Error {
     Library(#[from] rusqlite::Error),
     #[error("network: {0}")]
     Network(#[source] reqwest::Error),
+    /// The host answered with a certificate that failed verification. Final: a retry gets the
+    /// same certificate.
+    #[error("network: the certificate of {host} couldn't be verified ({problem})")]
+    Certificate {
+        host: String,
+        problem: super::CertProblem,
+    },
     /// No HTTP or TLS client can be built: the system has no root certificates.
     #[error("network: {}", super::tls::NO_ROOT_CERTIFICATES)]
     NoRootCertificates,
@@ -56,6 +63,12 @@ impl From<reqwest::Error> for Error {
     fn from(e: reqwest::Error) -> Self {
         if super::tls::missing_root_certificates(&e) {
             Error::NoRootCertificates
+        } else if let Some(problem) = super::certificate::certificate_problem(&e) {
+            let host = e.url().and_then(|u| u.host_str()).unwrap_or("the site");
+            Error::Certificate {
+                host: host.to_string(),
+                problem,
+            }
         } else {
             Error::Network(e)
         }

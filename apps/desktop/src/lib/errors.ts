@@ -1,5 +1,5 @@
 import { isChallenge } from "./ipc";
-import { isFinalError, NO_ROOT_CERTIFICATES } from "./ipc.downloads";
+import { certificateFailure, isFinalError, NO_ROOT_CERTIFICATES } from "./ipc.downloads";
 
 export type ErrorInfo = {
   /** A sentence a user can act on, when the error kind is known. */
@@ -44,6 +44,13 @@ export function describeError(message: string, proxied = false): ErrorInfo {
   if (detail.includes(NO_ROOT_CERTIFICATES))
     return {
       hint: "This system has no CA certificates, so secure connections can't be checked. Install the ca-certificates package.",
+      detail,
+      challenge: false,
+    };
+  const certificate = certificateFailure(detail);
+  if (certificate)
+    return {
+      hint: `${certificate.host} answered, but its certificate couldn't be verified: ${certificate.problem}.`,
       detail,
       challenge: false,
     };

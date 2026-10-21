@@ -48,8 +48,9 @@ fn fail<R: Runtime>(window: &WebviewWindow<R>, provider: &'static str, reason: S
 
 #[cfg(target_os = "linux")]
 mod linux {
-    use mangas_core::domain::{system_has_root_certificates, webview_tls_failure};
+    use mangas_core::domain::{system_has_root_certificates, webview_tls_failure, CertProblem};
     use tauri::{Runtime, WebviewWindow};
+    use webkit2gtk::gio::TlsCertificateFlags;
     use webkit2gtk::{glib, NetworkError, PolicyError, WebViewExt};
 
     /// WebKitGTK's `load-failed` signals, for the main frame of the Connect window.
@@ -63,8 +64,8 @@ mod linux {
                     .ok()
                     .and_then(|u| u.host_str().map(str::to_string))
                     .unwrap_or_else(|| uri.to_string());
-                let problem = format!("{flags:?}");
-                let reason = webview_tls_failure(&host, &problem, system_has_root_certificates());
+                let reason =
+                    webview_tls_failure(&host, &problem(flags), system_has_root_certificates());
                 super::fail(&tls, provider, reason);
                 true
             });
@@ -79,6 +80,24 @@ mod linux {
         });
         if let Err(e) = hooked {
             log::warn!("{provider}: connect window load errors not watched: {e}");
+        }
+    }
+
+    /// WebKitGTK's certificate flags in the words the HTTP client uses for the same problem.
+    fn problem(flags: TlsCertificateFlags) -> CertProblem {
+        let has = |flag| flags.contains(flag);
+        if has(TlsCertificateFlags::BAD_IDENTITY) {
+            CertProblem::WrongHost
+        } else if has(TlsCertificateFlags::EXPIRED) {
+            CertProblem::Expired
+        } else if has(TlsCertificateFlags::NOT_ACTIVATED) {
+            CertProblem::NotYetValid
+        } else if has(TlsCertificateFlags::REVOKED) {
+            CertProblem::Revoked
+        } else if has(TlsCertificateFlags::UNKNOWN_CA) {
+            CertProblem::UnknownIssuer
+        } else {
+            CertProblem::Other(format!("{flags:?}"))
         }
     }
 
