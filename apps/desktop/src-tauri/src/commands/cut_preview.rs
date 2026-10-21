@@ -8,6 +8,7 @@ use mangas_core::export::kindle::{self, Preview, PreviewRequest};
 use mangas_core::export::ExportPreset;
 use mangas_core::library;
 
+use super::export::hold_for_export;
 use super::penalizer::penalizer;
 use super::preview_panels::{valid_panel, Panels};
 use super::{open_library, settings_or_default, to_ipc};
@@ -48,7 +49,8 @@ pub fn clear_export_preset(source: String, manga_id: String) -> Result<bool, Str
 
 /// The first pages an export of `chapter_dir` with `options` would write (unset fields use the
 /// stored defaults), as files under the preview cache. A newer call from the same `panel`, or
-/// closing it, cancels this one.
+/// closing it, cancels this one. Holds the export lease like an export, so no data-folder move
+/// runs while it reads the chapter.
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub async fn preview_cut(
@@ -68,6 +70,7 @@ pub async fn preview_cut(
     let Some(generation) = started else {
         return Err("cancelled: the options panel closed".into());
     };
+    let _reading = hold_for_export().map_err(to_ipc)?;
     let settings = settings_or_default();
     let preset = (options.over(&ExportPreset::from_settings(&settings)))
         .with_stored_quality(&settings, paths::DEFAULT_PROFILE);
