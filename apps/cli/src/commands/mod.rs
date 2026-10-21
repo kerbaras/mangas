@@ -21,6 +21,7 @@ pub mod import;
 pub mod info;
 pub mod kindle;
 mod kindle_library;
+mod kindle_print;
 mod kindle_record;
 mod kindle_titles;
 pub mod list;
