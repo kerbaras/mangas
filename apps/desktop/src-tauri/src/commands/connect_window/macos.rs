@@ -10,7 +10,7 @@ use objc2::ffi;
 use objc2::rc::Retained;
 use objc2::runtime::{AnyObject, Imp, Sel};
 use objc2::sel;
-use objc2_foundation::NSError;
+use objc2_foundation::{NSError, NSNumber, NSString};
 use objc2_web_kit::WKWebView;
 use tauri::{Runtime, WebviewWindow};
 
@@ -73,6 +73,13 @@ unsafe fn hook(view: &WKWebView) {
 
 type DidFail = unsafe extern "C-unwind" fn(&AnyObject, Sel, &WKWebView, *const AnyObject, &NSError);
 
+/// The Secure Transport status WebKit puts in `userInfo` for a refused certificate, if any.
+fn stream_status(error: &NSError) -> Option<isize> {
+    let key = NSString::from_str("_kCFStreamErrorCodeKey");
+    let value = error.userInfo().objectForKey(&key)?;
+    value.downcast::<NSNumber>().ok().map(|n| n.integerValue())
+}
+
 unsafe extern "C-unwind" fn did_fail(
     _delegate: &AnyObject,
     _cmd: Sel,
@@ -83,6 +90,7 @@ unsafe extern "C-unwind" fn did_fail(
     let load = wkwebview(
         &error.domain().to_string(),
         error.code(),
+        stream_status(error),
         &error.localizedDescription().to_string(),
     );
     let key = view as *const WKWebView as usize;

@@ -58,18 +58,31 @@ pub fn webview2(status: i32) -> Load {
     }
 }
 
-/// WKWebView's `NSError` from `webView:didFailProvisionalNavigation:withError:`.
+/// WKWebView's `NSError` from `webView:didFailProvisionalNavigation:withError:`. WebKit reports
+/// most refused certificates as `-1202` (untrusted); `stream` (`_kCFStreamErrorCodeKey`, the
+/// Secure Transport status) says why.
 #[cfg(any(target_os = "macos", test))]
-pub fn wkwebview(domain: &str, code: isize, description: &str) -> Load {
+pub fn wkwebview(domain: &str, code: isize, stream: Option<isize>, description: &str) -> Load {
     match (domain, code) {
         ("NSURLErrorDomain", -999) | ("WebKitErrorDomain", 102) => Load::Ignored,
         ("NSURLErrorDomain", -1201) => Load::Certificate(CertProblem::Expired),
-        ("NSURLErrorDomain", -1202 | -1203) => Load::Certificate(CertProblem::UnknownIssuer),
+        ("NSURLErrorDomain", -1202 | -1203) => Load::Certificate(secure_transport(stream)),
         ("NSURLErrorDomain", -1204) => Load::Certificate(CertProblem::NotYetValid),
         ("NSURLErrorDomain", -1200 | -1205 | -1206) => {
             Load::Certificate(CertProblem::Other(description.to_string()))
         }
         _ => Load::Network(description.to_string()),
+    }
+}
+
+/// Secure Transport's `errSSL*` certificate statuses.
+#[cfg(any(target_os = "macos", test))]
+fn secure_transport(status: Option<isize>) -> CertProblem {
+    match status {
+        Some(-9814) => CertProblem::Expired,
+        Some(-9815) => CertProblem::NotYetValid,
+        Some(-9843) => CertProblem::WrongHost,
+        _ => CertProblem::UnknownIssuer,
     }
 }
 
@@ -81,7 +94,10 @@ mod tests {
     fn a_certificate_failure_reads_the_same_on_every_platform() {
         let uri = "https://comick.live/";
         let windows = reason(uri, webview2(5));
-        let macos = reason(uri, wkwebview("NSURLErrorDomain", -1202, "untrusted"));
+        let macos = reason(
+            uri,
+            wkwebview("NSURLErrorDomain", -1202, Some(-9813), "untrusted"),
+        );
         let linux = reason(uri, Load::Certificate(CertProblem::UnknownIssuer));
         assert_eq!(windows, linux);
         assert_eq!(macos, linux);
@@ -91,6 +107,11 @@ mod tests {
         }
         assert_eq!(webview2(2), Load::Certificate(CertProblem::Expired));
         assert_eq!(webview2(1), Load::Certificate(CertProblem::WrongHost));
+        let mac = |stream| wkwebview("NSURLErrorDomain", -1202, Some(stream), "untrusted");
+        assert_eq!(mac(-9814), Load::Certificate(CertProblem::Expired));
+        assert_eq!(mac(-9843), Load::Certificate(CertProblem::WrongHost));
+        let unknown = wkwebview("NSURLErrorDomain", -1202, None, "untrusted");
+        assert_eq!(unknown, Load::Certificate(CertProblem::UnknownIssuer));
     }
 
     #[test]
@@ -105,6 +126,7 @@ mod tests {
         let mac = wkwebview(
             "NSURLErrorDomain",
             -1003,
+            None,
             "A server with the specified hostname could not be found.",
         );
         assert!(matches!(mac, Load::Network(_)));
@@ -112,14 +134,14 @@ mod tests {
         assert_eq!(
             reason(
                 "https://x/",
-                wkwebview("NSURLErrorDomain", -999, "cancelled")
+                wkwebview("NSURLErrorDomain", -999, None, "cancelled")
             ),
             None
         );
         assert_eq!(
             reason(
                 "https://x/",
-                wkwebview("WebKitErrorDomain", 102, "interrupted")
+                wkwebview("WebKitErrorDomain", 102, None, "interrupted")
             ),
             None
         );
