@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { activeCount, useDownloads } from "@/hooks/use-downloads";
+import { parentFolder } from "@/lib/chapter-folder";
 import { pickFolder } from "@/lib/dialogs";
 import {
   type MoveProgress,
@@ -34,7 +35,11 @@ export function DataFolderField({ onMoved, partial }: Props) {
   const [progress, setProgress] = useState<MoveProgress | null>(null);
 
   const choose = async () => {
-    const dir = await pickFolder("Move the data folder to", "~/mangas");
+    const dir = await pickFolder(
+      "Move the data folder to",
+      "~/mangas",
+      parentFolder(settings.dataDir),
+    );
     if (!dir || dir === settings.dataDir) return;
     try {
       setTarget({ dir, partial: await moveTargetPartial(dir) });
