@@ -55,7 +55,15 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             .map(|s| s.to_string_lossy().into_owned())
             .unwrap_or_default()
     });
-    let line = deliver(&lib, &file, &title, args.via, args.kindle.as_deref()).await?;
+    let line = deliver(&lib, &file, &title, args.via, args.kindle.as_deref())
+        .await
+        .map_err(|e| match e.downcast_ref() {
+            Some(mangas_core::Error::KindleOverMtp { .. }) => anyhow::anyhow!(
+                "{e}\n  send it by email instead: mangas send --via email \"{}\"",
+                file.display()
+            ),
+            _ => e,
+        })?;
     outln!("{line}")?;
     Ok(())
 }

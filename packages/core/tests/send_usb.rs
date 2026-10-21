@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use mangas_core::send::usb::{choose, copy_to_kindle, find_kindles_in, looks_like_kindle, KindleScan};
+use mangas_core::send::usb::{
+    choose, copy_to_kindle, find_kindles_in, looks_like_kindle, KindleScan,
+};
 
 fn mkdirs(root: &Path, dirs: &[&str]) {
     for d in dirs {
