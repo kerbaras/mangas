@@ -53,13 +53,10 @@ const PAGE_OVERHEAD: u64 = 2_048;
 /// What a part costs besides its pages (OPF, nav, styles).
 const PART_OVERHEAD: u64 = 64_000;
 
-/// A page JPEG's cost in a `format` book: AZW3 adds a standard copy for a page over 128 KiB.
+/// A page JPEG's cost in a `format` book: AZW3 adds its standard record (at most 128 KiB).
 pub fn page_cost(format: Format, jpeg: u64) -> u64 {
-    let copy = match format {
-        Format::Azw3 => azw3::copy_bound(jpeg),
-        Format::Epub | Format::Cbz | Format::Pdf => 0,
-    };
-    jpeg + copy + PAGE_OVERHEAD
+    let copy = (format == Format::Azw3).then(|| azw3::copy_bound(jpeg));
+    jpeg + copy.unwrap_or(0) + PAGE_OVERHEAD
 }
 
 /// Consecutive page ranges, each `format` part (with its `cover` copy) at most `max` bytes. A

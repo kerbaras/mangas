@@ -50,12 +50,11 @@ fn names(dir: &Path) -> Vec<String> {
     names
 }
 
-/// The bytes a fresh `format` book carries at its start (AZW3: the PalmDB type at offset 60).
 fn is_new(format: Format, book: &[u8]) -> bool {
     match format {
         Format::Pdf => book.starts_with(b"%PDF"),
         Format::Epub | Format::Cbz => book.starts_with(b"PK"),
-        Format::Azw3 => book.get(60..68) == Some(&b"BOOKMOBI"[..]),
+        Format::Azw3 => book.get(60..68) == Some(&b"BOOKMOBI"[..]), // PalmDB type
     }
 }
 

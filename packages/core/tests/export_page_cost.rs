@@ -1,4 +1,5 @@
-//! An AZW3 page over 128 KiB also stores a standard copy, so estimates and parts count it.
+//! An AZW3 page is stored twice, as its HD record and as a standard record (itself up to 128 KiB,
+//! a copy of at most 128 KiB over it), so estimates and parts count both.
 
 use mangas_core::export::kindle::{page_cost, split_points};
 use mangas_core::export::{Format, PageInfo};
@@ -14,11 +15,11 @@ fn page(bytes: u64) -> PageInfo {
 }
 
 #[test]
-fn an_azw3_page_over_128_kib_costs_a_standard_copy_more_than_in_an_epub() {
+fn an_azw3_page_costs_its_standard_record_more_than_in_an_epub() {
     let (small, big) = (100 * KIB, 400 * KIB);
     assert_eq!(
         page_cost(Format::Azw3, small),
-        page_cost(Format::Epub, small)
+        page_cost(Format::Epub, small) + small
     );
     assert_eq!(
         page_cost(Format::Azw3, big),
