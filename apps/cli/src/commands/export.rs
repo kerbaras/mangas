@@ -7,7 +7,7 @@ use mangas_core::{library, storage};
 
 use super::cut_args::{CutArgs, DEFAULT_PROFILE};
 use super::deliver::{try_deliver, unsent};
-use super::deliver_usb;
+use super::deliver_precheck;
 use super::export_cover::cover_file;
 use super::export_plan;
 use super::export_plan::Fewer;
@@ -66,7 +66,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let books: Vec<_> = names.iter().map(|n| args.output_dir.join(n)).collect();
     let kindle = args.kindle.as_deref();
     let to = args.send.map(|via| (via, kindle, args.force));
-    deliver_usb::precheck(to, format.id(), &books, args.json)?;
+    deliver_precheck::precheck(to, format.id(), &books, args.json)?;
     export_preset::note_series_preset(series.as_ref());
     let (penalizer, detectors) = args.cut.penalizer().await?;
     let mut report = Report::new(detectors).with_plan(plan);

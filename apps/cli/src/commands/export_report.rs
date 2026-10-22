@@ -65,8 +65,8 @@ pub struct PartNo {
 pub struct Item {
     pub path: PathBuf,
     pub reason: String,
-    /// The kind of failure a script can act on: `no_space` when the disk or the Kindle is full;
-    /// `usb_refused` / `usb_warn` when the Kindle won't / may not open the file (see `--force`).
+    /// What a script can act on: `no_space` (disk or Kindle full), `usb_refused` / `usb_warn`
+    /// (see `--force`), `kindle_over_mtp` (no USB copy), `email_refused` (EPUB and PDF only).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<&'static str>,
 }

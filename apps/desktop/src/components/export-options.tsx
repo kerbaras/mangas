@@ -71,7 +71,7 @@ export function ExportOptions(p: Props) {
               `${target.recommended.name} reads ${formatLabel(target.recommended.format)} best.`
         }
       >
-        <FormatPicker value={target.format} onChange={target.setFormat} compact />
+        <FormatPicker value={target.format} onChange={target.setFormat} />
       </Field>
       <DirectionField
         value={target.shownDirection}
@@ -107,11 +107,7 @@ export function ExportOptions(p: Props) {
       />
       <OutputFolder {...p.output} />
       <ReplaceSwitch on={target.replace} onChange={target.setReplace} />
-      <DeliveryPicker
-        value={p.delivery}
-        onChange={p.onDelivery}
-        format={target.formatFor("email")}
-      />
+      <DeliveryPicker value={p.delivery} onChange={p.onDelivery} />
     </div>
   );
 }

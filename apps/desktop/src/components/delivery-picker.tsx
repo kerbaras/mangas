@@ -1,31 +1,30 @@
 import { Field } from "@/components/field";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useEmailRefusal } from "@/hooks/use-email-refusal";
 import type { Via } from "@/hooks/use-send";
-import type { ExportFormat } from "@/lib/ipc";
 import { useNavigation } from "@/lib/navigation";
 import { emailReady } from "@/lib/send-labels";
 import { useSettings } from "@/lib/settings";
 
 export type Delivery = "save" | Via;
 
-/** Why email can't take this export (format, or no mail setup), or null when it can. */
-export function useEmailBlock(format: ExportFormat) {
+/**
+ * Why email can't send yet (no mail setup), or null when it can. Not the format: the export
+ * writes EPUB for Email when the picked format isn't one Send to Kindle takes.
+ */
+export function useEmailBlock() {
   const [settings] = useSettings();
-  const refusal = useEmailRefusal(`book.${format}`);
-  if (refusal) return { reason: refusal, setup: false };
   if (emailReady(settings.kindleEmail)) return null;
-  return { reason: "Email needs your Kindle address and a mail server.", setup: true };
+  return { reason: "Email needs your Kindle address and a mail server." };
 }
 
-type Props = { value: Delivery; onChange: (d: Delivery) => void; format: ExportFormat };
+type Props = { value: Delivery; onChange: (d: Delivery) => void };
 
 /** After writing: keep the files in the folder, or also send them to the Kindle. */
-export function DeliveryPicker({ value, onChange, format }: Props) {
+export function DeliveryPicker({ value, onChange }: Props) {
   const nav = useNavigation();
-  const block = useEmailBlock(format);
-  const hint = block?.setup && (
+  const block = useEmailBlock();
+  const hint = block && (
     <>
       {block.reason}{" "}
       <button

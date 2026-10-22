@@ -13,7 +13,7 @@ use mangas_core::storage;
 
 use super::cut_args::{print_progress, CutArgs, DEFAULT_PROFILE};
 use super::deliver::SendArg;
-use super::deliver_usb;
+use super::deliver_precheck;
 use super::export_args::FormatArg;
 use super::export_plan::{planned_book, Fewer};
 use super::export_preset::note_series_preset;
@@ -143,7 +143,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         .send
         .map(|via| (via, args.kindle.as_deref(), args.force));
     let books = [planned_book(&output, args.replace)];
-    deliver_usb::precheck(to, format.id(), &books, args.json)?;
+    deliver_precheck::precheck(to, format.id(), &books, args.json)?;
     let (penalizer, detectors) = args.cut.penalizer().await?;
     let req = ExportRequest {
         split: args.cut.split(),

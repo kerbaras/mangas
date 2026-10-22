@@ -66,6 +66,32 @@ describe("export dialog: the Kindle format follows the delivery", () => {
     expect(exportVolumes).toHaveBeenCalledWith(expect.objectContaining({ format: "azw3" }));
     expect(sendUsb).toHaveBeenCalledWith("/k/Solo v1.azw3", "Solo v1", kindle.root);
   });
+
+  it.each([
+    ["Save to folder", "AZW3 (Kindle)"],
+    ["Kindle over USB", "AZW3 (Kindle)"],
+    ["Kindle over USB", "CBZ"],
+  ])("from %s, a picked %s goes by Email as an EPUB, saying why", async (from, pick) => {
+    emailSetUp();
+    const verdict = { decision: "supported", format: "AZW3", reason: null } as const;
+    const { exportVolumes } = backend(verdict);
+    render(dialog());
+    fireEvent.mouseDown(await screen.findByRole("tab", { name: from }));
+    // PDF first, so the pick is the user's even where the route already gave AZW3.
+    fireEvent.click(await screen.findByLabelText("PDF"));
+    fireEvent.click(screen.getByLabelText(pick));
+    const email = screen.getByRole("tab", { name: "Email to Kindle" });
+    expect(email.getAttribute("aria-disabled")).toBeNull();
+    fireEvent.mouseDown(email);
+    expect(email.getAttribute("aria-selected")).toBe("true");
+    const what = pick === "CBZ" ? "CBZ" : "AZW3";
+    const why = `Email sends EPUB; Send to Kindle doesn't take ${what} by email.`;
+    expect(await screen.findByText(why)).toBeTruthy();
+    await waitFor(() => expect(checked("EPUB")).toBe(true));
+    fireEvent.click(await enabledButton(/Export 2 books/));
+    await waitFor(() => expect(exportVolumes).toHaveBeenCalled());
+    expect(exportVolumes).toHaveBeenCalledWith(expect.objectContaining({ format: "epub" }));
+  });
 });
 
 describe("export dialog: formats a Kindle doesn't open over USB", () => {

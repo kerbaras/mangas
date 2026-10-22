@@ -3,13 +3,8 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use anyhow::anyhow;
-use mangas_core::ml::DetectorReport;
 use mangas_core::send::email;
 use mangas_core::send::usb::{self, Sideload, UsbVerdict};
-
-use super::deliver::SendArg;
-use super::export_report::{Item, Report};
 
 /// A book copied (or found already) on a Kindle, and the table's verdict for it.
 pub struct UsbSent {
@@ -93,58 +88,6 @@ pub fn next_step(verdict: &UsbVerdict, file: &Path, via: &str) -> String {
         }
         _ => String::new(),
     }
-}
-
-/// Before an export that `send`s over USB (and before `--detectors` loads anything, so the
-/// report's `detectors` is truly `off`): stops it, writing nothing, when the detected Kindle
-/// won't open the `ext` format, or may not and `--force` wasn't given. With `json` the report
-/// still prints, listing `books` (what the export would have written) in `not_written`. A
-/// Kindle on MTP only is asked too; with no Kindle at all the export goes ahead and its send
-/// says so.
-pub fn precheck(
-    to: Option<(SendArg, Option<&Path>, bool)>,
-    ext: &str,
-    books: &[PathBuf],
-    json: bool,
-) -> anyhow::Result<()> {
-    let Some((SendArg::Usb, kindle, force)) = to else {
-        return Ok(());
-    };
-    let chosen = usb::choose(kindle, usb::scan_kindles());
-    let Some(name) = usb::chosen_name(&chosen) else {
-        return Ok(());
-    };
-    let verdict = usb::usb_verdict(&Path::new("book").with_extension(ext), name);
-    let Err(e) = usb::admit(&verdict, force) else {
-        return Ok(());
-    };
-    if json {
-        not_copied(&verdict, books).print()?;
-    }
-    Err(match (verdict.decision, ext) {
-        (Sideload::Warn, _) => anyhow!("{e}\n  to write and copy it anyway, add --force"),
-        (Sideload::Refused, "epub") => anyhow!(
-            "{e}\n  for USB, export with --format azw3 (or leave --format out); for Email, use \
-             --send email"
-        ),
-        _ => e.into(),
-    })
-}
-
-/// The `--json` report of an export the format table stopped: every book in `not_written`, with
-/// the verdict's reason and `usb_refused` (EPUB, CBZ) or `usb_warn` (`--force` would copy it).
-fn not_copied(verdict: &UsbVerdict, books: &[PathBuf]) -> Report {
-    let error = Some(match verdict.decision {
-        Sideload::Refused => "usb_refused",
-        _ => "usb_warn",
-    });
-    let mut report = Report::new(DetectorReport::off());
-    report.not_written.extend(books.iter().map(|path| Item {
-        path: path.clone(),
-        reason: verdict.reason.clone().unwrap_or_default(),
-        error,
-    }));
-    report
 }
 
 fn print_copy(done: u64, total: u64) {

@@ -3,12 +3,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ExportDialog } from "@/components/export-dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { setBackend } from "@/lib/ipc";
-import { writeSettings } from "@/lib/settings";
+import { readSettings, writeSettings } from "@/lib/settings";
 import { chapters, enabledButton, exportBackend, solo } from "./export-backend";
 
 afterEach(() => {
   setBackend(null);
-  writeSettings({ defaultFormat: null, defaultDevice: "kindle-paperwhite12" });
+  writeSettings({
+    defaultFormat: null,
+    defaultDevice: "kindle-paperwhite12",
+    kindleEmail: { ...readSettings().kindleEmail, to: "", host: "" },
+  });
 });
 
 const dialog = () => (
@@ -17,6 +21,7 @@ const dialog = () => (
   </TooltipProvider>
 );
 
+const checked = (label: string) => (screen.getByLabelText(label) as HTMLInputElement).checked;
 const exportButton = () => enabledButton(/Export 2 books/);
 
 describe("export dialog: format, smart cut and delivery", () => {
@@ -56,19 +61,25 @@ describe("export dialog: format, smart cut and delivery", () => {
     expect(screen.getByText(/Copied to Kindle: .*Solo v2\.azw3/)).toBeTruthy();
   });
 
-  it("offers email only for formats Send to Kindle takes", async () => {
-    exportBackend();
+  it("emails an EPUB when the picked format is one Send to Kindle doesn't take", async () => {
+    const { exportVolumes } = exportBackend();
+    writeSettings({
+      kindleEmail: { ...readSettings().kindleEmail, to: "r@kindle.com", host: "h", from: "m@x.t" },
+    });
     render(dialog());
     fireEvent.click(await screen.findByLabelText("CBZ"));
     const email = await screen.findByRole("tab", { name: "Email to Kindle" });
-    expect(email.getAttribute("aria-disabled")).toBe("true");
-    fireEvent.focus(email);
-    const tip = await screen.findByRole("tooltip");
-    expect(tip.textContent).toMatch(/takes EPUB or PDF, not a CBZ/);
+    expect(email.getAttribute("aria-disabled")).toBeNull();
     fireEvent.mouseDown(email);
-    expect(email.getAttribute("aria-selected")).toBe("false");
-    expect(screen.getByRole("tab", { name: "Save to folder" }).getAttribute("aria-selected")).toBe(
-      "true",
-    );
+    expect(email.getAttribute("aria-selected")).toBe("true");
+    const why = "Email sends EPUB; Send to Kindle doesn't take CBZ by email.";
+    expect(await screen.findByText(why)).toBeTruthy();
+    await waitFor(() => expect(checked("EPUB")).toBe(true));
+    expect(await screen.findByText("Solo v1.epub")).toBeTruthy();
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Save to folder" }));
+    await waitFor(() => expect(checked("CBZ")).toBe(true));
+    fireEvent.click(await exportButton());
+    await waitFor(() => expect(exportVolumes).toHaveBeenCalled());
+    expect(exportVolumes.mock.calls[0][0].format).toBe("cbz");
   });
 });
