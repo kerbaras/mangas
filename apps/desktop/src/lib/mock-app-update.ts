@@ -6,6 +6,8 @@ import type { AppUpdateBackend } from "./ipc.app-update";
 import { mockFlags } from "./mock-flags";
 
 const CURRENT = "0.4.0";
+const NOTES = (version: string) =>
+  `## [${version}] - 2026-10-22\n\n### Added\n\n- **desktop:** What's new in the update banner\n\n### Fixed\n\n- **ci:** Release notes carry the whole CHANGELOG section (#415)`;
 const TOTAL = 18_400_000;
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -16,7 +18,14 @@ export const mockAppUpdate = (): AppUpdateBackend => ({
       throw new Error("error sending request for url (https://github.com/kerbaras/mangas/…)");
     if (!mockFlags.update) return { kind: "up_to_date", current: CURRENT, channel };
     const version = channel === "rc" ? "0.5.0-rc.2" : "0.5.0";
-    return { kind: "available", current: CURRENT, version, notes: null, date: null, channel };
+    return {
+      kind: "available",
+      current: CURRENT,
+      version,
+      notes: NOTES(version),
+      date: null,
+      channel,
+    };
   },
   async installAppUpdate(_version, onProgress) {
     for (let received = 0; received < TOTAL; received += 1_300_000) {

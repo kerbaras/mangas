@@ -1,5 +1,6 @@
 import { Download } from "lucide-react";
 import { Hint } from "@/components/hint";
+import { ReleaseNotes } from "@/components/release-notes";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -13,7 +14,10 @@ import { progressLine, progressPercent } from "@/lib/app-update-labels";
 import { describeFailure } from "@/lib/errors";
 import { isFinalError } from "@/lib/ipc.downloads";
 
-/** "mangas vX is available": dismissible until Restart to update, then download progress. */
+/**
+ * "mangas vX is available" with its release notes: dismissible until Restart to update, then
+ * download progress.
+ */
 export function AppUpdateBanner() {
   const state = useAppUpdate();
   const update = availableUpdate(state);
@@ -41,6 +45,7 @@ export function AppUpdateBanner() {
         ) : (
           "Restart to update. Downloads in progress pick up where they left off."
         )}
+        <ReleaseNotes version={update.version} notes={update.notes} />
       </AlertDescription>
       <div className="absolute top-3 right-4 flex gap-2">
         {!running && (
