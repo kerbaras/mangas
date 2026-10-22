@@ -18,7 +18,7 @@ use crate::domain::{Error, Result};
 pub struct Meta {
     pub id: String,
     pub title: String,
-    /// The creators; empty when unknown (AZW3 then writes none, EPUB writes "mangas").
+    /// The creators; empty when unknown, and then no format writes one.
     pub authors: Vec<String>,
     pub language: String,
     pub series: Option<Series>,

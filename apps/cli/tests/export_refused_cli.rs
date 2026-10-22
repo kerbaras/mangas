@@ -1,5 +1,6 @@
-//! `--send email` with a format Send to Kindle by email doesn't take (AZW3, CBZ): `kindle` and
-//! `export` stop before writing anything, name the format and the route, and point at EPUB.
+//! `export` and `kindle` stop before writing anything when the delivery can't take the book:
+//! `--send email` with a format Send to Kindle by email doesn't take (AZW3, CBZ), or
+//! `--send usb` to a Kindle on MTP only. The error names the format, the route and the way.
 
 use std::path::Path;
 use std::process::{Command, Output};
@@ -9,8 +10,16 @@ use mangas_core::library;
 use serde_json::Value;
 
 fn cli(home: &Path, args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_mangas-cli"))
-        .args(args)
+    cli_on_bus(home, args, None)
+}
+
+/// With `device` on the faked USB bus (over MTP only, no mounted folder).
+fn cli_on_bus(home: &Path, args: &[&str], device: Option<&str>) -> Output {
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_mangas-cli"));
+    if let Some(device) = device {
+        cmd.env("MANGAS_FAKE_USB_KINDLE", device);
+    }
+    cmd.args(args)
         .env("HOME", home)
         .env("XDG_DATA_HOME", home.join("data"))
         .env("MANGAS_KEYCHAIN", "off")
@@ -92,6 +101,11 @@ fn kindle_writes_nothing_for_an_azw3_or_cbz_by_email() {
         );
         assert!(err.contains(&what), "{err}");
         assert!(err.contains("export with --format epub"), "{err}");
+        assert_eq!(
+            err.contains("for USB, use --send usb"),
+            ext == "azw3",
+            "{err}"
+        );
         assert!(!home.path().join("out").exists(), "nothing written");
         let r = json(&kindle(home.path(), ext, true));
         assert_eq!(r["files"], serde_json::json!([]), "{r}");
@@ -141,4 +155,37 @@ fn an_epub_by_email_is_not_stopped_by_the_format() {
         "{out:?}"
     );
     assert!(home.path().join("out").exists(), "{out:?}");
+}
+
+#[test]
+fn export_writes_nothing_for_a_kindle_on_mtp_only() {
+    if !mangas_core::send::usb::find_kindles().is_empty() {
+        return eprintln!("skipped: a Kindle is mounted here");
+    }
+    let home = tempfile::tempdir().unwrap();
+    library_with_a_chapter(home.path());
+    let out_dir = home.path().join("out");
+    let out = out_dir.to_str().unwrap();
+    let args = ["export", "series-1", "--send", "usb", "-o", out];
+    let device = Some("Kindle Paperwhite");
+    let text = cli_on_bus(home.path(), &args, device);
+    assert_eq!(text.status.code(), Some(1), "{text:?}");
+    let err = stderr(&text);
+    assert!(err.contains("Kindle Paperwhite connects over MTP"), "{err}");
+    assert!(err.contains("--format epub --send email"), "{err}");
+    let r = json(&cli_on_bus(
+        home.path(),
+        &[&args[..], &["--json"]].concat(),
+        device,
+    ));
+    assert_eq!(r["files"], serde_json::json!([]), "{r}");
+    assert_eq!(r["not_written"][0]["error"], "kindle_over_mtp", "{r}");
+    assert!(
+        r["not_written"][0]["path"]
+            .as_str()
+            .unwrap()
+            .ends_with(".azw3"),
+        "{r}"
+    );
+    assert!(!out_dir.exists(), "nothing written");
 }

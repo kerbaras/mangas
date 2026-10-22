@@ -48,12 +48,17 @@ pub fn precheck(
 }
 
 /// Send to Kindle by email takes EPUB and PDF only (core's rule), so an AZW3 or CBZ export
-/// for Email stops.
+/// for Email stops. USB is pointed at only for a format the table copies to a Kindle.
 fn by_email(ext: &str) -> Option<Stop> {
-    let reason = email::email_refusal(&format!("book.{ext}"))?;
+    let book = Path::new("book").with_extension(ext);
+    let reason = email::email_refusal(&book.to_string_lossy())?;
+    let usb = match usb::usb_verdict(&book, "Kindle").decision {
+        Sideload::Supported => "; for USB, use --send usb",
+        _ => "",
+    };
     let error = anyhow!(
         "{reason}\n  to email it, export with --format epub (or leave --format out on a Kindle \
-         profile); for USB, use --send usb"
+         profile){usb}"
     );
     Some(Stop {
         reason,

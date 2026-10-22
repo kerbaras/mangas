@@ -101,8 +101,7 @@ fn legacy_format(
     send: Option<SendArg>,
 ) -> Format {
     let picked = explicit.or_else(|| output.and_then(Format::of_path));
-    let stored = series.or(Some(Format::Epub));
-    for_delivery(picked, stored, dev, route_of(send)).format
+    for_delivery(picked, series.or(Some(Format::Epub)), dev, route_of(send)).format
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
