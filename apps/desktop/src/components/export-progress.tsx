@@ -10,6 +10,7 @@ import { parentDir } from "@/lib/export-name";
 import { combineResults, exportSummary } from "@/lib/export-summary";
 import { ioRest } from "@/lib/io-hint";
 import { isFinalError } from "@/lib/ipc.downloads";
+import type { ExportResult } from "@/lib/ipc.export";
 
 /** Export progress, its failure with "Try again" (`onRetry` exports again), or what it wrote. */
 export function ExportProgressPanel({
@@ -90,6 +91,7 @@ export function ExportProgressPanel({
             {results.length === 1 && parts < 2 ? first.output : folder}
           </p>
         </Hint>
+        <QualityNote results={results} />
         <KeptNote kept={state.kept} className="text-caption text-ink-3" />
         {warning && (
           <p className="text-caption text-accent-text [overflow-wrap:anywhere]">{warning}</p>
@@ -100,4 +102,11 @@ export function ExportProgressPanel({
       </Button>
     </div>
   );
+}
+
+/** "JPEG quality 70": what the pages were encoded at, so a lowered quality stays visible. */
+function QualityNote({ results }: { results: ExportResult[] }) {
+  const qualities = [...new Set(results.flatMap((r) => r.jpegQuality ?? []))];
+  if (qualities.length === 0) return null;
+  return <p className="text-caption text-ink-3">JPEG quality {qualities.join(", ")}</p>;
 }

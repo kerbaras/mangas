@@ -54,10 +54,29 @@ export type EstimateRequest = {
   device: string;
   preset: Preset;
   quality: number | null;
+  /** Emailed: held to 50 MB, else 200 MB. */
+  email: boolean;
+  splitMb: number | null;
 };
 
-/** Mirrors `mangas_core::export::kindle::Estimate`. */
-export type Estimate = { pages: number; bytes: number };
+/** Mirrors `mangas_core::export::kindle::BookBudget`: a book's estimate against its budget. */
+export type BookBudget = {
+  pages: number;
+  estimated_bytes: number;
+  budget_bytes: number;
+  over_budget: boolean;
+  jpeg_quality: number;
+  /** Files it is written as: its parts when split, else 1. */
+  files: number;
+  levers?: Levers | null;
+};
+
+/** Mirrors `kindle::Levers`: what brings an over-budget book under its budget. */
+export type Levers = {
+  split_bytes: number;
+  chapters_per_book: number | null;
+  jpeg_quality: number | null;
+};
 
 export type VolumesBackend = {
   /** The books an export would write, in order, from the downloaded chapters among the ids. */
@@ -73,8 +92,10 @@ export type VolumesBackend = {
   checkExportDir(dir: string, split: boolean, replace: boolean): Promise<void>;
   /** The file name a book titled `title` is written under as `format` (shortened when too long). */
   exportFileName(title: string, format: ExportFormat): Promise<string>;
-  /** About how many pages and bytes the book would be, from a few pages encoded for real. */
-  estimateExport(request: EstimateRequest): Promise<Estimate>;
+  /** Each book's size against its budget, from a few of its pages encoded for real. */
+  estimateExport(request: EstimateRequest): Promise<BookBudget[]>;
+  /** What makes each book fit, as its plan offers it (`kindle::book_levers`). */
+  fitLevers(request: EstimateRequest): Promise<Levers[]>;
 };
 
 export const planVolumes = async (r: VolumeRequest) => (await backend()).planVolumes(r);
@@ -86,3 +107,4 @@ export const checkExportDir = async (dir: string, split: boolean, replace: boole
 export const exportFileName = async (title: string, format: ExportFormat = "epub") =>
   (await backend()).exportFileName(title, format);
 export const estimateExport = async (r: EstimateRequest) => (await backend()).estimateExport(r);
+export const fitLevers = async (r: EstimateRequest) => (await backend()).fitLevers(r);

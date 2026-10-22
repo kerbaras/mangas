@@ -1,11 +1,14 @@
 import { BookOpen } from "lucide-react";
 import { Hint } from "@/components/hint";
 import type { Async } from "@/hooks/use-async";
-import type { VolumePlan } from "@/lib/ipc.volumes";
+import type { BookBudget, VolumePlan } from "@/lib/ipc.volumes";
+import { againstBudget } from "@/lib/kindle-size";
 import { planSummary } from "@/lib/volume-plan";
 
 type Props = {
   plans: Async<VolumePlan[]>;
+  /** Each book's estimate against its budget, in plan order (`kindle::plan_budget`). */
+  budgets?: (BookBudget | null)[] | null;
   folder: string;
   /** The plans are for an older selection and a new plan is on its way. */
   stale?: boolean;
@@ -14,7 +17,7 @@ type Props = {
 };
 
 /** The EPUB files an export will write, one row each. */
-export function VolumePreview({ plans, folder, stale = false, blocked = null }: Props) {
+export function VolumePreview({ plans, budgets, folder, stale = false, blocked = null }: Props) {
   if (plans.kind === "loading") return <p className="text-caption text-ink-3">Planning books…</p>;
   if (plans.kind === "error")
     return (
@@ -33,7 +36,7 @@ export function VolumePreview({ plans, folder, stale = false, blocked = null }: 
         aria-label="Files to write"
         className="max-h-56 overflow-y-auto rounded-md border border-stroke"
       >
-        {plans.data.map((p) => (
+        {plans.data.map((p, i) => (
           <li
             key={p.chapters.map((c) => c.id).join(" ")}
             className="flex items-center gap-3 border-b border-stroke px-3 py-2 last:border-b-0"
@@ -42,7 +45,10 @@ export function VolumePreview({ plans, folder, stale = false, blocked = null }: 
             <Hint hint={p.file_name} truncated>
               <span className="min-w-0 flex-1 truncate font-mono text-caption">{p.file_name}</span>
             </Hint>
-            <span className="shrink-0 text-caption text-ink-3 tabular-nums">{planSummary(p)}</span>
+            <span className="flex shrink-0 flex-col items-end text-caption text-ink-3 tabular-nums">
+              {planSummary(p)}
+              <BookSize budget={budgets?.[i] ?? null} />
+            </span>
           </li>
         ))}
       </ul>
@@ -55,5 +61,17 @@ export function VolumePreview({ plans, folder, stale = false, blocked = null }: 
         </p>
       )}
     </div>
+  );
+}
+
+/** "212 MB of 200 MB", in the warning colour when the book is over its budget. */
+function BookSize({ budget }: { budget: BookBudget | null }) {
+  if (!budget) return null;
+  const tone = budget.over_budget ? "text-accent-text" : "text-ink-3";
+  return (
+    <span className={tone}>
+      {againstBudget(budget)}
+      {budget.over_budget && <span className="sr-only">, over budget</span>}
+    </span>
   );
 }

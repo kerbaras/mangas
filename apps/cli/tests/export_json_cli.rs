@@ -113,6 +113,7 @@ fn kindle_json_lists_the_book_the_empty_chapter_and_detectors_off() {
     assert_eq!(r["files"][0]["chapters"], 1);
     assert!(r["files"][0]["pages"].as_u64().unwrap() > 0, "{r}");
     assert_eq!(r["files"][0]["skipped_files"], 0);
+    assert_eq!(r["files"][0]["jpeg_quality"], 90);
     assert_eq!(
         r["skipped"],
         json!([{"path": e, "reason": "no readable pages"}])
@@ -181,8 +182,7 @@ fn json_conflicts_with_the_modes_that_write_nothing() {
     let (home, chapter) = home();
     let c = chapter.to_str().unwrap();
     for args in [
-        &["export", ID, "--json", "--dry-run"][..],
-        &["export", ID, "--json", "--preset", "show"],
+        &["export", ID, "--json", "--preset", "show"][..],
         &["kindle", c, "--json", "--list-profiles"],
     ] {
         let out = mangas(home.path(), args);

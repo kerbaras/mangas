@@ -1,10 +1,12 @@
 //! Device export: e-ink filters and the page pipeline shared by every format.
 
+mod budget;
 mod cover;
 mod estimate;
 mod export;
 pub mod filters;
 mod input;
+mod levers;
 mod margins;
 mod parts;
 mod plan;
@@ -19,9 +21,13 @@ pub mod trim;
 
 use super::{profile, Profile, PROFILES};
 
-pub use estimate::{estimate, estimate_largest, Estimate};
+pub use budget::{
+    plan_budget, BookBudget, BudgetSpec, Delivery, Levers, QUALITY_STEPS, SEND_TO_KINDLE_WEB_LIMIT,
+};
+pub use estimate::{estimate, estimate_each, estimate_largest, Estimate};
 pub use export::export;
 pub use input::{chapter_files, chapter_images, decode, ChapterFiles};
+pub use levers::book_levers;
 pub use parts::{
     free_book_path, oversized, part_book, part_owner, part_path, Oversized, PART_SIZE,
     SEND_TO_KINDLE_LIMIT,

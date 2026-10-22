@@ -9,7 +9,6 @@ import { OutputFolder } from "@/components/output-folder";
 import { ReplaceSwitch } from "@/components/replace-switch";
 import { SmartCutButton } from "@/components/smart-cut-preview";
 import { SmartCutSection } from "@/components/smart-cut-section";
-import type { Async } from "@/hooks/use-async";
 import type { DetectorSupport } from "@/hooks/use-detector-support";
 import type { Series } from "@/hooks/use-series-preset";
 import type { SeriesTarget } from "@/hooks/use-series-target";
@@ -17,7 +16,7 @@ import { chapterLabel } from "@/lib/chapters";
 import { formatLabel } from "@/lib/export-formats";
 import type { Chapter, Preset } from "@/lib/ipc";
 import type { ExportPreset } from "@/lib/ipc.cut-preview";
-import type { VolumePlan } from "@/lib/ipc.volumes";
+import type { BookBudget } from "@/lib/ipc.volumes";
 
 type Props = {
   target: SeriesTarget;
@@ -29,9 +28,10 @@ type Props = {
   output: { value: string; fallback: string; onChange: (dir: string) => void };
   /** The planned books, sized against the Send-to-Kindle limit, and how to shrink them. */
   size: {
-    plans: Async<VolumePlan[]>;
+    budgets: (BookBudget | null)[] | null;
     splitMb: number | null;
     onSplit: (mb: number | null) => void;
+    onEvery?: (chapters: number) => void;
   };
   delivery: Delivery;
   onDelivery: (d: Delivery) => void;
@@ -98,8 +98,7 @@ export function ExportOptions(p: Props) {
       </SmartCutSection>
       <KindleSizeField
         {...p.size}
-        device={target.device}
-        preset={p.preset}
+        email={p.delivery === "email"}
         quality={target.quality}
         onQuality={target.setQuality}
       />

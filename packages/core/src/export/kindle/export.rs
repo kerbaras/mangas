@@ -113,6 +113,7 @@ pub fn export(
         remove_stale(&req.output, run.stats.parts.len())?;
     }
     run.stats.oversized = oversized(&run.stats.outputs());
+    run.stats.jpeg_quality = req.page.image_settings(&req.device).quality;
     Ok(run.stats)
 }
 

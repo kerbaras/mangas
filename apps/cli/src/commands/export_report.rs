@@ -3,7 +3,6 @@
 
 use std::path::{Path, PathBuf};
 
-use mangas_core::export::free_names_in;
 use mangas_core::export::kindle::ExportStats;
 use mangas_core::export::volume::VolumeOutcome;
 use mangas_core::library::ExportedChapter;
@@ -11,11 +10,15 @@ use mangas_core::ml::DetectorReport;
 use serde::Serialize;
 
 use super::deliver::Unsent;
+use super::export_plan::{planned_book, PlannedBook};
 use super::export_size::bytes;
 use crate::output::print_json;
 
 #[derive(Debug, Serialize)]
 pub struct Report {
+    /// The plan made before writing (`mangas export`): each book's estimate against its budget.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub plan: Vec<PlannedBook>,
     pub files: Vec<WrittenFile>,
     pub skipped: Vec<Item>,
     pub failed: Vec<Item>,
@@ -47,6 +50,8 @@ pub struct WrittenFile {
     pub part: Option<PartNo>,
     /// Files in its chapters left out because their format can't be decoded.
     pub skipped_files: usize,
+    /// JPEG quality its pages were encoded at.
+    pub jpeg_quality: u8,
 }
 
 #[derive(Debug, Serialize)]
@@ -85,6 +90,7 @@ pub const NOT_STARTED: &str = "not started: an earlier book failed";
 impl Report {
     pub fn new(detectors: DetectorReport) -> Self {
         Self {
+            plan: Vec::new(),
             files: Vec::new(),
             skipped: Vec::new(),
             failed: Vec::new(),
@@ -92,6 +98,10 @@ impl Report {
             recorded: Vec::new(),
             detectors,
         }
+    }
+
+    pub fn with_plan(self, plan: Vec<PlannedBook>) -> Self {
+        Self { plan, ..self }
     }
 
     /// Adds the book `stats` describes, made from the chapter folders `dirs`.
@@ -107,6 +117,7 @@ impl Report {
             bytes: bytes(path),
             part,
             skipped_files: stats.skipped,
+            jpeg_quality: stats.jpeg_quality,
         };
         match total {
             0 => self
@@ -185,54 +196,6 @@ impl Report {
     }
 }
 
-/// The book `export` writes for `output`: `output` itself when replacing, else its first free name
-/// in the folder, as the writer picks it (a failed write leaves nothing that would move it).
-pub fn planned_book(output: &Path, replace: bool) -> PathBuf {
-    let dir = output.parent().filter(|d| !d.as_os_str().is_empty());
-    let name = output.file_name().map(|n| n.to_string_lossy().into_owned());
-    let free = match (replace, name) {
-        (false, Some(name)) => free_names_in(dir.unwrap_or(Path::new(".")), &[name]).ok(),
-        _ => None,
-    };
-    match free.as_ref().and_then(|f| f.first()) {
-        Some(name) => output.with_file_name(name),
-        None => output.to_path_buf(),
-    }
-}
-
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_failed_book_is_named_as_the_writer_names_it() {
-        let dir = tempfile::tempdir().unwrap();
-        let book = dir.path().join("Book.epub");
-        assert_eq!(planned_book(&book, false), book);
-        std::fs::write(&book, b"older").unwrap();
-        assert_eq!(planned_book(&book, false), dir.path().join("Book (2).epub"));
-        assert_eq!(planned_book(&book, true), book);
-    }
-
-    #[test]
-    fn a_full_disk_or_kindle_is_classed_no_space() {
-        assert_eq!(
-            error_class("not enough space in /out: 3 MB needed"),
-            Some("no_space")
-        );
-        assert_eq!(error_class("io: Permission denied (os error 13)"), None);
-        assert_eq!(error_class("io: /not enough space in x: denied"), None);
-    }
-
-    #[test]
-    fn an_unsent_book_is_classed_by_its_error_not_its_path() {
-        use crate::commands::deliver::{not_sent, SendArg};
-        let book = Path::new("/a/B.epub was written but not sent: x/B.epub");
-        let full = anyhow::anyhow!("not enough space on Kindle at /media/k");
-        let unsent = not_sent(book, SendArg::Usb, None, &full);
-        assert_eq!(unsent.class, Some("no_space"));
-        let tricky = Path::new("/not enough space on k/B.epub");
-        let denied = anyhow::anyhow!("io: Permission denied (os error 13)");
-        assert_eq!(not_sent(tricky, SendArg::Usb, None, &denied).class, None);
-    }
-}
+#[path = "export_report_tests.rs"]
+mod tests;

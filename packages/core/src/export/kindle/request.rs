@@ -127,6 +127,9 @@ pub struct ExportStats {
     /// Files written over the Send-to-Kindle email limit, measured on disk.
     #[serde(default)]
     pub oversized: Vec<Oversized>,
+    /// JPEG quality the pages were encoded at (0 in reports from before it was recorded).
+    #[serde(default)]
+    pub jpeg_quality: u8,
     /// Ids of the book's chapters, set by the volume export that planned it: how "Try again"
     /// recognises a book a stopped run already wrote.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

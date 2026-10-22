@@ -76,6 +76,7 @@ pub fn run() {
             commands::organisation::set_reading_status,
             commands::import::import_local,
             commands::estimate::estimate_export,
+            commands::estimate::fit_levers,
             commands::export::export_chapters,
             commands::detectors::detectors_status,
             commands::detectors::download_detectors,

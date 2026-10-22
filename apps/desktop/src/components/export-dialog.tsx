@@ -18,26 +18,27 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { VolumePreview } from "@/components/volume-preview";
+import { useBundle } from "@/hooks/use-bundle";
 import { useClearOnChange } from "@/hooks/use-clear-on-change";
 import { useDetectorSupport } from "@/hooks/use-detector-support";
 import { useExport } from "@/hooks/use-export";
 import { useExportPlan } from "@/hooks/use-export-plan";
 import { useFreeNames } from "@/hooks/use-free-names";
+import { useOversized } from "@/hooks/use-oversized";
 import { type Book, refused, runningVia, useSend } from "@/hooks/use-send";
 import { useSeriesTarget } from "@/hooks/use-series-target";
+import { useSizeEstimate } from "@/hooks/use-size-estimate";
 import { booksToSend, exportJob, keptBooks } from "@/lib/export-job";
 import type { ExportPick } from "@/lib/export-name";
 import {
-  type BundleMode,
   detectorsDefault,
   detectorsUsable,
   exportAction,
   inFormat,
-  initialMode,
   pickSummary,
 } from "@/lib/export-plan";
 import type { ExportResult } from "@/lib/ipc";
-import { oversizedOf, PART_MB } from "@/lib/kindle-size";
+import { oversizedOf, PART_MB, WEB_PART_MB } from "@/lib/kindle-size";
 
 type Props = {
   open: boolean;
@@ -53,10 +54,7 @@ type Props = {
 /** The one export flow: what to write (bundle, title), how (profile, format, smart cut), where. */
 export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: Props) {
   const chapters = picks.flatMap((p) => p.chapters);
-  const [mode, setMode] = useState<BundleMode>(() =>
-    picks.length > 1 ? "single" : initialMode(chapters),
-  );
-  const [size, setSize] = useState(10);
+  const { mode, setMode, size, setSize, every } = useBundle(picks);
   const [title, setTitle] = useState("");
   const [detectorsOn, setDetectorsOn] = useState<boolean | null>(null);
   const [delivery, setDelivery] = useState<Delivery>("save");
@@ -78,14 +76,17 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const { files, named, blocked } = useFreeNames(planned, dir, epoch, replace, splitMb, kept);
   const preview = { folder: folder.resolved, stale: !fresh || !named, blocked };
   const books = files.kind === "ready" ? files.data.length : 0;
-  const oversized = job.state.kind === "done" ? oversizedOf(job.state.results) : [];
+  const email = via === "email";
+  const budgets = useSizeEstimate({ plans: files, device, preset, quality, email, splitMb });
+  const fit = { device, preset, quality, email, splitMb, bundle: !joined };
+  const over = useOversized(job.state.kind === "done" ? job.state.results : [], files, fit);
   const sending = runningVia(send.state);
   const busy = job.state.kind === "running" || sending !== undefined;
   const failed = written.length > 0 && ["error", "no-device", "mtp"].includes(send.state.kind);
   const sendVia = via === "save" ? undefined : via;
   const stuck = failed && refused(send.state, via);
   const resend =
-    failed && sendVia !== undefined && !stuck && !(via === "email" && oversized.length > 0);
+    failed && sendVia !== undefined && !stuck && !(via === "email" && over.files.length > 0);
   const retrySend = sendVia && (() => void send.retry(sendVia));
   const ready =
     fresh &&
@@ -133,7 +134,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
     const sent = booksToSend(send.unsent(), job.retry.kept, results);
     setWritten(sent);
     // A book over the email limit on disk is never emailed: the alert offers the split.
-    if (via === "email" && oversizedOf(results).length > 0) return;
+    if (via === "email" && oversizedOf(results, true).length > 0) return;
     if (via !== "save") await send.deliver(sent, via);
   };
 
@@ -154,7 +155,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
               <ExportTitleField value={title} onChange={setTitle} plans={plans} />
             )}
             <Field label={books > 1 ? `${books} files` : "File"}>
-              <VolumePreview plans={files} {...preview} />
+              <VolumePreview plans={files} budgets={budgets} {...preview} />
             </Field>
           </div>
           <ExportOptions
@@ -165,7 +166,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
             detectors={useDetectors}
             onDetectors={setDetectorsOn}
             output={{ value: folder.output, fallback: folder.fallback, onChange: folder.setOutput }}
-            size={{ plans: files, splitMb, onSplit: setSplitMb }}
+            size={{ budgets, splitMb, onSplit: setSplitMb, onEvery: joined ? undefined : every }}
             delivery={via}
             onDelivery={setDelivery}
             cut={{ ...cut, chapters }}
@@ -174,9 +175,10 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
         <div className="mt-4 flex flex-col gap-3 empty:hidden">
           <ExportProgressPanel state={job.state} onRetry={() => void run()} canRetry={ready} />
           <OversizedAlert
-            files={oversized}
-            email={via === "email"}
-            onSplit={splitMb === null ? () => setSplitMb(PART_MB) : undefined}
+            files={over.files}
+            email={email}
+            levers={over.levers}
+            onSplit={splitMb === null ? () => setSplitMb(email ? PART_MB : WEB_PART_MB) : undefined}
           />
           <SendStatus state={send.state} via={via} onRetry={retrySend} />
         </div>

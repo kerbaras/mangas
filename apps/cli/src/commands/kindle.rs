@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use anyhow::bail;
 use clap::Args as ClapArgs;
-use mangas_core::export::kindle::{export, BookMeta, ExportRequest};
+use mangas_core::export::kindle::{export, BookMeta, BudgetSpec, ExportRequest};
 use mangas_core::export::target::{book_path, is_folder};
 use mangas_core::export::{ExportPreset, Format, PROFILES};
 use mangas_core::library;
@@ -14,9 +14,10 @@ use mangas_core::storage;
 use super::cut_args::{print_progress, CutArgs, DEFAULT_PROFILE};
 use super::deliver::SendArg;
 use super::export_args::FormatArg;
+use super::export_plan::Fewer;
 use super::export_preset::note_series_preset;
 use super::export_report::Report;
-use super::export_size::warn_too_big;
+use super::export_size::{delivery_of, levers_text, warn_too_big};
 use super::kindle_library::from_library;
 use super::kindle_print;
 use super::kindle_record;
@@ -153,7 +154,15 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let mut report = Report::new(detectors);
     let stats = export(&req, penalizer, &mut print_progress)
         .or_else(|e| report.export_failed(&req.output, req.replace, e, args.json))?;
-    warn_too_big(&stats.oversized);
+    let spec = BudgetSpec {
+        device: dev,
+        cut: req.cut,
+        page: req.page,
+        delivery: delivery_of(args.send),
+        split: req.split,
+    };
+    let fix = || levers_text(None, &req.chapter_dirs, spec, Fewer::Folders);
+    warn_too_big(&stats.oversized, spec.delivery, fix);
     report.add(&stats, &req.title, &req.chapter_dirs);
     if !args.json {
         kindle_print::print_book(&stats, req.chapter_dirs.len(), started)?;

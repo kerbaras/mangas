@@ -136,6 +136,7 @@ mod tests {
             output: r.output.clone(),
             detectors_error: None,
             oversized: Vec::new(),
+            jpeg_quality: 0,
             parts: Vec::new(),
             chapters: Vec::new(),
         }

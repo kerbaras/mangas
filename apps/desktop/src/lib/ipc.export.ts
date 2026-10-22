@@ -56,6 +56,8 @@ export type ExportResult = {
   oversized?: Oversized[];
   /** Ids of the book's chapters (volume exports): how Try again recognises a kept book. */
   chapters?: string[];
+  /** JPEG quality the pages were encoded at (absent from reports written before it was kept). */
+  jpegQuality?: number;
 };
 
 /** A written file and its size on disk (`export::kindle::Oversized`). */

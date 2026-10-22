@@ -50,7 +50,7 @@ pub struct CutArgs {
     #[arg(long, value_enum)]
     pub direction: Option<super::direction_arg::DirectionArg>,
     /// Write a book bigger than this many MB as numbered parts, "Title (part 1).epub", ... (45
-    /// keeps each part under the 50 MB Send-to-Kindle email limit)
+    /// keeps each part under the 50 MB Send-to-Kindle email limit, 180 under the 200 MB web one)
     #[arg(long, value_name = "MB", value_parser = clap::value_parser!(u64).range(1..))]
     pub split_mb: Option<u64>,
     /// Run the ONNX bubble/text/face detectors (needs a build with the `ml` feature). When they

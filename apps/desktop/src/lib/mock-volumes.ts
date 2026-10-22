@@ -1,6 +1,6 @@
 import { withExtension } from "./export-plan";
 import type { Chapter, ExportProgress, Manga } from "./ipc";
-import type { VolumesBackend } from "./ipc.volumes";
+import type { BookBudget, EstimateRequest, VolumesBackend } from "./ipc.volumes";
 import { simulateExport } from "./mock-export";
 import { mockExportResult } from "./mock-flags";
 import { markExported } from "./mock-library";
@@ -49,9 +49,33 @@ export function mockVolumes(deps: Deps): VolumesBackend {
     checkExportDir: async () => {},
     exportFileName: async (title, format) => withExtension(portable(title), format),
     // About 24 pages a chapter at ~6 kB per quality point: 85 makes a 12 MB chapter.
-    estimateExport: async (r) => {
-      const pages = Math.max(0, ...r.books.map((b) => b.length)) * 24;
-      return { pages, bytes: pages * (r.quality ?? 85) * 6_000 };
-    },
+    estimateExport: async (r) => r.books.map((b) => mockBudget(b.length, r)),
+    fitLevers: async (r) => r.books.map((b) => mockBudget(b.length, r, true).levers ?? noLevers),
   };
 }
+
+/** A stand-in for `kindle::plan_budget`: 24 pages a chapter, bytes growing with the quality. */
+function mockBudget(chapters: number, r: EstimateRequest, always = false): BookBudget {
+  const [pages, quality] = [chapters * 24, r.quality ?? 90];
+  const bytesAt = (q: number) => pages * q * 6_000;
+  const budget = r.email ? 50_000_000 : 200_000_000;
+  const [target, split] = [(budget / 10) * 9, r.splitMb ? r.splitMb * 1_000_000 : Infinity];
+  const bytes = bytesAt(quality);
+  const over = Math.min(bytes, split) > budget;
+  const fewer = Math.max(1, Math.min(chapters - 1, Math.floor((chapters * target) / bytes)));
+  const levers = {
+    split_bytes: target,
+    chapters_per_book: chapters > 1 ? fewer : null,
+    jpeg_quality: [80, 70, 60, 50].find((q) => q < quality && bytesAt(q) <= target) ?? null,
+  };
+  const files = Number.isFinite(split) ? Math.max(1, Math.ceil(bytes / split)) : 1;
+  const fields = { pages, estimated_bytes: bytes, budget_bytes: budget, files };
+  return {
+    ...fields,
+    over_budget: over,
+    jpeg_quality: quality,
+    levers: over || always ? levers : null,
+  };
+}
+
+const noLevers = { split_bytes: 0, chapters_per_book: null, jpeg_quality: null };
