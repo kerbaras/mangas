@@ -45,11 +45,14 @@ pub fn low_res(jpeg: &[u8]) -> Result<Option<Vec<u8>>> {
     }
 }
 
-/// The cover shrunk to a library thumbnail.
+/// The cover shrunk to a library thumbnail, within the record limit like any standard image.
 pub fn thumbnail(cover: &[u8]) -> Result<Vec<u8>> {
     let img = decode(cover)?;
-    let thumb = img.resize(THUMB_BOX.0, THUMB_BOX.1, FilterType::Triangle);
-    encode(&thumb, 80)
+    let thumb = encode(
+        &img.resize(THUMB_BOX.0, THUMB_BOX.1, FilterType::Triangle),
+        80,
+    )?;
+    Ok(low_res(&thumb)?.unwrap_or(thumb))
 }
 
 /// Whether the JPEG has a single (grey) component, read from its start-of-frame header: the
@@ -120,5 +123,15 @@ mod tests {
     fn thumbnail_fits_the_box() {
         let t = decode(&thumbnail(&page(1264, 1680)).unwrap()).unwrap();
         assert!(t.width() <= 330 && t.height() <= 470);
+    }
+
+    #[test]
+    fn a_noisy_colour_thumbnail_still_fits_a_record() {
+        let img = image::RgbImage::from_fn(1264, 1680, |x, y| {
+            let v = x.wrapping_mul(2_654_435_761) ^ y.wrapping_mul(40_503);
+            image::Rgb([v as u8, (v >> 8) as u8, (v >> 16) as u8])
+        });
+        let cover = encode(&DynamicImage::ImageRgb8(img), 95).unwrap();
+        assert!(thumbnail(&cover).unwrap().len() <= LIMIT);
     }
 }

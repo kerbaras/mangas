@@ -69,6 +69,8 @@ ort = { version = "=2.0.0-rc.13", optional = true, default-features = false, fea
 [dev-dependencies]
 # Reads the AZW3 writer's output back in `tests/azw3.rs`; an oracle, never linked into the app.
 mobi = "0.8"
+# Error type of the `azw3_from_epub` example (binaries use anyhow, AGENTS.md).
+anyhow = { workspace = true }
 # The self-signed TLS test server (`tests/tls_server.rs`); the provider reqwest already uses.
 rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs", "std"] }
 lopdf = "0.45"

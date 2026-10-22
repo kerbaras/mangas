@@ -8,21 +8,22 @@ use std::fs::File;
 use std::io::{Cursor, Read};
 use std::path::Path;
 
+use anyhow::{bail, Context};
 use mangas_core::export::azw3::Azw3Exporter;
 use mangas_core::export::epub::{ChapterEntry, PageImage};
 use mangas_core::export::{profile, Exporter, Labels, Meta, PageSpool};
 use roxmltree::{Document, Node};
 
-type Res<T> = Result<T, Box<dyn std::error::Error>>;
+type Res<T> = anyhow::Result<T>;
 type Zip = zip::ZipArchive<File>;
 
 fn main() -> Res<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let [epub, out, rest @ ..] = args.as_slice() else {
-        return Err("usage: azw3_from_epub BOOK.epub out.azw3 [PROFILE]".into());
+        bail!("usage: azw3_from_epub BOOK.epub out.azw3 [PROFILE]");
     };
     let profile_id = rest.first().map_or("kindle-paperwhite12", String::as_str);
-    let profile = profile(profile_id).ok_or("unknown profile")?;
+    let profile = profile(profile_id).context("unknown profile")?;
     let mut zip = zip::ZipArchive::new(File::open(epub)?)?;
     let opf_path = rootfile(&mut zip)?;
     let opf = text(&mut zip, &opf_path)?;
@@ -92,7 +93,7 @@ fn rootfile(zip: &mut Zip) -> Res<String> {
         .find(|n| n.tag_name().name() == "rootfile");
     Ok(root
         .and_then(|n| n.attribute("full-path"))
-        .ok_or("no rootfile")?
+        .context("no rootfile")?
         .to_string())
 }
 
@@ -111,8 +112,8 @@ fn spine_files(doc: &Document, base: &str) -> Res<Vec<String>> {
     (doc.descendants()
         .filter(|n| n.tag_name().name() == "itemref"))
     .map(|r| {
-        let id = r.attribute("idref").ok_or("itemref without idref")?;
-        Ok(join(base, href(id).ok_or("spine item not in manifest")?))
+        let id = r.attribute("idref").context("itemref without idref")?;
+        Ok(join(base, href(id).context("spine item not in manifest")?))
     })
     .collect()
 }
@@ -123,7 +124,7 @@ fn image_of(zip: &mut Zip, xhtml: &str) -> Res<String> {
     let img = doc.descendants().find(|n| n.tag_name().name() == "img");
     let src = img
         .and_then(|n| n.attribute("src"))
-        .ok_or("page without img")?;
+        .context("page without img")?;
     let dir = xhtml.rsplit_once('/').map_or("", |(d, _)| d);
     Ok(join(dir, src))
 }
