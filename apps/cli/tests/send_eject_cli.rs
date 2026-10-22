@@ -151,3 +151,30 @@ fn send_json_reports_the_eject() {
     assert!(error.contains("isn't a drive of its own"), "{json}");
     assert!(kindle.join("documents/Vol 1.pdf").is_file());
 }
+
+#[test]
+fn refused_send_still_ejects_and_says_why_the_kindle_stays() {
+    let home = tempfile::tempdir().unwrap();
+    let kindle = home.path().join("Kindle");
+    std::fs::create_dir_all(kindle.join("documents")).unwrap();
+    let book = home.path().join("Vol 1.epub");
+    std::fs::write(&book, b"epub bytes").unwrap();
+    let k = kindle.to_str().unwrap();
+    let args = [
+        "send",
+        "--via",
+        "usb",
+        "--eject",
+        "--kindle",
+        k,
+        book.to_str().unwrap(),
+    ];
+    let out = mangas(home.path(), &args);
+    assert!(!out.status.success(), "{out:?}");
+    let err = text(&out.stderr);
+    assert!(err.contains("doesn't open an EPUB"), "{err}");
+    assert!(err.contains("can't eject"), "{err}");
+    assert!(err.contains("isn't a drive of its own"), "{err}");
+    let copied = std::fs::read_dir(kindle.join("documents")).unwrap().count();
+    assert_eq!(copied, 0, "a refused send copies nothing");
+}

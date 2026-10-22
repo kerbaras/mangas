@@ -87,7 +87,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         report.eject = eject.clone();
         print_json(&report)?;
     }
-    sent.map_err(|e| match (e.downcast_ref(), stopped_by(&e)) {
+    let sent = sent.map_err(|e| match (e.downcast_ref(), stopped_by(&e)) {
         (Some(mangas_core::Error::KindleOverMtp { .. }), _) => {
             anyhow::anyhow!("{e}{}", mtp_step(&file))
         }
@@ -96,8 +96,12 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             anyhow::anyhow!("{e}{next}")
         }
         _ => e,
-    })?;
-    eject.result()
+    });
+    match (sent, eject.error.clone()) {
+        (Ok(_), _) => eject.result(),
+        (Err(e), None) => Err(e),
+        (Err(e), Some(m)) => Err(anyhow::anyhow!("{}\n{m}", crate::exit::describe(&e))),
+    }
 }
 
 /// The library and `file` as an absolute path, once it is known to be a file.
