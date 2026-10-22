@@ -64,7 +64,10 @@ mod tests {
 
     #[test]
     fn nested_broken_pipe_still_fails() {
-        let err = mangas_core::Error::from(io::Error::from(ErrorKind::BrokenPipe));
+        let err = mangas_core::Error::Io {
+            path: "/out".into(),
+            source: io::Error::from(ErrorKind::BrokenPipe),
+        };
         assert!(ignore_broken_pipe(Err(err.into())).is_err());
     }
 }

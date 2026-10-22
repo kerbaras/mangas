@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 use super::epub::PageImage;
 use super::{space, spool_file};
-use crate::domain::{Error, Result};
+use crate::domain::{io_at, Error, Result};
 
 /// What a writer needs to know about a page without reading its bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,7 +35,7 @@ pub struct PageSpool {
 fn io(folder: &Path) -> impl Fn(std::io::Error) -> Error + '_ {
     move |e| match space::is_out_of_space(&e) {
         true => space::no_space(folder),
-        false => Error::Io(e),
+        false => io_at(folder)(e),
     }
 }
 

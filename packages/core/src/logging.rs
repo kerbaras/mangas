@@ -11,6 +11,7 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{fmt, EnvFilter};
 
+use crate::domain::IoAt;
 use crate::{Error, Result};
 
 /// Overrides the level, in `EnvFilter` syntax (`debug`, `mangas_providers=trace,warn`).
@@ -84,7 +85,7 @@ fn stderr_ansi() -> bool {
 
 /// Daily-rolling appender in `dir` keeping [`KEEP_DAYS`] files; creates `dir` if needed.
 pub fn file_appender(dir: &Path) -> Result<RollingFileAppender> {
-    std::fs::create_dir_all(dir)?;
+    std::fs::create_dir_all(dir).at(dir)?;
     RollingFileAppender::builder()
         .rotation(Rotation::DAILY)
         .filename_prefix(FILE_PREFIX)

@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use image::RgbaImage;
 
+use crate::domain::IoAt;
 use crate::domain::Result;
 use crate::images::has_page_extension;
 
@@ -16,9 +17,11 @@ pub struct ChapterFiles {
 }
 
 pub fn chapter_files(dir: &Path) -> Result<ChapterFiles> {
-    let mut files: Vec<PathBuf> = std::fs::read_dir(dir)?
+    let mut files: Vec<PathBuf> = std::fs::read_dir(dir)
+        .at(dir)?
         .map(|e| e.map(|e| e.path()))
-        .collect::<std::io::Result<Vec<_>>>()?
+        .collect::<std::io::Result<Vec<_>>>()
+        .at(dir)?
         .into_iter()
         .filter(|p| p.is_file() && !is_hidden(p))
         .collect();
@@ -43,8 +46,10 @@ pub fn decode(path: &Path) -> Result<RgbaImage> {
     if let Some(img) = super::png_rgba::decode(path) {
         return Ok(img);
     }
-    Ok(image::ImageReader::open(path)?
-        .with_guessed_format()?
+    Ok(image::ImageReader::open(path)
+        .at(path)?
+        .with_guessed_format()
+        .at(path)?
         .decode()?
         .into_rgba8())
 }

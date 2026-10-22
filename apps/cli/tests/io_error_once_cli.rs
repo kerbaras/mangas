@@ -1,4 +1,4 @@
-//! #234: an IO failure is reported with its reason once, not `io: X: X`.
+//! #234/#313: an IO failure is reported with its path and its reason, each once (not `io: X: X`).
 
 use std::path::Path;
 use std::process::Command;
@@ -24,9 +24,11 @@ fn kindle_into(home: &Path, output: &Path) -> String {
     stderr.lines().last().unwrap_or_default().to_string()
 }
 
-fn assert_once(line: &str, reason: &str) {
-    assert_eq!(line, format!("error: io: {reason}"), "{line}");
+fn assert_once(line: &str, path: &Path, reason: &str) {
+    let path = path.display().to_string();
+    assert_eq!(line, format!("error: io: {path}: {reason}"), "{line}");
     assert_eq!(line.matches(reason).count(), 1, "{line}");
+    assert_eq!(line.matches(&path).count(), 1, "{line}");
 }
 
 #[test]
@@ -34,7 +36,7 @@ fn a_file_name_too_long_is_reported_once() {
     let home = tempfile::tempdir().unwrap();
     let output = home.path().join(format!("{}.epub", "a".repeat(300)));
     let reason = std::io::Error::from_raw_os_error(36).to_string();
-    assert_once(&kindle_into(home.path(), &output), &reason);
+    assert_once(&kindle_into(home.path(), &output), &output, &reason);
 }
 
 #[cfg(unix)]
@@ -49,5 +51,9 @@ fn a_permission_denied_is_reported_once() {
         return; // root ignores permissions
     }
     let reason = std::io::Error::from_raw_os_error(13).to_string();
-    assert_once(&kindle_into(home.path(), &locked.join("b.epub")), &reason);
+    assert_once(
+        &kindle_into(home.path(), &locked.join("b.epub")),
+        &locked,
+        &reason,
+    );
 }

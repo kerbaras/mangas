@@ -127,7 +127,11 @@ fn challenges_and_disk_errors_fail_at_once() {
         site: "https://mangadot.net".into(),
     };
     assert!(!classify(&challenge).retryable);
-    assert!(!classify(&Error::Io(std::io::Error::other("read-only"))).retryable);
+    let read_only = Error::Io {
+        path: "/data".into(),
+        source: std::io::Error::other("read-only"),
+    };
+    assert!(!classify(&read_only).retryable);
     assert!(
         classify(&Error::Other(
             "incomplete chapter: 2 of 9 pages failed".into()

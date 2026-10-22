@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use super::part_claim::{claim_free_name, claim_part, part_file, publish};
 use super::space;
-use crate::domain::{Error, Result};
+use crate::domain::{io_at, placed_at, IoAt, Result};
 use crate::export::kindle::part_owner;
 
 /// Where an export path the user gave goes: an absolute path as given, a relative one (or none)
@@ -44,7 +44,7 @@ pub(crate) fn write_file(
 fn write_over(path: &Path, fill: impl FnOnce(File) -> Result<()>) -> Result<PathBuf> {
     let dir = path.parent().filter(|d| !d.as_os_str().is_empty());
     let dir = dir.unwrap_or(Path::new("."));
-    std::fs::create_dir_all(dir)?;
+    std::fs::create_dir_all(dir).at(dir)?;
     // Another replacement holds `<name>.part`, or the name is too long for a suffix.
     let file = match claim_part(path) {
         Ok(Some(file)) => file,
@@ -52,14 +52,12 @@ fn write_over(path: &Path, fill: impl FnOnce(File) -> Result<()>) -> Result<Path
         Err(e) if e.kind() == std::io::ErrorKind::InvalidFilename => {
             return write_over_unique(dir, path, fill)
         }
-        Err(e) => return Err(e.into()),
+        Err(e) => return Err(io_at(&part_file(path))(e)),
     };
     let part = part_file(path);
-    let result = file
-        .try_clone()
-        .map_err(Error::from)
-        .and_then(fill)
-        .and_then(|()| std::fs::rename(&part, path).map_err(Error::from));
+    let result = (file.try_clone().at(&part))
+        .and_then(|file| fill(file).map_err(|e| placed_at(e, path)))
+        .and_then(|()| std::fs::rename(&part, path).at(path));
     if result.is_err() {
         let _ = std::fs::remove_file(&part);
     }
@@ -72,14 +70,22 @@ fn write_over_unique(
     path: &Path,
     fill: impl FnOnce(File) -> Result<()>,
 ) -> Result<PathBuf> {
-    let mut builder = tempfile::Builder::new();
-    builder.prefix(".mangas-").suffix(".part");
-    // Same mode as `File::create` (0666 less the umask), not the temporary file's private 0600.
-    #[cfg(unix)]
-    builder.permissions(std::os::unix::fs::PermissionsExt::from_mode(0o666));
-    let tmp = builder.tempfile_in(dir)?;
-    fill(tmp.as_file().try_clone()?)?;
-    tmp.persist(path).map_err(|e| Error::from(e.error))?;
+    // Opened here, not by `tempfile_in`, whose errors append the temporary name to the folder
+    // named below. Same mode as `File::create` (0666 less the umask).
+    let open = |p: &Path| {
+        File::options()
+            .read(true)
+            .write(true)
+            .create_new(true)
+            .open(p)
+    };
+    let tmp = tempfile::Builder::new()
+        .prefix(".mangas-")
+        .suffix(".part")
+        .make_in(dir, open);
+    let tmp = tmp.at(dir)?;
+    fill(tmp.as_file().try_clone().at(tmp.path())?).map_err(|e| placed_at(e, path))?;
+    tmp.persist(path).map_err(|e| io_at(path)(e.error))?;
     Ok(path.to_path_buf())
 }
 
@@ -90,15 +96,12 @@ fn write_over_unique(
 /// holds an empty or half-written file, even when the export is killed.
 fn write_new(path: &Path, fill: impl FnOnce(File) -> Result<()>) -> Result<PathBuf> {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
+        std::fs::create_dir_all(parent).at(parent)?;
     }
     let claim = claim_free_name(path)?;
-    let result = claim
-        .file
-        .try_clone()
-        .map_err(Error::from)
-        .and_then(fill)
-        .and_then(|()| publish(&claim).map_err(Error::from));
+    let result = (claim.file.try_clone().at(&claim.part))
+        .and_then(|file| fill(file).map_err(|e| placed_at(e, &claim.target)))
+        .and_then(|()| publish(&claim));
     if result.is_err() {
         let _ = std::fs::remove_file(&claim.part);
     }
@@ -162,7 +165,7 @@ pub fn free_names_in(dir: &Path, wanted: &[String]) -> Result<Vec<String>> {
         Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
             Ok(super::unlisted::free_names(dir, wanted))
         }
-        _ => Ok(resolve_free_names(&file_names(dir)?, wanted)),
+        _ => Ok(resolve_free_names(&file_names(dir).at(dir)?, wanted)),
     }
 }
 
@@ -175,23 +178,5 @@ pub(crate) fn xml_escape(s: &str) -> String {
 }
 
 #[cfg(all(test, unix))]
-mod tests {
-    use super::*;
-    use std::os::unix::fs::PermissionsExt;
-
-    #[test]
-    fn a_folder_we_can_write_but_not_list_still_takes_the_export() {
-        let tmp = tempfile::tempdir().unwrap();
-        let dir = tmp.path().join("drop");
-        std::fs::create_dir(&dir).unwrap();
-        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o300)).unwrap();
-        if std::fs::read_dir(&dir).is_ok() {
-            return; // root ignores the mode; nothing to test
-        }
-        let wanted = vec!["Book.epub".to_string()];
-        assert_eq!(free_names_in(&dir, &wanted).unwrap(), wanted);
-        let written = write_file(&dir.join("Book.epub"), false, |_| Ok(()));
-        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
-        assert_eq!(written.unwrap(), dir.join("Book.epub"));
-    }
-}
+#[path = "output_tests.rs"]
+mod tests;

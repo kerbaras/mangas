@@ -50,16 +50,26 @@ mod tests {
         std::io::Error::from_raw_os_error(36)
     }
 
+    fn io_error() -> Error {
+        Error::Io {
+            path: "/out/b.epub".into(),
+            source: too_long(),
+        }
+    }
+
     #[test]
     fn an_io_error_is_described_once() {
-        let line = describe(&Error::from(too_long()).into());
-        assert_eq!(line, format!("io: {}", too_long()));
+        let line = describe(&io_error().into());
+        assert_eq!(line, format!("io: /out/b.epub: {}", too_long()));
     }
 
     #[test]
     fn context_and_distinct_causes_are_kept() {
-        let e = anyhow::Error::from(Error::from(too_long())).context("writing b.epub");
-        assert_eq!(describe(&e), format!("writing b.epub: io: {}", too_long()));
+        let e = anyhow::Error::from(io_error()).context("writing b.epub");
+        assert_eq!(
+            describe(&e),
+            format!("writing b.epub: io: /out/b.epub: {}", too_long())
+        );
         let e = anyhow::anyhow!("inner").context("outer");
         assert_eq!(describe(&e), "outer: inner");
     }

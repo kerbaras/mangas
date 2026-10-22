@@ -8,8 +8,9 @@ use std::path::{Path, PathBuf};
 use super::layout::DATA_SUBDIRS;
 use super::manifest::copy_line;
 use super::move_dir::MoveProgress;
+use super::partial::MOVE_MARKER;
 use super::tree::{list_files, FileEntry, Plan};
-use crate::domain::{Error, Result};
+use crate::domain::{copy_at, Error, IoAt, Result};
 use crate::ml::lease;
 
 /// The files to copy out of `from`'s `chapters/` and `models/` (not the models lease files).
@@ -58,12 +59,13 @@ pub(crate) fn copy_all(
     for (sub, files) in plan {
         for file in files {
             let rel = Path::new(sub).join(&file.rel);
-            marker.write_all(copy_line(&rel)?.as_bytes())?;
+            let line = copy_line(&rel)?;
+            marker.write_all(line.as_bytes()).at(to.join(MOVE_MARKER))?;
             let dst = to.join(&rel);
             if let Some(parent) = dst.parent() {
-                fs::create_dir_all(parent)?;
+                fs::create_dir_all(parent).at(parent)?;
             }
-            fs::copy(from.join(sub).join(&file.rel), &dst)?;
+            copy_at(&from.join(sub).join(&file.rel), &dst)?;
             copied += file.bytes;
             on_progress(MoveProgress { copied, total });
         }

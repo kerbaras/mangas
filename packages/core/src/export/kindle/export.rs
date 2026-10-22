@@ -9,6 +9,7 @@ use super::parts::{
 use super::request::{ExportRequest, ExportStats, Part, Progress};
 use super::run::{Run, RunSpec};
 use super::stale::{check_export_folder, folder_of, remove_stale};
+use crate::domain::{io_at, placed_at};
 use crate::domain::{Error, Result};
 use crate::export::epub::ChapterEntry;
 use crate::export::{Meta, PageSpool};
@@ -56,6 +57,7 @@ pub fn export(
         let first_page = run.pages.len();
         run.chapter(dir).map_err(|e| match e {
             Error::NoSpace { .. } => e,
+            e @ Error::Io { .. } => placed_at(e, dir),
             e => Error::Other(format!("{}: {e}", dir.display())),
         })?;
         if run.pages.len() > first_page {
@@ -173,7 +175,7 @@ fn publish(staged: Vec<Part>, output: &Path) -> Result<Vec<Part>> {
             for left in &staged[i..] {
                 let _ = std::fs::remove_file(&left.path);
             }
-            return Err(e.into());
+            return Err(io_at(&path)(e));
         }
         done.push(Part {
             path,

@@ -10,6 +10,7 @@ use std::rc::Rc;
 
 use zip::ZipWriter;
 
+use crate::domain::unplaced;
 use crate::domain::{Error, Result};
 
 /// `inner` until it fails or the archive is abandoned, then a sink that accepts everything.
@@ -93,10 +94,10 @@ pub(crate) fn write_zip<W: Write + Seek>(
         return Err(e);
     }
     let mut out = zip.finish().map_err(|e| match e {
-        zip::result::ZipError::Io(io) => Error::Io(io),
+        zip::result::ZipError::Io(io) => unplaced(io),
         e => Error::Other(format!("{what}: {e}")),
     })?;
-    out.flush()?;
+    out.flush().map_err(unplaced)?;
     Ok(())
 }
 
@@ -133,7 +134,7 @@ mod tests {
     fn fill_big(zip: &mut ZipWriter<Guarded<&mut Full>>) -> Result<()> {
         zip.start_file("a", SimpleFileOptions::default())
             .map_err(|e| Error::Other(e.to_string()))?;
-        zip.write_all(&[7; 4096])?;
+        zip.write_all(&[7; 4096]).map_err(unplaced)?;
         Ok(())
     }
 

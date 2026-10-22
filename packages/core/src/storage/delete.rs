@@ -5,6 +5,7 @@ use serde::Serialize;
 
 use super::siblings::chapter_files;
 use super::tree::dir_size;
+use crate::domain::IoAt;
 use crate::domain::{Error, Result};
 use crate::download::safe_component;
 use crate::library::{downloaded_chapters, forget_download, is_local, Library};
@@ -64,11 +65,11 @@ pub fn delete_downloads(
         }
         if path.is_dir() {
             deleted.bytes += dir_size(&path);
-            fs::remove_dir_all(&path)?;
+            fs::remove_dir_all(&path).at(&path)?;
         }
         for (file, bytes) in chapter_files(&path) {
             deleted.bytes += bytes;
-            fs::remove_file(&file)?;
+            fs::remove_file(&file).at(&file)?;
         }
         forget_download(lib, source, &chapter.chapter_id)?;
         deleted.chapters += 1;

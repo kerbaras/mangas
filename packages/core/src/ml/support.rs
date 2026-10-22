@@ -7,6 +7,7 @@ use std::sync::atomic::AtomicBool;
 use super::cache::{ensure_model, is_downloaded, model_path, part_path};
 use super::lease::{self, Lease, Purpose};
 use super::{runtime, status, Status, ENABLED, MODELS};
+use crate::domain::IoAt;
 use crate::domain::{Error, Result};
 use crate::library::Network;
 
@@ -58,7 +59,7 @@ pub(super) async fn ensure_all(
     #[cfg(feature = "ml")]
     runtime::ensure_loaded(models_dir)?;
     // Only a complete download replaces a pending removal; a cancelled one keeps Remove again.
-    runtime::clear_pending(models_dir)?;
+    runtime::clear_pending(models_dir).at(runtime::pending_marker(models_dir))?;
     Ok((paths, lease))
 }
 
@@ -85,7 +86,7 @@ pub fn remove(models_dir: &Path) -> Result<u64> {
         for file in [part_path(&path), path] {
             if let Ok(meta) = std::fs::metadata(&file) {
                 freed += meta.len();
-                std::fs::remove_file(&file)?;
+                std::fs::remove_file(&file).at(&file)?;
             }
         }
     }
@@ -96,12 +97,13 @@ pub fn remove(models_dir: &Path) -> Result<u64> {
             Ok(()) => freed += size,
             Err(e) => {
                 log::warn!("ONNX Runtime still in use, removal pending: {e}");
-                std::fs::write(runtime::pending_marker(models_dir), e.to_string())?;
+                std::fs::write(runtime::pending_marker(models_dir), e.to_string())
+                    .at(runtime::pending_marker(models_dir))?;
                 return Ok(freed + size.saturating_sub(crate::storage::dir_size(&root)));
             }
         }
     }
-    runtime::clear_pending(models_dir)?;
+    runtime::clear_pending(models_dir).at(runtime::pending_marker(models_dir))?;
     runtime::forget_failure();
     Ok(freed)
 }

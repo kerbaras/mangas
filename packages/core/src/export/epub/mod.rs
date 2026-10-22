@@ -18,6 +18,7 @@ use super::output::write_file;
 use super::PageSpool;
 use crate::domain::{Error, Result};
 
+use crate::domain::unplaced;
 pub use exporter::EpubExporter;
 
 /// A page image already encoded as JPEG.
@@ -101,32 +102,37 @@ fn write_zip(book: &Book, file: File) -> Result<()> {
         let z = crate::export::space::zip_error("epub");
 
         zip.start_file("mimetype", stored).map_err(z)?;
-        zip.write_all(b"application/epub+zip")?;
+        zip.write_all(b"application/epub+zip").map_err(unplaced)?;
         zip.start_file("META-INF/container.xml", deflated)
             .map_err(z)?;
-        zip.write_all(xml::CONTAINER_XML.as_bytes())?;
+        zip.write_all(xml::CONTAINER_XML.as_bytes())
+            .map_err(unplaced)?;
 
         let pages = entries(book);
         zip.start_file("OEBPS/content.opf", deflated).map_err(z)?;
-        zip.write_all(xml::content_opf(book, &pages, &modified::modified(book)?).as_bytes())?;
+        zip.write_all(xml::content_opf(book, &pages, &modified::modified(book)?).as_bytes())
+            .map_err(unplaced)?;
         zip.start_file("OEBPS/nav.xhtml", deflated).map_err(z)?;
-        zip.write_all(nav::nav_xhtml(book, &pages).as_bytes())?;
+        zip.write_all(nav::nav_xhtml(book, &pages).as_bytes())
+            .map_err(unplaced)?;
         if let Some(cover) = &book.cover {
             zip.start_file(format!("OEBPS/text/{COVER_XHTML}"), deflated)
                 .map_err(z)?;
-            zip.write_all(xml::cover_xhtml(&book.title, cover).as_bytes())?;
+            zip.write_all(xml::cover_xhtml(&book.title, cover).as_bytes())
+                .map_err(unplaced)?;
             zip.start_file(format!("OEBPS/images/{COVER_IMAGE}"), stored)
                 .map_err(z)?;
-            zip.write_all(&cover.jpeg)?;
+            zip.write_all(&cover.jpeg).map_err(unplaced)?;
         }
         for entry in &pages {
             let page = book.pages.read(entry.index)?;
             zip.start_file(format!("OEBPS/text/{}", entry.xhtml_name), deflated)
                 .map_err(z)?;
-            zip.write_all(xml::page_xhtml(&book.title, entry).as_bytes())?;
+            zip.write_all(xml::page_xhtml(&book.title, entry).as_bytes())
+                .map_err(unplaced)?;
             zip.start_file(format!("OEBPS/images/{}", entry.image_name), stored)
                 .map_err(z)?;
-            zip.write_all(&page.jpeg)?;
+            zip.write_all(&page.jpeg).map_err(unplaced)?;
         }
         Ok(())
     })

@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 
 use super::{lib_path, root, state, RuntimeSpec};
+use crate::domain::IoAt;
 use crate::domain::{Error, Result};
 use crate::library::Network;
 use crate::ml::cache::sha256_hex;
@@ -46,7 +47,7 @@ async fn install(
     cancel: &AtomicBool,
 ) -> Result<PathBuf> {
     let path = lib_path(models_dir, spec);
-    if path.is_file() && check(&std::fs::read(&path)?, spec.lib_sha256, "").is_ok() {
+    if path.is_file() && check(&std::fs::read(&path).at(&path)?, spec.lib_sha256, "").is_ok() {
         return Ok(path);
     }
     let archive = fetch(spec.url, network, on_progress, cancel).await?;
@@ -54,10 +55,10 @@ async fn install(
     let lib = super::extract_member(&archive, spec.archive, spec.member)?;
     check(&lib, spec.lib_sha256, "ONNX Runtime library")?;
     let dir = root(models_dir).join(spec.version);
-    std::fs::create_dir_all(&dir)?;
+    std::fs::create_dir_all(&dir).at(&dir)?;
     let tmp = dir.join(format!("{}.part", spec.lib_name));
-    std::fs::write(&tmp, &lib)?;
-    std::fs::rename(&tmp, &path)?;
+    std::fs::write(&tmp, &lib).at(&tmp)?;
+    std::fs::rename(&tmp, &path).at(&path)?;
     prune_other_versions(&root(models_dir), spec.version);
     Ok(path)
 }

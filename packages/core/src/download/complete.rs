@@ -7,6 +7,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::plan::present_indexes;
+use crate::domain::IoAt;
 use crate::domain::Result;
 
 /// Hidden, so exports and imports (which skip dot files and non-images) never see it.
@@ -18,11 +19,12 @@ const MARKER: &str = ".mangas-pages";
 /// rename each other's file away.
 pub(super) fn mark_expected(dir: &Path, pages: usize) -> Result<()> {
     static WRITES: AtomicUsize = AtomicUsize::new(0);
-    std::fs::create_dir_all(dir)?;
+    std::fs::create_dir_all(dir).at(dir)?;
     let n = WRITES.fetch_add(1, Ordering::Relaxed);
     let fresh = dir.join(format!("{MARKER}.{}.{n}.new", std::process::id()));
-    std::fs::write(&fresh, format!("{pages}\n"))?;
-    std::fs::rename(fresh, dir.join(MARKER))?;
+    std::fs::write(&fresh, format!("{pages}\n")).at(&fresh)?;
+    let marker = dir.join(MARKER);
+    std::fs::rename(fresh, &marker).at(&marker)?;
     Ok(())
 }
 

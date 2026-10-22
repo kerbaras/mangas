@@ -6,6 +6,7 @@ use std::io::Write;
 
 use pdf_writer::{Chunk, Ref};
 
+use crate::domain::unplaced;
 use crate::domain::Result;
 
 const HEADER: &[u8] = b"%PDF-1.7\n%\x80\x80\x80\x80\n\n";
@@ -44,7 +45,7 @@ pub(super) struct PdfStream<W: Write> {
 
 impl<W: Write> PdfStream<W> {
     pub fn new(mut out: W) -> Result<PdfStream<W>> {
-        out.write_all(HEADER)?;
+        out.write_all(HEADER).map_err(unplaced)?;
         Ok(PdfStream {
             out,
             pos: HEADER.len(),
@@ -56,7 +57,9 @@ impl<W: Write> PdfStream<W> {
         let base = self.pos;
         self.offsets
             .extend(objects.starts.iter().map(|&(id, at)| (id, base + at)));
-        self.out.write_all(objects.chunk.as_bytes())?;
+        self.out
+            .write_all(objects.chunk.as_bytes())
+            .map_err(unplaced)?;
         self.pos += objects.chunk.len();
         Ok(())
     }
@@ -71,7 +74,7 @@ impl<W: Write> PdfStream<W> {
             info.get(),
             self.pos
         );
-        self.out.write_all(tail.as_bytes())?;
+        self.out.write_all(tail.as_bytes()).map_err(unplaced)?;
         Ok(self.out)
     }
 }

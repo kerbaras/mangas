@@ -18,6 +18,7 @@ use super::{Exporter, Meta, PageSpool, Profile};
 use crate::domain::{Error, Result};
 use stream::{Objects, PdfStream};
 
+use crate::domain::unplaced;
 pub use layout::{page_size, place, Placement};
 
 pub struct PdfExporter;
@@ -96,7 +97,7 @@ fn write_document(
     let mut tail = Objects::new();
     write_outline(&mut tail, meta, count);
     pdf.write(tail)?;
-    Ok(pdf.finish(CATALOG, INFO)?.flush()?)
+    pdf.finish(CATALOG, INFO)?.flush().map_err(unplaced)
 }
 
 fn write_page(objs: &mut Objects, i: usize, page: &PageImage, size: (f32, f32)) -> Result<()> {

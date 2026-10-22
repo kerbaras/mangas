@@ -13,7 +13,7 @@ use serde::Serialize;
 use super::layout::DATA_SUBDIRS;
 use super::manifest::{copies, header, remove_copies, reuse, size};
 use super::tree::{dir_size, Plan};
-use crate::domain::{Error, Result};
+use crate::domain::{io_at, Error, Result};
 use crate::download::queue::now_ms;
 use crate::library::{pending_move, queue_gate, set_pending_move, take_queue_hold, Library};
 
@@ -147,7 +147,7 @@ pub(crate) fn mark(lib: &Library, to: &Path, from: &Path) -> Result<File> {
     let marked = fs::write(&path, text).and_then(|()| File::options().append(true).open(&path));
     marked.or_else(|e| {
         set_pending_move(lib, None)?;
-        Err(e.into())
+        Err(io_at(&path)(e))
     })
 }
 
@@ -172,7 +172,7 @@ pub(crate) fn wipe(dir: &Path) -> Result<()> {
 
 fn remove_marker(dir: &Path) -> Result<()> {
     match fs::remove_file(dir.join(MOVE_MARKER)) {
-        Err(e) if e.kind() != ErrorKind::NotFound => Err(e.into()),
+        Err(e) if e.kind() != ErrorKind::NotFound => Err(io_at(&dir.join(MOVE_MARKER))(e)),
         _ => Ok(()),
     }
 }
