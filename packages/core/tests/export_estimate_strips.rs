@@ -3,13 +3,14 @@
 //! each, so the writer writes about twice the pages the height alone suggests.
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use image::{Rgba, RgbaImage};
 use mangas_core::export::kindle::{
     estimate, export, plan_budget, BudgetSpec, Delivery, ExportRequest,
 };
 use mangas_core::export::{profile, Format, PageSettings};
-use mangas_core::smartcut::Preset;
+use mangas_core::smartcut::{Preset, RowPenalizer};
 
 const PANEL: u32 = 650;
 const GUTTER: u32 = 60;
@@ -79,4 +80,25 @@ fn a_plan_and_its_levers_count_the_pages_the_export_writes() {
     assert_eq!(plan[0].pages, stats.pages);
     let real = std::fs::metadata(&stats.output).unwrap().len();
     assert_eq!(plan[0].over_budget, real > Delivery::Email.budget());
+}
+
+/// The plan runs before the detectors load, so it sizes the cut without them; detectors only
+/// move where a page ends, so a detector export stays close to that estimate.
+#[test]
+fn a_detector_export_stays_close_to_the_estimate_without_detectors() {
+    let root = tempfile::tempdir().unwrap();
+    let req = request(root.path());
+    let guess = estimate(&req.chapter_dirs, req.device, req.cut, req.page).unwrap();
+    let busy_tops: RowPenalizer = Arc::new(|img: &RgbaImage| {
+        let h = img.height();
+        Ok((0..h).map(|y| if y < h / 2 { 1.0 } else { 0.0 }).collect())
+    });
+    let stats = export(&req, Some(busy_tops), &mut |_| {}).unwrap();
+    let real = std::fs::metadata(&stats.output).unwrap().len() as f64;
+    let off = (guess.bytes as f64 - real).abs() / real;
+    assert!(off < 0.10, "estimate {} B vs {real} B", guess.bytes);
+    assert!(
+        guess.pages.abs_diff(stats.pages) * 10 <= stats.pages,
+        "{guess:?} vs {stats:?}"
+    );
 }
