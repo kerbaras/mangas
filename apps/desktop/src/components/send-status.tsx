@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { refused, type SendState, type Via } from "@/hooks/use-send";
 import { MTP_HINT } from "@/lib/ipc.send";
 import { megabytes } from "@/lib/send-labels";
+import { UsbFormatAlert } from "./usb-format-alert";
 
 const EMAIL_INSTEAD = "Send it by email instead.";
 
@@ -13,11 +14,11 @@ type Props = {
   /** The delivery picked now: a failure of another one is no longer what Retry does. */
   via?: Via | "save";
   onRetry?: () => void;
-  /** Sends by email instead, offered when a Kindle is connected over MTP only. */
+  /** Sends by email instead, offered when a Kindle is connected over MTP only or may not open an EPUB. */
   onEmail?: () => void;
 };
 
-/** Where a delivery is: looking, copying with progress, Device not found, MTP only (+ Use Email) or failed (+ Retry when given), done. */
+/** Where a delivery is: looking, copying with progress, Device not found, MTP only (+ Use Email), a format the Kindle won't or may not open (+ Copy anyway), failed (+ Retry when given), done. */
 export function SendStatus({ state, via, onRetry, onEmail }: Props) {
   const failed = failedVia(state);
   if (via !== undefined && failed !== undefined && failed !== via) {
@@ -44,6 +45,8 @@ export function SendStatus({ state, via, onRetry, onEmail }: Props) {
           <Progress value={state.done} max={state.total} className="mt-1.5" />
         </div>
       );
+    case "format":
+      return <UsbFormatAlert verdict={state.verdict} onCopyAnyway={onRetry} onEmail={onEmail} />;
     case "no-device":
       return (
         <Alert>
@@ -116,7 +119,7 @@ export function SendStatus({ state, via, onRetry, onEmail }: Props) {
 /** The delivery a failed `state` was for, or `undefined` when nothing failed. */
 function failedVia(state: SendState): Via | undefined {
   if (state.kind === "error") return state.via;
-  if (state.kind === "no-device" || state.kind === "mtp") return "usb";
+  if (["no-device", "mtp", "format"].includes(state.kind)) return "usb";
   return undefined;
 }
 

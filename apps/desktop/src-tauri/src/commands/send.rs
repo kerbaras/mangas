@@ -37,9 +37,17 @@ pub async fn usb_kindles() -> Vec<usb::UsbKindle> {
         .unwrap_or_default()
 }
 
+/// What copying `file` onto the Kindle named `device` does, by the format table
+/// (`usb::SIDELOAD`): asked before a copy, to warn or refuse with the reason.
+#[tauri::command]
+pub fn usb_verdict(file: PathBuf, device: String) -> usb::UsbVerdict {
+    usb::usb_verdict(&file, &device)
+}
+
 /// Copies `file` to the Kindle at `root` (the first one found when `None`) and returns where it
-/// is. "Device not found" when there is none. A book that was already on the Kindle isn't
-/// copied and adds no history row.
+/// is. "Device not found" when there is none. A format the Kindle doesn't open is never copied,
+/// one it may not open only with `force`. A book that was already on the Kindle isn't copied
+/// and adds no history row.
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub async fn send_usb(
@@ -47,11 +55,13 @@ pub async fn send_usb(
     file: PathBuf,
     title: String,
     root: Option<PathBuf>,
+    force: Option<bool>,
 ) -> Result<usb::Copied, String> {
     let (copied, name) = tauri::async_runtime::spawn_blocking({
         let file = file.clone();
         move || {
             let kindle = usb::choose(root.as_deref(), usb::scan_kindles())?;
+            usb::admit(&usb::usb_verdict(&file, &kindle.name), force == Some(true))?;
             // One event per 1 MB chunk would repaint the dialog ~30 times a second.
             let mut last = Instant::now() - Duration::from_secs(1);
             let mut on_progress = |done, total| {

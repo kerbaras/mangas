@@ -25,6 +25,12 @@ function stub(overrides: Partial<Backend>) {
       progress = cb;
       return () => {};
     },
+    usbVerdict: async (_file: string, device: string) => ({
+      decision: "supported",
+      format: "EPUB",
+      device,
+      reason: null,
+    }),
     ...overrides,
   } as unknown as Backend);
   return () => progress;

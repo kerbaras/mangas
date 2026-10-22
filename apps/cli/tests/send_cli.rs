@@ -88,6 +88,7 @@ fn send_usb_copies_to_the_given_mount() {
             book.to_str().unwrap(),
             "--via",
             "usb",
+            "--force",
             "--kindle",
             kindle.to_str().unwrap(),
         ],

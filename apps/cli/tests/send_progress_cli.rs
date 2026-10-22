@@ -6,7 +6,14 @@ use std::process::{Command, Output};
 
 fn send_usb(home: &Path, book: &Path, kindle: &Path) -> Output {
     Command::new(env!("CARGO_BIN_EXE_mangas-cli"))
-        .args(["send", book.to_str().unwrap(), "--via", "usb", "--kindle"])
+        .args([
+            "send",
+            book.to_str().unwrap(),
+            "--via",
+            "usb",
+            "--force",
+            "--kindle",
+        ])
         .arg(kindle)
         .env("HOME", home)
         .env("XDG_DATA_HOME", home.join("data"))

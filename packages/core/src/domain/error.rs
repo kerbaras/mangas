@@ -57,6 +57,10 @@ pub enum Error {
     /// talks MTP only, which a USB copy can't use. Email still works.
     #[error("{device} {}", crate::send::usb::MTP_HINT)]
     KindleOverMtp { device: String },
+    /// A USB copy the format table refuses, or warns about and the user didn't confirm: the
+    /// verdict's reason names the format and the device and what to do instead.
+    #[error("{}", .0.reason.as_deref().unwrap_or("this format can't be copied to a Kindle"))]
+    NotOnKindle(Box<crate::send::usb::UsbVerdict>),
     /// Email or USB delivery failed; the message is meant for the user as is.
     #[error("{0}")]
     Send(String),

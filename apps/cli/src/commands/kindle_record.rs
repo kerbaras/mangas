@@ -54,13 +54,13 @@ pub async fn record_and_send(
     dirs: &[PathBuf],
     title: &str,
     device: &str,
-    to: Option<(SendArg, Option<&Path>)>,
+    to: Option<(SendArg, Option<&Path>, bool)>,
 ) -> Delivery {
     let outputs = stats.titled_outputs(title);
     let lib = match paths::library_db().and_then(|db| Ok(library::open(&db)?)) {
         Ok(lib) => lib,
         Err(e) => {
-            let Some((via, kindle)) = to else {
+            let Some((via, kindle, _)) = to else {
                 eprintln!("warning: could not open the library: {e}");
                 return Delivery::default();
             };
@@ -80,13 +80,13 @@ pub async fn record_and_send(
     for (output, title) in &outputs {
         record_export(&lib, output, title, device);
     }
-    let Some((via, kindle)) = to else {
+    let Some((via, kindle, force)) = to else {
         return done;
     };
     for (output, title) in &outputs {
         let file = std::path::absolute(output).unwrap_or_else(|_| output.clone());
-        match deliver(&lib, &file, title, via, kindle).await {
-            Ok(line) => done.sent.push(line),
+        match deliver(&lib, &file, title, via, kindle, force).await {
+            Ok(sent) => done.sent.push(sent.line),
             Err(e) => done
                 .failed
                 .push((output.clone(), not_sent(output, via, kindle, &e))),

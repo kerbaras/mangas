@@ -5,6 +5,7 @@
 mod bus;
 mod copy;
 mod detect;
+mod formats;
 mod scan;
 
 use std::path::Path;
@@ -14,6 +15,7 @@ pub use copy::{copy_to_kindle, Copied};
 pub use detect::{
     find_kindles, find_kindles_in, kindle_at, looks_like_kindle, mount_roots, KindleVolume,
 };
+pub use formats::{admit, sideload, usb_verdict, Sideload, UsbVerdict, SIDELOAD};
 pub use scan::{decide, scan_kindles, KindleScan, Reach};
 
 use crate::domain::{Error, Result};

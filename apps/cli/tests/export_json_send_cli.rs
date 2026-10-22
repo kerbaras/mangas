@@ -50,7 +50,7 @@ fn export_to_kindle(home: &Path) -> Output {
     std::fs::create_dir_all(kindle.join("documents")).unwrap();
     let out = home.join("out");
     let args = [
-        "export", ID, "--every", "1", "--json", "--send", "usb", "-o",
+        "export", ID, "--every", "1", "--json", "--send", "usb", "--force", "-o",
     ];
     Command::new(env!("CARGO_BIN_EXE_mangas-cli"))
         .args(args)
@@ -91,6 +91,7 @@ fn sent_books_keep_stdout_one_json_object() {
             "--json",
             "--send",
             "usb",
+            "--force",
         ])
         .arg("-o")
         .arg(&book)

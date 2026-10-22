@@ -1,13 +1,14 @@
 //! Sending a finished EPUB to the Kindle, shared by `mangas kindle --send`,
 //! `mangas export --send` and `mangas send`.
 
-use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use mangas_core::library::{self, Library};
 use mangas_core::send::password;
-use mangas_core::send::{email, usb, SendVia};
+use mangas_core::send::usb::UsbVerdict;
+use mangas_core::send::{email, SendVia};
 
+use super::deliver_usb::{self, mb, stopped_by};
 use super::export_report::error_class;
 use super::settings_email::warn_unencrypted;
 use crate::Exit;
@@ -30,16 +31,27 @@ impl From<SendArg> for SendVia {
     }
 }
 
+/// Where a book went: the line saying so, the address or Kindle, the file on the Kindle, and
+/// the format table's verdict for a USB copy.
+pub struct Delivered {
+    pub line: String,
+    pub to: String,
+    pub path: Option<PathBuf>,
+    pub already_there: bool,
+    pub usb: Option<UsbVerdict>,
+}
+
 /// Sends `file` and stamps it in the export history. `kindle` is the USB mount point when the
-/// user gave one. Returns the line saying where it went, for the caller to print.
+/// user gave one; `force` copies a format the Kindle may not open (see `usb::SIDELOAD`).
 pub async fn deliver(
     lib: &Library,
     file: &Path,
     title: &str,
     via: SendArg,
     kindle: Option<&Path>,
-) -> anyhow::Result<String> {
-    let (to, line) = match via {
+    force: bool,
+) -> anyhow::Result<Delivered> {
+    let done = match via {
         SendArg::Email => {
             let store = password::system_store();
             let settings = password::email_settings(lib, &*store)?;
@@ -58,43 +70,37 @@ pub async fn deliver(
                 mb(sent.bytes),
                 sent.to
             );
-            (sent.to, line)
+            Delivered {
+                line,
+                to: sent.to,
+                path: None,
+                already_there: false,
+                usb: None,
+            }
         }
         SendArg::Usb => {
-            let kindle = usb::choose(kindle, usb::scan_kindles())?;
-            let mut shown = false;
-            let copied = usb::copy_to_kindle(file, &kindle, &mut |done, total| {
-                shown = true;
-                print_copy(done, total);
-            });
-            if shown {
-                eprintln!();
+            let sent = deliver_usb::copy(file, kindle, force)?;
+            let line = match sent.already_there {
+                true => format!("already on {}: {}", sent.to, sent.path.display()),
+                false => format!("copied to {} ({})", sent.path.display(), sent.to),
+            };
+            let done = Delivered {
+                line,
+                to: sent.to,
+                path: Some(sent.path),
+                already_there: sent.already_there,
+                usb: Some(sent.verdict),
+            };
+            if done.already_there {
+                return Ok(done);
             }
-            let copied = copied?;
-            if copied.already_there {
-                return Ok(format!(
-                    "already on {}: {}",
-                    kindle.name,
-                    copied.path.display()
-                ));
-            }
-            let line = format!("copied to {} ({})", copied.path.display(), kindle.name);
-            (kindle.name, line)
+            done
         }
     };
-    if let Err(e) = library::record_sent(lib, file, title, via.into(), &to) {
+    if let Err(e) = library::record_sent(lib, file, title, via.into(), &done.to) {
         eprintln!("warning: could not record the delivery: {e}");
     }
-    Ok(line)
-}
-
-fn print_copy(done: u64, total: u64) {
-    eprint!("\r  copying: {:.1}/{:.1} MB", mb(done), mb(total));
-    let _ = std::io::stderr().flush();
-}
-
-fn mb(bytes: u64) -> f64 {
-    bytes as f64 / 1e6
+    Ok(done)
 }
 
 /// Sends one written book, saying on stderr straight away when it couldn't be sent, so a
@@ -105,9 +111,10 @@ pub async fn try_deliver(
     title: &str,
     via: SendArg,
     kindle: Option<&Path>,
+    force: bool,
 ) -> Result<String, Unsent> {
-    let e = match deliver(lib, file, title, via, kindle).await {
-        Ok(line) => return Ok(line),
+    let e = match deliver(lib, file, title, via, kindle, force).await {
+        Ok(done) => return Ok(done.line),
         Err(e) => e,
     };
     let unsent = not_sent(file, via, kindle, &e);
@@ -140,11 +147,14 @@ pub fn not_sent(file: &Path, via: SendArg, kindle: Option<&Path>, e: &anyhow::Er
         (SendArg::Usb, Some(mount)) => format!("usb --kindle \"{}\"", mount.display()),
     };
     let why = crate::exit::describe(e);
-    let message = format!(
-        "{}{NOT_SENT}{why}\n  send it again with: mangas send --via {via} \"{}\"",
-        file.display(),
-        file.display()
-    );
+    let next = match stopped_by(e) {
+        Some(verdict) => deliver_usb::next_step(verdict, file, &via),
+        None => format!(
+            "\n  send it again with: mangas send --via {via} \"{}\"",
+            file.display()
+        ),
+    };
+    let message = format!("{}{NOT_SENT}{why}{next}", file.display());
     Unsent {
         class: error_class(&why),
         message,

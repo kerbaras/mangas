@@ -94,6 +94,7 @@ pub fn run() {
             commands::volumes::export_file_name,
             commands::send::find_kindles,
             commands::send::usb_kindles,
+            commands::send::usb_verdict,
             commands::send::send_usb,
             commands::send::send_email,
             commands::send::send_test_email,
