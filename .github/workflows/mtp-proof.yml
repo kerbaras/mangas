@@ -1,0 +1,98 @@
+name: MTP proof (#331, scratch)
+
+on:
+  push:
+    branches: [scratch/331-mtp-proof]
+
+permissions:
+  contents: read
+
+# bash on every OS (Git Bash on Windows) runs with -eo pipefail: any failing command fails its step.
+defaults:
+  run:
+    shell: bash
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
+
+jobs:
+  mtp:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            target: aarch64-apple-darwin
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: windows-11-arm
+            target: aarch64-pc-windows-msvc
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Tauri system libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf xdg-utils
+      - name: cargo build --features mtp (core + CLI)
+        run: cargo build --target ${{ matrix.target }} -p mangas-core -p mangas-cli --features mangas-core/mtp,mangas-cli/mtp
+      - name: clippy -D warnings --features mtp (lib, bins and the MTP/USB tests; the mtp-rs adapter is compiled here)
+        run: cargo clippy --target ${{ matrix.target }} -p mangas-core -p mangas-cli --lib --bins --test send_mtp --test send_mtp_recovery --test send_usb --test send_usb_mtp --test send_usb_formats --features mangas-core/mtp,mangas-cli/mtp -- -D warnings
+      - name: cargo test --features mtp --test send_mtp
+        run: cargo test --target ${{ matrix.target }} -p mangas-core --features mtp --test send_mtp
+      - name: cargo test --features mtp --test send_mtp_recovery
+        run: cargo test --target ${{ matrix.target }} -p mangas-core --features mtp --test send_mtp_recovery
+      - name: cargo test --features mtp --test send_usb
+        run: cargo test --target ${{ matrix.target }} -p mangas-core --features mtp --test send_usb
+      - name: cargo test --features mtp --test send_usb_mtp
+        run: cargo test --target ${{ matrix.target }} -p mangas-core --features mtp --test send_usb_mtp
+      - name: cargo test --features mtp --test send_usb_formats
+        run: cargo test --target ${{ matrix.target }} -p mangas-core --features mtp --test send_usb_formats
+      - name: cargo test --features mtp --lib send::
+        run: cargo test --target ${{ matrix.target }} -p mangas-core --features mtp --lib "send::"
+      - run: pnpm install --frozen-lockfile
+      - name: Release desktop binary, exactly as release.yml builds it (default features = mtp)
+        run: pnpm -C apps/desktop tauri build --target ${{ matrix.target }} --features ml --no-bundle
+      - name: The shipped binary carries the MTP adapter
+        shell: bash
+        run: |
+          bin="target/${{ matrix.target }}/release/mangas"; [[ -f "$bin" ]] || bin="$bin.exe"
+          ls -l "$bin"
+          if [[ "${{ runner.os }}" == "Linux" ]]; then want=0; else want=1; fi
+          if grep -aq "mtp-rs-0" "$bin"; then have=1; else have=0; fi
+          echo "mtp-rs paths: $have (want $want)"
+          [[ "$have" == "$want" ]]
+
+  # Does send_usb fail on Windows on origin/main too (not only on this branch)?
+  main-send-usb:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: a929cae3a1704d7f5dc2518f690ef2287c42d8e6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo test --test send_usb on origin/main (a929cae3a1704d7f5dc2518f690ef2287c42d8e6)
+        id: main
+        continue-on-error: true
+        run: cargo test -p mangas-core --test send_usb
+      - name: Outcome on origin/main
+        run: echo "send_usb on origin/main ${{ steps.main.outcome }}"
