@@ -157,11 +157,14 @@ fn aside_of(name: &str) -> Option<&str> {
 }
 
 /// Deletes the `.part` objects an interrupted copy left, and old books set aside whose name has
-/// a book again (the swap had finished).
+/// a book again (the swap had finished). An aside book whose name is still free stays: it is
+/// the only copy of that book.
 async fn clear_scratch(store: &dyn MtpStore, listed: &[Entry]) {
+    let taken = |book: &str| listed.iter().any(|e| !e.folder && e.name == book);
+    let only_copy = |e: &Entry| aside_of(&e.name).is_some_and(|book| !taken(book));
     for e in listed
         .iter()
-        .filter(|e| !e.folder && e.name.starts_with(SCRATCH))
+        .filter(|e| !e.folder && e.name.starts_with(SCRATCH) && !only_copy(e))
     {
         if let Err(fault) = store.delete(e.handle).await {
             tracing::warn!("could not delete {} left on the Kindle: {fault:?}", e.name);

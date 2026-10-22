@@ -51,7 +51,8 @@ pub async fn open(name: &str) -> Result<RealStore, OpenFailed> {
         .filter(|d| d.product.as_deref().unwrap_or("Kindle") == name)
         .collect();
     let info = match (named.as_slice(), kindles.as_slice()) {
-        ([one], _) | ([], [one]) => *one,
+        ([one], _) => *one,
+        ([], [one]) => one,
         ([], []) => return Err(OpenFailed::Other("no Kindle answers over MTP".into())),
         _ => {
             return Err(OpenFailed::Other(

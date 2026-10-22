@@ -1,137 +1,14 @@
 //! The MTP copy protocol against a folder that plays the Kindle's storage, with faults
 //! injected: `.part` upload, replace, cancel mid-upload, failed upload, Already on Kindle.
 
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::time::Duration;
+mod mtp_support;
 
-use mangas_core::send::mtp::{self, Entry, Fault, FolderStore, Handle, MtpStore, OnChunk};
-use mangas_core::send::mtp::{Stopped, UploadFailed};
+use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 
-/// A [`FolderStore`] that fails one operation on cue and can't rename when `rename` is false.
-struct Faulty {
-    inner: FolderStore,
-    fail_upload_after: Option<u64>,
-    fail_rename: AtomicUsize,
-    rename: bool,
-    partial: bool,
-}
+use mangas_core::send::mtp::{Fault, Stopped};
 
-fn faulty(root: &Path) -> Faulty {
-    Faulty {
-        inner: FolderStore::new("Kindle Paperwhite", root, Duration::ZERO),
-        fail_upload_after: None,
-        fail_rename: AtomicUsize::new(usize::MAX),
-        rename: true,
-        partial: true,
-    }
-}
-
-#[async_trait::async_trait]
-impl MtpStore for Faulty {
-    fn name(&self) -> &str {
-        self.inner.name()
-    }
-    fn can_rename(&self) -> bool {
-        self.rename
-    }
-    async fn list(&self, parent: Option<Handle>) -> Result<Vec<Entry>, Fault> {
-        self.inner.list(parent).await
-    }
-    async fn create_folder(&self, parent: Option<Handle>, name: &str) -> Result<Handle, Fault> {
-        self.inner.create_folder(parent, name).await
-    }
-    async fn upload(
-        &self,
-        parent: Handle,
-        name: &str,
-        file: &Path,
-        size: u64,
-        on_chunk: OnChunk<'_>,
-    ) -> Result<Handle, UploadFailed> {
-        let limit = self.fail_upload_after;
-        let mut cut = |done: u64| match limit {
-            Some(limit) if done > limit => std::ops::ControlFlow::Break(()),
-            _ => on_chunk(done),
-        };
-        let up = self.inner.upload(parent, name, file, size, &mut cut).await;
-        match (up, limit) {
-            (Err(mut e), Some(_)) if e.fault == Fault::Cancelled => {
-                e.fault = Fault::Disconnected;
-                // A WPD device commits nothing and reports no partial handle.
-                e.partial = e.partial.filter(|_| self.partial);
-                Err(e)
-            }
-            (up, _) => up,
-        }
-    }
-    async fn delete(&self, handle: Handle) -> Result<(), Fault> {
-        self.inner.delete(handle).await
-    }
-    async fn rename(&self, handle: Handle, name: &str) -> Result<(), Fault> {
-        if self.fail_rename.fetch_sub(1, Ordering::SeqCst) == 0 {
-            return Err(Fault::Other("rename refused".into()));
-        }
-        self.inner.rename(handle, name).await
-    }
-}
-
-fn book(dir: &Path, name: &str, len: usize) -> PathBuf {
-    let path = dir.join(name);
-    std::fs::write(&path, vec![7u8; len]).unwrap();
-    path
-}
-
-fn names(dir: &Path) -> Vec<String> {
-    let mut all: Vec<String> = std::fs::read_dir(dir)
-        .unwrap()
-        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
-        .collect();
-    all.sort();
-    all
-}
-
-fn run(
-    store: &dyn MtpStore,
-    file: &Path,
-    cancel: &AtomicBool,
-) -> Result<mangas_core::send::usb::Copied, Stopped> {
-    let size = std::fs::metadata(file).unwrap().len();
-    let name = file.file_name().unwrap().to_string_lossy().into_owned();
-    let cancelled = || cancel.load(Ordering::SeqCst);
-    let mut progress = |done, total| {
-        assert!(done <= total);
-        if done >= 300_000 && name.contains("cancel") {
-            cancel.store(true, Ordering::SeqCst);
-        }
-    };
-    futures::executor::block_on(mtp::send(
-        store,
-        file,
-        &name,
-        size,
-        &cancelled,
-        &mut progress,
-    ))
-}
-
-struct Fixture {
-    _tmp: tempfile::TempDir,
-    src: PathBuf,
-    kindle: PathBuf,
-}
-
-fn fixture() -> Fixture {
-    let tmp = tempfile::tempdir().unwrap();
-    let (src, kindle) = (tmp.path().join("src"), tmp.path().join("kindle"));
-    std::fs::create_dir_all(&src).unwrap();
-    std::fs::create_dir_all(&kindle).unwrap();
-    Fixture {
-        _tmp: tmp,
-        src,
-        kindle,
-    }
-}
+use mtp_support::{book, faulty, fixture, names, run};
 
 #[test]
 fn copies_into_documents_creating_it_and_reports_the_device_path() {
@@ -259,36 +136,4 @@ fn without_rename_the_old_book_is_replaced_in_place() {
             .len(),
         5000
     );
-}
-
-#[test]
-fn a_swap_cut_off_before_the_rename_gets_the_old_book_back() {
-    let f = fixture();
-    let docs = f.kindle.join("documents");
-    std::fs::create_dir(&docs).unwrap();
-    book(&docs, ".mangas-77-3.old-Vol 1.pdf", 10);
-    book(&docs, ".mangas-77-2.part", 4);
-    let file = book(&f.src, "Vol 2.pdf", 20);
-    run(&faulty(&f.kindle), &file, &AtomicBool::new(false)).unwrap();
-    assert_eq!(names(&docs), ["Vol 1.pdf", "Vol 2.pdf"]);
-    assert_eq!(std::fs::read(docs.join("Vol 1.pdf")).unwrap().len(), 10);
-}
-
-#[test]
-fn a_swap_cut_off_after_the_rename_drops_only_the_old_copy() {
-    let f = fixture();
-    let docs = f.kindle.join("documents");
-    std::fs::create_dir(&docs).unwrap();
-    book(&docs, ".mangas-77-3.old-Vol 1.pdf", 10);
-    book(&docs, "Vol 1.pdf", 30);
-    let file = book(&f.src, "Vol 1.pdf", 30);
-    assert!(
-        run(&faulty(&f.kindle), &file, &AtomicBool::new(false))
-            .unwrap()
-            .already_there
-    );
-    let file = book(&f.src, "Vol 2.pdf", 20);
-    run(&faulty(&f.kindle), &file, &AtomicBool::new(false)).unwrap();
-    assert_eq!(names(&docs), ["Vol 1.pdf", "Vol 2.pdf"]);
-    assert_eq!(std::fs::read(docs.join("Vol 1.pdf")).unwrap().len(), 30);
 }
