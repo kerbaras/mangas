@@ -65,7 +65,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const folder = useOutputFolder();
   const { target, preset, setPreset, cut, settled } = useSeriesTarget(picks);
   const detectors = useDetectorSupport();
-  const job = useExport({ visible: () => open });
+  const job = useExport({ visible: () => open, folder: folder.resolved });
   const send = useSend(onSent);
   const { plans, fresh, joined } = useExportPlan({ open, picks, mode, size, title });
   const emailBlocked = useEmailBlock(target.format) !== null;

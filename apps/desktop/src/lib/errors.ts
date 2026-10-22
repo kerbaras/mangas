@@ -1,5 +1,7 @@
+import { type Folders, ioHint, ioRest } from "./io-hint";
 import { isChallenge } from "./ipc";
 import { certificateFailure, isFinalError, NO_ROOT_CERTIFICATES } from "./ipc.downloads";
+import { knownDataFolder } from "./known-folders";
 
 export type ErrorInfo = {
   /** A sentence a user can act on, when the error kind is known. */
@@ -14,7 +16,6 @@ const HINTS: [prefix: string, hint: string][] = [
   ["network:", "Couldn't reach the site. Check your connection and try again."],
   ["source ", "The site answered with something unexpected. It may be down or have changed."],
   ["library:", "The library database couldn't be read or written."],
-  ["io:", "A file couldn't be read or written. Check the data folder in Settings."],
   ["image:", "A page image couldn't be decoded."],
   ["not found:", "It no longer exists on the site."],
   ["refused:", "The image host points at a local or private address, so the app won't fetch it."],
@@ -30,10 +31,17 @@ const PROXIED_REFUSAL =
   "The image host points at a private address. Retry fetches it through the configured proxy.";
 
 /**
- * Splits an IPC error message into a readable hint and the raw detail. `proxied`: a proxy is in
- * use, so a stored hostname refusal reads as retryable (see `isFinalError`).
+ * What the hint can know besides the message: the folders an io error may have failed in (the
+ * data folder by default), and whether a proxy is in use, so a stored hostname refusal reads as
+ * retryable (see `isFinalError`).
  */
-export function describeError(message: string, proxied = false): ErrorInfo {
+export type ErrorContext = Folders & { proxied?: boolean };
+
+/**
+ * Splits an IPC error message into a readable hint and the raw detail. An io error's hint names
+ * the folder it failed in, or is null outside the known folders.
+ */
+export function describeError(message: string, context: ErrorContext = {}): ErrorInfo {
   const detail = message.trim() || "Unknown error";
   if (isChallenge(detail))
     return {
@@ -54,9 +62,14 @@ export function describeError(message: string, proxied = false): ErrorInfo {
       detail,
       challenge: false,
     };
+  const rest = ioRest(detail);
+  if (rest !== null) {
+    const known = { data: context.data ?? knownDataFolder(), export: context.export };
+    return { hint: ioHint(rest, known), detail, challenge: false };
+  }
   const lower = detail.toLowerCase();
   const match = HINTS.find(([prefix]) => lower.startsWith(prefix));
-  const viaProxy = proxied && isFinalError(detail) && !isFinalError(detail, true);
+  const viaProxy = !!context.proxied && isFinalError(detail) && !isFinalError(detail, true);
   return { hint: viaProxy ? PROXIED_REFUSAL : (match?.[1] ?? null), detail, challenge: false };
 }
 
@@ -65,7 +78,7 @@ export function describeFailure(
   message: string,
   proxied = false,
 ): { label: string; tooltip: string } {
-  const { hint, detail } = describeError(message, proxied);
+  const { hint, detail } = describeError(message, { proxied });
   return hint
     ? { label: hint, tooltip: `${hint} (${detail})` }
     : { label: detail, tooltip: detail };

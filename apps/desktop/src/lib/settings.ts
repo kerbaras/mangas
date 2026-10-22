@@ -7,6 +7,7 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { errorMessage } from "./format";
 import { defaultDataDir, getSettings, type Settings as Stored, setSettings } from "./ipc";
+import { rememberDataFolder } from "./known-folders";
 import { DEFAULTS, fromStored, type Settings, STORED_KEY, toStored } from "./settings-stored";
 
 export type { Settings } from "./settings-stored";
@@ -26,6 +27,7 @@ const edit = (base: Stored, patch: Partial<Settings>): Stored => {
 };
 
 const notify = () => {
+  rememberDataFolder(cached.dataDir);
   for (const l of listeners) l();
 };
 

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Hint } from "@/components/hint";
 import { describeError } from "./errors";
 import { errorMessage } from "./format";
+import type { Folders } from "./io-hint";
 import { isFinalError, REFUSED } from "./ipc.downloads";
 import { connectAndWait } from "./providers";
 
@@ -20,6 +21,8 @@ type Options = {
   retry?: () => void;
   /** Same id replaces the previous toast instead of stacking a new one. */
   id?: string;
+  /** Folders an io error may be in, so its hint names the one that failed. */
+  folders?: Folders;
 };
 
 const REFUSED_AT = new RegExp(`^(.*${REFUSED} )(\\S+)(.*)$`, "s");
@@ -82,7 +85,7 @@ export async function connectThen(source: string, then?: () => void, name = sour
 }
 
 export function notifyError(title: string, error: unknown, options: Options = {}) {
-  const info = describeError(errorMessage(error));
+  const info = describeError(errorMessage(error), options.folders);
   const { source, id } = options;
   const retry = isFinalError(info.detail) ? undefined : options.retry;
   const description = <Description hint={info.hint} detail={info.detail} />;
