@@ -260,3 +260,35 @@ fn without_rename_the_old_book_is_replaced_in_place() {
         5000
     );
 }
+
+#[test]
+fn a_swap_cut_off_before_the_rename_gets_the_old_book_back() {
+    let f = fixture();
+    let docs = f.kindle.join("documents");
+    std::fs::create_dir(&docs).unwrap();
+    book(&docs, ".mangas-77-3.old-Vol 1.pdf", 10);
+    book(&docs, ".mangas-77-2.part", 4);
+    let file = book(&f.src, "Vol 2.pdf", 20);
+    run(&faulty(&f.kindle), &file, &AtomicBool::new(false)).unwrap();
+    assert_eq!(names(&docs), ["Vol 1.pdf", "Vol 2.pdf"]);
+    assert_eq!(std::fs::read(docs.join("Vol 1.pdf")).unwrap().len(), 10);
+}
+
+#[test]
+fn a_swap_cut_off_after_the_rename_drops_only_the_old_copy() {
+    let f = fixture();
+    let docs = f.kindle.join("documents");
+    std::fs::create_dir(&docs).unwrap();
+    book(&docs, ".mangas-77-3.old-Vol 1.pdf", 10);
+    book(&docs, "Vol 1.pdf", 30);
+    let file = book(&f.src, "Vol 1.pdf", 30);
+    assert!(
+        run(&faulty(&f.kindle), &file, &AtomicBool::new(false))
+            .unwrap()
+            .already_there
+    );
+    let file = book(&f.src, "Vol 2.pdf", 20);
+    run(&faulty(&f.kindle), &file, &AtomicBool::new(false)).unwrap();
+    assert_eq!(names(&docs), ["Vol 1.pdf", "Vol 2.pdf"]);
+    assert_eq!(std::fs::read(docs.join("Vol 1.pdf")).unwrap().len(), 30);
+}

@@ -1,5 +1,5 @@
-//! The real device: `mtp-rs` (pure Rust; WPD on Windows, USB on macOS). Opens the first Amazon
-//! device and its first storage (storage 0). No call is ever wrapped in a timeout or dropped
+//! The real device: `mtp-rs` (pure Rust; WPD on Windows, USB on macOS). Opens the scanned Kindle
+//! and its first storage (storage 0). No call is ever wrapped in a timeout or dropped
 //! mid-transaction, which can wedge the device until it is replugged: a cancel stops the
 //! upload through its progress callback.
 
@@ -33,18 +33,32 @@ pub enum OpenFailed {
     Other(String),
 }
 
-/// Opens the first Kindle on the bus that speaks MTP, and its storage 0.
+/// Opens the Kindle the bus scan named `name` (the only Kindle, when its MTP name differs), and
+/// its storage 0. Two Kindles that can't be told apart are refused rather than guessed.
 pub async fn open(name: &str) -> Result<RealStore, OpenFailed> {
     let held = |e: MtpError| match e.is_exclusive_access() {
         true => OpenFailed::Held,
         false => OpenFailed::Other(e.to_string()),
     };
     let known = amazon_ids();
-    let info = MtpDevice::list_devices_with_known(&known)
+    let kindles: Vec<_> = MtpDevice::list_devices_with_known(&known)
         .map_err(held)?
         .into_iter()
-        .find(|d| d.vendor_id == AMAZON_VENDOR_ID)
-        .ok_or_else(|| OpenFailed::Other("no Kindle answers over MTP".into()))?;
+        .filter(|d| d.vendor_id == AMAZON_VENDOR_ID)
+        .collect();
+    let named: Vec<_> = kindles
+        .iter()
+        .filter(|d| d.product.as_deref().unwrap_or("Kindle") == name)
+        .collect();
+    let info = match (named.as_slice(), kindles.as_slice()) {
+        ([one], _) | ([], [one]) => *one,
+        ([], []) => return Err(OpenFailed::Other("no Kindle answers over MTP".into())),
+        _ => {
+            return Err(OpenFailed::Other(
+                "more than one Kindle is connected; unplug all but one".into(),
+            ))
+        }
+    };
     let device = MtpDevice::builder()
         .timeout(TIMEOUT)
         .known_devices(&known)
