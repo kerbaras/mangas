@@ -17,6 +17,7 @@ import { useImport } from "@/hooks/use-import";
 import { useLibraryView } from "@/hooks/use-library-view";
 import { useScrollMemory } from "@/hooks/use-scroll-memory";
 import { useShelf } from "@/hooks/use-shelf";
+import { useT } from "@/i18n/use-t";
 import { mangaKey } from "@/lib/format";
 import type { Category } from "@/lib/ipc.library";
 import { filterEntries, liveView, sortEntries } from "@/lib/library-view";
@@ -28,6 +29,7 @@ import { useUpdates } from "@/lib/updates";
 const noCategories: Category[] = [];
 
 export function LibraryScreen() {
+  const t = useT();
   const nav = useNavigation();
   const shelf = useShelf();
   const { state, reload } = shelf;
@@ -56,13 +58,17 @@ export function LibraryScreen() {
   const handlers: EntryHandlers = {
     onOpen: (e) => nav.go({ screen: "manga", manga: e }),
     onUnfollow: (e) =>
-      shelf.unfollow(e).catch((err: unknown) => notifyError(`Couldn't unfollow ${e.title}`, err)),
+      shelf
+        .unfollow(e)
+        .catch((err: unknown) => notifyError(t("library.unfollowFailed", { title: e.title }), err)),
     onStatus: (e, status) =>
-      shelf.setStatus(e, status).catch((err: unknown) => notifyError("Couldn't set status", err)),
+      shelf
+        .setStatus(e, status)
+        .catch((err: unknown) => notifyError(t("library.statusFailed"), err)),
     onToggleCategory: (e, id, on) =>
       shelf
         .toggleCategory(e, id, on)
-        .catch((err: unknown) => notifyError("Couldn't change categories", err)),
+        .catch((err: unknown) => notifyError(t("library.categoriesFailed"), err)),
     onEditCategories: () => setEditing(true),
   };
   const count = state.kind === "ready" ? entries.length : null;
@@ -70,7 +76,10 @@ export function LibraryScreen() {
 
   return (
     <section className="flex h-full flex-col">
-      <ScreenHeader title="Library" subtitle={count !== null && `${count} followed`}>
+      <ScreenHeader
+        title={t("library.title")}
+        subtitle={count !== null && t("library.followed", { count })}
+      >
         {count ? (
           <div className="relative">
             <Search className="pointer-events-none absolute top-2 left-2 size-4 text-ink-3" />
@@ -81,8 +90,8 @@ export function LibraryScreen() {
                 setQuery(e.target.value);
                 rememberLibraryQuery(e.target.value);
               }}
-              placeholder="Filter by title"
-              aria-label="Filter by title"
+              placeholder={t("library.filterByTitle")}
+              aria-label={t("library.filterByTitle")}
               data-shortcut-search
               className="w-56 pl-7"
             />
@@ -94,7 +103,7 @@ export function LibraryScreen() {
           variant="primary"
           keepLabel
           icon={<Plus />}
-          label="Follow a manga"
+          label={t("library.follow")}
           onClick={() => nav.go({ screen: "search" })}
         />
       </ScreenHeader>
@@ -112,35 +121,30 @@ export function LibraryScreen() {
         id={LIBRARY_RESULTS}
         className="relative min-h-0 flex-1 overflow-auto overscroll-contain"
       >
-        {state.kind === "loading" && <p className="p-4 text-ink-3">Loading…</p>}
+        {state.kind === "loading" && <p className="p-4 text-ink-3">{t("library.loading")}</p>}
         {state.kind === "error" && (
           <div className="p-4">
-            <ErrorAlert
-              title="Couldn't open the library"
-              message={state.message}
-              onRetry={reload}
-            />
+            <ErrorAlert title={t("library.openFailed")} message={state.message} onRetry={reload} />
           </div>
         )}
         {state.kind === "ready" && entries.length === 0 && (
           <EmptyState
             icon={<Library />}
-            title="Nothing on the shelf yet"
+            title={t("library.emptyTitle")}
             action={
               <Button variant="primary" onClick={() => nav.go({ screen: "search" })}>
-                <Search /> Search a source
+                <Search /> {t("library.searchSource")}
               </Button>
             }
           >
-            Search a source and follow a title, or import chapter folders and CBZ files you already
-            have. Chapters show up here, ready to export to your e-reader.
+            {t("library.emptyBody")}
           </EmptyState>
         )}
         {entries.length > 0 && items.length === 0 && filtered && (
-          <EmptyState title="Nothing matches">
+          <EmptyState title={t("library.noMatchTitle")}>
             {query.trim()
-              ? `No title here matches “${query.trim()}”. Try a shorter title, or clear the filter.`
-              : "No title here has this category, source or status. Pick another or clear the filters."}
+              ? t("library.noMatchQuery", { query: query.trim() })
+              : t("library.noMatchFilters")}
           </EmptyState>
         )}
         {items.length > 0 && view.layout === "grid" && (

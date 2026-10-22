@@ -2,6 +2,7 @@ import { Check, Plus } from "lucide-react";
 import { Cover } from "@/components/cover";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/i18n/use-t";
 import type { Manga } from "@/lib/ipc";
 
 type Props = {
@@ -13,6 +14,7 @@ type Props = {
 };
 
 export function SearchResult({ manga, followed, busy, onFollow, onOpen }: Props) {
+  const t = useT();
   return (
     <li className="flex gap-4 rounded-md p-2 hover:bg-surface-2/60">
       <Cover manga={manga} className="w-14 shrink-0" />
@@ -34,11 +36,11 @@ export function SearchResult({ manga, followed, busy, onFollow, onOpen }: Props)
       <div className="shrink-0 self-center">
         {followed ? (
           <Button size="sm" variant="ghost" disabled>
-            <Check /> Following
+            <Check /> {t("search.following")}
           </Button>
         ) : (
           <Button size="sm" variant="primary" disabled={busy} onClick={() => onFollow(manga)}>
-            <Plus /> Follow
+            <Plus /> {t("search.follow")}
           </Button>
         )}
       </div>

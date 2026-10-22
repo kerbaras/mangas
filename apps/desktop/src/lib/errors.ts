@@ -1,3 +1,4 @@
+import { tr } from "@/i18n/tr";
 import { type Folders, ioHint, ioRest } from "./io-hint";
 import { isChallenge } from "./ipc";
 import { certificateFailure, isFinalError, NO_ROOT_CERTIFICATES } from "./ipc.downloads";
@@ -13,22 +14,18 @@ export type ErrorInfo = {
 
 /** Core error prefixes (`mangas_core::Error` display strings) and what they mean for a user. */
 const HINTS: [prefix: string, hint: string][] = [
-  ["network:", "Couldn't reach the site. Check your connection and try again."],
-  ["source ", "The site answered with something unexpected. It may be down or have changed."],
-  ["library:", "The library database couldn't be read or written."],
-  ["image:", "A page image couldn't be decoded."],
-  ["not found:", "It no longer exists on the site."],
-  ["refused:", "The image host points at a local or private address, so the app won't fetch it."],
-  [
-    "not enough space in",
-    "Free up space on that disk or choose another folder, then export again.",
-  ],
-  ["not enough space on", "Delete some books from the Kindle, then send again."],
+  ["network:", tr("errors.network")],
+  ["source ", tr("errors.source")],
+  ["library:", tr("errors.library")],
+  ["image:", tr("errors.image")],
+  ["not found:", tr("errors.notFound")],
+  ["refused:", tr("errors.refused")],
+  ["not enough space in", tr("errors.noSpace")],
+  ["not enough space on", tr("errors.kindleNoSpace")],
 ];
 
 /** A stored refusal that a retry through the proxy can fetch: Retry is offered, so say why. */
-const PROXIED_REFUSAL =
-  "The image host points at a private address. Retry fetches it through the configured proxy.";
+const PROXIED_REFUSAL = tr("errors.proxiedRefusal");
 
 /**
  * What the hint can know besides the message: the folders an io error may have failed in (the
@@ -42,23 +39,23 @@ export type ErrorContext = Folders & { proxied?: boolean };
  * the folder it failed in, or is null outside the known folders.
  */
 export function describeError(message: string, context: ErrorContext = {}): ErrorInfo {
-  const detail = message.trim() || "Unknown error";
+  const detail = message.trim() || tr("errors.unknown");
   if (isChallenge(detail))
     return {
-      hint: "This site asks for a browser check. Connect once and the app reuses the session.",
+      hint: tr("errors.challenge"),
       detail,
       challenge: true,
     };
   if (detail.includes(NO_ROOT_CERTIFICATES))
     return {
-      hint: "This system has no CA certificates, so secure connections can't be checked. Install the ca-certificates package.",
+      hint: tr("errors.noCertificates"),
       detail,
       challenge: false,
     };
   const certificate = certificateFailure(detail);
   if (certificate)
     return {
-      hint: `${certificate.host} answered, but its certificate couldn't be verified: ${certificate.problem}.`,
+      hint: tr("errors.certificate", certificate),
       detail,
       challenge: false,
     };

@@ -1,11 +1,12 @@
+import { tr } from "@/i18n/tr";
 import type { Manga } from "./ipc";
 
 export const statusLabel: Record<Manga["status"], string> = {
-  ongoing: "Ongoing",
-  completed: "Completed",
-  hiatus: "On hiatus",
-  cancelled: "Cancelled",
-  unknown: "Unknown",
+  ongoing: tr("status.ongoing"),
+  completed: tr("status.completed"),
+  hiatus: tr("status.hiatus"),
+  cancelled: tr("status.cancelled"),
+  unknown: tr("status.unknown"),
 };
 
 /** MangaDex suffixes that are not ISO regions: `es-la` is Latin America, not Laos. */

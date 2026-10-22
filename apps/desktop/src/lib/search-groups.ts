@@ -1,4 +1,6 @@
 /** Pure helpers behind the grouped Search screen. */
+
+import { tr } from "@/i18n/tr";
 import type { SearchGroup } from "./ipc";
 
 export type GroupState = { kind: "searching" } | { kind: "done"; group: SearchGroup };
@@ -16,7 +18,8 @@ export function chipOf(state: GroupState | undefined): Chip {
   return { count: ok ? state.group.items.length : null, searching: false, problem: !ok };
 }
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const results_ = (count: number) => tr("results.results", { count });
+const providers_ = (count: number) => tr("results.providers", { count });
 
 /** One line above the groups: progress while searching, then totals and providers to fix. */
 export function summary(states: (GroupState | undefined)[]): string {
@@ -27,11 +30,11 @@ export function summary(states: (GroupState | undefined)[]): string {
   const problems = done.filter((g) => g.status.state !== "ready").length;
   if (pending > 0)
     return done.length === 0
-      ? `Searching ${plural(pending, "provider")}…`
-      : `${plural(results, "result")} so far, ${pending} still searching…`;
+      ? tr("results.searching", { providers: providers_(pending) })
+      : tr("results.soFar", { results: results_(results), pending });
   const answered = done.length - problems;
-  const head = `${plural(results, "result")} from ${plural(answered, "provider")}`;
-  return problems ? `${head} · ${problems} couldn't search` : head;
+  const head = tr("results.from", { results: results_(results), providers: providers_(answered) });
+  return problems ? `${head} · ${tr("results.problems", { count: problems })}` : head;
 }
 
 /** Items to render for a group: a preview in the "All" view, everything when filtered to it. */

@@ -1,4 +1,5 @@
 /** Update checks part of the IPC contract (`commands/updates.rs`). */
+import { tr } from "@/i18n/tr";
 import { backend, type Chapter } from "./ipc";
 
 /** Mirrors `library::updates::TitleUpdate`: new chapters found for one title. */
@@ -43,18 +44,17 @@ export type UpdatesBackend = {
   setChapterGroup(source: string, mangaId: string, group: string | null): Promise<boolean>;
 };
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
-
 /** Same wording as `Summary::line`: "12 new chapters in 3 titles", "Up to date"… */
 export function summaryLine({ chapters, titles, unreachable }: UpdateSummary): string {
   const found = chapters
-    ? `${plural(chapters, "new chapter")} in ${plural(titles, "title")}`
+    ? tr("updates.found", {
+        chapters: tr("updates.newChapters", { count: chapters }),
+        titles: tr("updates.titles", { count: titles }),
+      })
     : null;
-  const failed = unreachable
-    ? `${unreachable} provider${unreachable === 1 ? "" : "s"} unreachable`
-    : null;
+  const failed = unreachable ? tr("updates.unreachable", { count: unreachable }) : null;
   if (found && failed) return `${found} · ${failed}`;
-  return found ?? failed ?? "Up to date";
+  return found ?? failed ?? tr("updates.upToDate");
 }
 
 const numberKey = (c: Chapter) =>

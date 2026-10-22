@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useT } from "@/i18n/use-t";
 import {
   type Category,
   type LibraryEntry,
@@ -32,6 +33,7 @@ type Props = {
 
 /** Reading status and categories of a followed title, on its details screen. */
 export function LibraryControls({ entry, categories, onStatus, onToggle }: Props) {
+  const t = useT();
   const names = categories.filter((c) => entry.categories.includes(c.id)).map((c) => c.name);
   return (
     <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -39,11 +41,11 @@ export function LibraryControls({ entry, categories, onStatus, onToggle }: Props
         value={entry.reading_status}
         onValueChange={(v) =>
           onStatus(entry, v as ReadingStatus).catch((e: unknown) =>
-            notifyError("Couldn't set status", e),
+            notifyError(t("details.statusFailed"), e),
           )
         }
       >
-        <SelectTrigger aria-label="Reading status" className="h-7 w-36">
+        <SelectTrigger aria-label={t("details.readingStatus")} className="h-7 w-36">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -58,12 +60,14 @@ export function LibraryControls({ entry, categories, onStatus, onToggle }: Props
         <DropdownMenuTrigger asChild>
           <Button size="sm" className="max-w-72">
             <Tags />
-            <span className="truncate">{names.length ? names.join(", ") : "Add to category"}</span>
+            <span className="truncate">
+              {names.length ? names.join(", ") : t("details.addToCategory")}
+            </span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
           {categories.length === 0 && (
-            <DropdownMenuLabel>No categories yet. Add them from the library.</DropdownMenuLabel>
+            <DropdownMenuLabel>{t("details.noCategories")}</DropdownMenuLabel>
           )}
           {categories.map((c) => (
             <DropdownMenuCheckboxItem
@@ -72,7 +76,7 @@ export function LibraryControls({ entry, categories, onStatus, onToggle }: Props
               onSelect={(e) => e.preventDefault()}
               onCheckedChange={(on) =>
                 onToggle(c.id, on === true).catch((e: unknown) =>
-                  notifyError("Couldn't change categories", e),
+                  notifyError(t("details.categoriesFailed"), e),
                 )
               }
             >

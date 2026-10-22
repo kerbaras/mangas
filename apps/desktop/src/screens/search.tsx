@@ -10,6 +10,7 @@ import { useDebounced } from "@/hooks/use-debounced";
 import { useLibrary } from "@/hooks/use-library";
 import { useMultiSearch } from "@/hooks/use-multi-search";
 import { useScrollMemory } from "@/hooks/use-scroll-memory";
+import { useT } from "@/i18n/use-t";
 import { mangaKey } from "@/lib/format";
 import { listProviders, type Manga } from "@/lib/ipc";
 import { useNavigation } from "@/lib/navigation";
@@ -22,6 +23,7 @@ const FILTER_KEY = "mangas.search.filter";
 const readFilter = () => window.localStorage.getItem(FILTER_KEY) || "all";
 
 export function SearchScreen() {
+  const t = useT();
   const nav = useNavigation();
   const { state: library, follow } = useLibrary();
   const [settings] = useSettings();
@@ -48,7 +50,7 @@ export function SearchScreen() {
     try {
       await follow(m);
     } catch (e: unknown) {
-      notifyError(`Couldn't follow ${m.title}`, e, {
+      notifyError(t("search.followFailed", { title: m.title }), e, {
         source: m.source,
         retry: () => void onFollow(m),
       });
@@ -61,7 +63,7 @@ export function SearchScreen() {
 
   return (
     <section className="flex h-full flex-col">
-      <ScreenHeader title="Search" />
+      <ScreenHeader title={t("search.title")} />
       <div className="border-b border-stroke px-4 py-3">
         <div className="relative mx-auto max-w-2xl">
           <Search className="pointer-events-none absolute top-2.5 left-3 size-4 text-ink-3" />
@@ -74,8 +76,8 @@ export function SearchScreen() {
               setQuery(e.target.value);
               rememberInput(e.target.value);
             }}
-            placeholder="Title, author or keyword"
-            aria-label="Search manga"
+            placeholder={t("search.placeholder")}
+            aria-label={t("search.label")}
             className="h-9 pl-9"
           />
         </div>
@@ -87,20 +89,18 @@ export function SearchScreen() {
         <div className="mx-auto max-w-2xl">
           {noneEnabled && (
             <EmptyState
-              title="No providers enabled"
+              title={t("search.noProvidersTitle")}
               action={
                 <Button onClick={() => nav.go({ screen: "settings" })}>
-                  <Settings2 /> Open settings
+                  <Settings2 /> {t("search.openSettings")}
                 </Button>
               }
             >
-              Turn on at least one provider in Settings to search.
+              {t("search.noProvidersBody")}
             </EmptyState>
           )}
           {!noneEnabled && !debounced.trim() && (
-            <EmptyState title="Search every enabled provider">
-              Results are grouped by provider. Follow one to add it to your library.
-            </EmptyState>
+            <EmptyState title={t("search.introTitle")}>{t("search.introBody")}</EmptyState>
           )}
           {!noneEnabled && debounced.trim() && (
             <SearchResults

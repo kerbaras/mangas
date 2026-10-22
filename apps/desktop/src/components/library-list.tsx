@@ -2,6 +2,7 @@ import { Cover } from "@/components/cover";
 import { type EntryHandlers, EntryMenu } from "@/components/entry-menu";
 import { Hint } from "@/components/hint";
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
+import { useT } from "@/i18n/use-t";
 import { mangaKey } from "@/lib/format";
 import { type Category, type LibraryEntry, readingLabel } from "@/lib/ipc.library";
 
@@ -12,20 +13,21 @@ const shortDate = (iso: string) =>
 
 /** Dense view: one row per title with its chapter state, same menu as the cards. */
 export function LibraryList({ entries, categories, ...on }: Props) {
+  const t = useT();
   return (
     <table className="w-full table-fixed border-collapse">
       <thead className="sticky top-0 z-10 bg-canvas text-left text-caption font-medium text-ink-3">
         <tr className="h-8 border-b border-stroke">
           <th className="w-14 pl-4">
-            <span className="sr-only">Cover</span>
+            <span className="sr-only">{t("library.colCover")}</span>
           </th>
-          <th>Title</th>
-          <th className="w-28">Source</th>
-          <th className="w-28">Status</th>
-          <th className="w-20 text-right">Chapters</th>
-          <th className="w-20 text-right">On disk</th>
-          <th className="w-20 text-right">Unread</th>
-          <th className="w-36 pr-4 pl-6">Updated</th>
+          <th>{t("library.colTitle")}</th>
+          <th className="w-28">{t("library.colSource")}</th>
+          <th className="w-28">{t("library.colStatus")}</th>
+          <th className="w-20 text-right">{t("library.colChapters")}</th>
+          <th className="w-20 text-right">{t("library.colOnDisk")}</th>
+          <th className="w-20 text-right">{t("library.colUnread")}</th>
+          <th className="w-36 pr-4 pl-6">{t("library.colUpdated")}</th>
         </tr>
       </thead>
       <tbody>
@@ -45,7 +47,7 @@ export function LibraryList({ entries, categories, ...on }: Props) {
                   <td className="truncate pr-4 font-medium">
                     {e.chapters.new > 0 && (
                       <span className="mr-2 rounded-sm bg-ok px-1 text-caption font-semibold text-canvas tabular-nums">
-                        {e.chapters.new} new
+                        {t("library.newCount", { count: e.chapters.new })}
                       </span>
                     )}
                     {e.title}

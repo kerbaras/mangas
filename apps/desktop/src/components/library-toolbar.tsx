@@ -5,6 +5,7 @@ import { LayoutToggle } from "@/components/layout-toggle";
 import { SortMenu } from "@/components/sort-menu";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useT } from "@/i18n/use-t";
 import type { Category, LibraryEntry } from "@/lib/ipc.library";
 import { type LibraryView, sourcesOf } from "@/lib/library-view";
 
@@ -22,6 +23,7 @@ export const LIBRARY_RESULTS = "library-results";
 
 /** Category tabs on the left; filters, sort and layout on the right. */
 export function LibraryToolbar({ view, entries, categories, onChange, onEditCategories }: Props) {
+  const t = useT();
   const count = (id: number) => entries.filter((e) => e.categories.includes(id)).length;
   return (
     <div className="flex h-11 shrink-0 items-center gap-2 border-b border-stroke px-4">
@@ -32,7 +34,7 @@ export function LibraryToolbar({ view, entries, categories, onChange, onEditCate
         >
           <TabsList>
             <TabsTrigger value={ALL} aria-controls={LIBRARY_RESULTS}>
-              All
+              {t("library.all")}
             </TabsTrigger>
             {categories.map((c) => (
               <TabsTrigger
@@ -48,8 +50,13 @@ export function LibraryToolbar({ view, entries, categories, onChange, onEditCate
           </TabsList>
         </Tabs>
       </div>
-      <Hint hint="Edit categories" focusable={false}>
-        <Button variant="ghost" size="icon" aria-label="Edit categories" onClick={onEditCategories}>
+      <Hint hint={t("library.editCategories")} focusable={false}>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={t("library.editCategories")}
+          onClick={onEditCategories}
+        >
           <Tags />
         </Button>
       </Hint>

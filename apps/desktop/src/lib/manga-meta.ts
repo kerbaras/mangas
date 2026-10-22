@@ -1,3 +1,4 @@
+import { tr } from "@/i18n/tr";
 import type { Manga } from "./ipc";
 
 /**
@@ -9,7 +10,7 @@ export function creditsLine({ authors = [], artists = [], year }: Manga): string
   return [
     year ? String(year) : "",
     authors.join(", "),
-    artOnly.length > 0 ? `Art by ${artOnly.join(", ")}` : "",
+    artOnly.length > 0 ? tr("meta.artBy", { names: artOnly.join(", ") }) : "",
   ]
     .filter(Boolean)
     .join(" · ");

@@ -4,6 +4,7 @@ import { HeaderCompact } from "@/components/header-action";
 import { Hint } from "@/components/hint";
 import { Button } from "@/components/ui/button";
 import { WindowControls } from "@/components/window-controls";
+import { tr } from "@/i18n/tr";
 import { useNavigation } from "@/lib/navigation";
 
 type Props = { title: ReactNode; subtitle?: ReactNode; back?: boolean; children?: ReactNode };
@@ -41,7 +42,13 @@ export function ScreenHeader({ title, subtitle, back, children }: Props) {
       className="flex h-12 shrink-0 select-none items-center gap-3 border-b border-stroke px-4"
     >
       {back && (
-        <Button variant="ghost" size="icon" aria-label="Back" onClick={nav.back} className="-ml-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={tr("common.back")}
+          onClick={nav.back}
+          className="-ml-2"
+        >
           <ArrowLeft />
         </Button>
       )}

@@ -1,6 +1,7 @@
 import { AlertTriangle, Hourglass } from "lucide-react";
 import type { ReactNode } from "react";
 import { ProviderIcon } from "@/components/provider-icon";
+import { useT } from "@/i18n/use-t";
 import { cn } from "@/lib/cn";
 import type { ProviderInfo } from "@/lib/ipc";
 import { type Chip, chipOf, type GroupState } from "@/lib/search-groups";
@@ -14,12 +15,13 @@ type Props = {
 
 /** "All" plus one chip per searched provider; each shows its count, a still hourglass or a warning. */
 export function ProviderChips({ providers, groups, value, onChange }: Props) {
+  const t = useT();
   const total = providers.reduce((n, p) => n + (chipOf(groups[p.id]).count ?? 0), 0);
   const anyDone = providers.some((p) => groups[p.id]?.kind === "done");
   return (
-    <fieldset aria-label="Filter by provider" className="flex flex-wrap gap-1.5">
+    <fieldset aria-label={t("search.filterByProvider")} className="flex flex-wrap gap-1.5">
       <ChipButton on={value === "all"} onClick={() => onChange("all")}>
-        All
+        {t("search.all")}
         {anyDone && <span className="tabular-nums text-ink-3">{total}</span>}
       </ChipButton>
       {providers.map((p) => (
@@ -34,9 +36,11 @@ export function ProviderChips({ providers, groups, value, onChange }: Props) {
 }
 
 function Trailing({ chip }: { chip: Chip }) {
-  if (chip.searching) return <Hourglass aria-label="searching" className="size-3 text-ink-3" />;
+  const t = useT();
+  if (chip.searching)
+    return <Hourglass aria-label={t("search.searching")} className="size-3 text-ink-3" />;
   if (chip.problem)
-    return <AlertTriangle aria-label="couldn't search" className="size-3 text-warn" />;
+    return <AlertTriangle aria-label={t("search.couldntSearch")} className="size-3 text-warn" />;
   if (chip.count === null) return null;
   return <span className="tabular-nums text-ink-3">{chip.count}</span>;
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { tr } from "@/i18n/tr";
 import type { LibraryEntry } from "@/lib/ipc.library";
 import { setChapterGroup } from "@/lib/ipc.updates";
 import { notifyError } from "@/lib/notify";
@@ -22,7 +23,7 @@ export function useChapterGroup(entry: LibraryEntry | null, onSaved: () => void)
       pending.current += 1;
       chain.current = chain.current
         .then(() => setChapterGroup(s, i, next))
-        .catch((e: unknown) => notifyError("Couldn't save the group", e))
+        .catch((e: unknown) => notifyError(tr("details.groupSaveFailed"), e))
         .finally(() => {
           pending.current -= 1;
           if (pending.current === 0) onSaved();

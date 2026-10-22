@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import { tr } from "@/i18n/tr";
 import { type ImportKind, pickImportPaths } from "@/lib/dialogs";
 import { notifyImported } from "@/lib/import-toast";
 import { type ImportReport, importLocal } from "@/lib/ipc";
@@ -16,13 +17,13 @@ export function useImport(onImported: (report: ImportReport) => void) {
       const paths = await pickImportPaths(kind);
       if (paths.length === 0) return;
       setBusy(true);
-      toast.loading("Importing…", { id: IMPORT_TOAST, description: null });
+      toast.loading(tr("library.importing"), { id: IMPORT_TOAST, description: null });
       try {
         const report = await importLocal(paths);
         notifyImported(report, IMPORT_TOAST);
         onImported(report);
       } catch (e) {
-        notifyError("Couldn't import", e, { id: IMPORT_TOAST });
+        notifyError(tr("import.failed"), e, { id: IMPORT_TOAST });
       } finally {
         setBusy(false);
       }

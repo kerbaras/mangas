@@ -1,15 +1,17 @@
 /** Library organisation part of the IPC contract: entries with user state, categories, status. */
+
+import { tr } from "@/i18n/tr";
 import { backend, type Manga } from "./ipc";
 
 /** Mirrors `mangas_core::library::ReadingStatus`: the user's, not the source's publication status. */
 export type ReadingStatus = "reading" | "plan_to_read" | "on_hold" | "completed" | "dropped";
 
 export const READING_STATUSES: { id: ReadingStatus; label: string }[] = [
-  { id: "reading", label: "Reading" },
-  { id: "plan_to_read", label: "Plan to read" },
-  { id: "on_hold", label: "On hold" },
-  { id: "completed", label: "Completed" },
-  { id: "dropped", label: "Dropped" },
+  { id: "reading", label: tr("reading.reading") },
+  { id: "plan_to_read", label: tr("reading.planToRead") },
+  { id: "on_hold", label: tr("reading.onHold") },
+  { id: "completed", label: tr("reading.completed") },
+  { id: "dropped", label: tr("reading.dropped") },
 ];
 
 export const readingLabel = (s: ReadingStatus) =>

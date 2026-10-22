@@ -1,3 +1,5 @@
+import { tr } from "@/i18n/tr";
+
 /** The folders an io error can be in, so its hint names the one that failed. */
 export type Folders = { data?: string | null; export?: string | null };
 
@@ -22,10 +24,8 @@ function within(rest: string, dir: string | null | undefined): string | null {
 /** The hint for an io error's `rest`: the export folder first (it may sit in the data folder). */
 export function ioHint(rest: string, folders: Folders): string | null {
   const exportDir = within(rest, folders.export);
-  if (exportDir)
-    return `The export folder ${exportDir} couldn't be written. Check its permissions or choose another folder.`;
+  if (exportDir) return tr("errors.exportFolder", { folder: exportDir });
   const dataDir = within(rest, folders.data);
-  if (dataDir)
-    return `A file in the data folder ${dataDir} couldn't be read or written. Check the data folder in Settings.`;
+  if (dataDir) return tr("errors.dataFolder", { folder: dataDir });
   return null;
 }
