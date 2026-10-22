@@ -19,7 +19,6 @@ pub fn bytes(file: &Path) -> u64 {
     std::fs::metadata(file).map(|m| m.len()).unwrap_or(0)
 }
 
-/// The budget `send` puts a book under: email's, or the web one for everything else.
 /// The route `--send` takes, which picks a Kindle book's format (`export::for_delivery`).
 pub fn route_of(send: Option<SendArg>) -> Route {
     match send {
@@ -48,6 +47,7 @@ pub fn budget_spec(
     }
 }
 
+/// The budget `send` puts a book under: email's, or the web one for everything else.
 pub fn delivery_of(send: Option<SendArg>) -> Delivery {
     match send {
         Some(SendArg::Email) => Delivery::Email,
