@@ -3,9 +3,10 @@ import { Hint } from "@/components/hint";
 import { SendStatus } from "@/components/send-status";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useEmailRefusal } from "@/hooks/use-email-refusal";
 import { useSend } from "@/hooks/use-send";
 import { useNavigation } from "@/lib/navigation";
-import { emailReady, emailRefusal, fileName, titleOf } from "@/lib/send-labels";
+import { emailReady, fileName, titleOf } from "@/lib/send-labels";
 import { useSettings } from "@/lib/settings";
 
 type Props = { file: string; onSent?: () => void };
@@ -17,7 +18,7 @@ export function SendPanel({ file, onSent }: Props) {
   const send = useSend(onSent);
   const busy = ["looking", "copying", "emailing"].includes(send.state.kind);
   const title = titleOf(file);
-  const refusal = emailRefusal(file);
+  const refusal = useEmailRefusal(file);
   const canEmail = emailReady(settings.kindleEmail);
   const emailButton = (
     <Button
@@ -54,7 +55,7 @@ export function SendPanel({ file, onSent }: Props) {
           </Button>
         </div>
       </div>
-      {!canEmail && !refusal && (
+      {!canEmail && refusal === null && (
         <p className="text-caption text-ink-3">
           Email needs your Kindle address and a mail server.{" "}
           <button
@@ -69,7 +70,7 @@ export function SendPanel({ file, onSent }: Props) {
       <SendStatus
         state={send.state}
         onRetry={() => void send.retry()}
-        onEmail={canEmail && !refusal ? () => void send.retry("email") : undefined}
+        onEmail={canEmail && refusal === null ? () => void send.retry("email") : undefined}
       />
     </div>
   );

@@ -19,11 +19,3 @@ export function deliveryLabel(r: ExportRecord): string {
 /** Whether the Kindle address, sender and server are filled in. */
 export const emailReady = (s: { to: string; from: string; username: string; host: string }) =>
   Boolean(s.to.trim() && s.host.trim() && (s.from.trim() || s.username.trim()));
-
-/** Why Amazon's email service won't take this file, or null when it will (EPUB and PDF). */
-export function emailRefusal(file: string): string | null {
-  if (/\.(epub|pdf)$/i.test(file)) return null;
-  const ext = file.match(/\.([^./\\]+)$/)?.[1]?.toUpperCase();
-  const what = ext ? `a ${ext}` : "this file";
-  return `Send to Kindle by email takes EPUB or PDF, not ${what}. Copy it over USB, or export it as EPUB.`;
-}

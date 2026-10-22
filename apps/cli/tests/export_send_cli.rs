@@ -67,7 +67,7 @@ fn export_send(home: &Path, via: &str, kindle: &Path) -> Output {
     let out_dir = home.join("out");
     let (out_dir, kindle) = (out_dir.to_str().unwrap(), kindle.to_str().unwrap());
     let args = [
-        "export", ID, "--every", "1", "-o", out_dir, "--send", via, "--kindle", kindle,
+        "export", ID, "--every", "1", "-o", out_dir, "--send", via, "--force", "--kindle", kindle,
     ];
     mangas(home, &args)
 }

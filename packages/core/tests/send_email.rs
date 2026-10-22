@@ -104,10 +104,7 @@ fn attaches_pdfs_and_refuses_formats_amazon_cannot_take() {
     let pdf = book_message(&smtp, "Vol. 1", "Vol 1.PDF", b"%PDF".to_vec()).unwrap();
     assert!(String::from_utf8_lossy(&pdf.formatted()).contains("application/pdf"));
     let err = book_message(&smtp, "Vol. 1", "vol-1.cbz", b"PK".to_vec()).unwrap_err();
-    assert!(
-        err.to_string().contains("EPUB or PDF files, not vol-1.cbz"),
-        "{err}"
-    );
+    assert!(err.to_string().contains("EPUB or PDF, not a CBZ"), "{err}");
 }
 
 #[test]

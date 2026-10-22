@@ -9,7 +9,10 @@ const SEND_EVENT = "send-progress";
 export const tauriSend: SendBackend = {
   findKindles: () => invoke("find_kindles"),
   usbKindles: () => invoke("usb_kindles"),
-  sendUsb: (file, title, root) => invoke("send_usb", { file, title, root: root ?? null }),
+  usbVerdict: (file, device) => invoke("usb_verdict", { file, device }),
+  emailRefusal: (file) => invoke("email_refusal", { file }),
+  sendUsb: (file, title, root, force) =>
+    invoke("send_usb", { file, title, root: root ?? null, force: force ?? false }),
   onCopyProgress: (cb) => listen<CopyProgress>(SEND_EVENT, (e) => cb(e.payload)),
   sendEmail: (file, title) => invoke("send_email", { file, title }),
   sendTestEmail: (settings, typed) => invoke("send_test_email", { settings, typed }),

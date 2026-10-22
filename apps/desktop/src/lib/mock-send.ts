@@ -52,6 +52,25 @@ export function mockSend(): SendBackend {
     async usbKindles() {
       return params.has("mtp-kindle") ? [{ name: "Kindle" }] : [];
     },
+    async emailRefusal(file) {
+      // The browser preview's stand-in for `email::email_refusal`; the app asks core.
+      if (/\.(epub|pdf)$/i.test(file)) return null;
+      const ext = file.match(/\.([^./\\]+)$/)?.[1]?.toUpperCase();
+      return `Send to Kindle by email takes EPUB or PDF, not ${ext ? `a ${ext}` : "this file"}. Copy it over USB, or export it as EPUB.`;
+    },
+    async usbVerdict(file, device) {
+      // The browser preview's stand-in for `usb::SIDELOAD`; the app asks core.
+      const format = (file.split(".").pop() ?? "").toUpperCase();
+      const decision = ({ PDF: "supported", AZW3: "supported", CBZ: "refused" } as const)[
+        format as "PDF"
+      ];
+      if (decision === "supported") return { decision, format, device, reason: null };
+      const reason =
+        decision === "refused"
+          ? `${device} doesn't open ${format} files. To copy it over USB, export the book as PDF or AZW3.`
+          : `${device} may not open an ${format} copied over USB. Email it instead (Send to Kindle converts ${format}), or export the book as PDF or AZW3.`;
+      return { decision: decision ?? "warn", format, device, reason };
+    },
     async sendUsb(file, title) {
       const path = `${KINDLE.documents}/${file.split("/").pop()}`;
       if (file === path) return { path, already_there: true };

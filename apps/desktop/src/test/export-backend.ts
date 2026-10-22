@@ -12,6 +12,7 @@ import {
 import type { ExportResult } from "@/lib/ipc.export";
 import type { VolumeExport, VolumeRequest } from "@/lib/ipc.volumes";
 import { mockPlan, portable } from "@/lib/volume-plan";
+import { emailRefusal } from "./email-refusal-stub";
 
 export const ch = (number: string, volume: string | null): Chapter => ({
   id: `c${number}`,
@@ -85,6 +86,13 @@ export function exportBackend(overrides: Partial<Backend> = {}, detectors = dete
     getSettings: async () => ({}),
     onExportProgress: async () => () => {},
     onCopyProgress: async () => () => {},
+    emailRefusal,
+    usbVerdict: async (_file: string, device: string) => ({
+      decision: "supported",
+      format: "EPUB",
+      device,
+      reason: null,
+    }),
     ...overrides,
   } as unknown as Backend);
   return { planVolumes, exportVolumes };

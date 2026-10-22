@@ -10,6 +10,7 @@ use mangas_core::{library, storage};
 
 use super::cut_args::{CutArgs, DEFAULT_PROFILE};
 use super::deliver::{try_deliver, unsent, SendArg};
+use super::deliver_usb;
 use super::export_args::FormatArg;
 use super::export_cover::cover_file;
 use super::export_plan;
@@ -78,6 +79,9 @@ pub struct Args {
     /// Mount point of the Kindle for `--send usb` [default: detected]
     #[arg(long)]
     pub kindle: Option<PathBuf>,
+    /// With `--send usb`, copy a format the Kindle may not open (EPUB); CBZ is never copied
+    #[arg(long, requires = "send")]
+    pub force: bool,
     #[command(flatten)]
     pub cut: CutArgs,
     /// Manage the series export preset instead of exporting. Exports of the series use it for
@@ -132,6 +136,10 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     if args.dry_run {
         return Ok(());
     }
+    let books: Vec<_> = names.iter().map(|n| args.output_dir.join(n)).collect();
+    let kindle = args.kindle.as_deref();
+    let to = args.send.map(|via| (via, kindle, args.force));
+    deliver_usb::precheck(to, format.id(), &books, args.json)?;
     export_preset::note_series_preset(series.as_ref());
     let (penalizer, detectors) = args.cut.penalizer().await?;
     let mut report = Report::new(detectors).with_plan(plan);
@@ -182,9 +190,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         for (output, title) in &stats.titled_outputs(&req.title) {
             kindle_record::record_export(&lib, output, title, device.id);
             let Some(via) = args.send else { continue };
-            let file = std::path::absolute(output)?;
-            let kindle = args.kindle.as_deref();
-            match try_deliver(&lib, &file, title, via, kindle).await {
+            match try_deliver(&lib, output, title, via, kindle, args.force).await {
                 Ok(sent) if args.json => eprintln!("{sent}"),
                 Ok(sent) => outln!("{sent}")?,
                 Err(e) => report.unsent(output, &e),

@@ -72,6 +72,17 @@ export type ExportRecord = {
   exists: boolean;
 };
 
+/**
+ * Mirrors `mangas_core::send::usb::UsbVerdict`: what a Kindle does with the file copied onto it
+ * over USB (`usb::SIDELOAD`). `reason` names the format and the device; null when supported.
+ */
+export type UsbVerdict = {
+  decision: "supported" | "warn" | "refused";
+  format: string;
+  device: string;
+  reason: string | null;
+};
+
 /** Where the book is on the Kindle; `already_there` when nothing had to be copied. */
 export type UsbCopy = { path: string; already_there: boolean };
 
@@ -79,8 +90,15 @@ export type SendBackend = {
   findKindles(): Promise<KindleVolume[]>;
   /** Kindles on the USB bus, mounted or not (asked when none is mounted). */
   usbKindles(): Promise<UsbKindle[]>;
-  /** Copies the EPUB to the Kindle at `root` (the first found when omitted); resolves to where it is. */
-  sendUsb(file: string, title: string, root?: string): Promise<UsbCopy>;
+  /** What copying `file` onto the Kindle named `device` does: the format table's verdict. */
+  usbVerdict(file: string, device: string): Promise<UsbVerdict>;
+  /** Why Send to Kindle by email won't take `file` (core's EPUB/PDF rule), or null when it will. */
+  emailRefusal(file: string): Promise<string | null>;
+  /**
+   * Copies the book to the Kindle at `root` (the first found when omitted); resolves to where it
+   * is. A refused format rejects; one that warns rejects unless `force`.
+   */
+  sendUsb(file: string, title: string, root?: string, force?: boolean): Promise<UsbCopy>;
   onCopyProgress(cb: (p: CopyProgress) => void): Promise<Unlisten>;
   /** Emails the EPUB to the Kindle address in the settings. */
   sendEmail(file: string, title: string): Promise<SentEmail>;
@@ -101,8 +119,13 @@ export type SendBackend = {
 
 export const findKindles = async () => (await backend()).findKindles();
 export const usbKindles = async () => (await backend()).usbKindles();
-export const sendUsb = async (file: string, title: string, root?: string) =>
-  (await backend()).sendUsb(file, title, root);
+export const usbVerdict = async (file: string, device: string) =>
+  (await backend()).usbVerdict(file, device);
+export const emailRefusal = async (file: string) => (await backend()).emailRefusal(file);
+export const sendUsb = async (file: string, title: string, root?: string, force?: boolean) =>
+  force
+    ? (await backend()).sendUsb(file, title, root, true)
+    : (await backend()).sendUsb(file, title, root);
 export const onCopyProgress = async (cb: (p: CopyProgress) => void) =>
   (await backend()).onCopyProgress(cb);
 export const sendEmail = async (file: string, title: string) =>

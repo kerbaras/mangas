@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ExportRecord } from "@/lib/ipc.send";
-import { deliveryLabel, emailReady, emailRefusal, titleOf } from "@/lib/send-labels";
+import { deliveryLabel, emailReady, titleOf } from "@/lib/send-labels";
 
 const record = (patch: Partial<ExportRecord>): ExportRecord => ({
   id: 1,
@@ -35,14 +35,5 @@ describe("send labels", () => {
     expect(emailReady(base)).toBe(false);
     expect(emailReady({ ...base, username: "me@x" })).toBe(true);
     expect(emailReady({ ...base, host: " ", username: "me@x" })).toBe(false);
-  });
-
-  it("lets EPUB and PDF go by email and explains why a CBZ can't", () => {
-    expect(emailRefusal("/b/Vol 1.epub")).toBeNull();
-    expect(emailRefusal("C:\\b\\Vol 1.PDF")).toBeNull();
-    expect(emailRefusal("/b/Vol 1.cbz")).toBe(
-      "Send to Kindle by email takes EPUB or PDF, not a CBZ. Copy it over USB, or export it as EPUB.",
-    );
-    expect(emailRefusal("/b/v1.0/book")).toContain("not this file");
   });
 });

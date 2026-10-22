@@ -13,8 +13,9 @@ use mangas_core::storage;
 
 use super::cut_args::{print_progress, CutArgs, DEFAULT_PROFILE};
 use super::deliver::SendArg;
+use super::deliver_usb;
 use super::export_args::FormatArg;
-use super::export_plan::Fewer;
+use super::export_plan::{planned_book, Fewer};
 use super::export_preset::note_series_preset;
 use super::export_report::Report;
 use super::export_size::{delivery_of, levers_text, warn_too_big};
@@ -50,6 +51,9 @@ pub struct Args {
     /// Mount point of the Kindle for `--send usb` [default: detected]
     #[arg(long)]
     pub kindle: Option<PathBuf>,
+    /// With `--send usb`, copy a format the Kindle may not open (EPUB); CBZ is never copied
+    #[arg(long, requires = "send")]
+    pub force: bool,
     /// Print the known e-reader profiles and exit
     #[arg(long, visible_alias = "list-devices")]
     pub list_profiles: bool,
@@ -131,6 +135,11 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         None => PathBuf::from(format!("out.{format}")),
     };
     note_series_preset(saved.as_ref());
+    let to = args
+        .send
+        .map(|via| (via, args.kindle.as_deref(), args.force));
+    let books = [planned_book(&output, args.replace)];
+    deliver_usb::precheck(to, format.id(), &books, args.json)?;
     let (penalizer, detectors) = args.cut.penalizer().await?;
     let req = ExportRequest {
         split: args.cut.split(),
@@ -167,7 +176,6 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     if !args.json {
         kindle_print::print_book(&stats, req.chapter_dirs.len(), started)?;
     }
-    let to = args.send.map(|via| (via, args.kindle.as_deref()));
     let done =
         kindle_record::record_and_send(&stats, &req.chapter_dirs, &req.title, dev.id, to).await;
     done.print_sent(args.json)?;

@@ -1,4 +1,4 @@
-//! `mangas send`: email or copy an EPUB to the Kindle, test the email settings, or list the
+//! `mangas send`: email or copy a book to the Kindle (over USB only in a format it opens), test the email settings, or list the
 //! Kindles connected over USB.
 
 use std::path::PathBuf;
@@ -9,12 +9,14 @@ use mangas_core::library;
 use mangas_core::send::{email, password, usb};
 
 use super::deliver::{deliver, SendArg};
-use crate::output::outln;
+use super::deliver_usb::{mtp_step, next_step, stopped_by};
+use super::send_report::SendReport;
+use crate::output::{outln, print_json};
 use crate::paths;
 
 #[derive(ClapArgs)]
 pub struct Args {
-    /// EPUB to send
+    /// Book to send
     pub file: Option<PathBuf>,
     /// How to send it
     #[arg(long, value_enum, default_value_t = SendArg::Email)]
@@ -31,6 +33,14 @@ pub struct Args {
     /// List the Kindles connected over USB
     #[arg(long, conflicts_with_all = ["file", "test"])]
     pub devices: bool,
+    /// With `--via usb`, copy a format the Kindle may not open (EPUB); CBZ is never copied
+    #[arg(long, conflicts_with_all = ["test", "devices"])]
+    pub force: bool,
+    /// Print one JSON object instead of the line: `file`, `via`, `sent`, `to`, `path`,
+    /// `already_there`, `error`, and `usb` (`decision` "supported", "warn" or "refused",
+    /// `format`, `device`, `reason`; null for email)
+    #[arg(long, conflicts_with_all = ["test", "devices"])]
+    pub json: bool,
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
@@ -55,16 +65,24 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             .map(|s| s.to_string_lossy().into_owned())
             .unwrap_or_default()
     });
-    let line = deliver(&lib, &file, &title, args.via, args.kindle.as_deref())
-        .await
-        .map_err(|e| match e.downcast_ref() {
-            Some(mangas_core::Error::KindleOverMtp { .. }) => anyhow::anyhow!(
-                "{e}\n  send it by email instead: mangas send --via email \"{}\"",
-                file.display()
-            ),
-            _ => e,
-        })?;
-    outln!("{line}")?;
+    let kindle = args.kindle.as_deref();
+    let sent = deliver(&lib, &file, &title, args.via, kindle, args.force).await;
+    if args.json {
+        print_json(&SendReport::new(&file, args.via, &sent))?;
+    }
+    let line = sent.map_err(|e| match (e.downcast_ref(), stopped_by(&e)) {
+        (Some(mangas_core::Error::KindleOverMtp { .. }), _) => {
+            anyhow::anyhow!("{e}{}", mtp_step(&file))
+        }
+        (_, Some(verdict)) => {
+            let next = next_step(verdict, &file, "usb");
+            anyhow::anyhow!("{e}{next}")
+        }
+        _ => e,
+    })?;
+    if !args.json {
+        outln!("{}", line.line)?;
+    }
     Ok(())
 }
 
