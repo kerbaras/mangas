@@ -4,7 +4,7 @@ import type { Preset } from "./ipc";
 import type { ReadingDirection } from "./ipc.domain";
 
 /** Mirrors `mangas_core::export::Format` (lowercase on the wire). */
-export type ExportFormat = "epub" | "cbz" | "pdf";
+export type ExportFormat = "epub" | "azw3" | "cbz" | "pdf";
 
 /** Mirrors `mangas_core::export::Profile`; `format` is what the device reads best. */
 export type Device = {
@@ -15,6 +15,8 @@ export type Device = {
   dpi: number;
   grayscale: boolean;
   format: ExportFormat;
+  /** Mirrors `export::DeliveryFormats`: a Kindle's format over USB and by email, and why. */
+  delivery: { usb: ExportFormat; email: ExportFormat; reason: string } | null;
 };
 
 /** `total` is null while the count is not known yet (cutting pages). */

@@ -70,12 +70,12 @@ describe("export dialog: Retry after a failed delivery", () => {
     const sendUsb = vi
       .fn()
       .mockResolvedValueOnce({
-        path: "/media/me/Kindle/documents/Solo v1.epub",
+        path: "/media/me/Kindle/documents/Solo v1.azw3",
         already_there: false,
       })
       .mockRejectedValueOnce(new Error("No space left on device"))
       .mockResolvedValueOnce({
-        path: "/media/me/Kindle/documents/Solo v2.epub",
+        path: "/media/me/Kindle/documents/Solo v2.azw3",
         already_there: false,
       });
     const { exportVolumes } = exportBackend({ findKindles: async () => [kindle], sendUsb });
@@ -88,20 +88,20 @@ describe("export dialog: Retry after a failed delivery", () => {
     fireEvent.click(await enabledButton(/Export 2 books and copy/));
     expect(await screen.findByText("Copy failed")).toBeTruthy();
     fireEvent.click(await enabledButton(/^Retry copy$/));
-    expect(await screen.findByText(/Copied to Kindle: .*Solo v2\.epub/)).toBeTruthy();
-    expect(screen.getByText(/Copied to Kindle: .*Solo v1\.epub/)).toBeTruthy();
+    expect(await screen.findByText(/Copied to Kindle: .*Solo v2\.azw3/)).toBeTruthy();
+    expect(screen.getByText(/Copied to Kindle: .*Solo v1\.azw3/)).toBeTruthy();
     expect(exportVolumes).toHaveBeenCalledOnce();
     expect(sendUsb.mock.calls.map((c) => c[0])).toEqual([
-      "/k/Solo v1.epub",
-      "/k/Solo v2.epub",
-      "/k/Solo v2.epub",
+      "/k/Solo v1.azw3",
+      "/k/Solo v2.azw3",
+      "/k/Solo v2.azw3",
     ]);
   });
 
-  it("copies the written book over USB when the user switches away from a failed email", async () => {
+  it("copies the written PDF over USB when the user switches away from a failed email", async () => {
     const sendEmail = vi.fn().mockRejectedValueOnce(new Error("connection refused"));
     const sendUsb = vi.fn().mockResolvedValue({
-      path: "/media/me/Kindle/documents/Solo v1.epub",
+      path: "/media/me/Kindle/documents/Solo v1.pdf",
       already_there: false,
     });
     const { exportVolumes } = exportBackend({
@@ -110,6 +110,7 @@ describe("export dialog: Retry after a failed delivery", () => {
       sendUsb,
     });
     render(dialog());
+    fireEvent.click(await screen.findByLabelText("PDF"));
     fireEvent.mouseDown(await screen.findByRole("tab", { name: "Email to Kindle" }));
     fireEvent.click(await enabledButton(/Export book and email/));
     expect(await screen.findByText(/connection refused/)).toBeTruthy();
@@ -117,9 +118,9 @@ describe("export dialog: Retry after a failed delivery", () => {
     expect(screen.queryByText("Email not sent")).toBeNull();
     expect(screen.queryByText(/connection refused/)).toBeNull();
     fireEvent.click(await enabledButton(/^Retry copy$/));
-    expect(await screen.findByText(/Copied to Kindle: .*Solo v1\.epub/)).toBeTruthy();
+    expect(await screen.findByText(/Copied to Kindle: .*Solo v1\.pdf/)).toBeTruthy();
     expect(exportVolumes).toHaveBeenCalledOnce();
-    expect(sendUsb.mock.calls.map((c) => c[0])).toEqual(["/k/Solo v1.epub"]);
+    expect(sendUsb.mock.calls.map((c) => c[0])).toEqual(["/k/Solo v1.pdf"]);
   });
 
   it("offers no Retry once the user switches a failed email to Save to folder", async () => {

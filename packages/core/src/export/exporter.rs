@@ -5,6 +5,7 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
+use super::azw3::Azw3Exporter;
 use super::cbz::CbzExporter;
 use super::epub::{ChapterEntry, EpubExporter, PageImage, Series};
 use super::pdf::PdfExporter;
@@ -17,7 +18,7 @@ use crate::domain::{Error, Result};
 pub struct Meta {
     pub id: String,
     pub title: String,
-    /// At least one creator.
+    /// The creators; empty when unknown, and then no format writes one.
     pub authors: Vec<String>,
     pub language: String,
     pub series: Option<Series>,
@@ -77,16 +78,18 @@ pub trait Exporter: Sync {
 pub enum Format {
     #[default]
     Epub,
+    Azw3,
     Cbz,
     Pdf,
 }
 
 impl Format {
-    pub const ALL: [Format; 3] = [Format::Epub, Format::Cbz, Format::Pdf];
+    pub const ALL: [Format; 4] = [Format::Epub, Format::Azw3, Format::Cbz, Format::Pdf];
 
     pub fn exporter(self) -> &'static dyn Exporter {
         match self {
             Format::Epub => &EpubExporter,
+            Format::Azw3 => &Azw3Exporter,
             Format::Cbz => &CbzExporter,
             Format::Pdf => &PdfExporter,
         }
@@ -134,7 +137,7 @@ impl FromStr for Format {
         Format::ALL
             .into_iter()
             .find(|f| f.id().eq_ignore_ascii_case(s.trim()))
-            .ok_or_else(|| Error::Other(format!("unknown format '{s}' (epub, cbz or pdf)")))
+            .ok_or_else(|| Error::Other(format!("unknown format '{s}' (epub, azw3, cbz or pdf)")))
     }
 }
 

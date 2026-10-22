@@ -28,7 +28,13 @@ fn refusal(ext: Option<&str>) -> String {
     let what = ext
         .filter(|e| !e.is_empty() && !e.contains(['/', '\\']))
         .map_or("this file".to_string(), |e| {
-            format!("a {}", e.to_ascii_uppercase())
+            let e = e.to_ascii_uppercase();
+            let article = if e.starts_with(['A', 'E', 'I', 'O', 'U']) {
+                "an"
+            } else {
+                "a"
+            };
+            format!("{article} {e}")
         });
     format!(
         "Send to Kindle by email takes EPUB or PDF, not {what}. Copy it over USB, or export it \

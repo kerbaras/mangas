@@ -5,7 +5,7 @@
 use std::path::PathBuf;
 
 use mangas_core::export::kindle::{self, BookBudget, BudgetSpec, Delivery, Levers};
-use mangas_core::export::ExportPreset;
+use mangas_core::export::{ExportPreset, Format};
 use mangas_core::smartcut::Preset;
 
 use super::export::{resolve, series_preset};
@@ -23,9 +23,10 @@ pub async fn estimate_export(
     quality: Option<u8>,
     email: bool,
     split_mb: Option<u64>,
+    format: Option<Format>,
 ) -> Result<Vec<BookBudget>, String> {
     blocking(move || {
-        let spec = spec_of(&books, device, preset, quality, email, split_mb)?;
+        let spec = spec_of(&books, device, preset, quality, email, split_mb, format)?;
         kindle::plan_budget(&books, spec).map_err(to_ipc)
     })
     .await
@@ -42,9 +43,10 @@ pub async fn fit_levers(
     quality: Option<u8>,
     email: bool,
     split_mb: Option<u64>,
+    format: Option<Format>,
 ) -> Result<Vec<Levers>, String> {
     blocking(move || {
-        let spec = spec_of(&books, device, preset, quality, email, split_mb)?;
+        let spec = spec_of(&books, device, preset, quality, email, split_mb, format)?;
         (books.iter())
             .map(|b| kindle::book_levers(b, spec).map_err(to_ipc))
             .collect()
@@ -53,6 +55,7 @@ pub async fn fit_levers(
 }
 
 /// The budget spec of the dialog's choices over the series preset of `books`.
+#[allow(clippy::too_many_arguments)]
 fn spec_of(
     books: &[Vec<PathBuf>],
     device: Option<String>,
@@ -60,9 +63,11 @@ fn spec_of(
     quality: Option<u8>,
     email: bool,
     split_mb: Option<u64>,
+    format: Option<Format>,
 ) -> Result<BudgetSpec, String> {
     let explicit = ExportPreset {
         cut_preset: preset,
+        format,
         profile: device,
         jpeg_quality: quality,
         ..Default::default()
@@ -85,6 +90,7 @@ fn spec_of(
         } else {
             Delivery::Other
         },
+        format: Format::resolve(None, None, resolved.format, &dev).map_err(to_ipc)?,
         split: split_mb.map(|mb| mb * 1_000_000),
     })
 }

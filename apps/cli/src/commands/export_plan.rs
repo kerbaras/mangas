@@ -3,9 +3,9 @@
 
 use std::path::{Path, PathBuf};
 
-use mangas_core::export::free_names_in;
 use mangas_core::export::kindle::{plan_budget, BookBudget, BudgetSpec, Delivery, Levers};
 use mangas_core::export::volume::VolumePlan;
+use mangas_core::export::{free_names_in, Chosen, Format};
 use serde::Serialize;
 
 use crate::output::outln;
@@ -16,16 +16,20 @@ pub struct PlannedBook {
     pub path: PathBuf,
     pub title: String,
     pub chapters: usize,
+    pub format: Format,
+    /// Why the delivery picked `format` ("Kindle over USB: AZW3; Email: EPUB"), else null.
+    pub format_reason: Option<&'static str>,
     #[serde(flatten)]
     pub budget: BookBudget,
 }
 
-/// Each of `plans` (named `names` in `dir`) sized against `spec`.
+/// Each of `plans` (named `names` in `dir`) in the `chosen` format, sized against `spec`.
 pub fn size(
     plans: &[VolumePlan],
     names: &[String],
     dir: &Path,
     spec: BudgetSpec,
+    chosen: Chosen,
 ) -> anyhow::Result<Vec<PlannedBook>> {
     let books: Vec<Vec<PathBuf>> = plans.iter().map(chapter_dirs).collect();
     let budgets = plan_budget(&books, spec)?;
@@ -34,6 +38,8 @@ pub fn size(
             path: dir.join(name),
             title: p.title.clone(),
             chapters: p.chapters.len(),
+            format: chosen.format,
+            format_reason: chosen.reason,
             budget,
         })
         .collect())
@@ -92,6 +98,7 @@ pub fn print(
             "{}  ({chapters} chapters, {first}–{last}{parts})",
             book.path.display()
         )?;
+        outln!("  {}", format_line(book))?;
         outln!("  {}", budget_line(&book.budget))?;
         if let Some(levers) = &book.budget.levers {
             outln!("  {}", levers_line(levers, fewer))?;
@@ -105,6 +112,15 @@ pub fn print_json(plan: &[PlannedBook]) -> anyhow::Result<()> {
     let json = serde_json::to_string_pretty(&serde_json::json!({ "plan": plan }))?;
     outln!("{json}")?;
     Ok(())
+}
+
+/// `format AZW3 (Kindle over USB: AZW3; Email: EPUB)`, the reason only when the delivery chose.
+pub fn format_line(book: &PlannedBook) -> String {
+    let name = book.format.exporter().name();
+    match book.format_reason {
+        Some(why) => format!("format {name} ({why})"),
+        None => format!("format {name}"),
+    }
 }
 
 fn mb(bytes: u64) -> String {

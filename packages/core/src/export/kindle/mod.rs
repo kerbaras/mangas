@@ -29,8 +29,8 @@ pub use export::export;
 pub use input::{chapter_files, chapter_images, decode, ChapterFiles};
 pub use levers::book_levers;
 pub use parts::{
-    free_book_path, oversized, part_book, part_owner, part_path, Oversized, PART_SIZE,
-    SEND_TO_KINDLE_LIMIT,
+    free_book_path, oversized, page_cost, part_book, part_owner, part_path, split_points,
+    Oversized, PART_SIZE, SEND_TO_KINDLE_LIMIT,
 };
 pub use preview::{preview, Preview, PreviewPage, PreviewRequest};
 pub use process::{process_page, EncodedPage, ImageSettings};

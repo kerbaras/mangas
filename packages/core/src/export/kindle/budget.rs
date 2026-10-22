@@ -12,7 +12,7 @@ use super::levers::levers;
 use super::parts::{Oversized, SEND_TO_KINDLE_LIMIT};
 use super::Device;
 use crate::domain::Result;
-use crate::export::PageSettings;
+use crate::export::{Format, PageSettings};
 use crate::smartcut::Options;
 
 /// Amazon's Send-to-Kindle web uploader limit for one file, in bytes.
@@ -99,13 +99,15 @@ pub struct BudgetSpec {
     pub cut: Options,
     pub page: PageSettings,
     pub delivery: Delivery,
+    /// The format the books are written in: an AZW3 page can cost a standard copy too.
+    pub format: Format,
     /// The `--split-mb` part size in bytes, when the books are written in parts.
     pub split: Option<u64>,
 }
 
 /// Each of `books` (its chapter folders) estimated and held against `spec`'s budget.
 pub fn plan_budget(books: &[Vec<PathBuf>], spec: BudgetSpec) -> Result<Vec<BookBudget>> {
-    let estimates = estimate_each(books, spec.device, spec.cut, spec.page)?;
+    let estimates = estimate_each(books, spec.device, spec.cut, spec.page, spec.format)?;
     let quality = spec.page.image_settings(&spec.device).quality;
     books
         .iter()

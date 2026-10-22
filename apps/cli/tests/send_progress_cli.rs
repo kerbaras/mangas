@@ -30,9 +30,9 @@ fn stderr(out: &Output) -> String {
 fn a_book_already_on_the_kindle_prints_no_progress() {
     let home = tempfile::tempdir().unwrap();
     let kindle = home.path().join("Kindle");
-    let onboard = kindle.join("documents/Vol 1.epub");
+    let onboard = kindle.join("documents/Vol 1.azw3");
     std::fs::create_dir_all(onboard.parent().unwrap()).unwrap();
-    std::fs::write(&onboard, b"epub").unwrap();
+    std::fs::write(&onboard, b"azw3").unwrap();
     let out = send_usb(home.path(), &onboard, &kindle);
     assert!(out.status.success(), "{out:?}");
     assert!(!stderr(&out).contains("copying:"), "{out:?}");
@@ -44,9 +44,9 @@ fn a_failed_copy_ends_the_progress_line_before_the_error() {
     let home = tempfile::tempdir().unwrap();
     let kindle = home.path().join("Kindle");
     // A folder where the book should go: the copy runs, then the final rename fails.
-    std::fs::create_dir_all(kindle.join("documents/Vol 1.epub/keep")).unwrap();
-    let book = home.path().join("Vol 1.epub");
-    std::fs::write(&book, b"epub").unwrap();
+    std::fs::create_dir_all(kindle.join("documents/Vol 1.azw3/keep")).unwrap();
+    let book = home.path().join("Vol 1.azw3");
+    std::fs::write(&book, b"azw3").unwrap();
     let out = send_usb(home.path(), &book, &kindle);
     assert!(!out.status.success());
     let err = stderr(&out);

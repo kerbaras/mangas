@@ -38,6 +38,8 @@ describe("export dialog: full Kindle", () => {
     const sendEmail = vi.fn().mockResolvedValue({ to: "reader@kindle.com", bytes: 1 });
     exportBackend({ findKindles: async () => [kindle], sendUsb, sendEmail });
     render(dialog());
+    // A format both routes take, so the book written for USB can be emailed as is.
+    fireEvent.click(await screen.findByLabelText("PDF"));
     fireEvent.mouseDown(await screen.findByRole("tab", { name: "Kindle over USB" }));
     fireEvent.click(await enabledButton(/Export 2 books and copy/));
     expect(await screen.findByText(full)).toBeTruthy();

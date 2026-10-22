@@ -19,7 +19,8 @@ import type { ExportPreset } from "@/lib/ipc.cut-preview";
 import type { BookBudget } from "@/lib/ipc.volumes";
 
 type Props = {
-  target: SeriesTarget;
+  /** `format` is the one this delivery writes; `reason` is the Kindle route rule. */
+  target: SeriesTarget & { reason: string | null };
   preset: Preset;
   onPreset: (p: Preset) => void;
   detectorSupport: DetectorSupport;
@@ -64,11 +65,13 @@ export function ExportOptions(p: Props) {
       <Field
         label="Format"
         hint={
-          target.recommended &&
-          `${target.recommended.name} reads ${formatLabel(target.recommended.format)} best.`
+          target.reason
+            ? `${target.reason}.`
+            : target.recommended &&
+              `${target.recommended.name} reads ${formatLabel(target.recommended.format)} best.`
         }
       >
-        <FormatPicker value={target.format} onChange={target.setFormat} compact />
+        <FormatPicker value={target.format} onChange={target.setFormat} />
       </Field>
       <DirectionField
         value={target.shownDirection}
@@ -104,7 +107,7 @@ export function ExportOptions(p: Props) {
       />
       <OutputFolder {...p.output} />
       <ReplaceSwitch on={target.replace} onChange={target.setReplace} />
-      <DeliveryPicker value={p.delivery} onChange={p.onDelivery} format={target.format} />
+      <DeliveryPicker value={p.delivery} onChange={p.onDelivery} />
     </div>
   );
 }

@@ -7,13 +7,15 @@ type Props = {
   verdict: UsbVerdict;
   /** Copies the book even so; offered for a format the Kindle may not open. */
   onCopyAnyway?: () => void;
-  /** Sends by email instead; offered for an EPUB, whose route is Email. */
+  /** Sends by email instead; offered for an EPUB, refused over USB because its route is Email. */
   onEmail?: () => void;
 };
 
 /** Why a USB copy didn't start: the Kindle doesn't open the format (no copy) or may not (Copy anyway). */
 export function UsbFormatAlert({ verdict, onCopyAnyway, onEmail }: Props) {
   const warn = verdict.decision === "warn";
+  const email = onEmail !== undefined && verdict.format === "EPUB";
+  const copyAnyway = warn && onCopyAnyway !== undefined;
   const title = warn
     ? `${verdict.device} may not open ${verdict.format || "this file"}`
     : `${verdict.device} doesn't open ${verdict.format}`;
@@ -23,14 +25,14 @@ export function UsbFormatAlert({ verdict, onCopyAnyway, onEmail }: Props) {
       <AlertTitle>{title}</AlertTitle>
       <AlertDescription>
         {verdict.reason}
-        {warn && (
+        {(email || copyAnyway) && (
           <div className="mt-1 flex gap-2">
-            {onEmail && verdict.format === "EPUB" && (
+            {email && (
               <Button size="sm" onClick={onEmail}>
                 <Mail /> Use Email
               </Button>
             )}
-            {onCopyAnyway && (
+            {copyAnyway && (
               <Button size="sm" onClick={onCopyAnyway}>
                 <Usb /> Copy anyway
               </Button>

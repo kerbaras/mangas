@@ -1,7 +1,7 @@
 import { Send } from "lucide-react";
 import { useCallback, useState } from "react";
 import { BundleField } from "@/components/bundle-field";
-import { type Delivery, useEmailBlock } from "@/components/delivery-picker";
+import type { Delivery } from "@/components/delivery-picker";
 import { ExportOptions } from "@/components/export-options";
 import { ExportProgressPanel } from "@/components/export-progress";
 import { ExportTitleField } from "@/components/export-title-field";
@@ -20,6 +20,7 @@ import {
 import { VolumePreview } from "@/components/volume-preview";
 import { useBundle } from "@/hooks/use-bundle";
 import { useClearOnChange } from "@/hooks/use-clear-on-change";
+import { useDeliveryFormat } from "@/hooks/use-delivery-format";
 import { useDetectorSupport } from "@/hooks/use-detector-support";
 import { useExport } from "@/hooks/use-export";
 import { useExportPlan } from "@/hooks/use-export-plan";
@@ -30,13 +31,7 @@ import { useSeriesTarget } from "@/hooks/use-series-target";
 import { useSizeEstimate } from "@/hooks/use-size-estimate";
 import { booksToSend, exportJob, keptBooks } from "@/lib/export-job";
 import type { ExportPick } from "@/lib/export-name";
-import {
-  detectorsDefault,
-  detectorsUsable,
-  exportAction,
-  inFormat,
-  pickSummary,
-} from "@/lib/export-plan";
+import { detectorsDefault, detectorsUsable, exportAction, pickSummary } from "@/lib/export-plan";
 import type { ExportResult } from "@/lib/ipc";
 import { oversizedOf, PART_MB, WEB_PART_MB } from "@/lib/kindle-size";
 
@@ -66,24 +61,24 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const job = useExport({ visible: () => open, folder: folder.resolved });
   const send = useSend(onSent);
   const { plans, fresh, joined } = useExportPlan({ open, picks, mode, size, title });
-  const emailBlocked = useEmailBlock(target.format) !== null;
-  const via = delivery === "email" && emailBlocked ? "save" : delivery;
+  const { via, sendVia, email, format, reason, planned } = useDeliveryFormat(
+    target,
+    delivery,
+    plans,
+  );
   const useDetectors =
     detectorsUsable(detectors.status) && (detectorsOn ?? detectorsDefault(detectors.status));
-  const planned = inFormat(plans, target.format);
-  const { device, format, replace, quality, direction } = target;
+  const { device, replace, quality, direction } = target;
   const [epoch, kept, dir] = [job.settled, keptBooks(job.retry.kept), folder.resolved];
   const { files, named, blocked } = useFreeNames(planned, dir, epoch, replace, splitMb, kept);
   const preview = { folder: folder.resolved, stale: !fresh || !named, blocked };
   const books = files.kind === "ready" ? files.data.length : 0;
-  const email = via === "email";
-  const budgets = useSizeEstimate({ plans: files, device, preset, quality, email, splitMb });
-  const fit = { device, preset, quality, email, splitMb, bundle: !joined };
+  const fit = { device, preset, quality, email, splitMb, format, bundle: !joined };
+  const budgets = useSizeEstimate({ plans: files, ...fit });
   const over = useOversized(job.state.kind === "done" ? job.state.results : [], files, fit);
   const sending = runningVia(send.state);
   const busy = job.state.kind === "running" || sending !== undefined;
   const failed = written.length > 0 && stopped(send.state);
-  const sendVia = via === "save" ? undefined : via;
   const stuck = failed && refused(send.state, via);
   const resend =
     failed && sendVia !== undefined && !stuck && !(via === "email" && over.files.length > 0);
@@ -104,14 +99,17 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
     setWritten([]);
   }, [resetJob, resetSend]);
   const picked = [mode, size, title, preset, useDetectors, folder.output, splitMb];
-  const choice = [...picked, device, format, replace, quality, direction].join("|");
+  const choice = [...picked, device, target.formatFor("save"), replace, quality, direction].join(
+    "|",
+  );
   useClearOnChange(choice, busy, clearResult);
+  useClearOnChange(format, busy, clearResult, true);
   const keepFailed = useCallback(() => !failed && clearResult(), [failed, clearResult]);
   useClearOnChange(via, busy, keepFailed, true);
 
   const run = async () => {
     if (!job.retry.kept.length) send.reset();
-    if (via === "usb" && !(await send.admits(target.format))) return;
+    if (via === "usb" && !(await send.admits(format))) return;
     const results = await job.run(
       exportJob({
         picks,
@@ -119,7 +117,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
         size,
         title,
         device: target.device,
-        format: target.format,
+        format,
         preset,
         detectors: useDetectors,
         outputDir: folder.picked,
@@ -160,7 +158,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
             </Field>
           </div>
           <ExportOptions
-            target={target}
+            target={{ ...target, format, reason }}
             preset={preset}
             onPreset={setPreset}
             detectorSupport={detectors}

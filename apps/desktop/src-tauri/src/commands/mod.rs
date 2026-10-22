@@ -28,7 +28,7 @@ pub mod updates;
 pub mod volumes;
 
 use mangas_core::domain::Manga;
-use mangas_core::export::{Profile, PROFILES};
+use mangas_core::export::{device_formats, DeviceFormats, PROFILES};
 use mangas_core::library::{self, Library, Settings};
 use mangas_core::send::password;
 use std::sync::Arc;
@@ -76,8 +76,8 @@ pub fn list_library() -> Result<Vec<Manga>, String> {
 }
 
 #[tauri::command]
-pub fn list_devices() -> Vec<Profile> {
-    PROFILES.to_vec()
+pub fn list_devices() -> Vec<DeviceFormats> {
+    PROFILES.iter().copied().map(device_formats).collect()
 }
 
 /// Platform data folder used for chapters and models when no `data_dir` setting is stored.

@@ -1,4 +1,5 @@
 use super::*;
+use mangas_core::export::KINDLE_REASON;
 
 fn book(over: bool, budget: u64, levers: Option<Levers>) -> BookBudget {
     BookBudget {
@@ -60,6 +61,8 @@ fn the_json_fields_are_flat_and_stable() {
         path: "/o/b.epub".into(),
         title: "b".into(),
         chapters: 10,
+        format: Format::Azw3,
+        format_reason: Some(KINDLE_REASON),
         budget: book(false, 200_000_000, None),
     };
     let v = serde_json::to_value(&p).unwrap_or_default();
@@ -69,6 +72,8 @@ fn the_json_fields_are_flat_and_stable() {
         "over_budget",
         "jpeg_quality",
         "files",
+        "format",
+        "format_reason",
     ] {
         assert!(v.get(key).is_some(), "{key} missing in {v}");
     }

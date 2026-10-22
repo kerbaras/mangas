@@ -54,7 +54,6 @@ export function ExportSettings() {
         }
       >
         <FormatPicker
-          compact
           value={effectiveFormat(settings.defaultFormat, list, settings.defaultDevice)}
           onChange={(f) => update({ defaultFormat: f })}
         />

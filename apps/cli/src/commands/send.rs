@@ -33,7 +33,7 @@ pub struct Args {
     /// List the Kindles connected over USB
     #[arg(long, conflicts_with_all = ["file", "test"])]
     pub devices: bool,
-    /// With `--via usb`, copy a format the Kindle may not open (EPUB); CBZ is never copied
+    /// With `--via usb`, copy a file that is no export format (the Kindle may not open it); EPUB and CBZ are never copied
     #[arg(long, conflicts_with_all = ["test", "devices"])]
     pub force: bool,
     /// Print one JSON object instead of the line: `file`, `via`, `sent`, `to`, `path`,
@@ -54,7 +54,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         return Ok(outln!("test email sent to {to}")?);
     }
     let Some(file) = args.file else {
-        bail!("no EPUB given (or use --test / --devices)");
+        bail!("no book given (or use --test / --devices)");
     };
     if !file.is_file() {
         bail!("{} is not a file", file.display());

@@ -2,9 +2,8 @@
 //!
 //! From `docs/research/usb-delivery.md` ("Formats and sizes over USB", issue 2): calibre's
 //! Kindle format lists name PDF and AZW3 but neither EPUB nor CBZ, and calibre never side-loads
-//! either. Whether current firmware opens a side-loaded EPUB is unverified (owner checklist
-//! item 6 on #126), so EPUB warns rather than refuses; Email is its route, because Amazon
-//! converts EPUB on the way.
+//! either, so EPUB is refused over USB (#329): AZW3 is the Kindle format to copy, and Email is
+//! the EPUB route, because Amazon converts EPUB on the way.
 
 use std::path::Path;
 
@@ -29,7 +28,7 @@ pub enum Sideload {
 pub const SIDELOAD: [(&str, Sideload); 4] = [
     ("pdf", Sideload::Supported),
     ("azw3", Sideload::Supported),
-    ("epub", Sideload::Warn),
+    ("epub", Sideload::Refused),
     ("cbz", Sideload::Refused),
 ];
 
@@ -62,6 +61,13 @@ pub fn usb_verdict(file: &Path, device: &str) -> UsbVerdict {
     let instead = "export the book as PDF or AZW3";
     let (decision, reason) = match sideload(ext) {
         Some(Sideload::Supported) => (Sideload::Supported, None),
+        Some(Sideload::Refused) if ext.eq_ignore_ascii_case("epub") => (
+            Sideload::Refused,
+            Some(format!(
+                "{device} doesn't open an EPUB copied over USB. Export the book as AZW3 to \
+                 copy it, or send the EPUB by Email (Send to Kindle converts it)."
+            )),
+        ),
         Some(Sideload::Refused) => (
             Sideload::Refused,
             Some(format!(

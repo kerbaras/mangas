@@ -13,7 +13,7 @@ use crate::export::PageSettings;
 /// a written file over its budget, which the plan may not have seen coming.
 pub fn book_levers(dirs: &[PathBuf], spec: BudgetSpec) -> Result<Levers> {
     let book = [dirs.to_vec()];
-    let e = estimate_each(&book, spec.device, spec.cut, spec.page)?;
+    let e = estimate_each(&book, spec.device, spec.cut, spec.page, spec.format)?;
     let e = (e.into_iter().next()).unwrap_or(Estimate { pages: 0, bytes: 0 });
     levers(
         dirs,
@@ -46,7 +46,7 @@ fn chapters_per_book(dirs: &[PathBuf], e: &Estimate, spec: BudgetSpec) -> Result
     let mut guess = most_that_fit(&pages, e.bytes / e.pages.max(1) as u64, target);
     while let Some(n) = guess {
         let books: Vec<Vec<PathBuf>> = dirs.chunks(n).map(<[PathBuf]>::to_vec).collect();
-        let each = estimate_each(&books, spec.device, spec.cut, spec.page)?;
+        let each = estimate_each(&books, spec.device, spec.cut, spec.page, spec.format)?;
         if each.iter().all(|e| e.bytes <= target) {
             return Ok(Some(n));
         }
@@ -70,7 +70,7 @@ fn fitting_quality(dirs: &[PathBuf], quality: u8, spec: BudgetSpec) -> Result<Op
             quality: Some(q),
             ..spec.page
         };
-        let e = estimate_each(&book, spec.device, spec.cut, page)?;
+        let e = estimate_each(&book, spec.device, spec.cut, page, spec.format)?;
         if e.first().is_some_and(|e| e.bytes <= spec.delivery.target()) {
             return Ok(Some(q));
         }

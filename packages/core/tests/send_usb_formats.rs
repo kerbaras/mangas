@@ -8,7 +8,7 @@ use mangas_core::Error;
 fn the_table_says_what_a_kindle_opens_side_loaded() {
     assert_eq!(sideload("pdf"), Some(Sideload::Supported));
     assert_eq!(sideload("azw3"), Some(Sideload::Supported));
-    assert_eq!(sideload("EPUB"), Some(Sideload::Warn));
+    assert_eq!(sideload("EPUB"), Some(Sideload::Refused));
     assert_eq!(sideload("cbz"), Some(Sideload::Refused));
     assert_eq!(sideload("zip"), None);
 }
@@ -54,18 +54,20 @@ fn a_cbz_is_refused_even_when_forced_naming_the_device_and_a_pdf_export() {
 }
 
 #[test]
-fn an_epub_warns_points_to_email_and_goes_through_once_confirmed() {
+fn an_epub_is_refused_even_when_forced_naming_azw3_and_email() {
     let v = usb_verdict(Path::new("/b/Vol 1.epub"), "Kindle");
-    assert_eq!(v.decision, Sideload::Warn);
+    assert_eq!(v.decision, Sideload::Refused);
     assert_eq!(v.format, "EPUB");
     let reason = v.reason.clone().unwrap();
     assert!(
-        reason.starts_with("Kindle may not open an EPUB"),
+        reason.starts_with("Kindle doesn't open an EPUB copied over USB"),
         "{reason}"
     );
-    assert!(reason.contains("Email it instead"), "{reason}");
-    assert!(matches!(admit(&v, false), Err(Error::NotOnKindle(_))));
-    admit(&v, true).unwrap();
+    assert!(reason.contains("as AZW3"), "{reason}");
+    assert!(reason.contains("by Email"), "{reason}");
+    for force in [false, true] {
+        assert!(matches!(admit(&v, force), Err(Error::NotOnKindle(_))));
+    }
 }
 
 #[test]

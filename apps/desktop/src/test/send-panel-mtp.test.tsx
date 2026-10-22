@@ -27,7 +27,7 @@ const emailSetUp = () =>
 /** Stands in for core's `usb_verdict`: the decision by extension, as `usb::SIDELOAD` has it. */
 const usbVerdict = vi.fn(async (file: string, device: string): Promise<UsbVerdict> => {
   const format = (file.split(".").pop() ?? "").toUpperCase();
-  const table: Record<string, UsbVerdict["decision"]> = { CBZ: "refused", EPUB: "warn" };
+  const table: Record<string, UsbVerdict["decision"]> = { CBZ: "refused", EPUB: "refused" };
   const decision = table[format] ?? "supported";
   const reason = decision === "supported" ? null : `${device} won't take ${format}.`;
   return { decision, format, device, reason };
@@ -86,15 +86,17 @@ describe("send panel, Kindle connected over MTP", () => {
     expect(screen.queryByRole("button", { name: /Use Email|Copy anyway/ })).toBeNull();
   });
 
-  it("warns about an EPUB first; Copy anyway then meets MTP, which offers Email", async () => {
+  it("refuses an EPUB by its format before MTP, offering Email but no Copy anyway", async () => {
     emailSetUp();
-    stub({ sendUsb: vi.fn() });
+    const sendUsb = vi.fn();
+    stub({ sendUsb });
     render(<SendPanel file="/b/Vol 1.epub" />);
     fireEvent.click(screen.getByRole("button", { name: /Copy over USB/ }));
-    expect(await screen.findByText(`${DEVICE} may not open EPUB`)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /Copy anyway/ }));
-    expect(await screen.findByText(`${DEVICE} connected over MTP`)).toBeTruthy();
+    expect(await screen.findByText(`${DEVICE} doesn't open EPUB`)).toBeTruthy();
+    expect(screen.queryByText(/connected over MTP/)).toBeNull();
+    expect(screen.queryByRole("button", { name: /Copy anyway/ })).toBeNull();
     expect(screen.getByRole("button", { name: /Use Email/ })).toBeTruthy();
+    expect(sendUsb).not.toHaveBeenCalled();
   });
 
   it("names PDF or EPUB, not Email, for an AZW3 it can't copy over MTP", async () => {

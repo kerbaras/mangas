@@ -50,10 +50,11 @@ fn names(dir: &Path) -> Vec<String> {
     names
 }
 
-fn magic(format: Format) -> &'static [u8] {
+fn is_new(format: Format, book: &[u8]) -> bool {
     match format {
-        Format::Pdf => b"%PDF",
-        Format::Epub | Format::Cbz => b"PK",
+        Format::Pdf => book.starts_with(b"%PDF"),
+        Format::Epub | Format::Cbz => book.starts_with(b"PK"),
+        Format::Azw3 => book.get(60..68) == Some(&b"BOOKMOBI"[..]), // PalmDB type
     }
 }
 
@@ -72,7 +73,7 @@ fn off_writes_a_numbered_copy_and_on_replaces_the_file() {
         let replaced = export(&request(root.path(), format, true), None, &mut |_| {}).unwrap();
         assert_eq!(replaced.output, target, "{format}");
         let new = std::fs::read(&target).unwrap();
-        assert!(new.starts_with(magic(format)), "{format}: a new book");
+        assert!(is_new(format, &new), "{format}: a new book");
         let mode = |p: &Path| std::fs::metadata(p).unwrap().permissions();
         assert_eq!(
             mode(&target),

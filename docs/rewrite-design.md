@@ -30,7 +30,7 @@ Rules: the Tauri layer and the CLI contain no business logic. Everything testabl
 | `library` | SQLite via `sqlx` (offline mode, migrations in `migrations/`); repository functions |
 | `download` | chapter download queue, concurrency, resume, CBZ on disk |
 | `export::epub` | fixed-layout EPUB3 writer (`zip`), pre-paginated metadata for Kindle |
-| `export` | `Exporter` trait (EPUB, CBZ, PDF), data-driven e-reader `profiles` |
+| `export` | `Exporter` trait (EPUB, AZW3, CBZ, PDF), data-driven e-reader `profiles` |
 | `export::kindle` | page pipeline shared by every format, e-ink filters (grayscale, tone LUT, sharpen) |
 | `smartcut` | row features, cut costs, DP paginator, strip stitching (port of the Go code) |
 | `ml` | ONNX detectors via `ort`: bubbles/text (RT-DETR) and faces; model download + cache |

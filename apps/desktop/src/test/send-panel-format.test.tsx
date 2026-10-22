@@ -23,21 +23,31 @@ function stub(verdict: Omit<UsbVerdict, "device">) {
 }
 
 describe("send panel, formats a Kindle may not open over USB", () => {
-  it("warns about an EPUB, names the device, and copies only on Copy anyway", async () => {
+  it("refuses an EPUB with no copy and no Copy anyway, naming AZW3 and Email", async () => {
     const reason =
-      "Kindle Paperwhite may not open an EPUB copied over USB. Email it instead (Send to Kindle converts EPUB), or export the book as PDF or AZW3.";
-    const { sendUsb, usbVerdict } = stub({ decision: "warn", format: "EPUB", reason });
+      "Kindle Paperwhite doesn't open an EPUB copied over USB. Export the book as AZW3 to copy it, or send the EPUB by Email (Send to Kindle converts it).";
+    const { sendUsb, usbVerdict } = stub({ decision: "refused", format: "EPUB", reason });
     render(<SendPanel file="/b/Vol 1.epub" />);
     fireEvent.click(screen.getByRole("button", { name: /Copy over USB/ }));
-    expect(await screen.findByText("Kindle Paperwhite may not open EPUB")).toBeTruthy();
+    expect(await screen.findByText("Kindle Paperwhite doesn't open EPUB")).toBeTruthy();
     expect(screen.getByText(reason)).toBeTruthy();
     expect(usbVerdict).toHaveBeenCalledWith("/b/Vol 1.epub", "Kindle Paperwhite");
+    expect(screen.queryByRole("button", { name: /Copy anyway/ })).toBeNull();
+    expect(sendUsb).not.toHaveBeenCalled();
+  });
+
+  it("warns about a file that is no export format and copies it only on Copy anyway", async () => {
+    const reason =
+      "Kindle Paperwhite may not open a .mobi file; mangas only knows its export formats.";
+    const { sendUsb } = stub({ decision: "warn", format: "MOBI", reason });
+    render(<SendPanel file="/b/Vol 1.mobi" />);
+    fireEvent.click(screen.getByRole("button", { name: /Copy over USB/ }));
+    expect(await screen.findByText("Kindle Paperwhite may not open MOBI")).toBeTruthy();
     expect(sendUsb).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: /Copy anyway/ }));
     await waitFor(() =>
-      expect(sendUsb).toHaveBeenCalledWith("/b/Vol 1.epub", "Vol 1", kindle.root, true),
+      expect(sendUsb).toHaveBeenCalledWith("/b/Vol 1.mobi", "Vol 1.mobi", kindle.root, true),
     );
-    expect(await screen.findByText("Copied to Kindle Paperwhite: /b/Vol 1.epub")).toBeTruthy();
   });
 
   it("refuses a CBZ with no copy and no Copy anyway", async () => {

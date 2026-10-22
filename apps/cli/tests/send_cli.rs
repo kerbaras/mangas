@@ -79,8 +79,8 @@ fn send_usb_copies_to_the_given_mount() {
     let home = tempfile::tempdir().unwrap();
     let kindle = home.path().join("Kindle");
     std::fs::create_dir_all(kindle.join("documents")).unwrap();
-    let book = home.path().join("Vol 1.epub");
-    std::fs::write(&book, b"epub").unwrap();
+    let book = home.path().join("Vol 1.azw3");
+    std::fs::write(&book, b"azw3").unwrap();
     let out = mangas(
         home.path(),
         &[
@@ -96,8 +96,8 @@ fn send_usb_copies_to_the_given_mount() {
     );
     assert!(out.status.success(), "{out:?}");
     assert_eq!(
-        std::fs::read(kindle.join("documents/Vol 1.epub")).unwrap(),
-        b"epub"
+        std::fs::read(kindle.join("documents/Vol 1.azw3")).unwrap(),
+        b"azw3"
     );
     assert!(text(&out.stdout).contains("copied to"));
 }

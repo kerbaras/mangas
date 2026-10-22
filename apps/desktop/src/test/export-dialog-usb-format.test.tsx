@@ -4,9 +4,27 @@ import { ExportDialog } from "@/components/export-dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { setBackend } from "@/lib/ipc";
 import type { UsbVerdict } from "@/lib/ipc.send";
+import { readSettings, writeSettings } from "@/lib/settings";
 import { chapters, enabledButton, exportBackend, solo } from "./export-backend";
 
-afterEach(() => setBackend(null));
+afterEach(() => {
+  setBackend(null);
+  writeSettings({
+    defaultFormat: null,
+    kindleEmail: { ...readSettings().kindleEmail, to: "", host: "" },
+  });
+});
+
+const emailSetUp = () =>
+  writeSettings({
+    kindleEmail: {
+      ...readSettings().kindleEmail,
+      to: "r@kindle.com",
+      host: "smtp.test",
+      from: "me@x.test",
+    },
+  });
+const checked = (label: string) => (screen.getByLabelText(label) as HTMLInputElement).checked;
 
 const kindle = { name: "Kindle Scribe", root: "/media/me/Kindle", documents: "/d" };
 const dialog = () => (
@@ -27,24 +45,80 @@ function backend(verdict: Omit<UsbVerdict, "device">, mtpOnly = false) {
   return { sendUsb, exportVolumes, usbVerdict };
 }
 
-/** The dialog's main button, whatever it reads once a delivery stopped ("Retry copy"). */
-const mainButton = () => screen.getByRole("button", { name: /Retry copy|Export 2 books/ });
-
-describe("export dialog: formats a Kindle may not open over USB", () => {
-  it("writes the EPUBs, warns before copying, and copies both on Copy anyway", async () => {
-    const reason = "Kindle Scribe may not open an EPUB copied over USB.";
-    const { sendUsb, exportVolumes } = backend({ decision: "warn", format: "EPUB", reason });
+describe("export dialog: the Kindle format follows the delivery", () => {
+  it("writes and copies AZW3 over USB and picks EPUB for Email, saying why", async () => {
+    emailSetUp();
+    const { sendUsb, exportVolumes } = backend({
+      decision: "supported",
+      format: "AZW3",
+      reason: null,
+    });
     render(dialog());
-    fireEvent.mouseDown(await screen.findByRole("tab", { name: "Kindle over USB" }));
+    await waitFor(() => expect(checked("EPUB")).toBe(true));
+    fireEvent.mouseDown(await screen.findByRole("tab", { name: "Email to Kindle" }));
+    expect(await screen.findByText("Kindle over USB: AZW3; Email: EPUB.")).toBeTruthy();
+    expect(checked("EPUB")).toBe(true);
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Kindle over USB" }));
+    await waitFor(() => expect(checked("AZW3 (Kindle)")).toBe(true));
+    expect(screen.getByText("Kindle over USB: AZW3; Email: EPUB.")).toBeTruthy();
     fireEvent.click(await enabledButton(/Export 2 books and copy/));
-    expect(await screen.findByText("Kindle Scribe may not open EPUB")).toBeTruthy();
-    expect(sendUsb).not.toHaveBeenCalled();
-    expect((mainButton() as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(screen.getByRole("button", { name: /Copy anyway/ }));
     await waitFor(() => expect(sendUsb).toHaveBeenCalledTimes(2));
-    expect(exportVolumes).toHaveBeenCalledOnce();
-    expect(sendUsb).toHaveBeenCalledWith("/k/Solo v1.epub", "Solo v1", kindle.root, true);
+    expect(exportVolumes).toHaveBeenCalledWith(expect.objectContaining({ format: "azw3" }));
+    expect(sendUsb).toHaveBeenCalledWith("/k/Solo v1.azw3", "Solo v1", kindle.root);
   });
+
+  it.each([
+    ["Save to folder", "AZW3 (Kindle)"],
+    ["Kindle over USB", "AZW3 (Kindle)"],
+    ["Kindle over USB", "CBZ"],
+  ])("from %s, a picked %s goes by Email as an EPUB, saying why", async (from, pick) => {
+    emailSetUp();
+    const verdict = { decision: "supported", format: "AZW3", reason: null } as const;
+    const { exportVolumes } = backend(verdict);
+    render(dialog());
+    fireEvent.mouseDown(await screen.findByRole("tab", { name: from }));
+    // PDF first, so the pick is the user's even where the route already gave AZW3.
+    fireEvent.click(await screen.findByLabelText("PDF"));
+    fireEvent.click(screen.getByLabelText(pick));
+    const email = screen.getByRole("tab", { name: "Email to Kindle" });
+    expect(email.getAttribute("aria-disabled")).toBeNull();
+    fireEvent.mouseDown(email);
+    expect(email.getAttribute("aria-selected")).toBe("true");
+    const what = pick === "CBZ" ? "CBZ" : "AZW3";
+    const why = `Email sends EPUB; Send to Kindle doesn't take ${what} by email.`;
+    expect(await screen.findByText(why)).toBeTruthy();
+    await waitFor(() => expect(checked("EPUB")).toBe(true));
+    fireEvent.click(await enabledButton(/Export 2 books/));
+    await waitFor(() => expect(exportVolumes).toHaveBeenCalled());
+    expect(exportVolumes).toHaveBeenCalledWith(expect.objectContaining({ format: "epub" }));
+  });
+});
+
+describe("export dialog: formats a Kindle doesn't open over USB", () => {
+  it.each([
+    ["mounted", false, "Kindle Scribe"],
+    ["MTP only", true, "Kindle Paperwhite"],
+  ])(
+    "refuses a picked EPUB before writing it (%s), naming AZW3 and Email",
+    async (_, mtpOnly, device) => {
+      const reason = `${device} doesn't open an EPUB copied over USB. Export the book as AZW3 to copy it, or send the EPUB by Email (Send to Kindle converts it).`;
+      const verdict = { decision: "refused", format: "EPUB", reason } as const;
+      const { sendUsb, exportVolumes, usbVerdict } = backend(verdict, mtpOnly);
+      render(dialog());
+      fireEvent.mouseDown(await screen.findByRole("tab", { name: "Kindle over USB" }));
+      await waitFor(() => expect(checked("AZW3 (Kindle)")).toBe(true));
+      fireEvent.click(screen.getByLabelText("EPUB"));
+      expect(checked("EPUB")).toBe(true);
+      expect(screen.getByText("Kindle over USB: AZW3; Email: EPUB.")).toBeTruthy();
+      fireEvent.click(await enabledButton(/Export 2 books and copy/));
+      expect(await screen.findByText(`${device} doesn't open EPUB`)).toBeTruthy();
+      expect(screen.getByText(reason)).toBeTruthy();
+      expect(usbVerdict).toHaveBeenCalledWith("book.epub", device);
+      expect(screen.queryByRole("button", { name: /Copy anyway/ })).toBeNull();
+      expect(sendUsb).not.toHaveBeenCalled();
+      expect(exportVolumes).not.toHaveBeenCalled();
+    },
+  );
 
   it.each([
     ["mounted", false, "Kindle Scribe"],
@@ -56,8 +130,9 @@ describe("export dialog: formats a Kindle may not open over USB", () => {
       const verdict = { decision: "refused", format: "CBZ", reason } as const;
       const { sendUsb, exportVolumes, usbVerdict } = backend(verdict, mtpOnly);
       render(dialog());
-      fireEvent.click(await screen.findByLabelText("CBZ"));
       fireEvent.mouseDown(await screen.findByRole("tab", { name: "Kindle over USB" }));
+      await waitFor(() => expect(checked("AZW3 (Kindle)")).toBe(true));
+      fireEvent.click(screen.getByLabelText("CBZ"));
       fireEvent.click(await enabledButton(/Export 2 books and copy/));
       expect(await screen.findByText(`${device} doesn't open CBZ`)).toBeTruthy();
       expect(usbVerdict).toHaveBeenCalledWith("book.cbz", device);

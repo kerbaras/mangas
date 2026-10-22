@@ -1,6 +1,7 @@
 //! With a Kindle on the bus over MTP only (no mounted folder), the USB format table still
 //! decides first: a CBZ is refused as a CBZ (never pointed at Email, which doesn't take it),
-//! an export writes nothing for it, and `send --json` reports the decision.
+//! an export writes nothing for it (nor for a format it opens: nothing copies over MTP), and
+//! `send --json` reports the decision.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -98,23 +99,24 @@ fn supported_formats_meet_mtp_and_only_a_pdf_is_pointed_at_email() {
 }
 
 #[test]
-fn an_epub_warns_first_and_with_force_meets_mtp_with_email() {
+fn an_epub_is_refused_by_format_even_forced_and_pointed_at_email() {
     if mounted_kindle() {
         return;
     }
     let home = tempfile::tempdir().unwrap();
-    let out = send(home.path(), "epub", &[]);
-    assert_eq!(out.status.code(), Some(1), "{out:?}");
-    assert!(
-        stderr(&out).contains(&format!("{DEVICE} may not open")),
-        "{out:?}"
-    );
+    for extra in [&[][..], &["--force"][..]] {
+        let out = send(home.path(), "epub", extra);
+        assert_eq!(out.status.code(), Some(1), "{out:?}");
+        let err = stderr(&out);
+        assert!(
+            err.contains(&format!("{DEVICE} doesn't open an EPUB")),
+            "{err}"
+        );
+        assert!(err.contains("mangas send --via email"), "{err}");
+        assert!(!err.contains("MTP"), "{err}");
+    }
     let r = json(&send(home.path(), "epub", &["--json"]));
-    assert_eq!(r["usb"]["decision"], "warn", "{r}");
-    let out = send(home.path(), "epub", &["--force"]);
-    let err = stderr(&out);
-    assert!(err.contains("connects over MTP"), "{err}");
-    assert!(err.contains("mangas send --via email"), "{err}");
+    assert_eq!(r["usb"]["decision"], "refused", "{r}");
 }
 
 /// `mangas kindle <chapter> --format <ext> [--json] --send usb -o out/`, no `--kindle`.
@@ -152,15 +154,27 @@ fn a_cbz_export_writes_nothing_and_reports_it() {
 }
 
 #[test]
-fn a_pdf_export_is_written_then_pointed_at_email() {
+fn a_book_the_kindle_opens_writes_nothing_over_mtp_and_is_pointed_at_email() {
     if mounted_kindle() {
         return;
     }
-    let home = tempfile::tempdir().unwrap();
-    let out = kindle(home.path(), "pdf", false);
-    assert_eq!(out.status.code(), Some(2), "{out:?}");
-    let err = stderr(&out);
-    assert!(err.contains("was written but not sent"), "{err}");
-    assert!(err.contains("mangas send --via email"), "{err}");
-    assert!(home.path().join("out/Vol 1.pdf").is_file(), "{out:?}");
+    for (ext, next) in [
+        ("pdf", "add --send email in place of --send usb"),
+        ("azw3", "export with --format epub --send email"),
+    ] {
+        let home = tempfile::tempdir().unwrap();
+        let out = kindle(home.path(), ext, false);
+        assert_eq!(out.status.code(), Some(1), "{out:?}");
+        let err = stderr(&out);
+        assert!(
+            err.contains(&format!("{DEVICE} connects over MTP")),
+            "{err}"
+        );
+        assert!(err.contains(next), "{err}");
+        assert!(!home.path().join("out").exists(), "nothing written");
+        let r = json(&kindle(home.path(), ext, true));
+        assert_eq!(r["files"], serde_json::json!([]), "{r}");
+        assert_eq!(r["not_written"][0]["error"], "kindle_over_mtp", "{r}");
+        assert!(!home.path().join("out").exists(), "nothing written");
+    }
 }

@@ -2,6 +2,12 @@ import type { Device, ExportFormat } from "./ipc";
 
 type Row = [string, string, number, number, number, boolean, ExportFormat];
 
+const kindleDelivery: Device["delivery"] = {
+  usb: "azw3",
+  email: "epub",
+  reason: "Kindle over USB: AZW3; Email: EPUB",
+};
+
 /** Same table as `mangas_core::export::PROFILES`. */
 const rows: Row[] = [
   [
@@ -35,5 +41,7 @@ export const sampleDevices: Device[] = rows.map(
     dpi,
     grayscale,
     format,
+    // Same rule as `export::delivery_formats`.
+    delivery: id.startsWith("kindle-") ? kindleDelivery : null,
   }),
 );

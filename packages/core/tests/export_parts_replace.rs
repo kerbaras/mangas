@@ -81,6 +81,6 @@ fn the_estimate_measures_the_book_with_the_most_pages_not_the_most_chapters() {
     let device = profile("kindle-paperwhite12").unwrap();
     let cut = Preset::Balanced.options();
     let page = PageSettings::default();
-    let guess = estimate_largest(&[short, long], device, cut, page).unwrap();
+    let guess = estimate_largest(&[short, long], device, cut, page, Format::Epub).unwrap();
     assert_eq!(guess.pages, 8);
 }
