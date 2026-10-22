@@ -92,6 +92,8 @@ export type SendBackend = {
   usbKindles(): Promise<UsbKindle[]>;
   /** What copying `file` onto the Kindle named `device` does: the format table's verdict. */
   usbVerdict(file: string, device: string): Promise<UsbVerdict>;
+  /** Why Send to Kindle by email won't take `file` (core's EPUB/PDF rule), or null when it will. */
+  emailRefusal(file: string): Promise<string | null>;
   /**
    * Copies the book to the Kindle at `root` (the first found when omitted); resolves to where it
    * is. A refused format rejects; one that warns rejects unless `force`.
@@ -119,6 +121,7 @@ export const findKindles = async () => (await backend()).findKindles();
 export const usbKindles = async () => (await backend()).usbKindles();
 export const usbVerdict = async (file: string, device: string) =>
   (await backend()).usbVerdict(file, device);
+export const emailRefusal = async (file: string) => (await backend()).emailRefusal(file);
 export const sendUsb = async (file: string, title: string, root?: string, force?: boolean) =>
   force
     ? (await backend()).sendUsb(file, title, root, true)

@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { type Backend, setBackend } from "@/lib/ipc";
 import type { CopyProgress, UsbCopy } from "@/lib/ipc.send";
 import { readSettings, writeSettings } from "@/lib/settings";
+import { emailRefusal } from "./email-refusal-stub";
 
 const kindle = {
   name: "Kindle",
@@ -25,6 +26,7 @@ function stub(overrides: Partial<Backend>) {
       progress = cb;
       return () => {};
     },
+    emailRefusal,
     usbVerdict: async (_file: string, device: string) => ({
       decision: "supported",
       format: "EPUB",
@@ -98,11 +100,11 @@ describe("send panel", () => {
         <SendPanel file="/books/Solo Leveling 1-3.cbz" />
       </TooltipProvider>,
     );
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Set up email" })).toBeNull());
     const email = screen.getByRole("button", { name: /Email to Kindle/ }) as HTMLButtonElement;
     expect(email.disabled).toBe(true);
     const usb = screen.getByRole("button", { name: /Copy over USB/ }) as HTMLButtonElement;
     expect(usb.disabled).toBe(false);
-    expect(screen.queryByRole("button", { name: "Set up email" })).toBeNull();
     fireEvent.focus(email.parentElement as HTMLElement);
     expect(await screen.findAllByText(/takes EPUB or PDF, not a CBZ/)).not.toHaveLength(0);
   });

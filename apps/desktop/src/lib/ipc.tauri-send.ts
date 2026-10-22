@@ -10,6 +10,7 @@ export const tauriSend: SendBackend = {
   findKindles: () => invoke("find_kindles"),
   usbKindles: () => invoke("usb_kindles"),
   usbVerdict: (file, device) => invoke("usb_verdict", { file, device }),
+  emailRefusal: (file) => invoke("email_refusal", { file }),
   sendUsb: (file, title, root, force) =>
     invoke("send_usb", { file, title, root: root ?? null, force: force ?? false }),
   onCopyProgress: (cb) => listen<CopyProgress>(SEND_EVENT, (e) => cb(e.payload)),

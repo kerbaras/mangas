@@ -37,13 +37,6 @@ pub async fn usb_kindles() -> Vec<usb::UsbKindle> {
         .unwrap_or_default()
 }
 
-/// What copying `file` onto the Kindle named `device` does, by the format table
-/// (`usb::SIDELOAD`): asked before a copy, to warn or refuse with the reason.
-#[tauri::command]
-pub fn usb_verdict(file: PathBuf, device: String) -> usb::UsbVerdict {
-    usb::usb_verdict(&file, &device)
-}
-
 /// Copies `file` to the Kindle at `root` (the first one found when `None`) and returns where it
 /// is. "Device not found" when there is none. A format the Kindle doesn't open is never copied,
 /// one it may not open only with `force` (asked of a Kindle on MTP only too, before saying MTP). A book that was already on the Kindle isn't copied

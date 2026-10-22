@@ -1,10 +1,11 @@
 import { Field } from "@/components/field";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useEmailRefusal } from "@/hooks/use-email-refusal";
 import type { Via } from "@/hooks/use-send";
 import type { ExportFormat } from "@/lib/ipc";
 import { useNavigation } from "@/lib/navigation";
-import { emailReady, emailRefusal } from "@/lib/send-labels";
+import { emailReady } from "@/lib/send-labels";
 import { useSettings } from "@/lib/settings";
 
 export type Delivery = "save" | Via;
@@ -12,7 +13,7 @@ export type Delivery = "save" | Via;
 /** Why email can't take this export (format, or no mail setup), or null when it can. */
 export function useEmailBlock(format: ExportFormat) {
   const [settings] = useSettings();
-  const refusal = emailRefusal(`book.${format}`);
+  const refusal = useEmailRefusal(`book.${format}`);
   if (refusal) return { reason: refusal, setup: false };
   if (emailReady(settings.kindleEmail)) return null;
   return { reason: "Email needs your Kindle address and a mail server.", setup: true };

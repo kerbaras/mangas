@@ -18,14 +18,27 @@ fn content_type(file_name: &str) -> Result<ContentType> {
     let kind = match ext.as_deref() {
         Some("epub") => "application/epub+zip",
         Some("pdf") => "application/pdf",
-        _ => {
-            return Err(Error::Send(format!(
-                "Send to Kindle by email takes EPUB or PDF files, not {file_name}. Export it as \
-                 EPUB, or copy it to the Kindle over USB."
-            )))
-        }
+        _ => return Err(Error::Send(refusal(ext.as_deref()))),
     };
     ContentType::parse(kind).map_err(|e| Error::Send(e.to_string()))
+}
+
+/// "…not a CBZ" for the extension `ext`, or "…not this file" without one.
+fn refusal(ext: Option<&str>) -> String {
+    let what = ext
+        .filter(|e| !e.is_empty() && !e.contains(['/', '\\']))
+        .map_or("this file".to_string(), |e| {
+            format!("a {}", e.to_ascii_uppercase())
+        });
+    format!(
+        "Send to Kindle by email takes EPUB or PDF, not {what}. Copy it over USB, or export it \
+         as EPUB."
+    )
+}
+
+/// Why Send to Kindle by email won't take `file_name`, or None when it will (EPUB and PDF).
+pub fn email_refusal(file_name: &str) -> Option<String> {
+    content_type(file_name).err().map(|e| e.to_string())
 }
 
 /// Whether Send to Kindle by email takes `file_name` (an EPUB or a PDF).

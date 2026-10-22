@@ -52,6 +52,12 @@ export function mockSend(): SendBackend {
     async usbKindles() {
       return params.has("mtp-kindle") ? [{ name: "Kindle" }] : [];
     },
+    async emailRefusal(file) {
+      // The browser preview's stand-in for `email::email_refusal`; the app asks core.
+      if (/\.(epub|pdf)$/i.test(file)) return null;
+      const ext = file.match(/\.([^./\\]+)$/)?.[1]?.toUpperCase();
+      return `Send to Kindle by email takes EPUB or PDF, not ${ext ? `a ${ext}` : "this file"}. Copy it over USB, or export it as EPUB.`;
+    },
     async usbVerdict(file, device) {
       // The browser preview's stand-in for `usb::SIDELOAD`; the app asks core.
       const format = (file.split(".").pop() ?? "").toUpperCase();

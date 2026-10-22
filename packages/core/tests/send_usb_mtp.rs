@@ -1,6 +1,6 @@
 //! A Kindle on the USB bus with no mounted folder (MTP only) versus a mounted one or none.
 
-use mangas_core::send::email::emailable;
+use mangas_core::send::email::{email_refusal, emailable};
 use mangas_core::send::usb::{
     choose, chosen_name, decide, KindleScan, KindleVolume, Reach, UsbKindle,
 };
@@ -74,5 +74,11 @@ fn email_takes_epub_and_pdf_only() {
         ("e", false),
     ] {
         assert_eq!(emailable(file), takes, "{file}");
+        assert_eq!(email_refusal(file).is_none(), takes, "{file}");
     }
+    assert_eq!(
+        email_refusal("/b/Vol 1.cbz").as_deref(),
+        Some("Send to Kindle by email takes EPUB or PDF, not a CBZ. Copy it over USB, or export it as EPUB.")
+    );
+    assert!(email_refusal("/b/v1.0/book").is_some_and(|r| r.contains("not this file")));
 }

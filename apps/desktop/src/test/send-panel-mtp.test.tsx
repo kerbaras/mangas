@@ -4,6 +4,7 @@ import { SendPanel } from "@/components/send-panel";
 import { type Backend, setBackend } from "@/lib/ipc";
 import { MTP_HINT, type UsbVerdict } from "@/lib/ipc.send";
 import { readSettings, writeSettings } from "@/lib/settings";
+import { emailRefusal } from "./email-refusal-stub";
 
 const FILE = "/books/Solo Leveling 1-3.pdf";
 const DEVICE = "Kindle Paperwhite";
@@ -37,6 +38,7 @@ function stub(overrides: Partial<Backend>) {
     onCopyProgress: async () => () => {},
     findKindles: vi.fn().mockResolvedValue([]),
     usbKindles: vi.fn().mockResolvedValue([{ name: DEVICE }]),
+    emailRefusal,
     usbVerdict,
     ...overrides,
   } as unknown as Backend);

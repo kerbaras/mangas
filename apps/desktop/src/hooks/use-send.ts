@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { errorMessage } from "@/lib/format";
 import { isFinalError } from "@/lib/ipc.downloads";
 import {
+  emailRefusal,
   findKindles,
   onCopyProgress,
   sendEmail,
@@ -10,7 +11,7 @@ import {
   usbKindles,
   usbVerdict,
 } from "@/lib/ipc.send";
-import { emailRefusal, fileName, megabytes } from "@/lib/send-labels";
+import { fileName, megabytes } from "@/lib/send-labels";
 
 export type Via = "email" | "usb";
 
@@ -115,7 +116,8 @@ export function useSend(onSent?: () => void) {
             return setState({ kind: "format", verdict: stop });
           }
           if (!kindle) {
-            const email = books.every((b) => emailRefusal(b.file) === null);
+            const refusals = await Promise.all(books.map((b) => emailRefusal(b.file)));
+            const email = refusals.every((r) => r === null);
             return setState({ kind: "mtp", device: name, email });
           }
           device.current = kindle.name;
