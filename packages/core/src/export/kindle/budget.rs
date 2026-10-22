@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::estimate::{chapter_pages, estimate_each, estimate_largest, Estimate};
+use super::estimate::{chapter_pages, estimate_each, Estimate};
 use super::parts::{Oversized, SEND_TO_KINDLE_LIMIT};
 use super::Device;
 use crate::domain::Result;
@@ -149,14 +149,16 @@ fn levers(dirs: &[PathBuf], e: &Estimate, quality: u8, spec: BudgetSpec) -> Resu
 }
 
 /// The most chapters per book of `dirs` that keeps every book within the target: guessed from
-/// each chapter's pages at the book's average page size, then checked on the largest book.
+/// each chapter's pages at the book's average page size, then checked on every book, since a
+/// shorter book of bigger pages can be the larger one.
 fn chapters_per_book(dirs: &[PathBuf], e: &Estimate, spec: BudgetSpec) -> Result<Option<usize>> {
     let target = spec.delivery.target();
     let pages = chapter_pages(dirs, &spec.device, &spec.page);
     let mut guess = most_that_fit(&pages, e.bytes / e.pages.max(1) as u64, target);
     while let Some(n) = guess {
         let books: Vec<Vec<PathBuf>> = dirs.chunks(n).map(<[PathBuf]>::to_vec).collect();
-        if estimate_largest(&books, spec.device, spec.cut, spec.page)?.bytes <= target {
+        let each = estimate_each(&books, spec.device, spec.cut, spec.page)?;
+        if each.iter().all(|e| e.bytes <= target) {
             return Ok(Some(n));
         }
         guess = (n > 1).then(|| n - 1);
