@@ -48,7 +48,7 @@
   "mainBinaryName": "mangas",
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQzOTVEMDBGOENBMDYyN0MKUldSOFlxQ01EOUNWMDRpNzhDbTl1Y0psVDVjVXg1ajJpMFZKS2duZGdJc2pBVE9ybFA4bnBJbGkK"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk3Q0REQkY4NDI2OUNEMjgKUldRb3pXbEMrTnZObDkxSWhrckhlMGtJRVR6WVRoUExQZDI5cU9wMFkzZVRKaDVZOHBndEZuNzkK"
     }
   }
 }
