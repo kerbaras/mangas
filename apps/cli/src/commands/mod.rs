@@ -10,6 +10,7 @@ mod download_releases;
 pub mod export;
 mod export_args;
 mod export_cover;
+mod export_plan;
 mod export_plans;
 mod export_preset;
 mod export_progress;

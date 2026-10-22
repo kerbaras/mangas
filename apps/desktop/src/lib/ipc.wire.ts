@@ -46,6 +46,8 @@ export type ExportStats = {
   oversized?: { path: string; bytes: number }[];
   /** Ids of the book's chapters (volume exports only). */
   chapters?: string[];
+  /** JPEG quality the pages were encoded at. */
+  jpeg_quality?: number;
 };
 
 export const toExportResult = (s: ExportStats): ExportResult => ({
@@ -56,6 +58,7 @@ export const toExportResult = (s: ExportStats): ExportResult => ({
   detectors_error: s.detectors_error ?? null,
   oversized: (s.oversized ?? []).map((o) => ({ file: o.path, bytes: o.bytes })),
   ...(s.chapters?.length ? { chapters: s.chapters } : {}),
+  ...(s.jpeg_quality ? { jpegQuality: s.jpeg_quality } : {}),
 });
 
 /** Mirrors `mangas_core::export::volume::VolumeOutcome`: a run stops at the first failed book. */

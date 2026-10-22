@@ -11,11 +11,15 @@ use mangas_core::ml::DetectorReport;
 use serde::Serialize;
 
 use super::deliver::Unsent;
+use super::export_plan::PlannedBook;
 use super::export_size::bytes;
 use crate::output::print_json;
 
 #[derive(Debug, Serialize)]
 pub struct Report {
+    /// The plan made before writing (`mangas export`): each book's estimate against its budget.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub plan: Vec<PlannedBook>,
     pub files: Vec<WrittenFile>,
     pub skipped: Vec<Item>,
     pub failed: Vec<Item>,
@@ -47,6 +51,8 @@ pub struct WrittenFile {
     pub part: Option<PartNo>,
     /// Files in its chapters left out because their format can't be decoded.
     pub skipped_files: usize,
+    /// JPEG quality its pages were encoded at.
+    pub jpeg_quality: u8,
 }
 
 #[derive(Debug, Serialize)]
@@ -85,6 +91,7 @@ pub const NOT_STARTED: &str = "not started: an earlier book failed";
 impl Report {
     pub fn new(detectors: DetectorReport) -> Self {
         Self {
+            plan: Vec::new(),
             files: Vec::new(),
             skipped: Vec::new(),
             failed: Vec::new(),
@@ -92,6 +99,10 @@ impl Report {
             recorded: Vec::new(),
             detectors,
         }
+    }
+
+    pub fn with_plan(self, plan: Vec<PlannedBook>) -> Self {
+        Self { plan, ..self }
     }
 
     /// Adds the book `stats` describes, made from the chapter folders `dirs`.
@@ -107,6 +118,7 @@ impl Report {
             bytes: bytes(path),
             part,
             skipped_files: stats.skipped,
+            jpeg_quality: stats.jpeg_quality,
         };
         match total {
             0 => self

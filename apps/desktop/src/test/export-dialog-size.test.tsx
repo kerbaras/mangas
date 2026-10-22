@@ -21,25 +21,56 @@ const dialog = () => (
   </TooltipProvider>
 );
 
-// 32 MB a chapter at the device's quality, 16 MB at 50.
-const chaptersOf = (r: EstimateRequest) => Math.max(...r.books.map((b) => b.length));
-const estimateExport = vi.fn(async (r: EstimateRequest) => ({
-  pages: chaptersOf(r) * 60,
-  bytes: chaptersOf(r) * (r.quality === 50 ? 16_000_000 : 32_000_000),
-}));
+// 80 MB a chapter at the device's quality, 40 MB at 50: three chapters are 240 MB.
+const MB = 1_000_000;
+const estimateExport = vi.fn(async (r: EstimateRequest) =>
+  r.books.map((b) => {
+    const bytes = b.length * (r.quality === 50 ? 40 : 80) * MB;
+    const budget = (r.email ? 50 : 200) * MB;
+    const split = r.splitMb ? r.splitMb * MB : bytes;
+    const over = Math.min(bytes, split) > budget;
+    const levers = { split_bytes: 180 * MB, chapters_per_book: 2, jpeg_quality: 50 };
+    return {
+      pages: b.length * 60,
+      estimated_bytes: bytes,
+      budget_bytes: budget,
+      over_budget: over,
+      jpeg_quality: r.quality ?? 90,
+      files: Math.ceil(bytes / split),
+      levers: over ? levers : null,
+    };
+  }),
+);
+const OVER = "About 240 MB of 200 MB, 180 pages, JPEG quality 90";
 
-describe("export dialog: Send-to-Kindle size", () => {
-  it("warns over 50 MB, and splitting or a lower quality reach the export", async () => {
+const openOneBook = async () => {
+  render(dialog());
+  fireEvent.mouseDown(await screen.findByRole("tab", { name: "One book" }));
+  expect(await screen.findByText(OVER)).toBeTruthy();
+};
+
+describe("export dialog: Send-to-Kindle size budget", () => {
+  it("holds a saved book to 200 MB and shows it against the budget in the preview", async () => {
+    exportBackend({ estimateExport });
+    await openOneBook();
+    expect(estimateExport.mock.lastCall?.[0]).toMatchObject({
+      books: [["/d/1", "/d/2", "/d/3"]],
+      email: false,
+      splitMb: null,
+    });
+    expect(screen.getByRole("alert").textContent).toMatch(/over the 200 MB Send to Kindle web/);
+    expect(screen.getByText("240 MB of 200 MB")).toBeTruthy();
+  });
+
+  it("splits into parts only when that lever is picked, and exports with it", async () => {
     const { exportVolumes } = exportBackend({ estimateExport });
-    render(dialog());
-    fireEvent.mouseDown(await screen.findByRole("tab", { name: "One book" }));
-    expect(await screen.findByText("About 96 MB, 180 pages")).toBeTruthy();
-    expect(screen.getByRole("alert").textContent).toMatch(/refuses files over 50 MB/);
-    expect(estimateExport.mock.lastCall?.[0].books).toEqual([["/d/1", "/d/2", "/d/3"]]);
-
-    fireEvent.click(screen.getByLabelText("Split into parts of"));
-    expect(await screen.findByText("About 96 MB, 180 pages, 2 or 3 parts")).toBeTruthy();
+    await openOneBook();
+    fireEvent.click(screen.getByRole("button", { name: /Split into 180 MB parts/ }));
+    expect(
+      await screen.findByText("About 240 MB in 2 parts of 200 MB, 180 pages, JPEG quality 90"),
+    ).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
+    expect(estimateExport.mock.lastCall?.[0].splitMb).toBe(180);
 
     exportVolumes.mockResolvedValueOnce([
       {
@@ -47,29 +78,37 @@ describe("export dialog: Send-to-Kindle size", () => {
         parts: ["/k/Solo (part 1).epub", "/k/Solo (part 2).epub"],
         pages: 180,
         skipped: 0,
+        jpegQuality: 90,
       },
     ]);
     fireEvent.click(await enabledButton(/Export book/));
     await waitFor(() => expect(exportVolumes).toHaveBeenCalledOnce());
-    expect(exportVolumes.mock.calls[0][0]).toMatchObject({ splitMb: 45, quality: null });
+    expect(exportVolumes.mock.calls[0][0]).toMatchObject({ splitMb: 180, quality: null });
+    expect(await screen.findByText("JPEG quality 90")).toBeTruthy();
   });
 
-  it("re-estimates at the picked JPEG quality, keeps it for the device and exports with it", async () => {
+  it("lowers the JPEG quality only when that lever is picked, and keeps it for the device", async () => {
     const { exportVolumes } = exportBackend({ estimateExport });
-    render(dialog());
-    fireEvent.mouseDown(await screen.findByRole("tab", { name: "One book" }));
-    expect(await screen.findByText("About 96 MB, 180 pages")).toBeTruthy();
-    fireEvent.keyDown(screen.getByRole("combobox", { name: "JPEG quality" }), { key: "Enter" });
-    fireEvent.keyDown(await screen.findByRole("option", { name: "JPEG quality: 50" }), {
-      key: "Enter",
-    });
-    expect(await screen.findByText("About 48 MB, 180 pages")).toBeTruthy();
+    await openOneBook();
+    fireEvent.click(screen.getByRole("button", { name: /JPEG quality 50/ }));
+    expect(
+      await screen.findByText("About 120 MB of 200 MB, 180 pages, JPEG quality 50"),
+    ).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
     expect(readSettings().jpegQuality).toEqual({ "kindle-paperwhite12": 50 });
-
     fireEvent.click(await enabledButton(/Export book/));
     await waitFor(() => expect(exportVolumes).toHaveBeenCalledOnce());
     expect(exportVolumes.mock.calls[0][0]).toMatchObject({ quality: 50, splitMb: null });
+  });
+
+  it("writes fewer chapters per book when that lever is picked", async () => {
+    exportBackend({ estimateExport });
+    await openOneBook();
+    fireEvent.click(screen.getByRole("button", { name: /2 chapters per book/ }));
+    await waitFor(() =>
+      expect(estimateExport.mock.lastCall?.[0].books).toEqual([["/d/1", "/d/2"], ["/d/3"]]),
+    );
+    expect(screen.getByRole("tab", { name: "Every N" }).getAttribute("aria-selected")).toBe("true");
   });
 
   it("starts at the quality stored for the device", async () => {
@@ -77,7 +116,9 @@ describe("export dialog: Send-to-Kindle size", () => {
     exportBackend({ estimateExport });
     render(dialog());
     fireEvent.mouseDown(await screen.findByRole("tab", { name: "One book" }));
-    expect(await screen.findByText("About 48 MB, 180 pages")).toBeTruthy();
+    expect(
+      await screen.findByText("About 120 MB of 200 MB, 180 pages, JPEG quality 50"),
+    ).toBeTruthy();
     expect(screen.getByRole("combobox", { name: "JPEG quality" }).textContent).toBe(
       "JPEG quality: 50",
     );

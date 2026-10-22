@@ -1,9 +1,9 @@
-//! The export dialog's size estimate, so it can warn about books over the Send-to-Kindle limit
-//! before writing them.
+//! The export dialog's size plan: each book's estimate against the budget of the delivery, so it
+//! can show which books are over the Send-to-Kindle limit before writing them.
 
 use std::path::PathBuf;
 
-use mangas_core::export::kindle::{self, Estimate};
+use mangas_core::export::kindle::{self, BookBudget, BudgetSpec, Delivery};
 use mangas_core::export::ExportPreset;
 use mangas_core::smartcut::Preset;
 
@@ -11,8 +11,8 @@ use super::export::{resolve, series_preset};
 use super::{blocking, settings_quietly, to_ipc};
 use crate::paths;
 
-/// The estimated pages and bytes of the largest of `books` (each its chapter folders) with the
-/// dialog's choices over the series preset, as `export_volumes` resolves them.
+/// Each of `books` (its chapter folders) sized with the dialog's choices over the series preset,
+/// as `export_volumes` resolves them, against 50 MB when `email`, else 200 MB.
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub async fn estimate_export(
@@ -20,7 +20,9 @@ pub async fn estimate_export(
     device: Option<String>,
     preset: Option<Preset>,
     quality: Option<u8>,
-) -> Result<Estimate, String> {
+    email: bool,
+    split_mb: Option<u64>,
+) -> Result<Vec<BookBudget>, String> {
     blocking(move || {
         let explicit = ExportPreset {
             cut_preset: preset,
@@ -37,7 +39,18 @@ pub async fn estimate_export(
         let dev = resolved
             .profile_or(paths::DEFAULT_PROFILE)
             .map_err(to_ipc)?;
-        kindle::estimate_largest(&books, dev, resolved.cut(), resolved.page()).map_err(to_ipc)
+        let spec = BudgetSpec {
+            device: dev,
+            cut: resolved.cut(),
+            page: resolved.page(),
+            delivery: if email {
+                Delivery::Email
+            } else {
+                Delivery::Other
+            },
+            split: split_mb.map(|mb| mb * 1_000_000),
+        };
+        kindle::plan_budget(&books, spec).map_err(to_ipc)
     })
     .await
 }

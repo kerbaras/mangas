@@ -1,6 +1,6 @@
-/** The Send-to-Kindle size rule the export dialog warns about (`export::kindle::parts`). */
+/** The Send-to-Kindle size budget the export dialog shows (`export::kindle::budget`). */
 import type { ExportResult } from "./ipc.export";
-import type { Estimate, VolumePlan } from "./ipc.volumes";
+import type { BookBudget, Levers, VolumePlan } from "./ipc.volumes";
 
 /** Amazon's Send-to-Kindle email limit for one attached file, in MB (10^6 bytes). */
 export const SEND_TO_KINDLE_MB = 50;
@@ -24,35 +24,48 @@ export const megabytes = (bytes: number): string => {
   return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`;
 };
 
-/** The downloaded chapter folders of each planned book; the estimate measures the largest. */
-export function downloadedBooks(plans: VolumePlan[]): string[][] {
-  return plans
-    .map((p) => p.chapters.flatMap((c) => c.local_path ?? []))
-    .filter((dirs) => dirs.length > 0);
+/** The downloaded chapter folders of each planned book, empty for a book with none. */
+export const bookDirs = (plans: VolumePlan[]): string[][] =>
+  plans.map((p) => p.chapters.flatMap((c) => c.local_path ?? []));
+
+/** `budgets` of the books with folders among `dirs`, back in plan order (null: nothing to size). */
+export function alignBudgets(dirs: string[][], budgets: BookBudget[]): (BookBudget | null)[] {
+  let next = 0;
+  return dirs.map((d) => (d.length > 0 ? (budgets[next++] ?? null) : null));
 }
 
-/** How far off the estimate may be either way (`export::kindle::estimate` samples pages). */
-const ESTIMATE_SLACK = 0.15;
+/** "212 MB of 200 MB": a book's estimate against its budget, as a preview row shows it. */
+export const againstBudget = (b: BookBudget) =>
+  `${megabytes(b.estimated_bytes)} of ${megabytes(b.budget_bytes)}`;
 
-/**
- * The part count the estimate allows: ", about 3 parts", ", 2 or 3 parts", or "" for one. A page
- * is never split, so there are never more parts than `pages`.
- */
-function partsNote(bytes: number, part: number, pages: number): string {
-  const count = (b: number) => Math.max(1, Math.min(pages, Math.ceil(b / part)));
-  const [lo, hi] = [count(bytes * (1 - ESTIMATE_SLACK)), count(bytes * (1 + ESTIMATE_SLACK))];
-  if (hi === 1) return "";
-  if (lo === hi) return `, about ${lo} parts`;
-  return `, ${lo} ${hi - lo === 1 ? "or" : "to"} ${hi} parts`;
+/** The levers that fit every over-budget book: the fewest chapters and the lowest quality. */
+function combinedLevers(over: BookBudget[]): Levers | null {
+  const levers = over.flatMap((b) => b.levers ?? []);
+  if (levers.length === 0) return null;
+  const lowest = (pick: (l: Levers) => number | null) => {
+    const all = levers.map(pick);
+    return all.some((v) => v === null) ? null : Math.min(...(all as number[]));
+  };
+  return {
+    split_bytes: levers[0].split_bytes,
+    chapters_per_book: lowest((l) => l.chapters_per_book),
+    jpeg_quality: lowest((l) => l.jpeg_quality),
+  };
 }
 
-/** What the size line says, and whether a file written would be over the email limit. */
-export function sizeNote(e: Estimate, books: number, splitMb: number | null) {
-  const size = `about ${megabytes(e.bytes)}, ${e.pages} pages`;
-  const limit = SEND_TO_KINDLE_MB * 1_000_000;
-  const part = splitMb ? splitMb * 1_000_000 : Number.POSITIVE_INFINITY;
-  const label = `${books > 1 ? "Largest book: " : ""}${size}${partsNote(e.bytes, part, e.pages)}`;
-  return { label: label[0].toUpperCase() + label.slice(1), over: Math.min(e.bytes, part) > limit };
+/** What the size line says about `budgets` (core's numbers and over-budget flags, as is). */
+export function budgetNote(budgets: BookBudget[]) {
+  const largest = budgets.reduce((a, b) => (b.estimated_bytes > a.estimated_bytes ? b : a));
+  const parts = largest.files > 1 ? ` in ${largest.files} parts` : "";
+  const size = `about ${megabytes(largest.estimated_bytes)}${parts} of ${megabytes(largest.budget_bytes)}`;
+  const label = `${budgets.length > 1 ? "Largest book: " : ""}${size}, ${largest.pages} pages, JPEG quality ${largest.jpeg_quality}`;
+  const over = budgets.filter((b) => b.over_budget);
+  return {
+    label: label[0].toUpperCase() + label.slice(1),
+    over: over.length,
+    budgetMb: largest.budget_bytes / 1_000_000,
+    levers: combinedLevers(over),
+  };
 }
 
 /** The written files over the email limit, as measured on disk after the export. */

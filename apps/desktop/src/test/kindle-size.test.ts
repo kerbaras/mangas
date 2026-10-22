@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Chapter } from "@/lib/ipc";
-import { downloadedBooks, megabytes, sizeNote } from "@/lib/kindle-size";
+import type { BookBudget } from "@/lib/ipc.volumes";
+import { againstBudget, alignBudgets, bookDirs, budgetNote, megabytes } from "@/lib/kindle-size";
 
 const chapter = (n: string, local: boolean): Chapter => ({
   id: n,
@@ -12,6 +13,16 @@ const chapter = (n: string, local: boolean): Chapter => ({
   local_path: local ? `/d/${n}` : null,
 });
 const plan = (chapters: Chapter[]) => ({ number: null, title: "t", file_name: "t.epub", chapters });
+const MB = 1_000_000;
+const book = (mb: number, over: boolean, levers: BookBudget["levers"] = null): BookBudget => ({
+  pages: 304,
+  estimated_bytes: mb * MB,
+  budget_bytes: 200 * MB,
+  over_budget: over,
+  jpeg_quality: 90,
+  files: 1,
+  levers,
+});
 
 describe("kindle size", () => {
   it("formats decimal megabytes like the 50 MB limit", () => {
@@ -19,34 +30,37 @@ describe("kindle size", () => {
     expect(megabytes(4_250_000)).toBe("4.3 MB");
   });
 
-  it("hands every book with downloaded chapters to the estimate", () => {
-    const one = plan([chapter("1", true), chapter("2", false), chapter("3", false)]);
-    const two = plan([chapter("4", true), chapter("5", true)]);
+  it("sizes the books with downloaded chapters and puts them back in plan order", () => {
+    const one = plan([chapter("1", true), chapter("2", false)]);
     const none = plan([chapter("6", false)]);
-    expect(downloadedBooks([one, two, none])).toEqual([["/d/1"], ["/d/4", "/d/5"]]);
-    expect(downloadedBooks([])).toEqual([]);
+    const two = plan([chapter("4", true), chapter("5", true)]);
+    const dirs = bookDirs([one, none, two]);
+    expect(dirs).toEqual([["/d/1"], [], ["/d/4", "/d/5"]]);
+    const [a, b] = [book(10, false), book(20, false)];
+    expect(alignBudgets(dirs, [a, b])).toEqual([a, null, b]);
   });
 
-  it("warns over 50 MB unless the parts are under it", () => {
-    const e = { pages: 183, bytes: 96_000_000 };
-    expect(sizeNote(e, 1, null)).toEqual({ label: "About 96 MB, 183 pages", over: true });
-    expect(sizeNote(e, 1, 45)).toEqual({
-      label: "About 96 MB, 183 pages, 2 or 3 parts",
-      over: false,
-    });
-    expect(sizeNote({ pages: 99, bytes: 70_000_000 }, 1, 45).label).toBe(
-      "About 70 MB, 99 pages, about 2 parts",
+  it("shows the largest book against its budget with the quality, and core's over flag", () => {
+    expect(againstBudget(book(212, true))).toBe("212 MB of 200 MB");
+    const note = budgetNote([book(120, false), book(212, true)]);
+    expect(note.label).toBe("Largest book: about 212 MB of 200 MB, 304 pages, JPEG quality 90");
+    expect(note).toMatchObject({ over: 1, budgetMb: 200 });
+    expect(budgetNote([{ ...book(212, false), files: 2 }]).label).toBe(
+      "About 212 MB in 2 parts of 200 MB, 304 pages, JPEG quality 90",
     );
-    expect(sizeNote({ pages: 60, bytes: 42_000_000 }, 1, 45).label).toBe(
-      "About 42 MB, 60 pages, 1 or 2 parts",
-    );
-    expect(sizeNote({ pages: 300, bytes: 200_000_000 }, 1, 45).label).toMatch(/, 4 to 6 parts$/);
-    expect(sizeNote({ pages: 4, bytes: 8_000_000 }, 1, 1).label).toMatch(/, about 4 parts$/);
-    expect(sizeNote({ pages: 8, bytes: 8_000_000 }, 1, 1).label).toMatch(/, 7 or 8 parts$/);
-    expect(sizeNote(e, 1, 60).over).toBe(true);
-    expect(sizeNote({ pages: 40, bytes: 20_000_000 }, 3, null)).toEqual({
-      label: "Largest book: about 20 MB, 40 pages",
-      over: false,
+  });
+
+  it("offers the levers that fit every over-budget book", () => {
+    const l = (chapters: number | null, quality: number | null) => ({
+      split_bytes: 180 * MB,
+      chapters_per_book: chapters,
+      jpeg_quality: quality,
     });
+    const note = budgetNote([book(250, true, l(8, 80)), book(400, true, l(4, 60))]);
+    expect(note.levers).toEqual(l(4, 60));
+    expect(budgetNote([book(250, true, l(8, null)), book(400, true, l(4, 60))]).levers).toEqual(
+      l(4, null),
+    );
+    expect(budgetNote([book(100, false)]).levers).toBeNull();
   });
 });

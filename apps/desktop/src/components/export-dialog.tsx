@@ -25,6 +25,7 @@ import { useExportPlan } from "@/hooks/use-export-plan";
 import { useFreeNames } from "@/hooks/use-free-names";
 import { type Book, refused, runningVia, useSend } from "@/hooks/use-send";
 import { useSeriesTarget } from "@/hooks/use-series-target";
+import { useSizeEstimate } from "@/hooks/use-size-estimate";
 import { booksToSend, exportJob, keptBooks } from "@/lib/export-job";
 import type { ExportPick } from "@/lib/export-name";
 import {
@@ -78,6 +79,12 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const { files, named, blocked } = useFreeNames(planned, dir, epoch, replace, splitMb, kept);
   const preview = { folder: folder.resolved, stale: !fresh || !named, blocked };
   const books = files.kind === "ready" ? files.data.length : 0;
+  const email = via === "email";
+  const budgets = useSizeEstimate({ plans: files, device, preset, quality, email, splitMb });
+  const every = (n: number) => {
+    setMode("every");
+    setSize(n);
+  };
   const oversized = job.state.kind === "done" ? oversizedOf(job.state.results) : [];
   const sending = runningVia(send.state);
   const busy = job.state.kind === "running" || sending !== undefined;
@@ -154,7 +161,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
               <ExportTitleField value={title} onChange={setTitle} plans={plans} />
             )}
             <Field label={books > 1 ? `${books} files` : "File"}>
-              <VolumePreview plans={files} {...preview} />
+              <VolumePreview plans={files} budgets={budgets} {...preview} />
             </Field>
           </div>
           <ExportOptions
@@ -165,7 +172,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
             detectors={useDetectors}
             onDetectors={setDetectorsOn}
             output={{ value: folder.output, fallback: folder.fallback, onChange: folder.setOutput }}
-            size={{ plans: files, splitMb, onSplit: setSplitMb }}
+            size={{ budgets, splitMb, onSplit: setSplitMb, onEvery: joined ? undefined : every }}
             delivery={via}
             onDelivery={setDelivery}
             cut={{ ...cut, chapters }}

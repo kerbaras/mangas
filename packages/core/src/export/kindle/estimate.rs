@@ -50,6 +50,18 @@ pub fn estimate_largest(
     }
 }
 
+/// The estimate of each of `books`: every book is counted and has its own pages sampled.
+pub fn estimate_each(
+    books: &[Vec<PathBuf>],
+    device: Device,
+    cut: Options,
+    page: PageSettings,
+) -> Result<Vec<Estimate>> {
+    (books.iter())
+        .map(|b| sample(count(b, &device, &page), device, cut, page))
+        .collect()
+}
+
 /// One book's chapters with their files, and the pages they give.
 struct Counted<'a> {
     dirs: &'a [PathBuf],

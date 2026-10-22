@@ -62,7 +62,7 @@ export function ExportSettings() {
       <Field
         label="JPEG quality"
         htmlFor="default-quality"
-        hint="For the default device. Lower makes smaller books, for Send to Kindle's 50 MB limit."
+        hint="For the default device. Lower makes smaller books, for Send to Kindle's limits: 50 MB by email, 200 MB on the web."
       >
         <JpegQualitySelect
           id="default-quality"
