@@ -1,6 +1,7 @@
 //! Export of downloaded chapters: device profiles, the chapter-directories-to-pages pipeline
 //! (`kindle`), and one [`Exporter`] per file format (EPUB, CBZ, PDF).
 
+pub mod azw3;
 pub mod cbz;
 pub mod epub;
 mod exporter;
