@@ -19,7 +19,6 @@ pub struct VolumePlan {
     pub title: String,
     pub file_name: String,
     pub chapters: Vec<Chapter>,
-    /// Who the book credits ([`Manga::creators`]); empty when the source names nobody.
     pub authors: Vec<String>,
 }
 
