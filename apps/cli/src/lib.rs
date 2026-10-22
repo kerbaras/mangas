@@ -52,12 +52,12 @@ enum Command {
     Update(commands::update::Args),
     /// Import chapter folders or .cbz files from disk into the library
     Import(commands::import::Args),
-    /// Export chapter folders as one EPUB, CBZ or PDF for an e-reader profile (Kindle EPUB by
-    /// default), optionally sending it (--send)
+    /// Export chapter folders as one EPUB, AZW3, CBZ or PDF for an e-reader profile (Kindle EPUB by
+    /// default, AZW3 with --send usb), optionally sending it (--send)
     Kindle(commands::kindle::Args),
-    /// Export a followed manga's downloaded chapters as volume books: EPUB, CBZ or PDF (TOC, series, cover)
+    /// Export a followed manga's downloaded chapters as volume books: EPUB, AZW3, CBZ or PDF (TOC, series, cover)
     Export(commands::export::Args),
-    /// Send an EPUB to the Kindle by email or over USB
+    /// Send a book to the Kindle: an EPUB or PDF by email, an AZW3 or PDF over USB
     Send(commands::send::Args),
     /// List the providers and whether they are ready to use. Exits 1 when every provider is
     /// unreachable (no network, a proxy or TLS certificates problem); a partial outage exits 0

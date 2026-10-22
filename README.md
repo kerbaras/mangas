@@ -51,9 +51,10 @@ Website and downloads: https://kerbaras.github.io/mangas
   queue that the app and the CLI share and that picks up where it left off after a restart.
 - **Smart cut for webtoons.** Long strips split at the gaps between panels, with an optional
   speech-bubble and face detector. Preview the pages before you export.
-- **EPUB, CBZ or PDF.** Single chapters or whole volumes, sized for Kindle, Kobo, reMarkable or a
+- **EPUB, AZW3, CBZ or PDF.** Single chapters or whole volumes, sized for Kindle, Kobo, reMarkable or a
   tablet (`mangas kindle --list-profiles`).
-- **Send to Kindle.** Email the book to your Kindle address or copy it over USB.
+- **Send to Kindle.** Email the book to your Kindle address (EPUB) or copy it over USB (AZW3,
+  the format a Kindle opens from its `documents` folder).
 - **One executable.** The `mangas` binary opens the app with no arguments and runs the CLI with
   them.
 

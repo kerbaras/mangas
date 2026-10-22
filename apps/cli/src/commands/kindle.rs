@@ -1,4 +1,4 @@
-//! `mangas kindle`: chapter folders to one EPUB, CBZ or PDF for an e-reader profile.
+//! `mangas kindle`: chapter folders to one EPUB, AZW3, CBZ or PDF for an e-reader profile.
 
 use std::path::{Path, PathBuf};
 use std::time::Instant;

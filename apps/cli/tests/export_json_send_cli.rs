@@ -82,7 +82,7 @@ fn sent_books_keep_stdout_one_json_object() {
 
     let kindle = home.path().join("kindle-run");
     std::fs::create_dir_all(&kindle).unwrap();
-    let book = kindle.join("book.epub");
+    let book = kindle.join("book.azw3");
     let chapter = home.path().join("chapters/1");
     let out = Command::new(env!("CARGO_BIN_EXE_mangas-cli"))
         .args([
@@ -123,7 +123,7 @@ fn a_later_volume_failing_still_reports_the_books_written() {
     );
     let r = report(&out);
     let dir = home.path().join("out");
-    let (first, second) = (dir.join("Series v1.epub"), dir.join("Series v2.epub"));
+    let (first, second) = (dir.join("Series v1.azw3"), dir.join("Series v2.azw3"));
     assert_eq!(r["files"][0]["path"], first.to_str().unwrap());
     assert_eq!(r["failed"][0]["path"], second.to_str().unwrap());
     assert!(first.is_file() && !second.exists());
@@ -137,7 +137,7 @@ fn a_failed_volume_leaves_nothing_and_the_books_after_it_are_listed_not_written(
     assert!(!out.status.success(), "{out:?}");
     let r = report(&out);
     let dir = home.path().join("out");
-    let [first, second, third] = ["v1", "v2", "v3"].map(|v| dir.join(format!("Series {v}.epub")));
+    let [first, second, third] = ["v1", "v2", "v3"].map(|v| dir.join(format!("Series {v}.azw3")));
     assert_eq!(r["files"].as_array().unwrap().len(), 1, "{r}");
     assert_eq!(r["files"][0]["path"], first.to_str().unwrap());
     assert_eq!(r["failed"][0]["path"], second.to_str().unwrap());
@@ -170,12 +170,12 @@ fn a_failed_volume_whose_name_is_taken_reports_the_numbered_name_it_would_have_t
     library_with(home.path(), &[2, 0, 2]);
     let dir = home.path().join("out");
     std::fs::create_dir_all(&dir).unwrap();
-    std::fs::write(dir.join("Series v2.epub"), b"old").unwrap();
+    std::fs::write(dir.join("Series v2.azw3"), b"old").unwrap();
     let out = export_to_kindle(home.path());
     assert!(!out.status.success(), "{out:?}");
     let r = report(&out);
     let path = |name: &str| dir.join(name).to_str().unwrap().to_string();
-    assert_eq!(r["failed"][0]["path"], path("Series v2 (2).epub"), "{r}");
-    assert_eq!(r["not_written"][0]["path"], path("Series v3.epub"), "{r}");
-    assert_eq!(std::fs::read(dir.join("Series v2.epub")).unwrap(), b"old");
+    assert_eq!(r["failed"][0]["path"], path("Series v2 (2).azw3"), "{r}");
+    assert_eq!(r["not_written"][0]["path"], path("Series v3.azw3"), "{r}");
+    assert_eq!(std::fs::read(dir.join("Series v2.azw3")).unwrap(), b"old");
 }

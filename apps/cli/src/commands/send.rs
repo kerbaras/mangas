@@ -54,7 +54,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         return Ok(outln!("test email sent to {to}")?);
     }
     let Some(file) = args.file else {
-        bail!("no EPUB given (or use --test / --devices)");
+        bail!("no book given (or use --test / --devices)");
     };
     if !file.is_file() {
         bail!("{} is not a file", file.display());
