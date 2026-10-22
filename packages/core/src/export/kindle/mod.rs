@@ -16,6 +16,7 @@ mod preview;
 pub mod process;
 mod request;
 mod run;
+mod run_spec;
 mod stale;
 mod survey;
 mod surveys;

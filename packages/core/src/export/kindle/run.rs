@@ -13,13 +13,14 @@ use super::plan::{page_size, regular_run, Margins};
 use super::pool::{self, WORKERS as WINDOW};
 use super::process::{encode_owned, ImageSettings};
 use super::request::{ExportStats, Progress};
-use super::survey::{sample_bytes, Survey};
+pub(super) use super::run_spec::{empty_stats, RunSpec};
+use super::survey::Survey;
 use super::trim::trim_owned;
 use super::Device;
 use crate::domain::{Error, Result};
 use crate::export::epub::PageImage;
-use crate::export::{PageSettings, PageSpool};
-use crate::smartcut::{Options, RowPenalizer, StripPaginator};
+use crate::export::PageSpool;
+use crate::smartcut::StripPaginator;
 
 pub(super) struct Run<'a> {
     pub settings: ImageSettings,
@@ -36,34 +37,6 @@ pub(super) struct Run<'a> {
     pub stopped_early: bool,
     /// Set, the run only counts its pages into this survey and writes none.
     pub survey: Option<Survey>,
-}
-
-pub(super) struct RunSpec<'a> {
-    pub device: Device,
-    pub cut: Options,
-    pub page: PageSettings,
-    pub penalizer: Option<RowPenalizer>,
-    pub limit: Option<usize>,
-    pub cancelled: &'a dyn Fn() -> bool,
-    pub spool_dir: Option<&'a Path>,
-}
-
-fn empty_stats() -> ExportStats {
-    ExportStats {
-        pages: 0,
-        strips: 0,
-        source_rows: 0,
-        pagination_ms: 0,
-        filters_ms: 0,
-        skipped: 0,
-        empty_chapters: Vec::new(),
-        output: PathBuf::new(),
-        parts: Vec::new(),
-        detectors_error: None,
-        oversized: Vec::new(),
-        jpeg_quality: 0,
-        chapters: Vec::new(),
-    }
 }
 
 impl<'a> Run<'a> {
@@ -88,14 +61,13 @@ impl<'a> Run<'a> {
         })
     }
 
-    /// Pages final so far: emitted, or counted.
-    fn done(&self) -> usize {
+    fn final_pages(&self) -> usize {
         self.pages.len() + self.survey.as_ref().map_or(0, |s| s.pages)
     }
 
     /// Full counting `queued` pages not emitted yet.
     fn full_with(&self, queued: usize) -> bool {
-        self.limit.is_some_and(|n| self.done() + queued >= n)
+        self.limit.is_some_and(|n| self.final_pages() + queued >= n)
     }
 
     /// Decodes, crops, trims and encodes a run (at most `WORKERS` pages) side by side, in order.
@@ -120,14 +92,7 @@ impl<'a> Run<'a> {
 
     fn emit_pages(&mut self, rendered: Vec<RgbaImage>) -> Result<()> {
         if let Some(s) = self.survey.as_mut() {
-            let picked = s.picker();
-            s.add_strip(sample_bytes(
-                rendered,
-                self.settings,
-                &s.qualities,
-                &picked,
-            )?);
-            return Ok(());
+            return s.count_strip(rendered, self.settings);
         }
         let t = Instant::now();
         let settings = self.settings;
@@ -207,7 +172,9 @@ impl<'a> Run<'a> {
                 return Ok(());
             }
             // Past a strip's held-back rows, a page of the same width continues that strip.
-            let room = self.limit.map_or(WINDOW, |n| n.saturating_sub(self.done()));
+            let room = self
+                .limit
+                .map_or(WINDOW, |n| n.saturating_sub(self.final_pages()));
             let run = match self
                 .paginator
                 .has_pending(page_size(&files[i], &margins)?.0)

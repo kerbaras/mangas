@@ -74,15 +74,24 @@ impl Survey {
         }
     }
 
+    /// Counts the strip pages `rendered` next, encoded at `settings`.
+    pub fn count_strip(&mut self, rendered: Vec<RgbaImage>, settings: ImageSettings) -> Result<()> {
+        let picked = self.picker();
+        let encoded = sample_bytes(rendered, settings, &self.qualities, &picked)?;
+        self.add_strip(encoded);
+        Ok(())
+    }
+
     /// Whether the strip pages can be sized at `quality`.
     pub fn sampled(&self, quality: u8) -> bool {
         self.strip_jpegs.is_empty() || quality == self.base || self.qualities.contains(&quality)
     }
 
     /// Every strip page's JPEG bytes at `quality`: as encoded at the base quality, or scaled by
-    /// how much the samples grew or shrank at `quality`.
+    /// how much the samples grew or shrank at `quality`. A chapter without strips has none at
+    /// every quality.
     pub fn strip_jpegs_at(&self, quality: u8) -> Option<Vec<u64>> {
-        if quality == self.base {
+        if quality == self.base || self.strip_jpegs.is_empty() {
             return Some(self.strip_jpegs.clone());
         }
         let q = self.qualities.iter().position(|&x| x == quality)?;
@@ -151,5 +160,13 @@ mod tests {
         assert_eq!(s.strip_jpegs_at(90).map(|j| j[99]), Some(99));
         assert_eq!(s.strip_jpegs_at(80).map(|j| j[98]), Some(49));
         assert!(s.strip_jpegs_at(70).is_none() && !s.sampled(70) && s.sampled(80));
+    }
+
+    #[test]
+    fn a_chapter_without_strips_is_sized_at_any_quality() {
+        let mut s = Survey::new(90, vec![80]);
+        s.add_regular(&[PathBuf::from("001.png")]);
+        assert!(s.sampled(85));
+        assert_eq!(s.strip_jpegs_at(85), Some(Vec::new()));
     }
 }
