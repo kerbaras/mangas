@@ -14,6 +14,8 @@ pub struct KindleVolume {
     pub root: PathBuf,
     /// Where books go.
     pub documents: PathBuf,
+    /// A drive the OS can eject; `false` over MTP (a gvfs folder, nothing mounted).
+    pub ejectable: bool,
 }
 
 /// Decides from the volume's path (its last two components are searched for "kindle") and the
@@ -90,6 +92,7 @@ pub fn kindle_at(dir: &Path) -> Option<KindleVolume> {
         name: volume_name(dir),
         root: dir.to_path_buf(),
         documents: child_dir(dir, "documents")?,
+        ejectable: crate::send::eject::ejectable(dir),
     })
 }
 
@@ -103,6 +106,7 @@ fn inspect(dir: &Path) -> Option<KindleVolume> {
         name: volume_name(dir),
         root: dir.to_path_buf(),
         documents,
+        ejectable: crate::send::eject::ejectable(dir),
     })
 }
 

@@ -14,6 +14,7 @@ use mangas_core::storage;
 use super::cut_args::{print_progress, CutArgs, DEFAULT_PROFILE};
 use super::deliver::SendArg;
 use super::deliver_precheck;
+use super::eject::after_send;
 use super::export_args::FormatArg;
 use super::export_plan::{planned_book, Fewer};
 use super::export_preset::note_series_preset;
@@ -22,6 +23,7 @@ use super::export_size::{delivery_of, levers_text, route_of, warn_too_big};
 use super::kindle_library::from_library;
 use super::kindle_print;
 use super::kindle_record;
+use super::send_args::SendArgs;
 use crate::output::outln;
 use crate::paths;
 
@@ -45,21 +47,15 @@ pub struct Args {
     /// Write over the output file if it exists instead of next to it as "out (2)"
     #[arg(long)]
     pub replace: bool,
-    /// After writing the book, email it to the Kindle or copy it to one over USB
-    #[arg(long, value_enum)]
-    pub send: Option<SendArg>,
-    /// Mount point of the Kindle for `--send usb` [default: detected]
-    #[arg(long)]
-    pub kindle: Option<PathBuf>,
-    /// With `--send usb`, copy a file that is no export format (the Kindle may not open it); EPUB and CBZ are never copied
-    #[arg(long, requires = "send")]
-    pub force: bool,
+    #[command(flatten)]
+    pub to: SendArgs,
     /// Print the known e-reader profiles and exit
     #[arg(long, visible_alias = "list-devices")]
     pub list_profiles: bool,
     /// Print one JSON object instead of the summary line: `files` (path, title, chapters,
     /// pages, skipped_files), `skipped` and `failed` (path, reason) and `detectors` (state
-    /// "used", "skipped" or "off", and the runtime's error as reason)
+    /// "used", "skipped" or "off", and the runtime's error as reason) and `eject` (attempted, ok,
+    /// error; attempted only with `--send usb --eject`)
     #[arg(long, conflicts_with = "list_profiles")]
     pub json: bool,
 }
@@ -126,7 +122,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         file,
         saved.as_ref().and_then(|p| p.format),
         &dev,
-        args.send,
+        args.to.send,
     );
     let format = Format::resolve(Some(picked), file, None, &dev)?;
     let title = args
@@ -138,11 +134,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         None => PathBuf::from(format!("out.{format}")),
     };
     note_series_preset(saved.as_ref());
-    let to = args
-        .send
-        .map(|via| (via, args.kindle.as_deref(), args.force));
+    let to = args.to.target();
     let books = [planned_book(&output, args.replace)];
-    deliver_precheck::precheck(to, format.id(), &books, args.json)?;
+    deliver_precheck::precheck(&args.to, format.id(), &books, args.json)?;
     let (penalizer, detectors) = args.cut.penalizer().await?;
     let req = ExportRequest {
         split: args.cut.split(),
@@ -171,7 +165,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         device: dev,
         cut: req.cut,
         page: req.page,
-        delivery: delivery_of(args.send),
+        delivery: delivery_of(args.to.send),
         format: req.format,
         split: req.split,
     };
@@ -184,6 +178,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let done =
         kindle_record::record_and_send(&stats, &req.chapter_dirs, &req.title, dev.id, to).await;
     done.print_sent(args.json)?;
+    report.eject = after_send(&args.to, &done.sent_files, args.json);
     if args.json {
         report.recorded.clone_from(&done.recorded);
         for (file, unsent) in &done.failed {
@@ -191,7 +186,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         }
         report.print()?;
     }
-    done.result()
+    done.result().and(report.eject.result())
 }
 
 #[cfg(test)]

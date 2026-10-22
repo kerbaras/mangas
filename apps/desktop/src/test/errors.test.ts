@@ -76,3 +76,18 @@ describe("crashReport", () => {
     );
   });
 });
+
+describe("eject errors (#330)", () => {
+  const busy =
+    "can't eject Kindle at /media/me/Kindle: it's in use by tail. Close it and eject again. The books copied to it are still there";
+  const refused =
+    "can't eject Kindle at /media/me/Kindle: the OS refused (not authorized). The books copied to it are still there";
+  it("are retryable and keep the core message as the detail", () => {
+    for (const message of [busy, refused]) {
+      expect(isFinalError(message)).toBe(false);
+      const info = describeError(message);
+      expect(info.hint).toMatch(/close what's using it, then eject again/);
+      expect(info.detail).toBe(message);
+    }
+  });
+});

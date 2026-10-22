@@ -33,4 +33,12 @@ describe("toast description", () => {
     expect(body.parentElement).toHaveClass("break-words");
     expect(body.querySelector(".whitespace-nowrap")).toBeNull();
   });
+
+  it("shows the whole error when full", () => {
+    const text = "can't eject KINDLE: it's in use by tail. The books copied to it are still there";
+    render(<Description hint={null} detail={text} full />);
+    const body = screen.getByText(text);
+    expect(body).not.toHaveClass("max-h-12");
+    expect(body).not.toHaveClass("overflow-hidden");
+  });
 });

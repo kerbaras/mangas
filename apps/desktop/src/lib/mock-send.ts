@@ -2,7 +2,8 @@
  * Browser stand-in for the Send to Kindle commands. `?no-kindle` hides the USB Kindle until
  * the second look (Retry then finds it); `?smtp-fail` makes every email fail as a wrong
  * password would; `?no-keychain` keeps the password in the settings file, `?locked-keychain`
- * reports a keychain that won't open.
+ * reports a keychain that won't open. `?eject-busy` makes Eject fail as a volume a program
+ * still has a file open on would.
  */
 import type { Unlisten } from "./ipc";
 import type { CopyProgress, ExportRecord, SendBackend } from "./ipc.send";
@@ -13,7 +14,10 @@ const KINDLE = {
   name: "Kindle",
   root: "/media/me/Kindle",
   documents: "/media/me/Kindle/documents",
+  ejectable: true,
 };
+const EJECT_BUSY =
+  "can't eject Kindle at /media/me/Kindle: it's in use by less. Close it and eject again. The books copied to it are still there";
 const SMTP_FAIL =
   "The mail server refused the user name or password. Gmail, iCloud and Outlook need an app password here (535 5.7.8 Username and Password not accepted)";
 
@@ -81,6 +85,11 @@ export function mockSend(): SendBackend {
       }
       stamp(file, title, "usb", KINDLE.name);
       return { path, already_there: false };
+    },
+    async ejectKindle() {
+      await wait(500);
+      if (params.has("eject-busy")) throw new Error(EJECT_BUSY);
+      return { device: KINDLE.name, strategy: "udisks", powered_off: true };
     },
     onCopyProgress: async (cb): Promise<Unlisten> => {
       listeners.add(cb);

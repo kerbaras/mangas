@@ -55,6 +55,7 @@ pub fn copy_to_kindle(
         .map_err(|e| device_error(kindle, &e))?;
     copy(src, dst, on_progress)
         .and_then(|()| std::fs::rename(&part, &dest))
+        .and_then(|()| crate::send::eject::sync_dir(&kindle.documents))
         .map_err(|e| {
             let _ = std::fs::remove_file(&part);
             device_error(kindle, &e)
@@ -124,6 +125,7 @@ mod tests {
             name: "Kindle".into(),
             root: "/media/me/Kindle".into(),
             documents: "/media/me/Kindle/documents".into(),
+            ejectable: true,
         };
         for kind in [
             ErrorKind::StorageFull,

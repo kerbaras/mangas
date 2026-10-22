@@ -24,6 +24,14 @@ export const ch = (number: string, volume: string | null): Chapter => ({
   local_path: `/d/${number}`,
 });
 
+/** A mounted Kindle the USB copy finds. */
+export const usbKindle = {
+  name: "Kindle",
+  root: "/media/k",
+  documents: "/media/k/documents",
+  ejectable: true,
+};
+
 export const chapters = [ch("1", "1"), ch("2", "1"), ch("3", "2")];
 export const solo: Manga = {
   source: "mangadex",

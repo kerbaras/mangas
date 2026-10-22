@@ -21,6 +21,7 @@ mod penalizer;
 mod preview_panels;
 pub mod providers;
 pub mod send;
+pub mod send_eject;
 pub mod send_formats;
 pub mod smtp_password;
 pub mod storage;

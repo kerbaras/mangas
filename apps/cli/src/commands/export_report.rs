@@ -10,8 +10,10 @@ use mangas_core::ml::DetectorReport;
 use serde::Serialize;
 
 use super::deliver::Unsent;
+use super::eject::EjectReport;
 use super::export_plan::{planned_book, PlannedBook};
 use super::export_size::bytes;
+pub use super::export_written::{PartNo, WrittenFile};
 use crate::output::print_json;
 
 #[derive(Debug, Serialize)]
@@ -27,6 +29,8 @@ pub struct Report {
     /// Chapter folders recorded as exported in the library, with the chapter each one is.
     pub recorded: Vec<Recorded>,
     pub detectors: DetectorReport,
+    /// `--eject` after `--send usb`: whether it ran, and its error.
+    pub eject: EjectReport,
 }
 
 /// A chapter folder and the library chapter it was recorded as.
@@ -35,29 +39,6 @@ pub struct Recorded {
     pub path: PathBuf,
     #[serde(flatten)]
     pub chapter: ExportedChapter,
-}
-
-#[derive(Debug, Serialize)]
-pub struct WrittenFile {
-    pub path: PathBuf,
-    pub title: String,
-    /// Chapters in the book (folders that gave no page are in `skipped` instead).
-    pub chapters: usize,
-    pub pages: usize,
-    pub bytes: u64,
-    /// Which part of the book this file is, when it was written in parts.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub part: Option<PartNo>,
-    /// Files in its chapters left out because their format can't be decoded.
-    pub skipped_files: usize,
-    /// JPEG quality its pages were encoded at.
-    pub jpeg_quality: u8,
-}
-
-#[derive(Debug, Serialize)]
-pub struct PartNo {
-    pub index: usize,
-    pub total: usize,
 }
 
 /// A chapter folder or book, and what happened to it.
@@ -98,6 +79,7 @@ impl Report {
             not_written: Vec::new(),
             recorded: Vec::new(),
             detectors,
+            eject: EjectReport::default(),
         }
     }
 

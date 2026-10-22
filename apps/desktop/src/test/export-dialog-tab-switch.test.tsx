@@ -11,6 +11,7 @@ const kindle = {
   name: "Kindle",
   root: "/media/me/Kindle",
   documents: "/media/me/Kindle/documents",
+  ejectable: true,
 };
 const sent = { to: "reader@kindle.com", bytes: 1_000_000 };
 

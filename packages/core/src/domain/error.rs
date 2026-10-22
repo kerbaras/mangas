@@ -64,6 +64,17 @@ pub enum Error {
     /// Email or USB delivery failed; the message is meant for the user as is.
     #[error("{0}")]
     Send(String),
+    /// Eject found `device` in use. `holders` are the programs with a file open on it (empty
+    /// when the OS can't say; `detail` is its own answer then). Retryable once they close.
+    #[error("{}", crate::send::eject::busy_text(device, holders, detail))]
+    VolumeBusy {
+        device: String,
+        holders: Vec<String>,
+        detail: String,
+    },
+    /// The OS refused to eject `device`; the books copied to it stay there. Retryable.
+    #[error("can't eject {device}: {reason}. {}", crate::send::eject::STILL_THERE)]
+    EjectRefused { device: String, reason: String },
     #[error("{0}")]
     Other(String),
 }

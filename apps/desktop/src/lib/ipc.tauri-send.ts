@@ -13,6 +13,7 @@ export const tauriSend: SendBackend = {
   emailRefusal: (file) => invoke("email_refusal", { file }),
   sendUsb: (file, title, root, force) =>
     invoke("send_usb", { file, title, root: root ?? null, force: force ?? false }),
+  ejectKindle: (root, files) => invoke("eject_kindle", { root, files }),
   onCopyProgress: (cb) => listen<CopyProgress>(SEND_EVENT, (e) => cb(e.payload)),
   sendEmail: (file, title) => invoke("send_email", { file, title }),
   sendTestEmail: (settings, typed) => invoke("send_test_email", { settings, typed }),

@@ -11,6 +11,7 @@ const kindle = {
   name: "Kindle",
   root: "/media/me/Kindle",
   documents: "/media/me/Kindle/documents",
+  ejectable: true,
 };
 const FILE = "/books/Solo Leveling 1-3.epub";
 

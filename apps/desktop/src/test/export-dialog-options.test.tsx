@@ -40,6 +40,7 @@ describe("export dialog: format, smart cut and delivery", () => {
       name: "Kindle",
       root: "/media/me/Kindle",
       documents: "/media/me/Kindle/documents",
+      ejectable: true,
     };
     const sendUsb = vi
       .fn()

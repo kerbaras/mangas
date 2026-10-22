@@ -45,8 +45,15 @@ export type PasswordStatus = {
 
 export const DEFAULT_PORT: Record<Security, number> = { starttls: 587, tls: 465, none: 25 };
 
-/** Mirrors `mangas_core::send::KindleVolume`. */
-export type KindleVolume = { name: string; root: string; documents: string };
+/** Mirrors `mangas_core::send::KindleVolume`; `ejectable` is false over MTP (nothing mounted). */
+export type KindleVolume = { name: string; root: string; documents: string; ejectable: boolean };
+
+/** Mirrors `mangas_core::send::eject::Ejected`. */
+export type Ejected = { device: string; strategy: string; powered_off: boolean };
+
+/** Why a Kindle over MTP has no Eject; follows the device name (`eject::MTP_NO_EJECT`). */
+export const MTP_NO_EJECT =
+  "is connected over MTP, so there's nothing to eject; unplug it once the copy has finished";
 
 /** Mirrors `mangas_core::send::usb::UsbKindle`: a Kindle on the USB bus, mounted or not. */
 export type UsbKindle = { name: string };
@@ -100,6 +107,8 @@ export type SendBackend = {
    */
   sendUsb(file: string, title: string, root?: string, force?: boolean): Promise<UsbCopy>;
   onCopyProgress(cb: (p: CopyProgress) => void): Promise<Unlisten>;
+  /** Flushes `files` (the books just copied) and ejects the Kindle mounted at `root`. */
+  ejectKindle(root: string, files: string[]): Promise<Ejected>;
   /** Emails the EPUB to the Kindle address in the settings. */
   sendEmail(file: string, title: string): Promise<SentEmail>;
   /**
@@ -126,6 +135,8 @@ export const sendUsb = async (file: string, title: string, root?: string, force?
   force
     ? (await backend()).sendUsb(file, title, root, true)
     : (await backend()).sendUsb(file, title, root);
+export const ejectKindle = async (root: string, files: string[]) =>
+  (await backend()).ejectKindle(root, files);
 export const onCopyProgress = async (cb: (p: CopyProgress) => void) =>
   (await backend()).onCopyProgress(cb);
 export const sendEmail = async (file: string, title: string) =>

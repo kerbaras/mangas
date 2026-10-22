@@ -7,9 +7,14 @@ export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
 export const DialogClose = DialogPrimitive.Close;
 
+/** A toast's action (Retry) is outside the dialog but must not close it. */
+const onToast = (e: Event) =>
+  e.target instanceof Element && e.target.closest("[data-sonner-toaster]") !== null;
+
 export function DialogContent({
   className,
   children,
+  onInteractOutside,
   ...props
 }: ComponentProps<typeof DialogPrimitive.Content>) {
   return (
@@ -20,6 +25,10 @@ export function DialogContent({
           "fixed top-1/2 left-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border border-stroke bg-surface p-5 shadow-lg",
           className,
         )}
+        onInteractOutside={(e) => {
+          if (onToast(e)) e.preventDefault();
+          onInteractOutside?.(e);
+        }}
         {...props}
       >
         {children}

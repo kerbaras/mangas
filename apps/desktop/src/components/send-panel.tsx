@@ -1,5 +1,6 @@
 import { Mail, Usb } from "lucide-react";
 import { Hint } from "@/components/hint";
+import { KindleRow } from "@/components/kindle-row";
 import { SendStatus } from "@/components/send-status";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -67,6 +68,12 @@ export function SendPanel({ file, onSent }: Props) {
           </button>
         </p>
       )}
+      <KindleRow
+        kindle={send.kindle}
+        mtp={send.state.kind === "mtp" ? send.state.device : undefined}
+        busy={busy}
+        copied={send.state.kind === "done" ? send.state.copied : undefined}
+      />
       <SendStatus
         state={send.state}
         onRetry={() => void send.retry()}

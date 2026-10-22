@@ -1,6 +1,7 @@
 //! Delivery of a finished export to a Kindle: by email to its Send to Kindle address, or by
 //! copying the file onto a Kindle mounted over USB.
 
+pub mod eject;
 pub mod email;
 pub mod password;
 pub mod usb;

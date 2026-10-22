@@ -17,6 +17,8 @@ use crate::{paths, Exit};
 pub struct Delivery {
     pub recorded: Vec<Recorded>,
     pub sent: Vec<String>,
+    /// The files in `sent`, for `--eject`.
+    pub sent_files: Vec<PathBuf>,
     pub failed: Vec<(PathBuf, Unsent)>,
 }
 
@@ -86,7 +88,10 @@ pub async fn record_and_send(
     for (output, title) in &outputs {
         let file = std::path::absolute(output).unwrap_or_else(|_| output.clone());
         match deliver(&lib, &file, title, via, kindle, force).await {
-            Ok(sent) => done.sent.push(sent.line),
+            Ok(sent) => {
+                done.sent.push(sent.line);
+                done.sent_files.push(file);
+            }
             Err(e) => done
                 .failed
                 .push((output.clone(), not_sent(output, via, kindle, &e))),

@@ -5,7 +5,12 @@ import { type Backend, setBackend } from "@/lib/ipc";
 import type { UsbVerdict } from "@/lib/ipc.send";
 import { emailRefusal } from "./email-refusal-stub";
 
-const kindle = { name: "Kindle Paperwhite", root: "/media/me/Kindle", documents: "/d" };
+const kindle = {
+  name: "Kindle Paperwhite",
+  root: "/media/me/Kindle",
+  documents: "/d",
+  ejectable: true,
+};
 
 afterEach(() => setBackend(null));
 

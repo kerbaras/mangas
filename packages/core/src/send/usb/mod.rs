@@ -8,7 +8,7 @@ mod detect;
 mod formats;
 mod scan;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub use bus::{usb_kindles, UsbKindle, AMAZON_VENDOR_ID};
 pub use copy::{copy_to_kindle, Copied};
@@ -52,5 +52,28 @@ pub fn chosen_name(chosen: &Result<KindleVolume>) -> Option<&str> {
         Ok(volume) => Some(&volume.name),
         Err(Error::KindleOverMtp { device }) => Some(device),
         Err(_) => None,
+    }
+}
+
+/// Where the books named like `files` are in `volume`'s documents folder.
+pub fn on_kindle(volume: &KindleVolume, files: &[PathBuf]) -> Vec<PathBuf> {
+    let names = files.iter().filter_map(|f| f.file_name());
+    names.map(|name| volume.documents.join(name)).collect()
+}
+
+/// The Kindle a copy of `files` went to: the one at `root` when given, else the connected one
+/// holding all of them (another Kindle may be listed first), else as [`choose`].
+pub fn choose_holding(
+    root: Option<&Path>,
+    found: KindleScan,
+    files: &[PathBuf],
+) -> Result<KindleVolume> {
+    let holds = |v: &KindleVolume| {
+        let books = on_kindle(v, files);
+        !books.is_empty() && books.iter().all(|b| b.is_file())
+    };
+    match (root, found.volumes.iter().find(|v| holds(v))) {
+        (None, Some(volume)) => Ok(volume.clone()),
+        _ => choose(root, found),
     }
 }
