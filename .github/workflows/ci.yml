@@ -10,6 +10,9 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  # Full debuginfo makes each of the ~70 test binaries ~230 MB, which fills the runner's disk
+  # across the default and `ml` test builds; line tables keep file:line in panics.
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
 
 jobs:
   rust:
