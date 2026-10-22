@@ -19,7 +19,7 @@ import type { ExportPreset } from "@/lib/ipc.cut-preview";
 import type { BookBudget } from "@/lib/ipc.volumes";
 
 type Props = {
-  /** `format` is the one this delivery writes; `reason` says when the delivery chose it. */
+  /** `format` is the one this delivery writes; `reason` is the Kindle route rule. */
   target: SeriesTarget & { reason: string | null };
   preset: Preset;
   onPreset: (p: Preset) => void;

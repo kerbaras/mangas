@@ -42,8 +42,9 @@ export function useSeriesTarget(picks: ExportPick[]) {
     format,
     /** The format an export over `via` writes: picked here, else the delivery's, else `format`. */
     formatFor: (via: Route) => picked ?? byRoute(via) ?? format,
-    /** "Kindle over USB: AZW3; Email: EPUB" when the delivery chose the format. */
-    reasonFor: (via: Route) => (byRoute(via) && recommended?.delivery?.reason) || null,
+    /** "Kindle over USB: AZW3; Email: EPUB" for a Kindle route, also when a format was picked. */
+    reasonFor: (via: Route) =>
+      (deliveryFormat(recommended, via) && recommended?.delivery?.reason) || null,
     recommended,
     // The quality stored for the device shown, which a series preset may have picked.
     quality: settings.jpegQuality[device] ?? null,

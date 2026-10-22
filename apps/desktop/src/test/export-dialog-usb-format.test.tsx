@@ -83,6 +83,7 @@ describe("export dialog: formats a Kindle doesn't open over USB", () => {
       await waitFor(() => expect(checked("AZW3 (Kindle)")).toBe(true));
       fireEvent.click(screen.getByLabelText("EPUB"));
       expect(checked("EPUB")).toBe(true);
+      expect(screen.getByText("Kindle over USB: AZW3; Email: EPUB.")).toBeTruthy();
       fireEvent.click(await enabledButton(/Export 2 books and copy/));
       expect(await screen.findByText(`${device} doesn't open EPUB`)).toBeTruthy();
       expect(screen.getByText(reason)).toBeTruthy();
