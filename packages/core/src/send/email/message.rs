@@ -29,7 +29,11 @@ fn refusal(ext: Option<&str>) -> String {
         .filter(|e| !e.is_empty() && !e.contains(['/', '\\']))
         .map_or("this file".to_string(), |e| {
             let e = e.to_ascii_uppercase();
-            let article = if e.starts_with(['A', 'E', 'I', 'O', 'U']) { "an" } else { "a" };
+            let article = if e.starts_with(['A', 'E', 'I', 'O', 'U']) {
+                "an"
+            } else {
+                "a"
+            };
             format!("{article} {e}")
         });
     format!(

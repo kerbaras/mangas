@@ -18,6 +18,15 @@ const MIN_SIDE: u32 = 64;
 /// The library thumbnail fits this box (kindlegen's thumbnails are about 330 px wide).
 const THUMB_BOX: (u32, u32) = (330, 470);
 
+/// Bytes a page JPEG of `len` adds to the book besides itself: at most a standard copy, when it
+/// is over [`LIMIT`].
+pub fn copy_bound(len: u64) -> u64 {
+    match len > LIMIT as u64 {
+        true => LIMIT as u64,
+        false => 0,
+    }
+}
+
 /// `jpeg` itself when it fits a record, else a smaller copy (`Some`).
 pub fn low_res(jpeg: &[u8]) -> Result<Option<Vec<u8>>> {
     if jpeg.len() <= LIMIT {

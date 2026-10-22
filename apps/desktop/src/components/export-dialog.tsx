@@ -73,8 +73,8 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const { files, named, blocked } = useFreeNames(planned, dir, epoch, replace, splitMb, kept);
   const preview = { folder: folder.resolved, stale: !fresh || !named, blocked };
   const books = files.kind === "ready" ? files.data.length : 0;
-  const budgets = useSizeEstimate({ plans: files, device, preset, quality, email, splitMb });
-  const fit = { device, preset, quality, email, splitMb, bundle: !joined };
+  const fit = { device, preset, quality, email, splitMb, format, bundle: !joined };
+  const budgets = useSizeEstimate({ plans: files, ...fit });
   const over = useOversized(job.state.kind === "done" ? job.state.results : [], files, fit);
   const sending = runningVia(send.state);
   const busy = job.state.kind === "running" || sending !== undefined;

@@ -32,4 +32,5 @@ mod tables;
 mod text;
 mod writer;
 
+pub use images::copy_bound;
 pub use writer::{write, Azw3Exporter, Report};

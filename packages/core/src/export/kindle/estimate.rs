@@ -8,16 +8,15 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 
 use super::input::{chapter_files, ChapterFiles};
+use super::parts::page_cost;
 use super::run::{Run, RunSpec};
 use super::Device;
 use crate::domain::Result;
-use crate::export::PageSettings;
+use crate::export::{Format, PageInfo, PageSettings};
 use crate::smartcut::{is_long_strip, Options};
 
 /// Pages encoded to measure the average page.
 const SAMPLE: usize = 6;
-/// Bytes a page costs in the book besides its JPEG.
-const PAGE_OVERHEAD: u64 = 2_048;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Estimate {
@@ -25,14 +24,15 @@ pub struct Estimate {
     pub bytes: u64,
 }
 
-/// The estimated size of the book `chapter_dirs` make on `device` with `cut` and `page`.
+/// The estimated size of the `format` book `chapter_dirs` make on `device` with `cut` and `page`.
 pub fn estimate(
     chapter_dirs: &[PathBuf],
     device: Device,
     cut: Options,
     page: PageSettings,
+    format: Format,
 ) -> Result<Estimate> {
-    estimate_largest(&[chapter_dirs.to_vec()], device, cut, page)
+    estimate_largest(&[chapter_dirs.to_vec()], device, cut, page, format)
 }
 
 /// The estimate of the book of `books` with the most pages (counted from the image headers of
@@ -42,10 +42,11 @@ pub fn estimate_largest(
     device: Device,
     cut: Options,
     page: PageSettings,
+    format: Format,
 ) -> Result<Estimate> {
     let counted: Vec<Counted> = books.iter().map(|b| count(b, &device, &page)).collect();
     match counted.into_iter().max_by_key(|c| c.pages) {
-        Some(book) => sample(book, device, cut, page),
+        Some(book) => sample(book, device, cut, page, format),
         None => Ok(Estimate { pages: 0, bytes: 0 }),
     }
 }
@@ -56,9 +57,10 @@ pub fn estimate_each(
     device: Device,
     cut: Options,
     page: PageSettings,
+    format: Format,
 ) -> Result<Vec<Estimate>> {
     (books.iter())
-        .map(|b| sample(count(b, &device, &page), device, cut, page))
+        .map(|b| sample(count(b, &device, &page), device, cut, page, format))
         .collect()
 }
 
@@ -100,8 +102,14 @@ fn count<'a>(chapter_dirs: &'a [PathBuf], device: &Device, page: &PageSettings) 
     }
 }
 
-/// `book`'s pages times the average size of a few of them encoded for real.
-fn sample(book: Counted, device: Device, cut: Options, page: PageSettings) -> Result<Estimate> {
+/// `book`'s pages times the average cost of a few of them encoded for real.
+fn sample(
+    book: Counted,
+    device: Device,
+    cut: Options,
+    page: PageSettings,
+    format: Format,
+) -> Result<Estimate> {
     let Counted {
         dirs: chapter_dirs,
         chapters,
@@ -136,10 +144,11 @@ fn sample(book: Counted, device: Device, cut: Options, page: PageSettings) -> Re
         }
     }
     let sampled = run.pages.len().max(1) as u64;
-    let average = run.pages.info().iter().map(|p| p.bytes as u64).sum::<u64>() / sampled;
+    let cost = |p: &PageInfo| page_cost(format, p.bytes as u64);
+    let average = run.pages.info().iter().map(cost).sum::<u64>() / sampled;
     Ok(Estimate {
         pages,
-        bytes: pages as u64 * (average + PAGE_OVERHEAD),
+        bytes: pages as u64 * average,
     })
 }
 

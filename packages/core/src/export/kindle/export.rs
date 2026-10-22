@@ -93,7 +93,7 @@ pub fn export(
     };
     let ranges = req
         .split
-        .map(|max| split_points(run.pages.info(), meta.cover.as_ref(), max))
+        .map(|max| split_points(run.pages.info(), meta.cover.as_ref(), max, req.format))
         .filter(|r| r.len() > 1);
     let exporter = req.format.exporter();
     match ranges {

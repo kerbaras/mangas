@@ -61,8 +61,8 @@ pub struct Args {
     /// against the budget (50 MB with `--send email`, else 200 MB) and the JPEG quality
     #[arg(long)]
     pub dry_run: bool,
-    /// Print one JSON object instead of the lines above: `plan` (path, title, chapters, pages,
-    /// estimated_bytes, budget_bytes, over_budget, jpeg_quality, files, levers when over; the
+    /// Print one JSON object instead of the lines above: `plan` (path, title, chapters, format,
+    /// format_reason when a Kindle route picked it, pages, estimated_bytes, budget_bytes, over_budget, jpeg_quality, files, levers when over; the
     /// only key with --dry-run), `files` (path, title, chapters, pages, bytes, part {index,
     /// total} when written in parts, skipped_files, jpeg_quality), `skipped`, `failed` and
     /// `not_written` (path, reason; a failed book stops the run: the books before it stay, the
@@ -126,6 +126,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         cut: preset.cut(),
         page: preset.page(),
         delivery,
+        format,
         split: args.cut.split(),
     };
     let plan = export_plan::size(&plans, &names, &args.output_dir, spec, chosen)?;

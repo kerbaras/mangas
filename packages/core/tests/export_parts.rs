@@ -113,7 +113,7 @@ fn a_lower_jpeg_quality_makes_a_smaller_book() {
 fn the_estimate_is_close_to_the_written_size() {
     let root = tempfile::tempdir().unwrap();
     let req = request(root.path(), PageSettings::default(), None);
-    let guess = estimate(&req.chapter_dirs, req.device, req.cut, req.page).unwrap();
+    let guess = estimate(&req.chapter_dirs, req.device, req.cut, req.page, req.format).unwrap();
     let stats = run(&req);
     assert_eq!(guess.pages, stats.pages);
     let real = size(&stats.output) as f64;
@@ -132,7 +132,7 @@ fn the_estimate_samples_every_chapter_not_only_the_first_pages() {
     }
     let mut req = request(root.path(), PageSettings::default(), None);
     req.chapter_dirs = vec![flat, chapter(root.path(), "Chapter 1", 6)];
-    let guess = estimate(&req.chapter_dirs, req.device, req.cut, req.page).unwrap();
+    let guess = estimate(&req.chapter_dirs, req.device, req.cut, req.page, req.format).unwrap();
     let real = size(&run(&req).output) as f64;
     let off = (guess.bytes as f64 - real).abs() / real;
     assert!(off < 0.15, "estimate {} B vs {real} B", guess.bytes);

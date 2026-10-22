@@ -1,6 +1,6 @@
 import { type Async, useAsync } from "@/hooks/use-async";
 import type { Preset } from "@/lib/ipc";
-import type { ExportResult, Oversized } from "@/lib/ipc.export";
+import type { ExportFormat, ExportResult, Oversized } from "@/lib/ipc.export";
 import { fitLevers, type Levers, type VolumePlan } from "@/lib/ipc.volumes";
 import { combinedLevers, oversizedDirs, oversizedOf } from "@/lib/kindle-size";
 
@@ -10,6 +10,7 @@ type Choice = {
   quality: number | null;
   email: boolean;
   splitMb: number | null;
+  format: ExportFormat;
   /** The dialog can put fewer chapters in each book (one series): else that lever is dropped. */
   bundle: boolean;
 };
@@ -23,12 +24,12 @@ export function useOversized(
   plans: Async<VolumePlan[]>,
   choice: Choice,
 ): { files: Oversized[]; levers: Levers | null } {
-  const { device, preset, quality, email, splitMb, bundle } = choice;
+  const { device, preset, quality, email, splitMb, format, bundle } = choice;
   const books = plans.kind === "ready" ? oversizedDirs(results, plans.data, email) : [];
-  const key = JSON.stringify([books, device, preset, quality, email, splitMb]);
+  const key = JSON.stringify([books, device, preset, quality, email, splitMb, format]);
   const fit = useAsync(async () => {
     if (books.length === 0 || !device) return null;
-    const levers = await fitLevers({ books, device, preset, quality, email, splitMb });
+    const levers = await fitLevers({ books, device, preset, quality, email, splitMb, format });
     return { key, levers: combinedLevers(levers) };
   }, [key]);
   const s = fit.state;

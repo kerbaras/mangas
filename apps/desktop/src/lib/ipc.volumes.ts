@@ -59,6 +59,8 @@ export type EstimateRequest = {
   /** Emailed: held to 50 MB, else 200 MB. */
   email: boolean;
   splitMb: number | null;
+  /** An AZW3 page can cost a standard copy beside its original. */
+  format: ExportFormat;
 };
 
 /** Mirrors `mangas_core::export::kindle::BookBudget`: a book's estimate against its budget. */

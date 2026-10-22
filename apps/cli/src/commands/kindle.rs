@@ -173,6 +173,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         cut: req.cut,
         page: req.page,
         delivery: delivery_of(args.send),
+        format: req.format,
         split: req.split,
     };
     let fix = || levers_text(None, &req.chapter_dirs, spec, Fewer::Folders);

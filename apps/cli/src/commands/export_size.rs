@@ -143,6 +143,7 @@ mod tests {
             cut: Default::default(),
             page: Default::default(),
             delivery: Delivery::Other,
+            format: mangas_core::export::Format::Epub,
             split: None,
         };
         let fix = levers_text(Some(&planned), &[], spec, Fewer::Every).unwrap();
