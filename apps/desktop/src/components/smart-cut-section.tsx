@@ -49,6 +49,7 @@ export function SmartCutSection({
         </div>
         <Switch
           id="detectors"
+          aria-label="Use detectors"
           checked={usable && detectors}
           onCheckedChange={onDetectors}
           disabled={!usable}

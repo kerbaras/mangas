@@ -58,6 +58,7 @@ export function KindleSizeField(p: Props) {
         <label htmlFor="export-split" className="flex items-center gap-2 text-body text-ink-2">
           <Switch
             id="export-split"
+            aria-label="Split into parts"
             checked={p.splitMb !== null}
             onCheckedChange={(on) => p.onSplit(on ? PART_MB : null)}
           />
