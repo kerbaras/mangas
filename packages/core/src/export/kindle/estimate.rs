@@ -11,12 +11,12 @@ use rayon::prelude::*;
 use serde::Serialize;
 
 use super::input::ChapterFiles;
+use super::parts::page_cost;
 use super::run::{Run, RunSpec};
 use super::survey::{Survey, SAMPLE};
 use super::surveys::chapter_survey;
 use super::Device;
 use crate::domain::{Error, Result};
-use super::parts::page_cost;
 use crate::export::{Format, PageInfo, PageSettings};
 use crate::smartcut::Options;
 
@@ -126,7 +126,10 @@ fn sample(
 }
 
 fn unsampled(dir: &Path, quality: u8) -> Error {
-    Error::Other(format!("{} was not sampled at quality {quality}", dir.display()))
+    Error::Other(format!(
+        "{} was not sampled at quality {quality}",
+        dir.display()
+    ))
 }
 
 /// The average JPEG of [`SAMPLE`] of the regular pages of `chapters`, spread over all of them.

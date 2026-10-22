@@ -53,7 +53,14 @@ fn request(root: &Path) -> ExportRequest {
 fn a_long_strip_is_estimated_at_the_pages_the_smart_cut_writes() {
     let root = tempfile::tempdir().unwrap();
     let req = request(root.path());
-    let guess = estimate(&req.chapter_dirs, req.device, req.cut, req.page, Format::Epub).unwrap();
+    let guess = estimate(
+        &req.chapter_dirs,
+        req.device,
+        req.cut,
+        req.page,
+        Format::Epub,
+    )
+    .unwrap();
     let stats = export(&req, None, &mut |_| {}).unwrap();
     let height_only = (10 * (PANEL + GUTTER) + GUTTER).div_ceil(req.device.height) as usize;
     assert!(stats.pages > height_only, "{} pages", stats.pages);
@@ -88,7 +95,14 @@ fn a_plan_and_its_levers_count_the_pages_the_export_writes() {
 fn a_detector_export_stays_close_to_the_estimate_without_detectors() {
     let root = tempfile::tempdir().unwrap();
     let req = request(root.path());
-    let guess = estimate(&req.chapter_dirs, req.device, req.cut, req.page).unwrap();
+    let guess = estimate(
+        &req.chapter_dirs,
+        req.device,
+        req.cut,
+        req.page,
+        Format::Epub,
+    )
+    .unwrap();
     let busy_tops: RowPenalizer = Arc::new(|img: &RgbaImage| {
         let h = img.height();
         Ok((0..h).map(|y| if y < h / 2 { 1.0 } else { 0.0 }).collect())
