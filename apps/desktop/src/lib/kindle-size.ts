@@ -42,9 +42,8 @@ export function alignBudgets(dirs: string[][], budgets: BookBudget[]): (BookBudg
 export const againstBudget = (b: BookBudget) =>
   `${megabytes(b.estimated_bytes)} of ${megabytes(b.budget_bytes)}`;
 
-/** The levers that fit every over-budget book: the fewest chapters and the lowest quality. */
-function combinedLevers(over: BookBudget[]): Levers | null {
-  const levers = over.flatMap((b) => b.levers ?? []);
+/** The levers that fit every book of `levers`: the fewest chapters and the lowest quality. */
+export function combinedLevers(levers: Levers[]): Levers | null {
   if (levers.length === 0) return null;
   const lowest = (pick: (l: Levers) => number | null) => {
     const all = levers.map(pick);
@@ -68,7 +67,7 @@ export function budgetNote(budgets: BookBudget[]) {
     label: label[0].toUpperCase() + label.slice(1),
     over: over.length,
     budgetMb: largest.budget_bytes / 1_000_000,
-    levers: combinedLevers(over),
+    levers: combinedLevers(over.flatMap((b) => b.levers ?? [])),
   };
 }
 
@@ -77,3 +76,14 @@ export const oversizedOf = (results: ExportResult[], email: boolean) =>
   results
     .flatMap((r) => r.oversized ?? [])
     .filter((o) => o.bytes > (email ? SEND_TO_KINDLE_MB : WEB_MB) * 1_000_000);
+
+/** The chapter folders of each written book with a file over the budget: its plan by chapter ids,
+ * else by position (`results` are in plan order). */
+export const oversizedDirs = (results: ExportResult[], plans: VolumePlan[], email: boolean) =>
+  results.flatMap((r, i) => {
+    if (oversizedOf([r], email).length === 0) return [];
+    const ids = r.chapters;
+    const plan = ids ? plans.find((p) => p.chapters.every((c) => ids.includes(c.id))) : plans[i];
+    const dirs = plan ? bookDirs([plan])[0] : [];
+    return dirs.length > 0 ? [dirs] : [];
+  });

@@ -13,10 +13,11 @@ use super::deliver::{try_deliver, unsent, SendArg};
 use super::export_args::FormatArg;
 use super::export_cover::cover_file;
 use super::export_plan;
+use super::export_plan::Fewer;
 use super::export_plans::plans;
 use super::export_preset::{self, PresetAction};
 use super::export_report::Report;
-use super::export_size::{delivery_of, print_written, warn_too_big};
+use super::export_size::{delivery_of, levers_text, print_written, warn_too_big};
 use super::followed::followed_source;
 use super::kindle_record;
 use super::{export_progress::export_printing, hint, stored_settings};
@@ -122,12 +123,10 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         split: args.cut.split(),
     };
     let plan = export_plan::size(&plans, &names, &args.output_dir, spec)?;
+    let fewer = Fewer::of(args.chapters.is_some() || args.volume.is_some());
     match (args.json, args.dry_run) {
         (true, true) => return export_plan::print_json(&plan),
-        (false, _) => {
-            let picked = args.chapters.is_some() || args.volume.is_some();
-            export_plan::print(&plans, &plan, &firsts, args.cut.split_mb, picked)?
-        }
+        (false, _) => export_plan::print(&plans, &plan, &firsts, args.cut.split_mb, fewer)?,
         (true, false) => {}
     }
     if args.dry_run {
@@ -172,7 +171,12 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         if !args.json {
             print_written(&stats)?;
         }
-        warn_too_big(&stats.oversized, delivery_of(args.send));
+        let planned = report
+            .plan
+            .get(index)
+            .and_then(|b| b.budget.levers.as_ref());
+        let fix = || levers_text(planned, &req.chapter_dirs, spec, fewer);
+        warn_too_big(&stats.oversized, delivery, fix);
         let recorded = kindle_record::mark_exported(&lib, &stats, &req.chapter_dirs);
         report.recorded.extend(recorded);
         for (output, title) in &stats.titled_outputs(&req.title) {

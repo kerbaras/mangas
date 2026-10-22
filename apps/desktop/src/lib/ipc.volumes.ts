@@ -94,6 +94,8 @@ export type VolumesBackend = {
   exportFileName(title: string, format: ExportFormat): Promise<string>;
   /** Each book's size against its budget, from a few of its pages encoded for real. */
   estimateExport(request: EstimateRequest): Promise<BookBudget[]>;
+  /** What makes each book fit, as its plan offers it (`kindle::book_levers`). */
+  fitLevers(request: EstimateRequest): Promise<Levers[]>;
 };
 
 export const planVolumes = async (r: VolumeRequest) => (await backend()).planVolumes(r);
@@ -105,3 +107,4 @@ export const checkExportDir = async (dir: string, split: boolean, replace: boole
 export const exportFileName = async (title: string, format: ExportFormat = "epub") =>
   (await backend()).exportFileName(title, format);
 export const estimateExport = async (r: EstimateRequest) => (await backend()).estimateExport(r);
+export const fitLevers = async (r: EstimateRequest) => (await backend()).fitLevers(r);

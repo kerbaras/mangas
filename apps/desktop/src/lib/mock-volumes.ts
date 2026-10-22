@@ -50,11 +50,12 @@ export function mockVolumes(deps: Deps): VolumesBackend {
     exportFileName: async (title, format) => withExtension(portable(title), format),
     // About 24 pages a chapter at ~6 kB per quality point: 85 makes a 12 MB chapter.
     estimateExport: async (r) => r.books.map((b) => mockBudget(b.length, r)),
+    fitLevers: async (r) => r.books.map((b) => mockBudget(b.length, r, true).levers ?? noLevers),
   };
 }
 
 /** A stand-in for `kindle::plan_budget`: 24 pages a chapter, bytes growing with the quality. */
-function mockBudget(chapters: number, r: EstimateRequest): BookBudget {
+function mockBudget(chapters: number, r: EstimateRequest, always = false): BookBudget {
   const [pages, quality] = [chapters * 24, r.quality ?? 90];
   const bytesAt = (q: number) => pages * q * 6_000;
   const budget = r.email ? 50_000_000 : 200_000_000;
@@ -69,5 +70,12 @@ function mockBudget(chapters: number, r: EstimateRequest): BookBudget {
   };
   const files = Number.isFinite(split) ? Math.max(1, Math.ceil(bytes / split)) : 1;
   const fields = { pages, estimated_bytes: bytes, budget_bytes: budget, files };
-  return { ...fields, over_budget: over, jpeg_quality: quality, levers: over ? levers : null };
+  return {
+    ...fields,
+    over_budget: over,
+    jpeg_quality: quality,
+    levers: over || always ? levers : null,
+  };
 }
+
+const noLevers = { split_bytes: 0, chapters_per_book: null, jpeg_quality: null };

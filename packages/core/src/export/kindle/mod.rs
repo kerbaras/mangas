@@ -6,6 +6,7 @@ mod estimate;
 mod export;
 pub mod filters;
 mod input;
+mod levers;
 mod margins;
 mod parts;
 mod plan;
@@ -26,6 +27,7 @@ pub use budget::{
 pub use estimate::{estimate, estimate_each, estimate_largest, Estimate};
 pub use export::export;
 pub use input::{chapter_files, chapter_images, decode, ChapterFiles};
+pub use levers::book_levers;
 pub use parts::{
     free_book_path, oversized, part_book, part_owner, part_path, Oversized, PART_SIZE,
     SEND_TO_KINDLE_LIMIT,

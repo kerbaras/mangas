@@ -34,4 +34,5 @@ export const tauriVolumes: VolumesBackend = {
   checkExportDir: (dir, split, replace) => invoke("check_export_dir", { dir, split, replace }),
   exportFileName: (title, format) => invoke("export_file_name", { title, format }),
   estimateExport: (r) => invoke("estimate_export", { ...r }),
+  fitLevers: (r) => invoke("fit_levers", { ...r }),
 };

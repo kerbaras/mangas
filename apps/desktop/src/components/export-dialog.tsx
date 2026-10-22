@@ -24,6 +24,7 @@ import { useDetectorSupport } from "@/hooks/use-detector-support";
 import { useExport } from "@/hooks/use-export";
 import { useExportPlan } from "@/hooks/use-export-plan";
 import { useFreeNames } from "@/hooks/use-free-names";
+import { useOversized } from "@/hooks/use-oversized";
 import { type Book, refused, runningVia, useSend } from "@/hooks/use-send";
 import { useSeriesTarget } from "@/hooks/use-series-target";
 import { useSizeEstimate } from "@/hooks/use-size-estimate";
@@ -77,14 +78,15 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const books = files.kind === "ready" ? files.data.length : 0;
   const email = via === "email";
   const budgets = useSizeEstimate({ plans: files, device, preset, quality, email, splitMb });
-  const oversized = job.state.kind === "done" ? oversizedOf(job.state.results, email) : [];
+  const fit = { device, preset, quality, email, splitMb, bundle: !joined };
+  const over = useOversized(job.state.kind === "done" ? job.state.results : [], files, fit);
   const sending = runningVia(send.state);
   const busy = job.state.kind === "running" || sending !== undefined;
   const failed = written.length > 0 && ["error", "no-device", "mtp"].includes(send.state.kind);
   const sendVia = via === "save" ? undefined : via;
   const stuck = failed && refused(send.state, via);
   const resend =
-    failed && sendVia !== undefined && !stuck && !(via === "email" && oversized.length > 0);
+    failed && sendVia !== undefined && !stuck && !(via === "email" && over.files.length > 0);
   const retrySend = sendVia && (() => void send.retry(sendVia));
   const ready =
     fresh &&
@@ -173,8 +175,9 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
         <div className="mt-4 flex flex-col gap-3 empty:hidden">
           <ExportProgressPanel state={job.state} onRetry={() => void run()} canRetry={ready} />
           <OversizedAlert
-            files={oversized}
+            files={over.files}
             email={email}
+            levers={over.levers}
             onSplit={splitMb === null ? () => setSplitMb(email ? PART_MB : WEB_PART_MB) : undefined}
           />
           <SendStatus state={send.state} via={via} onRetry={retrySend} />

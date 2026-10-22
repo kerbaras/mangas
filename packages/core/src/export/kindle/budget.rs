@@ -7,7 +7,8 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::estimate::{chapter_pages, estimate_each, Estimate};
+use super::estimate::{estimate_each, Estimate};
+use super::levers::levers;
 use super::parts::{Oversized, SEND_TO_KINDLE_LIMIT};
 use super::Device;
 use crate::domain::Result;
@@ -137,56 +138,6 @@ fn biggest_file(e: &Estimate, split: Option<u64>) -> u64 {
 fn files(e: &Estimate, split: Option<u64>) -> usize {
     let parts = split.map_or(1, |s| e.bytes.div_ceil(s.max(1)) as usize);
     parts.clamp(1, e.pages.max(1))
-}
-
-fn levers(dirs: &[PathBuf], e: &Estimate, quality: u8, spec: BudgetSpec) -> Result<Levers> {
-    let target = spec.delivery.target();
-    Ok(Levers {
-        split_bytes: target,
-        chapters_per_book: chapters_per_book(dirs, e, spec)?,
-        jpeg_quality: fitting_quality(dirs, quality, spec)?,
-    })
-}
-
-/// The most chapters per book of `dirs` that keeps every book within the target: guessed from
-/// each chapter's pages at the book's average page size, then checked on every book, since a
-/// shorter book of bigger pages can be the larger one.
-fn chapters_per_book(dirs: &[PathBuf], e: &Estimate, spec: BudgetSpec) -> Result<Option<usize>> {
-    let target = spec.delivery.target();
-    let pages = chapter_pages(dirs, &spec.device, &spec.page);
-    let mut guess = most_that_fit(&pages, e.bytes / e.pages.max(1) as u64, target);
-    while let Some(n) = guess {
-        let books: Vec<Vec<PathBuf>> = dirs.chunks(n).map(<[PathBuf]>::to_vec).collect();
-        let each = estimate_each(&books, spec.device, spec.cut, spec.page)?;
-        if each.iter().all(|e| e.bytes <= target) {
-            return Ok(Some(n));
-        }
-        guess = (n > 1).then(|| n - 1);
-    }
-    Ok(None)
-}
-
-/// The most chapters of `pages` per book, fewer than all, whose books all stay within `target`.
-fn most_that_fit(pages: &[usize], page_bytes: u64, target: u64) -> Option<usize> {
-    let fits =
-        |n: usize| (pages.chunks(n)).all(|c| c.iter().sum::<usize>() as u64 * page_bytes <= target);
-    (1..pages.len()).rev().find(|&n| fits(n))
-}
-
-/// The highest of [`QUALITY_STEPS`] below `quality` whose estimate is within the target.
-fn fitting_quality(dirs: &[PathBuf], quality: u8, spec: BudgetSpec) -> Result<Option<u8>> {
-    let book = [dirs.to_vec()];
-    for q in QUALITY_STEPS.into_iter().filter(|&q| q < quality) {
-        let page = PageSettings {
-            quality: Some(q),
-            ..spec.page
-        };
-        let e = estimate_each(&book, spec.device, spec.cut, page)?;
-        if e.first().is_some_and(|e| e.bytes <= spec.delivery.target()) {
-            return Ok(Some(q));
-        }
-    }
-    Ok(None)
 }
 
 #[cfg(test)]

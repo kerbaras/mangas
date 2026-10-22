@@ -45,13 +45,35 @@ fn chapter_dirs(p: &VolumePlan) -> Vec<PathBuf> {
         .collect()
 }
 
+/// How the command that prints a lever takes fewer chapters per book.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Fewer {
+    /// `export --every N`.
+    Every,
+    /// `export --chapters` or `--volume` was given, which `--every` can't be given with.
+    Ranges,
+    /// `kindle`: the chapter folders passed.
+    Folders,
+}
+
+impl Fewer {
+    /// `export`'s way: ranges when the chapters were `picked`, else `--every`.
+    pub const fn of(picked: bool) -> Self {
+        if picked {
+            Fewer::Ranges
+        } else {
+            Fewer::Every
+        }
+    }
+}
+
 /// The plan as text: a line per book, then its size against the budget and what makes it fit.
 pub fn print(
     plans: &[VolumePlan],
     plan: &[PlannedBook],
     first_parts: &[String],
     split_mb: Option<u64>,
-    picked: bool,
+    fewer: Fewer,
 ) -> anyhow::Result<()> {
     for ((p, book), first_part) in plans.iter().zip(plan).zip(first_parts) {
         let (first, last) = match (p.chapters.first(), p.chapters.last()) {
@@ -72,7 +94,7 @@ pub fn print(
         )?;
         outln!("  {}", budget_line(&book.budget))?;
         if let Some(levers) = &book.budget.levers {
-            outln!("  {}", levers_line(levers, picked))?;
+            outln!("  {}", levers_line(levers, fewer))?;
         }
     }
     Ok(())
@@ -109,17 +131,17 @@ pub fn budget_line(b: &BookBudget) -> String {
     )
 }
 
-/// `to fit: --every 8 (fewer chapters per book), --split-mb 180 (parts) or --quality 60`.
-/// When the chapters were `picked` (`--chapters`, `--volume`), which `--every` can't be given
-/// with, the fewer chapters are ranges of that many.
-pub fn levers_line(l: &Levers, picked: bool) -> String {
+/// `to fit: --every 8 (fewer chapters per book), --split-mb 180 (parts), --quality 60 (...)`,
+/// the fewer chapters as `fewer` takes them.
+pub fn levers_line(l: &Levers, fewer: Fewer) -> String {
     let mut ways = Vec::new();
-    match l.chapters_per_book {
-        Some(n) if picked => ways.push(format!(
-            "--chapters in ranges of {n} (fewer chapters per book)"
-        )),
-        Some(n) => ways.push(format!("--every {n} (fewer chapters per book)")),
-        None => {}
+    if let Some(n) = l.chapters_per_book {
+        let way = match fewer {
+            Fewer::Every => format!("--every {n}"),
+            Fewer::Ranges => format!("--chapters in ranges of {n}"),
+            Fewer::Folders => format!("{n} chapter folders per book"),
+        };
+        ways.push(format!("{way} (fewer chapters per book)"));
     }
     ways.push(format!("--split-mb {} (parts)", l.split_bytes / 1_000_000));
     match l.jpeg_quality {

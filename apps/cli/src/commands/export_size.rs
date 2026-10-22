@@ -1,11 +1,14 @@
 //! The Send-to-Kindle size check after a book is written: a file over its delivery's budget
-//! (50 MB by email, 200 MB otherwise) is named on stderr with the flags that make it fit.
+//! (50 MB by email, 200 MB otherwise) is named on stderr with the levers its plan offers.
 
 use std::path::{Path, PathBuf};
 
-use mangas_core::export::kindle::{Delivery, ExportStats, Oversized};
+use mangas_core::export::kindle::{
+    book_levers, BudgetSpec, Delivery, ExportStats, Levers, Oversized,
+};
 
 use super::deliver::SendArg;
+use super::export_plan::{levers_line, Fewer};
 
 use crate::output::outln;
 
@@ -22,23 +25,47 @@ pub fn delivery_of(send: Option<SendArg>) -> Delivery {
     }
 }
 
-/// Warns about each written file over `delivery`'s budget (measured on disk by core).
-pub fn warn_too_big(files: &[Oversized], delivery: Delivery) {
-    for file in delivery.over(files) {
-        eprintln!("{}", too_big(&file.path, file.bytes, delivery));
+/// Warns about each written file over `delivery`'s budget (measured on disk by core) with `fix`,
+/// the plan's lever line, worked out only when a file is over.
+pub fn warn_too_big(files: &[Oversized], delivery: Delivery, fix: impl FnOnce() -> Option<String>) {
+    let over = delivery.over(files);
+    if over.is_empty() {
+        return;
+    }
+    let fix = fix().unwrap_or_else(|| {
+        format!(
+            "to fit: --split-mb {} (parts)",
+            delivery.target() / 1_000_000
+        )
+    });
+    for file in over {
+        eprintln!("{}", too_big(&file.path, file.bytes, delivery, &fix));
     }
 }
 
-/// The warning for `file` of `size` bytes over `delivery`'s budget.
-pub fn too_big(file: &Path, size: u64, delivery: Delivery) -> String {
+/// The plan's lever line for a written book of `dirs`: its `planned` levers, else core's, so the
+/// warning never offers what the plan would not.
+pub fn levers_text(
+    planned: Option<&Levers>,
+    dirs: &[PathBuf],
+    spec: BudgetSpec,
+    fewer: Fewer,
+) -> Option<String> {
+    let levers = match planned {
+        Some(l) => l.clone(),
+        None => book_levers(dirs, spec).ok()?,
+    };
+    Some(levers_line(&levers, fewer))
+}
+
+/// The warning for `file` of `size` bytes over `delivery`'s budget, with the lever line `fix`.
+pub fn too_big(file: &Path, size: u64, delivery: Delivery, fix: &str) -> String {
     format!(
-        "warning: {} is {:.1} MB, over the {} MB Send-to-Kindle {} limit; write it in parts \
-         with --split-mb {} or make it smaller with --quality 70",
+        "warning: {} is {:.1} MB, over the {} MB Send-to-Kindle {} limit; {fix}",
         file.display(),
         size as f64 / 1e6,
         delivery.budget() / 1_000_000,
         delivery.limit_name(),
-        delivery.target() / 1_000_000
     )
 }
 
@@ -82,15 +109,37 @@ mod tests {
         let files = [big(96_400_000), big(212_000_000)];
         assert_eq!(Delivery::Email.over(&files).len(), 2);
         assert_eq!(Delivery::Other.over(&files), [big(212_000_000)]);
-        assert_eq!(
-            too_big(file, 96_400_000, Delivery::Email),
-            "warning: /k/Big.epub is 96.4 MB, over the 50 MB Send-to-Kindle email limit; \
-             write it in parts with --split-mb 45 or make it smaller with --quality 70"
+        let fix = levers_line(
+            &Levers {
+                split_bytes: 45_000_000,
+                chapters_per_book: None,
+                jpeg_quality: None,
+            },
+            Fewer::Every,
         );
         assert_eq!(
-            too_big(file, 212_000_000, Delivery::Other),
-            "warning: /k/Big.epub is 212.0 MB, over the 200 MB Send-to-Kindle web limit; \
-             write it in parts with --split-mb 180 or make it smaller with --quality 70"
+            too_big(file, 96_400_000, Delivery::Email, &fix),
+            "warning: /k/Big.epub is 96.4 MB, over the 50 MB Send-to-Kindle email limit; \
+             to fit: --split-mb 45 (parts), no JPEG quality down to 50 fits"
+        );
+        let planned = Levers {
+            split_bytes: 180_000_000,
+            chapters_per_book: Some(4),
+            jpeg_quality: Some(80),
+        };
+        let spec = BudgetSpec {
+            device: mangas_core::export::profile("kindle-paperwhite12").unwrap(),
+            cut: Default::default(),
+            page: Default::default(),
+            delivery: Delivery::Other,
+            split: None,
+        };
+        let fix = levers_text(Some(&planned), &[], spec, Fewer::Every).unwrap();
+        assert_eq!(
+            too_big(file, 237_000_000, Delivery::Other, &fix),
+            "warning: /k/Big.epub is 237.0 MB, over the 200 MB Send-to-Kindle web limit; \
+             to fit: --every 4 (fewer chapters per book), --split-mb 180 (parts), --quality 80 \
+             (lower JPEG quality)"
         );
     }
 }
