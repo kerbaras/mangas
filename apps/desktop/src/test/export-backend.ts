@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { expect, vi } from "vitest";
 import { withExtension } from "@/lib/export-plan";
 import {
@@ -112,4 +112,18 @@ export async function enabledButton(name: RegExp) {
   const button = await screen.findByRole("button", { name });
   await waitFor(() => expect(button).toHaveProperty("disabled", false));
   return button;
+}
+
+/**
+ * The file names the book preview lists once it has settled: planned for the current picks and
+ * named for the folder (`aria-busy` off). Until then it shows the plain planned names.
+ */
+export function settledFiles() {
+  return waitFor(() => {
+    const list = screen.getByRole("list", { name: "Files to write" });
+    expect(list.parentElement).toHaveAttribute("aria-busy", "false");
+    return within(list)
+      .getAllByRole("listitem")
+      .map((item) => item.querySelector(".font-mono")?.textContent ?? "");
+  });
 }
