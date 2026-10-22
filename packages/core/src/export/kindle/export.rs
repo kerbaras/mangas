@@ -79,11 +79,7 @@ pub fn export(
                 .unwrap_or_else(|| fallback_identity(req)),
         ),
         title: req.title.clone(),
-        authors: if src.authors.is_empty() {
-            vec!["mangas".into()]
-        } else {
-            src.authors.clone()
-        },
+        authors: src.authors.clone(),
         language: src.language.clone().unwrap_or_else(|| "en".into()),
         series: src.series.clone(),
         right_to_left: src.direction.is_rtl(),

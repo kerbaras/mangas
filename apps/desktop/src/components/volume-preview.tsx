@@ -42,9 +42,14 @@ export function VolumePreview({ plans, budgets, folder, stale = false, blocked =
             className="flex items-center gap-3 border-b border-stroke px-3 py-2 last:border-b-0"
           >
             <BookOpen className="size-4 shrink-0 text-ink-3" aria-hidden />
-            <Hint hint={p.file_name} truncated>
-              <span className="min-w-0 flex-1 truncate font-mono text-caption">{p.file_name}</span>
-            </Hint>
+            <span className="flex min-w-0 flex-1 flex-col">
+              <Hint hint={p.file_name} truncated>
+                <span className="truncate font-mono text-caption">{p.file_name}</span>
+              </Hint>
+              {p.authors.length > 0 && (
+                <span className="truncate text-caption text-ink-3">By {p.authors.join(", ")}</span>
+              )}
+            </span>
             <span className="flex shrink-0 flex-col items-end text-caption text-ink-3 tabular-nums">
               {planSummary(p)}
               <BookSize budget={budgets?.[i] ?? null} />

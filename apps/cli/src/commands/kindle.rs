@@ -115,7 +115,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // series preset say otherwise, whatever the stored defaults are. The JPEG quality stored for
     // the profile applies: it belongs to the device, not to the default picks.
     let explicit = args.cut.explicit(None)?;
-    let (labels, series, chapter_titles, saved, source) = from_library(&args.chapters);
+    let (labels, series, chapter_titles, saved, source, authors) = from_library(&args.chapters);
     let preset = ExportPreset::resolve(&explicit, saved.as_ref(), &source)
         .with_stored_quality(&super::stored_settings(), DEFAULT_PROFILE);
     let dev = CutArgs::device_of(&preset, DEFAULT_PROFILE)?;
@@ -153,6 +153,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         output: output.clone(),
         replace: args.replace,
         meta: BookMeta {
+            authors,
             chapter_titles,
             direction: preset.direction.unwrap_or_default(),
             ..Default::default()

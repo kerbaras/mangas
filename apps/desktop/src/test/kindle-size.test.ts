@@ -12,7 +12,13 @@ const chapter = (n: string, local: boolean): Chapter => ({
   number: n,
   local_path: local ? `/d/${n}` : null,
 });
-const plan = (chapters: Chapter[]) => ({ number: null, title: "t", file_name: "t.epub", chapters });
+const plan = (chapters: Chapter[]) => ({
+  number: null,
+  title: "t",
+  file_name: "t.epub",
+  chapters,
+  authors: [],
+});
 const MB = 1_000_000;
 const book = (mb: number, over: boolean, levers: BookBudget["levers"] = null): BookBudget => ({
   pages: 304,

@@ -71,6 +71,10 @@ fn exports_chapters_and_skips_empty_directories() {
         nav.contains("text/page-00002.xhtml"),
         "ch3 starts at page 3: {nav}"
     );
+    let mut opf = String::new();
+    std::io::Read::read_to_string(&mut zip.by_name("OEBPS/content.opf").unwrap(), &mut opf)
+        .unwrap();
+    assert!(!opf.contains("dc:creator"), "no author, no creator: {opf}");
 }
 
 #[test]

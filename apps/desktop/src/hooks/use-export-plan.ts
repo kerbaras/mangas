@@ -3,6 +3,7 @@ import { useDebounced } from "@/hooks/use-debounced";
 import { type ExportPick, exportTitle } from "@/lib/export-name";
 import { type BundleMode, groupingOf } from "@/lib/export-plan";
 import { exportFileName, planVolumes, type VolumePlan } from "@/lib/ipc.volumes";
+import { bookCreators } from "@/lib/manga-meta";
 
 /** Typing in the title or size fields replans once the user pauses. */
 const PLAN_DELAY_MS = 300;
@@ -21,6 +22,7 @@ export const joinedPlan = async (picks: ExportPick[], title: string): Promise<Vo
     title: name,
     file_name: await exportFileName(name),
     chapters: picks.flatMap((p) => p.chapters),
+    authors: [...new Set(picks.flatMap((p) => bookCreators(p.manga)))],
   };
 };
 

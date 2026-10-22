@@ -19,6 +19,8 @@ pub struct VolumePlan {
     pub title: String,
     pub file_name: String,
     pub chapters: Vec<Chapter>,
+    /// Who the book credits ([`Manga::creators`]); empty when the source names nobody.
+    pub authors: Vec<String>,
 }
 
 /// Books for the downloaded chapters among `chapters` (in reading order). `template` defaults
@@ -57,6 +59,7 @@ pub fn plan(
                 file_name,
                 title,
                 chapters: v.chapters,
+                authors: manga.creators(),
             }
         })
         .collect()

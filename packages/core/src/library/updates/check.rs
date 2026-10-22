@@ -9,7 +9,9 @@ use super::UpdateReport;
 use super::{new_chapters, select, CheckFailure, Known, Target, TitleUpdate, UpdatePolicy};
 use crate::domain::{in_group, Chapter, Error, MangaId, Result};
 use crate::library::stored_releases::stored_releases;
-use crate::library::{fetch_chapters, get_manga, list_entries, store_chapters, Library};
+use crate::library::{
+    fetch_chapters, get_manga, list_entries, refresh_record, store_chapters, Library,
+};
 use crate::sources::Source;
 
 /// A source ready to query, with the chapter languages to sync from it.
@@ -114,7 +116,23 @@ async fn refresh(lib: &Library, source: &SourceFor, target: &Target) -> Result<V
         target.chapter_group.as_deref(),
     );
     store_chapters(lib, name, id, lists)?;
+    fill_credits(lib, source, target).await;
     Ok(new)
+}
+
+/// A title saved without credits (followed before they were mapped) gets its record again, once
+/// per check until the source names someone; best effort, the chapters are already stored.
+async fn fill_credits(lib: &Library, source: &SourceFor, target: &Target) {
+    if !target.manga.creators().is_empty() {
+        return;
+    }
+    let id = &target.manga.id;
+    if let Err(e) = refresh_record(lib, source.source.as_ref(), id).await {
+        tracing::warn!(
+            "{}: kept the saved record of {id}: {e}",
+            source.source.name()
+        );
+    }
 }
 
 fn known(lib: &Library, source: &str, id: &MangaId, group: Option<&str>) -> Result<Known> {

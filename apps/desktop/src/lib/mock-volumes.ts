@@ -1,6 +1,7 @@
 import { withExtension } from "./export-plan";
 import type { Chapter, ExportProgress, Manga } from "./ipc";
 import type { BookBudget, EstimateRequest, VolumesBackend } from "./ipc.volumes";
+import { bookCreators } from "./manga-meta";
 import { simulateExport } from "./mock-export";
 import { mockExportResult } from "./mock-flags";
 import { markExported } from "./mock-library";
@@ -18,8 +19,9 @@ type Deps = {
 export function mockVolumes(deps: Deps): VolumesBackend {
   const plan: VolumesBackend["planVolumes"] = async (r) => {
     const picked = deps.chapters(r.source, r.mangaId).filter((c) => r.chapterIds.includes(c.id));
-    const title = deps.manga(r.source, r.mangaId)?.title ?? "Manga";
-    return mockPlan(title, picked, r.grouping, r.title);
+    const manga = deps.manga(r.source, r.mangaId);
+    const authors = manga ? bookCreators(manga) : [];
+    return mockPlan(manga?.title ?? "Manga", picked, r.grouping, r.title, authors);
   };
   return {
     planVolumes: plan,

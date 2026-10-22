@@ -27,7 +27,7 @@ fn opf(right_to_left: bool) -> String {
     let book = Book {
         id: "1".into(),
         title: "T".into(),
-        authors: vec!["mangas".into()],
+        authors: vec!["Test Author".into()],
         language: "ja".into(),
         series: None,
         right_to_left,

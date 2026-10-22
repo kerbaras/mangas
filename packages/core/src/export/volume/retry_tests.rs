@@ -11,6 +11,7 @@ fn plan(file: &str, ids: &[&str]) -> VolumePlan {
         title: file.into(),
         file_name: file.into(),
         chapters: ids.iter().map(chapter).collect(),
+        authors: Vec::new(),
     }
 }
 

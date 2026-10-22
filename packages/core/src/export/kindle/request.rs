@@ -14,7 +14,7 @@ use crate::smartcut::Options;
 /// Book-level metadata; the default is a plain chapter bundle titled by `ExportRequest::title`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct BookMeta {
-    /// `dc:creator`s; "mangas" when empty.
+    /// `dc:creator`s (AZW3 EXTH 100); none are written when empty.
     pub authors: Vec<String>,
     /// `dc:language`; "en" when unknown.
     pub language: Option<String>,

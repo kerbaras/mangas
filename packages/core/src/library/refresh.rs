@@ -37,6 +37,18 @@ pub async fn refresh_from_source(
     Ok(Refreshed::Saved)
 }
 
+/// Saves the source's current record of a followed title (credits, year, tags…), so a title
+/// followed before a field was mapped gets it. Returns whether it was saved: a title that isn't
+/// followed (or is unfollowed while the request runs) is left alone.
+pub async fn refresh_record(lib: &Library, source: &dyn Source, id: &MangaId) -> Result<bool> {
+    let manga = source.manga(id).await?;
+    if !is_followed(lib, source, id)? {
+        return Ok(false);
+    }
+    upsert_manga(lib, &manga)?;
+    Ok(true)
+}
+
 fn is_followed(lib: &Library, source: &dyn Source, id: &MangaId) -> Result<bool> {
     Ok(get_manga(lib, source.name(), id)?.is_some())
 }

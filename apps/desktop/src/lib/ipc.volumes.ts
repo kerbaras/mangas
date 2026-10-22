@@ -16,6 +16,8 @@ export type VolumePlan = {
   title: string;
   file_name: string;
   chapters: Chapter[];
+  /** Who the book credits; empty when the source names nobody. */
+  authors: string[];
 };
 
 export type VolumeRequest = {
