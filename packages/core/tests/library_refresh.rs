@@ -3,7 +3,8 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 use mangas_core::domain::{Chapter, ChapterId, Error, Manga, MangaId};
 use mangas_core::library::{
-    get_manga, list_chapters, open_in_memory, refresh_from_source, upsert_manga, Refreshed,
+    get_manga, list_chapters, open_in_memory, refresh_from_source, refresh_record, upsert_manga,
+    Refreshed,
 };
 use mangas_core::sources::{PageUrls, Source};
 
@@ -164,5 +165,27 @@ async fn an_unfollow_during_the_refresh_is_not_undone() {
         .unwrap();
 
     assert_eq!(result, Refreshed::NotFollowed(vec![chapter("1")]));
+    assert_eq!(get_manga(&lib, "fake", &id()).unwrap(), None);
+}
+
+#[tokio::test]
+async fn refreshing_the_record_fills_the_authors_of_a_title_followed_without_them() {
+    let lib = open_in_memory().unwrap();
+    upsert_manga(&lib, &bare()).unwrap();
+
+    assert!(refresh_record(&lib, &source(), &id()).await.unwrap());
+
+    let saved = get_manga(&lib, "fake", &id()).unwrap().unwrap();
+    assert_eq!(saved.creators(), ["SIU"]);
+}
+
+#[tokio::test]
+async fn refreshing_the_record_of_an_unfollowed_title_saves_nothing() {
+    let lib = open_in_memory().unwrap();
+
+    assert!(!refresh_record(&lib, &source(), &id()).await.unwrap());
+    assert!(!refresh_record(&lib, &UnfollowsMidway(&lib), &id())
+        .await
+        .unwrap());
     assert_eq!(get_manga(&lib, "fake", &id()).unwrap(), None);
 }

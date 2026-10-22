@@ -5,9 +5,11 @@ mod chapter_marks;
 mod chapter_repo;
 mod count_query;
 mod counts;
+mod credits_check;
 mod db;
 mod download_repo;
 mod entries;
+mod export_creators;
 mod export_history;
 mod export_labels;
 mod export_presets;
@@ -39,10 +41,12 @@ pub use category_repo::{
 pub use chapter_marks::{mark_downloaded, mark_exported, mark_exported_folder, ExportedChapter};
 pub use chapter_repo::{list_chapters, upsert_chapters};
 pub use counts::{count_chapters, ChapterCounts, ChapterMark};
+pub use credits_check::{credits_checked, mark_credits_checked};
 pub use db::{open, open_in_memory, Library};
 pub(crate) use download_repo::switch_data_dir;
 pub use download_repo::{downloaded_chapters, forget_download, DownloadedChapter};
 pub use entries::{list_entries, LibraryEntry};
+pub use export_creators::{export_creators, series_creators};
 pub use export_history::{list_exports, record_export, record_sent, ExportRecord};
 pub use export_labels::{chapter_titles, export_labels};
 pub use export_presets::{
@@ -65,7 +69,7 @@ pub use manga_repo::{followed_sources, get_manga, list_manga, remove_manga, upse
 pub use moved_chapter::{looks_like_manga_id, series_folder_name, stored_original};
 pub use pending_move::{pending_move, set_pending_move};
 pub use reading_status::{set_reading_status, ReadingStatus};
-pub use refresh::{refresh_from_source, Refreshed};
+pub use refresh::{refresh_from_source, refresh_record, Refreshed};
 pub use settings_fallback::{
     log_fallback, readable_settings, settings_or_default, settings_or_default_in,
 };

@@ -86,12 +86,19 @@ function bookTitle(series: string, number: string | null, chapters: Chapter[]) {
   return `${series} ch ${first.number}-${last.number}`;
 }
 
-export function mockPlan(series: string, chapters: Chapter[], grouping: Grouping, title?: string) {
+export function mockPlan(
+  series: string,
+  chapters: Chapter[],
+  grouping: Grouping,
+  title?: string,
+  authors: string[] = [],
+) {
   const books = group(sortChapters(chapters.filter((c) => c.local_path)), grouping);
   return books.map(({ number, chapters: list }): VolumePlan => {
     const own = books.length === 1 ? title?.trim() : undefined;
     const name = own || bookTitle(series, number, list);
-    return { number, title: name, file_name: portable(name, own ? "" : series), chapters: list };
+    const file_name = portable(name, own ? "" : series);
+    return { number, title: name, file_name, chapters: list, authors };
   });
 }
 

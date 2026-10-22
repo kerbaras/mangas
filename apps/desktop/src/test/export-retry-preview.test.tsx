@@ -26,7 +26,7 @@ const planVolumes = vi.fn(
       .filter((c) => r.chapterIds.includes(c.id))
       .map((c) => {
         const title = c === c3 ? "Solo ch 3" : "Solo ch 1";
-        return { number: c.volume, title, file_name: `${title}.epub`, chapters: [c] };
+        return { number: c.volume, title, file_name: `${title}.epub`, chapters: [c], authors: [] };
       }),
 );
 const stats = { pages: 6, strips: 0, source_rows: 0, pagination_ms: 0, filters_ms: 0, skipped: 0 };

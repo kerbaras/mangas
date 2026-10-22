@@ -2,13 +2,14 @@ use std::path::PathBuf;
 
 use mangas_core::domain::ReadingDirection;
 use mangas_core::export::kindle::{self, BookMeta, ExportRequest, ExportStats, Progress};
-use mangas_core::export::{ExportPreset, Format, Labels};
+use mangas_core::export::{ExportPreset, Format};
 use mangas_core::library;
 use mangas_core::library::Settings;
 use mangas_core::smartcut::Preset;
 use mangas_core::storage;
 use tauri::{AppHandle, Emitter, Runtime};
 
+use super::export_library::{creators_of, labels_of, titles_of};
 use super::penalizer::penalizer;
 use super::{open_library, settings_or_default, to_ipc};
 use crate::paths;
@@ -94,6 +95,7 @@ pub async fn export_chapters<R: Runtime>(
         output,
         replace: replace.unwrap_or(false),
         meta: BookMeta {
+            authors: creators_of(&req_dirs),
             chapter_titles: titles_of(&req_dirs),
             direction: resolved.direction.unwrap_or_default(),
             ..Default::default()
@@ -150,28 +152,6 @@ pub(super) fn record_export(stats: &ExportStats, dirs: &[PathBuf], title: &str, 
     if let Err(e) = recorded {
         tracing::warn!("could not record the export: {e}");
     }
-}
-
-/// Series/chapter/volume labels from the library; without it the file is just unlabelled.
-fn labels_of(dirs: &[PathBuf]) -> Labels {
-    let refs: Vec<&std::path::Path> = dirs.iter().map(PathBuf::as_path).collect();
-    open_library()
-        .and_then(|lib| library::export_labels(&lib, &refs, dirs.len()).map_err(to_ipc))
-        .unwrap_or_else(|e| {
-            tracing::warn!("could not read chapter labels: {e}");
-            Labels::default()
-        })
-}
-
-/// Season-aware TOC entries from the library; empty (folder names) when it doesn't know them.
-fn titles_of(dirs: &[PathBuf]) -> Vec<String> {
-    let spellings: Vec<Vec<&std::path::Path>> = dirs.iter().map(|d| vec![d.as_path()]).collect();
-    open_library()
-        .and_then(|lib| library::chapter_titles(&lib, &spellings).map_err(to_ipc))
-        .unwrap_or_else(|e| {
-            tracing::warn!("could not read chapter titles: {e}");
-            Vec::new()
-        })
 }
 
 fn default_title(chapter_dirs: &[PathBuf]) -> String {

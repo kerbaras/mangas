@@ -57,9 +57,40 @@ pub struct Manga {
     pub direction: Option<ReadingDirection>,
 }
 
+impl Manga {
+    /// Who a book of this title credits: the authors, then artists not already credited, each
+    /// once and trimmed. Empty when the source names nobody; never a placeholder.
+    pub fn creators(&self) -> Vec<String> {
+        let mut out: Vec<String> = Vec::new();
+        for name in self.authors.iter().chain(&self.artists) {
+            let name = name.trim();
+            if !name.is_empty() && !out.iter().any(|n| n == name) {
+                out.push(name.to_string());
+            }
+        }
+        out
+    }
+}
+
 impl std::fmt::Display for MangaId {
     /// `pad` keeps width and alignment (`{:<36}`) working in CLI tables.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.pad(&self.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Manga;
+
+    #[test]
+    fn creators_are_authors_then_new_artists() {
+        let manga = Manga {
+            authors: vec!["Azuma Kiyohiko".into(), " ".into()],
+            artists: vec![" Azuma Kiyohiko ".into(), "Studio".into()],
+            ..Manga::default()
+        };
+        assert_eq!(manga.creators(), ["Azuma Kiyohiko", "Studio"]);
+        assert!(Manga::default().creators().is_empty());
     }
 }

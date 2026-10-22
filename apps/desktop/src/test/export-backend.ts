@@ -72,6 +72,7 @@ export function exportBackend(overrides: Partial<Backend> = {}, detectors = dete
     exportVolumes,
     freeExportNames,
     checkExportDir: async () => {},
+    bookCreators: async () => [],
     exportFileName: async (title: string, format: ExportFormat) =>
       withExtension(portable(title), format),
     listDevices: async () => [

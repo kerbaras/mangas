@@ -56,7 +56,7 @@ fn meta() -> Meta {
     Meta {
         id: "memory".into(),
         title: "Memory".into(),
-        authors: vec!["mangas".into()],
+        authors: vec!["Test Author".into()],
         language: "en".into(),
         series: None,
         right_to_left: false,

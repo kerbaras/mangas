@@ -16,6 +16,8 @@ export type VolumePlan = {
   title: string;
   file_name: string;
   chapters: Chapter[];
+  /** Who the book credits; empty when the source names nobody. */
+  authors: string[];
 };
 
 export type VolumeRequest = {
@@ -92,6 +94,8 @@ export type VolumesBackend = {
   checkExportDir(dir: string, split: boolean, replace: boolean): Promise<void>;
   /** The file name a book titled `title` is written under as `format` (shortened when too long). */
   exportFileName(title: string, format: ExportFormat): Promise<string>;
+  /** Who a book of chapters from these `[source, id]` series credits, by core's rule. */
+  bookCreators(series: [string, string][]): Promise<string[]>;
   /** Each book's size against its budget, from a few of its pages encoded for real. */
   estimateExport(request: EstimateRequest): Promise<BookBudget[]>;
   /** What makes each book fit, as its plan offers it (`kindle::book_levers`). */
@@ -106,5 +110,7 @@ export const checkExportDir = async (dir: string, split: boolean, replace: boole
   (await backend()).checkExportDir(dir, split, replace);
 export const exportFileName = async (title: string, format: ExportFormat = "epub") =>
   (await backend()).exportFileName(title, format);
+export const bookCreators = async (series: [string, string][]) =>
+  (await backend()).bookCreators(series);
 export const estimateExport = async (r: EstimateRequest) => (await backend()).estimateExport(r);
 export const fitLevers = async (r: EstimateRequest) => (await backend()).fitLevers(r);

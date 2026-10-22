@@ -14,12 +14,14 @@ pub(super) type FromLibrary = (
     Vec<String>,
     Option<ExportPreset>,
     ExportPreset,
+    Vec<String>,
 );
 
 /// Series/chapter/volume labels from the library (folders it doesn't know export unlabelled),
 /// the first chapter's series for the default title (a mixed export lacks it in `Labels`), the
 /// TOC entries, the series export preset when every folder belongs to one series, and below it
-/// what the series' source says (its reading direction); several series give the way they all turn.
+/// what the series' source says (its reading direction); several series give the way they all turn;
+/// then who the book credits (nobody when the library names no one).
 pub(super) fn from_library(chapters: &[PathBuf]) -> FromLibrary {
     paths::library_db()
         .and_then(|db| Ok(library::open(&db)?))
@@ -41,6 +43,7 @@ pub(super) fn from_library(chapters: &[PathBuf]) -> FromLibrary {
                     direction: source,
                     ..Default::default()
                 },
+                creators_in(&lib, chapters)?,
             ))
         })
         .unwrap_or_else(|e: anyhow::Error| {
@@ -73,6 +76,12 @@ fn as_refs(spelled: &[Vec<PathBuf>]) -> Vec<Vec<&Path>> {
         .iter()
         .map(|s| s.iter().map(PathBuf::as_path).collect())
         .collect()
+}
+
+/// The creators of the series among `chapters` ([`library::export_creators`]).
+fn creators_in(lib: &Library, chapters: &[PathBuf]) -> anyhow::Result<Vec<String>> {
+    let spelled = each_spelled(lib, chapters)?;
+    Ok(library::export_creators(lib, &as_refs(&spelled))?)
 }
 
 /// The one series every folder (in any of its spellings) belongs to.

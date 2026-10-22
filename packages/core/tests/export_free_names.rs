@@ -66,6 +66,7 @@ fn written_names_match_what_each_mode_writes() {
         title: name.into(),
         file_name: name.into(),
         chapters: Vec::new(),
+        authors: Vec::new(),
     };
     let plans = [plan("Book"), plan("Book"), plan("Other")];
     assert_eq!(

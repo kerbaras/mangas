@@ -24,7 +24,7 @@ fn writes_valid_fixed_layout_epub() {
     let book = Book {
         id: "1234".into(),
         title: "Test <Book>".into(),
-        authors: vec!["mangas".into()],
+        authors: vec!["Test Author".into()],
         language: "en".into(),
         series: None,
         right_to_left: false,

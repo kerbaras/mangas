@@ -48,6 +48,10 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         let source = source_by_name(&source_name)?;
         if followed {
             library::sync_chapters(&lib, source.as_ref(), &id, &languages).await?;
+            // Like the desktop refresh: fields mapped after the title was followed get filled.
+            if let Err(e) = library::refresh_record(&lib, source.as_ref(), &id).await {
+                eprintln!("warning: kept the saved details of {id}: {e}");
+            }
             library::in_languages(stored()?, &languages)
         } else {
             let lists = library::fetch_chapters(source.as_ref(), &id, &languages).await?;

@@ -133,6 +133,22 @@ mod tests {
     }
 
     #[test]
+    fn authors_are_exth_100_and_none_is_no_record() {
+        assert!(!book_records(&book(false)).iter().any(|(k, _)| *k == 100));
+        let authors = ["Azuma Kiyohiko".to_string(), "Studio".to_string()];
+        let records = book_records(&BookExth {
+            authors: &authors,
+            ..book(false)
+        });
+        let names: Vec<&[u8]> = records
+            .iter()
+            .filter(|(k, _)| *k == 100)
+            .map(|(_, v)| v.as_slice())
+            .collect();
+        assert_eq!(names, [b"Azuma Kiyohiko".as_slice(), b"Studio"]);
+    }
+
+    #[test]
     fn block_is_padded_and_counted() {
         let b = block(&[(100, b"abc".to_vec())]).unwrap();
         assert_eq!(&b[..4], b"EXTH");

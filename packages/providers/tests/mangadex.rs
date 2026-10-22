@@ -51,6 +51,8 @@ fn manga_by_id_builds_cover_from_relationship() {
         Some(cover_url(SOLO_LEVELING, "e90bdc47-c8b9-4df7-b2c0-17641b645ee1.jpg").as_str())
     );
     assert_eq!(manga.status, MangaStatus::Completed);
+    // Relationships without `includes[]` expansion carry no names: no credits, no placeholder.
+    assert!(manga.authors.is_empty() && manga.artists.is_empty());
 }
 
 #[test]
@@ -178,4 +180,15 @@ fn malformed_json_is_a_source_error() {
         parse_search_response("{"),
         Err(Error::Source { .. })
     ));
+}
+
+#[test]
+fn the_manga_request_expands_author_and_artist_names() {
+    let includes: Vec<String> = mangas_providers::mangadex::manga_query()
+        .into_iter()
+        .filter(|(k, _)| *k == "includes[]")
+        .map(|(_, v)| v)
+        .collect();
+    assert!(includes.contains(&"author".to_string()), "{includes:?}");
+    assert!(includes.contains(&"artist".to_string()), "{includes:?}");
 }

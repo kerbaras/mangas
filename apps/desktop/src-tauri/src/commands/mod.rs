@@ -13,6 +13,7 @@ pub mod downloads;
 mod errors;
 pub mod estimate;
 pub mod export;
+pub mod export_library;
 pub mod folders;
 pub mod import;
 pub mod organisation;
