@@ -288,6 +288,23 @@ the desktop (`commands/app_update.rs`) and `mangas update --check` both use them
   then shows progress and the app relaunches. `MANGAS_UPDATE_URL` points every channel at one
   manifest URL, for testing against a local server.
 
+## Releasing
+
+Releases are cut by hand on `main` (the `workflow_dispatch` path rewrites the whole CHANGELOG
+with `git cliff -o`); the tag push runs `release.yml`, which builds, signs and publishes.
+
+- Release candidate: `scripts/next-version.sh rc`, `scripts/set-version.sh X.Y.Z-rc.N`,
+  `git cliff --tag vX.Y.Z-rc.N --unreleased --prepend CHANGELOG.md`.
+- Stable: `scripts/next-version.sh stable`, `scripts/set-version.sh X.Y.Z`, then roll the rc
+  sections up into one section (`--unreleased` alone is empty after an rc), keeping the rc
+  sections below it:
+  `git cliff vPREV..HEAD --tag vX.Y.Z --ignore-tags '.*-rc\..*' --prepend CHANGELOG.md`,
+  where `vPREV` is the previous stable tag.
+- Then: commit `chore(release): vX.Y.Z[-rc.N]`, `git tag -a vX.Y.Z[-rc.N] -m vX.Y.Z[-rc.N]`,
+  `git push --follow-tags origin HEAD:main`.
+- A green run is not proof of signing: check the jobs log `HAS_UPDATER_KEY: true` and the
+  release has a `.sig` per updater bundle and a `latest.json`.
+
 ## Coding rules (also in AGENTS.md)
 
 - Files under 200 lines; never over 400. Split by responsibility, one concern per module.
