@@ -4,10 +4,10 @@
 use std::path::{Path, PathBuf};
 
 use mangas_core::export::kindle::{
-    book_levers, BudgetSpec, Delivery, ExportStats, Levers, Oversized,
+    book_levers, BudgetSpec, Delivery, Device, ExportStats, Levers, Oversized,
 };
 
-use mangas_core::export::Route;
+use mangas_core::export::{ExportPreset, Format, Route};
 
 use super::deliver::SendArg;
 use super::export_plan::{levers_line, Fewer};
@@ -26,6 +26,25 @@ pub fn route_of(send: Option<SendArg>) -> Route {
         Some(SendArg::Email) => Route::Email,
         Some(SendArg::Usb) => Route::Usb,
         None => Route::Save,
+    }
+}
+
+/// What the books are sized against: `send`'s delivery budget, with pages costed in `format`.
+pub fn budget_spec(
+    preset: &ExportPreset,
+    device: Device,
+    send: Option<SendArg>,
+    format: Format,
+    split: Option<u64>,
+) -> BudgetSpec {
+    let (cut, page, delivery) = (preset.cut(), preset.page(), delivery_of(send));
+    BudgetSpec {
+        device,
+        cut,
+        page,
+        delivery,
+        format,
+        split,
     }
 }
 
