@@ -3,6 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
+use mangas_core::export::free_names_in;
 use mangas_core::export::kindle::{plan_budget, BookBudget, BudgetSpec, Delivery, Levers};
 use mangas_core::export::volume::VolumePlan;
 use serde::Serialize;
@@ -124,3 +125,18 @@ pub fn levers_line(l: &Levers) -> String {
 #[cfg(test)]
 #[path = "export_plan_tests.rs"]
 mod tests;
+
+/// The book `export` writes for `output`: `output` itself when replacing, else its first free name
+/// in the folder, as the writer picks it (a failed write leaves nothing that would move it).
+pub fn planned_book(output: &Path, replace: bool) -> PathBuf {
+    let dir = output.parent().filter(|d| !d.as_os_str().is_empty());
+    let name = output.file_name().map(|n| n.to_string_lossy().into_owned());
+    let free = match (replace, name) {
+        (false, Some(name)) => free_names_in(dir.unwrap_or(Path::new(".")), &[name]).ok(),
+        _ => None,
+    };
+    match free.as_ref().and_then(|f| f.first()) {
+        Some(name) => output.with_file_name(name),
+        None => output.to_path_buf(),
+    }
+}

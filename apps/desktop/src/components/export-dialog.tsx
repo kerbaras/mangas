@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { VolumePreview } from "@/components/volume-preview";
+import { useBundle } from "@/hooks/use-bundle";
 import { useClearOnChange } from "@/hooks/use-clear-on-change";
 import { useDetectorSupport } from "@/hooks/use-detector-support";
 import { useExport } from "@/hooks/use-export";
@@ -29,12 +30,10 @@ import { useSizeEstimate } from "@/hooks/use-size-estimate";
 import { booksToSend, exportJob, keptBooks } from "@/lib/export-job";
 import type { ExportPick } from "@/lib/export-name";
 import {
-  type BundleMode,
   detectorsDefault,
   detectorsUsable,
   exportAction,
   inFormat,
-  initialMode,
   pickSummary,
 } from "@/lib/export-plan";
 import type { ExportResult } from "@/lib/ipc";
@@ -54,10 +53,7 @@ type Props = {
 /** The one export flow: what to write (bundle, title), how (profile, format, smart cut), where. */
 export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: Props) {
   const chapters = picks.flatMap((p) => p.chapters);
-  const [mode, setMode] = useState<BundleMode>(() =>
-    picks.length > 1 ? "single" : initialMode(chapters),
-  );
-  const [size, setSize] = useState(10);
+  const { mode, setMode, size, setSize, every } = useBundle(picks);
   const [title, setTitle] = useState("");
   const [detectorsOn, setDetectorsOn] = useState<boolean | null>(null);
   const [delivery, setDelivery] = useState<Delivery>("save");
@@ -81,10 +77,6 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const books = files.kind === "ready" ? files.data.length : 0;
   const email = via === "email";
   const budgets = useSizeEstimate({ plans: files, device, preset, quality, email, splitMb });
-  const every = (n: number) => {
-    setMode("every");
-    setSize(n);
-  };
   const oversized = job.state.kind === "done" ? oversizedOf(job.state.results) : [];
   const sending = runningVia(send.state);
   const busy = job.state.kind === "running" || sending !== undefined;

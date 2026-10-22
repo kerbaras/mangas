@@ -61,3 +61,13 @@ fn the_json_fields_are_flat_and_stable() {
     }
     assert!(v.get("levers").is_none());
 }
+
+#[test]
+fn a_failed_book_is_named_as_the_writer_names_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let book = dir.path().join("Book.epub");
+    assert_eq!(planned_book(&book, false), book);
+    std::fs::write(&book, b"older").unwrap();
+    assert_eq!(planned_book(&book, false), dir.path().join("Book (2).epub"));
+    assert_eq!(planned_book(&book, true), book);
+}
