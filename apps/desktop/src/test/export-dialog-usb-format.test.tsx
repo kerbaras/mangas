@@ -15,15 +15,16 @@ const dialog = () => (
   </TooltipProvider>
 );
 
-function backend(verdict: Omit<UsbVerdict, "device">) {
+function backend(verdict: Omit<UsbVerdict, "device">, mtpOnly = false) {
   const sendUsb = vi.fn(async (file: string) => ({ path: file, already_there: false }));
   const usbVerdict = vi.fn(async (_f: string, device: string) => ({ ...verdict, device }));
   const { exportVolumes } = exportBackend({
-    findKindles: async () => [kindle],
+    findKindles: async () => (mtpOnly ? [] : [kindle]),
+    usbKindles: async () => [{ name: "Kindle Paperwhite" }],
     sendUsb,
     usbVerdict,
   });
-  return { sendUsb, exportVolumes };
+  return { sendUsb, exportVolumes, usbVerdict };
 }
 
 /** The dialog's main button, whatever it reads once a delivery stopped ("Retry copy"). */
@@ -45,17 +46,25 @@ describe("export dialog: formats a Kindle may not open over USB", () => {
     expect(sendUsb).toHaveBeenCalledWith("/k/Solo v1.epub", "Solo v1", kindle.root, true);
   });
 
-  it("refuses to copy CBZs, offering no Copy anyway", async () => {
-    const reason = "Kindle Scribe doesn't open CBZ files.";
-    const { sendUsb, exportVolumes } = backend({ decision: "refused", format: "CBZ", reason });
-    render(dialog());
-    fireEvent.click(await screen.findByLabelText("CBZ"));
-    fireEvent.mouseDown(await screen.findByRole("tab", { name: "Kindle over USB" }));
-    fireEvent.click(await enabledButton(/Export 2 books and copy/));
-    expect(await screen.findByText("Kindle Scribe doesn't open CBZ")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /Copy anyway/ })).toBeNull();
-    expect(sendUsb).not.toHaveBeenCalled();
-    expect((mainButton() as HTMLButtonElement).disabled).toBe(true);
-    expect(exportVolumes).toHaveBeenCalledOnce();
-  });
+  it.each([
+    ["mounted", false, "Kindle Scribe"],
+    ["MTP only", true, "Kindle Paperwhite"],
+  ])(
+    "refuses CBZs before writing them (%s), offering no Copy anyway or Email",
+    async (_, mtpOnly, device) => {
+      const reason = `${device} doesn't open CBZ files.`;
+      const verdict = { decision: "refused", format: "CBZ", reason } as const;
+      const { sendUsb, exportVolumes, usbVerdict } = backend(verdict, mtpOnly);
+      render(dialog());
+      fireEvent.click(await screen.findByLabelText("CBZ"));
+      fireEvent.mouseDown(await screen.findByRole("tab", { name: "Kindle over USB" }));
+      fireEvent.click(await enabledButton(/Export 2 books and copy/));
+      expect(await screen.findByText(`${device} doesn't open CBZ`)).toBeTruthy();
+      expect(usbVerdict).toHaveBeenCalledWith("book.cbz", device);
+      expect(screen.queryByRole("button", { name: /Copy anyway|Use Email/ })).toBeNull();
+      expect(screen.queryByText(/connected over MTP/)).toBeNull();
+      expect(sendUsb).not.toHaveBeenCalled();
+      expect(exportVolumes).not.toHaveBeenCalled();
+    },
+  );
 });

@@ -25,7 +25,7 @@ import { useExport } from "@/hooks/use-export";
 import { useExportPlan } from "@/hooks/use-export-plan";
 import { useFreeNames } from "@/hooks/use-free-names";
 import { useOversized } from "@/hooks/use-oversized";
-import { type Book, refused, runningVia, useSend } from "@/hooks/use-send";
+import { type Book, refused, runningVia, stopped, useSend } from "@/hooks/use-send";
 import { useSeriesTarget } from "@/hooks/use-series-target";
 import { useSizeEstimate } from "@/hooks/use-size-estimate";
 import { booksToSend, exportJob, keptBooks } from "@/lib/export-job";
@@ -82,8 +82,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const over = useOversized(job.state.kind === "done" ? job.state.results : [], files, fit);
   const sending = runningVia(send.state);
   const busy = job.state.kind === "running" || sending !== undefined;
-  const failed =
-    written.length > 0 && ["error", "no-device", "mtp", "format"].includes(send.state.kind);
+  const failed = written.length > 0 && stopped(send.state);
   const sendVia = via === "save" ? undefined : via;
   const stuck = failed && refused(send.state, via);
   const resend =
@@ -112,6 +111,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
 
   const run = async () => {
     if (!job.retry.kept.length) send.reset();
+    if (via === "usb" && !(await send.admits(target.format))) return;
     const results = await job.run(
       exportJob({
         picks,

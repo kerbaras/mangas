@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::anyhow;
 use mangas_core::ml::DetectorReport;
+use mangas_core::send::email;
 use mangas_core::send::usb::{self, Sideload, UsbVerdict};
 
 use super::deliver::SendArg;
@@ -20,11 +21,15 @@ pub struct UsbSent {
 
 /// Copies `file` to the Kindle at `kindle` (else the one detected) when the format table lets
 /// it: a refused format never, one that warns only with `force` (the warning still goes to
-/// stderr).
+/// stderr). The table speaks first, so a Kindle on MTP only still refuses a CBZ as a CBZ.
 pub fn copy(file: &Path, kindle: Option<&Path>, force: bool) -> anyhow::Result<UsbSent> {
-    let kindle = usb::choose(kindle, usb::scan_kindles())?;
-    let verdict = usb::usb_verdict(file, &kindle.name);
-    usb::admit(&verdict, force)?;
+    let chosen = usb::choose(kindle, usb::scan_kindles());
+    let verdict = usb::chosen_name(&chosen).map(|name| usb::usb_verdict(file, name));
+    if let Some(verdict) = &verdict {
+        usb::admit(verdict, force)?;
+    }
+    let kindle = chosen?;
+    let verdict = verdict.unwrap_or_else(|| usb::usb_verdict(file, &kindle.name));
     if let (Sideload::Warn, Some(reason)) = (verdict.decision, &verdict.reason) {
         eprintln!("warning: {reason}");
     }
@@ -53,6 +58,27 @@ pub fn stopped_by(e: &anyhow::Error) -> Option<&UsbVerdict> {
     }
 }
 
+/// The table's verdict for `file` on the Kindle `e` found over MTP only (it wasn't stopped by
+/// the table, only by MTP), so `send --json` still reports the decision.
+pub fn over_mtp(e: &anyhow::Error, file: &Path) -> Option<UsbVerdict> {
+    match e.downcast_ref() {
+        Some(mangas_core::Error::KindleOverMtp { device }) => Some(usb::usb_verdict(file, device)),
+        _ => None,
+    }
+}
+
+/// What to run when the Kindle is on MTP only: Email when it takes `file`'s format, otherwise
+/// an export in a format it does take (a USB retry fails the same way).
+pub fn mtp_step(file: &Path) -> String {
+    match email::emailable(&file.to_string_lossy()) {
+        true => format!(
+            "\n  send it by email instead: mangas send --via email \"{}\"",
+            file.display()
+        ),
+        false => "\n  to send it by email, export the book as PDF or EPUB".to_string(),
+    }
+}
+
 /// What to run after the table stopped `file`: `--force` for a format that only warns (and
 /// Email for an EPUB); nothing for a refused one, whose reason already says to export a PDF.
 /// `via` is the `--via` value that reached the same Kindle.
@@ -71,8 +97,9 @@ pub fn next_step(verdict: &UsbVerdict, file: &Path, via: &str) -> String {
 /// Before an export that `send`s over USB (and before `--detectors` loads anything, so the
 /// report's `detectors` is truly `off`): stops it, writing nothing, when the detected Kindle
 /// won't open the `ext` format, or may not and `--force` wasn't given. With `json` the report
-/// still prints, listing `books` (what the export would have written) in `not_written`. With no
-/// Kindle found the export goes ahead and its send says so.
+/// still prints, listing `books` (what the export would have written) in `not_written`. A
+/// Kindle on MTP only is asked too; with no Kindle at all the export goes ahead and its send
+/// says so.
 pub fn precheck(
     to: Option<(SendArg, Option<&Path>, bool)>,
     ext: &str,
@@ -82,10 +109,11 @@ pub fn precheck(
     let Some((SendArg::Usb, kindle, force)) = to else {
         return Ok(());
     };
-    let Ok(found) = usb::choose(kindle, usb::scan_kindles()) else {
+    let chosen = usb::choose(kindle, usb::scan_kindles());
+    let Some(name) = usb::chosen_name(&chosen) else {
         return Ok(());
     };
-    let verdict = usb::usb_verdict(&Path::new("book").with_extension(ext), &found.name);
+    let verdict = usb::usb_verdict(&Path::new("book").with_extension(ext), name);
     let Err(e) = usb::admit(&verdict, force) else {
         return Ok(());
     };

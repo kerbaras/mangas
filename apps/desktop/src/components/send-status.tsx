@@ -8,6 +8,7 @@ import { megabytes } from "@/lib/send-labels";
 import { UsbFormatAlert } from "./usb-format-alert";
 
 const EMAIL_INSTEAD = "Send it by email instead.";
+const EMAIL_FORMATS = "To send it by email, export the book as PDF or EPUB.";
 
 type Props = {
   state: SendState;
@@ -68,9 +69,9 @@ export function SendStatus({ state, via, onRetry, onEmail }: Props) {
           <Usb />
           <AlertTitle>{state.device} connected over MTP</AlertTitle>
           <AlertDescription>
-            {`${state.device} ${MTP_HINT}. ${EMAIL_INSTEAD}`}
+            {`${state.device} ${MTP_HINT}. ${state.email ? EMAIL_INSTEAD : EMAIL_FORMATS}`}
             <div className="mt-1 flex gap-2">
-              {onEmail && (
+              {onEmail && state.email && (
                 <Button size="sm" onClick={onEmail}>
                   <Mail /> Use Email
                 </Button>

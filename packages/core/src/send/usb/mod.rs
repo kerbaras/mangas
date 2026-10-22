@@ -44,3 +44,13 @@ pub fn choose(root: Option<&Path>, found: KindleScan) -> Result<KindleVolume> {
         )),
     }
 }
+
+/// The Kindle a [`choose`] result names, for the format table: the mounted one, or the one on
+/// the bus over MTP only (no copy, but its format verdict still stands). None with no Kindle.
+pub fn chosen_name(chosen: &Result<KindleVolume>) -> Option<&str> {
+    match chosen {
+        Ok(volume) => Some(&volume.name),
+        Err(Error::KindleOverMtp { device }) => Some(device),
+        Err(_) => None,
+    }
+}

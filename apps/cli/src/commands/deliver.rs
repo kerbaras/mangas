@@ -136,14 +136,14 @@ pub struct Unsent {
 
 /// "<file> was written but not sent: <why>", with the command that sends that same file again:
 /// retrying a delivery never exports the book again. `kindle` is the USB mount it was sent to.
-/// A Kindle connected over MTP only is offered email instead: a USB retry fails the same way.
+/// A Kindle connected over MTP only is offered email instead when email takes the format: a
+/// USB retry fails the same way.
 pub fn not_sent(file: &Path, via: SendArg, kindle: Option<&Path>, e: &anyhow::Error) -> Unsent {
     let over_mtp = matches!(
         e.downcast_ref(),
         Some(mangas_core::Error::KindleOverMtp { .. })
     );
     let via = match (via, kindle) {
-        _ if over_mtp => "email".to_string(),
         (SendArg::Email, _) => "email".to_string(),
         (SendArg::Usb, None) => "usb".to_string(),
         (SendArg::Usb, Some(mount)) => format!("usb --kindle \"{}\"", mount.display()),
@@ -151,6 +151,7 @@ pub fn not_sent(file: &Path, via: SendArg, kindle: Option<&Path>, e: &anyhow::Er
     let why = crate::exit::describe(e);
     let next = match stopped_by(e) {
         Some(verdict) => deliver_usb::next_step(verdict, file, &via),
+        None if over_mtp => deliver_usb::mtp_step(file),
         None => format!(
             "\n  send it again with: mangas send --via {via} \"{}\"",
             file.display()

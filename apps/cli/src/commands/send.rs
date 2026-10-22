@@ -9,7 +9,7 @@ use mangas_core::library;
 use mangas_core::send::{email, password, usb};
 
 use super::deliver::{deliver, SendArg};
-use super::deliver_usb::{next_step, stopped_by};
+use super::deliver_usb::{mtp_step, next_step, stopped_by};
 use super::send_report::SendReport;
 use crate::output::{outln, print_json};
 use crate::paths;
@@ -71,10 +71,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         print_json(&SendReport::new(&file, args.via, &sent))?;
     }
     let line = sent.map_err(|e| match (e.downcast_ref(), stopped_by(&e)) {
-        (Some(mangas_core::Error::KindleOverMtp { .. }), _) => anyhow::anyhow!(
-            "{e}\n  send it by email instead: mangas send --via email \"{}\"",
-            file.display()
-        ),
+        (Some(mangas_core::Error::KindleOverMtp { .. }), _) => {
+            anyhow::anyhow!("{e}{}", mtp_step(&file))
+        }
         (_, Some(verdict)) => {
             let next = next_step(verdict, &file, "usb");
             anyhow::anyhow!("{e}{next}")

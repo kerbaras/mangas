@@ -1,6 +1,9 @@
 //! A Kindle on the USB bus with no mounted folder (MTP only) versus a mounted one or none.
 
-use mangas_core::send::usb::{choose, decide, KindleScan, KindleVolume, Reach, UsbKindle};
+use mangas_core::send::email::emailable;
+use mangas_core::send::usb::{
+    choose, chosen_name, decide, KindleScan, KindleVolume, Reach, UsbKindle,
+};
 
 fn volume(root: &str) -> KindleVolume {
     KindleVolume {
@@ -47,4 +50,29 @@ fn choose_says_mtp_instead_of_device_not_found() {
         err.starts_with("Device not found: connect your Kindle"),
         "{err}"
     );
+}
+
+#[test]
+fn the_format_table_hears_the_name_of_a_kindle_on_mtp_only() {
+    let device = UsbKindle {
+        name: "Kindle Paperwhite".into(),
+    };
+    let mtp = choose(None, decide(vec![], vec![device]));
+    assert_eq!(chosen_name(&mtp), Some("Kindle Paperwhite"));
+    let mounted = choose(None, decide(vec![volume("/Volumes/Kindle")], vec![]));
+    assert_eq!(chosen_name(&mounted), Some("Kindle"));
+    assert_eq!(chosen_name(&choose(None, KindleScan::default())), None);
+}
+
+#[test]
+fn email_takes_epub_and_pdf_only() {
+    for (file, takes) in [
+        ("a.epub", true),
+        ("B.PDF", true),
+        ("c.cbz", false),
+        ("d.azw3", false),
+        ("e", false),
+    ] {
+        assert_eq!(emailable(file), takes, "{file}");
+    }
 }

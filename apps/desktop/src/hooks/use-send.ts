@@ -10,7 +10,7 @@ import {
   usbKindles,
   usbVerdict,
 } from "@/lib/ipc.send";
-import { fileName, megabytes } from "@/lib/send-labels";
+import { emailRefusal, fileName, megabytes } from "@/lib/send-labels";
 
 export type Via = "email" | "usb";
 
@@ -21,8 +21,8 @@ export type SendState =
   | { kind: "idle" }
   | { kind: "looking" }
   | { kind: "no-device" }
-  /** A Kindle on the USB bus with no mounted folder: MTP only, so no copy; email still works. */
-  | { kind: "mtp"; device: string }
+  /** A Kindle on the USB bus with no mounted folder: MTP only, so no copy; `email` when email takes the books. */
+  | { kind: "mtp"; device: string; email: boolean }
   /** The format table stopped the copy before it began: refused, or warned (Retry copies anyway). */
   | { kind: "format"; verdict: UsbVerdict }
   | { kind: "copying"; device: string; done: number; total: number }
@@ -48,12 +48,24 @@ export const refused = (state: SendState, via?: Via | "save") =>
     ? via === "usb"
     : state.kind === "error" && state.via === via && isFinalError(state.message);
 
+/** Whether a delivery stopped short: failed, no Kindle, MTP only, or the format table. */
+export const stopped = (state: SendState) =>
+  ["error", "no-device", "mtp", "format"].includes(state.kind);
+
 /** What a failed delivery still has to send (from the book it failed on) and what it already did. */
 type Pending = { books: Book[]; via: Via; lines: string[] };
 
 /** The verdict that stops copying `verdicts`' books: a refusal first, else a warning. */
 const stopper = (verdicts: UsbVerdict[]) =>
   verdicts.find((v) => v.decision === "refused") ?? verdicts.find((v) => v.decision === "warn");
+
+/** The mounted Kindle, else the `name` of one on the bus over MTP only: no copy, but the format table still applies. */
+async function reachKindle() {
+  const [kindle] = await findKindles();
+  if (kindle) return { kindle, name: kindle.name };
+  const [mtp] = await usbKindles();
+  return { kindle: undefined, name: mtp?.name };
+}
 
 /**
  * One delivery at a time, of one or more books: email, or a USB copy, each book's format checked
@@ -94,16 +106,17 @@ export function useSend(onSent?: () => void) {
       try {
         if (via === "usb") {
           setState({ kind: "looking" });
-          const [kindle] = await findKindles();
-          if (!kindle) {
-            const [mtp] = await usbKindles();
-            return setState(mtp ? { kind: "mtp", device: mtp.name } : { kind: "no-device" });
-          }
-          const verdicts = await Promise.all(books.map((b) => usbVerdict(b.file, kindle.name)));
-          const stop = force ? undefined : stopper(verdicts);
+          const { kindle, name } = await reachKindle();
+          if (!name) return setState({ kind: "no-device" });
+          const verdicts = await Promise.all(books.map((b) => usbVerdict(b.file, name)));
+          const stop = stopper(force ? verdicts.filter((v) => v.decision === "refused") : verdicts);
           if (stop) {
             warned.current = stop.decision === "warn";
             return setState({ kind: "format", verdict: stop });
+          }
+          if (!kindle) {
+            const email = books.every((b) => emailRefusal(b.file) === null);
+            return setState({ kind: "mtp", device: name, email });
           }
           device.current = kindle.name;
           for (const [i, { file, title }] of books.entries()) {
@@ -154,6 +167,20 @@ export function useSend(onSent?: () => void) {
     },
     [deliver],
   );
+  /**
+   * Before writing books in `format` to copy them: false, with the refusal shown, when the Kindle
+   * found (mounted or MTP only) won't open that format. A warning still lets them be written, so
+   * Copy anyway reuses them. Only a refused format looks for the Kindle, to name it.
+   */
+  const admits = useCallback(async (format: string) => {
+    const book = `book.${format}`;
+    if ((await usbVerdict(book, "Kindle")).decision !== "refused") return true;
+    const { name } = await reachKindle();
+    const verdict = name ? await usbVerdict(book, name) : undefined;
+    if (verdict?.decision !== "refused") return true;
+    setState({ kind: "format", verdict });
+    return false;
+  }, []);
   /** The books the last delivery didn't get to (none once it finished). */
   const unsent = useCallback(() => pending.current?.books ?? [], []);
   const reset = useCallback(() => {
@@ -161,5 +188,5 @@ export function useSend(onSent?: () => void) {
     warned.current = false;
     setState({ kind: "idle" });
   }, []);
-  return { state, deliver, usb, email, retry, reset, unsent };
+  return { state, deliver, usb, email, retry, reset, unsent, admits };
 }

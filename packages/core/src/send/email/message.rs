@@ -28,6 +28,11 @@ fn content_type(file_name: &str) -> Result<ContentType> {
     ContentType::parse(kind).map_err(|e| Error::Send(e.to_string()))
 }
 
+/// Whether Send to Kindle by email takes `file_name` (an EPUB or a PDF).
+pub fn emailable(file_name: &str) -> bool {
+    content_type(file_name).is_ok()
+}
+
 /// Refuses a file Amazon would bounce, before anything is uploaded.
 pub fn check_size(bytes: u64) -> Result<()> {
     if bytes <= MAX_ATTACHMENT_BYTES {
