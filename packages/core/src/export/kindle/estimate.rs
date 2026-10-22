@@ -1,22 +1,24 @@
-//! How big an export will be, before it runs: a few pages are encoded for real and their
-//! average size is scaled to the page count read from the image headers. Books of regular pages
-//! sample pages spread over every chapter, since scans vary a lot between chapters; webtoon
-//! strips sample the first pages, as a strip only cuts in order.
+//! How big an export will be, before it runs. The pages are counted by the export's own run,
+//! strips cut by the same smart cut (see [`Survey`]), so the plan has the pages the writer
+//! writes. Their size comes from a few pages encoded for real, spread over the book, since scans
+//! and strip art vary a lot from one page and chapter to the next: strip pages sampled while
+//! their chapter is cut, regular pages picked from the whole book afterwards.
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
+use rayon::prelude::*;
 use serde::Serialize;
 
-use super::input::{chapter_files, ChapterFiles};
+use super::input::ChapterFiles;
 use super::parts::page_cost;
 use super::run::{Run, RunSpec};
+use super::survey::{Survey, SAMPLE};
+use super::surveys::chapter_survey;
 use super::Device;
-use crate::domain::Result;
+use crate::domain::{Error, Result};
 use crate::export::{Format, PageInfo, PageSettings};
-use crate::smartcut::{is_long_strip, Options};
-
-/// Pages encoded to measure the average page.
-const SAMPLE: usize = 6;
+use crate::smartcut::Options;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Estimate {
@@ -24,7 +26,7 @@ pub struct Estimate {
     pub bytes: u64,
 }
 
-/// The estimated size of the `format` book `chapter_dirs` make on `device` with `cut` and `page`.
+/// The estimated size of the book `chapter_dirs` make on `device` with `cut` and `page`.
 pub fn estimate(
     chapter_dirs: &[PathBuf],
     device: Device,
@@ -35,8 +37,8 @@ pub fn estimate(
     estimate_largest(&[chapter_dirs.to_vec()], device, cut, page, format)
 }
 
-/// The estimate of the book of `books` with the most pages (counted from the image headers of
-/// every book; only that one has pages encoded): the one that decides the size warning.
+/// The estimate of the book of `books` with the most pages (every book is counted; only that one
+/// has pages encoded): the one that decides the size warning.
 pub fn estimate_largest(
     books: &[Vec<PathBuf>],
     device: Device,
@@ -44,7 +46,9 @@ pub fn estimate_largest(
     page: PageSettings,
     format: Format,
 ) -> Result<Estimate> {
-    let counted: Vec<Counted> = books.iter().map(|b| count(b, &device, &page)).collect();
+    let counted: Vec<Counted> = (books.iter())
+        .map(|b| count(b, device, cut, page))
+        .collect::<Result<_>>()?;
     match counted.into_iter().max_by_key(|c| c.pages) {
         Some(book) => sample(book, device, cut, page, format),
         None => Ok(Estimate { pages: 0, bytes: 0 }),
@@ -60,49 +64,43 @@ pub fn estimate_each(
     format: Format,
 ) -> Result<Vec<Estimate>> {
     (books.iter())
-        .map(|b| sample(count(b, &device, &page), device, cut, page, format))
+        .map(|b| sample(count(b, device, cut, page)?, device, cut, page, format))
         .collect()
 }
 
 /// The pages each of `chapter_dirs` gives, counted as [`estimate_each`] counts them.
-pub fn chapter_pages(chapter_dirs: &[PathBuf], device: &Device, page: &PageSettings) -> Vec<usize> {
-    let counted = count(chapter_dirs, device, page);
-    (counted.chapters.iter())
-        .map(|(_, files)| page_count(files, device, page).0)
-        .collect()
+pub fn chapter_pages(
+    chapter_dirs: &[PathBuf],
+    device: Device,
+    cut: Options,
+    page: PageSettings,
+) -> Result<Vec<usize>> {
+    let surveys = count(chapter_dirs, device, cut, page)?;
+    Ok(surveys.chapters.iter().map(|(_, s)| s.pages).collect())
 }
 
-/// One book's chapters with their files, and the pages they give.
+/// One book's chapters with their surveys, and the pages they give.
 struct Counted<'a> {
-    dirs: &'a [PathBuf],
-    chapters: Vec<(&'a Path, Vec<PathBuf>)>,
+    chapters: Vec<(&'a Path, Arc<Survey>)>,
     pages: usize,
-    strips: bool,
 }
 
-fn count<'a>(chapter_dirs: &'a [PathBuf], device: &Device, page: &PageSettings) -> Counted<'a> {
-    let chapters: Vec<(&Path, Vec<PathBuf>)> = chapter_dirs
-        .iter()
-        .map(|d| {
-            (
-                d.as_path(),
-                chapter_files(d).map(|f| f.pages).unwrap_or_default(),
-            )
-        })
-        .collect();
-    let counts: Vec<(usize, bool)> = chapters
-        .iter()
-        .map(|(_, files)| page_count(files, device, page))
-        .collect();
-    Counted {
-        dirs: chapter_dirs,
-        pages: counts.iter().map(|c| c.0).sum(),
-        strips: counts.iter().any(|c| c.1),
-        chapters,
-    }
+/// Every chapter of a book surveyed, side by side: cutting their strips is the slow part.
+fn count(
+    chapter_dirs: &[PathBuf],
+    device: Device,
+    cut: Options,
+    page: PageSettings,
+) -> Result<Counted<'_>> {
+    let chapters: Vec<(&Path, Arc<Survey>)> = (chapter_dirs.par_iter())
+        .map(|d| Ok((d.as_path(), chapter_survey(d, device, cut, page)?)))
+        .collect::<Result<_>>()?;
+    let pages = chapters.iter().map(|(_, s)| s.pages).sum();
+    Ok(Counted { chapters, pages })
 }
 
-/// `book`'s pages times the average cost of a few of them encoded for real.
+/// `book`'s strip pages at the sizes their surveys encoded them at, and its regular pages at the
+/// average of a few of them spread over the book and encoded for real.
 fn sample(
     book: Counted,
     device: Device,
@@ -110,12 +108,38 @@ fn sample(
     page: PageSettings,
     format: Format,
 ) -> Result<Estimate> {
-    let Counted {
-        dirs: chapter_dirs,
-        chapters,
-        pages,
-        strips,
-    } = book;
+    let quality = page.image_settings(&device).quality;
+    let mut strips = 0;
+    for (dir, s) in &book.chapters {
+        let jpegs = (s.strip_jpegs_at(quality)).ok_or_else(|| unsampled(dir, quality))?;
+        strips += jpegs.iter().map(|&j| page_cost(format, j)).sum::<u64>();
+    }
+    let regular: Vec<(&Path, Vec<PathBuf>)> = (book.chapters.iter())
+        .map(|(d, s)| (*d, s.regular.clone()))
+        .collect();
+    let regular_pages = regular.iter().map(|(_, f)| f.len()).sum::<usize>() as u64;
+    let average = regular_average(&regular, device, cut, page, format)?;
+    Ok(Estimate {
+        pages: book.pages,
+        bytes: strips + regular_pages * average,
+    })
+}
+
+fn unsampled(dir: &Path, quality: u8) -> Error {
+    Error::Other(format!(
+        "{} was not sampled at quality {quality}",
+        dir.display()
+    ))
+}
+
+/// The average JPEG of [`SAMPLE`] of the regular pages of `chapters`, spread over all of them.
+fn regular_average(
+    chapters: &[(&Path, Vec<PathBuf>)],
+    device: Device,
+    cut: Options,
+    page: PageSettings,
+    format: Format,
+) -> Result<u64> {
     let mut ignore = |_| {};
     let spec = RunSpec {
         device,
@@ -127,29 +151,16 @@ fn sample(
         spool_dir: None,
     };
     let mut run = Run::new(spec, &mut ignore)?;
-    if strips {
-        for dir in chapter_dirs {
-            if run.pages.len() >= SAMPLE {
-                break;
-            }
-            run.chapter(dir)?;
-        }
-    } else {
-        for (dir, pages) in spread(&chapters, SAMPLE) {
-            let files = ChapterFiles {
-                pages,
-                skipped: Vec::new(),
-            };
-            run.files(dir, files)?;
-        }
+    for (dir, pages) in spread(chapters, SAMPLE) {
+        let files = ChapterFiles {
+            pages,
+            skipped: Vec::new(),
+        };
+        run.files(dir, files)?;
     }
     let sampled = run.pages.len().max(1) as u64;
     let cost = |p: &PageInfo| page_cost(format, p.bytes as u64);
-    let average = run.pages.info().iter().map(cost).sum::<u64>() / sampled;
-    Ok(Estimate {
-        pages,
-        bytes: pages as u64 * average,
-    })
+    Ok(run.pages.info().iter().map(cost).sum::<u64>() / sampled)
 }
 
 /// `n` files spread evenly over all chapters' files, grouped by chapter in order.
@@ -175,24 +186,4 @@ fn spread<'a>(chapters: &[(&'a Path, Vec<PathBuf>)], n: usize) -> Vec<(&'a Path,
         start = end;
     }
     out
-}
-
-/// Pages one chapter's files give, and whether any is a strip: one page per regular image, and
-/// the strips' height (scaled to the screen width) over the cut page height. Unreadable headers
-/// count as one page.
-fn page_count(files: &[PathBuf], device: &Device, page: &PageSettings) -> (usize, bool) {
-    let (mut pages, mut strip_rows) = (0usize, 0f64);
-    for file in files {
-        match image::image_dimensions(file) {
-            Ok((w, h)) if is_long_strip(w, h, device.width, device.height) => {
-                strip_rows += h as f64 * device.width.min(w) as f64 / w as f64;
-            }
-            _ => pages += 1,
-        }
-    }
-    let height = page.page_height(device) as f64;
-    (
-        pages + (strip_rows / height).ceil() as usize,
-        strip_rows > 0.0,
-    )
 }
