@@ -68,7 +68,8 @@ pub fn next_step(verdict: &UsbVerdict, file: &Path, via: &str) -> String {
     format!("\n  copy it anyway with: mangas send --via {via} --force \"{file}\"{email}")
 }
 
-/// Before an export that `send`s over USB: stops it, writing nothing, when the detected Kindle
+/// Before an export that `send`s over USB (and before `--detectors` loads anything, so the
+/// report's `detectors` is truly `off`): stops it, writing nothing, when the detected Kindle
 /// won't open the `ext` format, or may not and `--force` wasn't given. With `json` the report
 /// still prints, listing `books` (what the export would have written) in `not_written`. With no
 /// Kindle found the export goes ahead and its send says so.

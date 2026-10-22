@@ -135,6 +135,11 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         None => PathBuf::from(format!("out.{format}")),
     };
     note_series_preset(saved.as_ref());
+    let to = args
+        .send
+        .map(|via| (via, args.kindle.as_deref(), args.force));
+    let books = [planned_book(&output, args.replace)];
+    deliver_usb::precheck(to, format.id(), &books, args.json)?;
     let (penalizer, detectors) = args.cut.penalizer().await?;
     let req = ExportRequest {
         split: args.cut.split(),
@@ -154,11 +159,6 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         },
         labels,
     };
-    let to = args
-        .send
-        .map(|via| (via, args.kindle.as_deref(), args.force));
-    let books = [planned_book(&req.output, req.replace)];
-    deliver_usb::precheck(to, format.id(), &books, args.json)?;
     let started = Instant::now();
     let mut report = Report::new(detectors);
     let stats = export(&req, penalizer, &mut print_progress)
