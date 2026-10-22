@@ -17,6 +17,8 @@ pub mod process;
 mod request;
 mod run;
 mod stale;
+mod survey;
+mod surveys;
 pub mod trim;
 
 use super::{profile, Profile, PROFILES};

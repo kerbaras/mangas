@@ -13,6 +13,7 @@ use super::plan::{page_size, regular_run, Margins};
 use super::pool::{self, WORKERS as WINDOW};
 use super::process::{encode_owned, ImageSettings};
 use super::request::{ExportStats, Progress};
+use super::survey::{sample_bytes, Survey};
 use super::trim::trim_owned;
 use super::Device;
 use crate::domain::{Error, Result};
@@ -33,6 +34,8 @@ pub(super) struct Run<'a> {
     limit: Option<usize>,
     cancelled: &'a dyn Fn() -> bool,
     pub stopped_early: bool,
+    /// Set, the run only counts its pages into this survey and writes none.
+    pub survey: Option<Survey>,
 }
 
 pub(super) struct RunSpec<'a> {
@@ -81,16 +84,26 @@ impl<'a> Run<'a> {
             limit: spec.limit,
             cancelled: spec.cancelled,
             stopped_early: false,
+            survey: None,
         })
+    }
+
+    /// Pages final so far: emitted, or counted.
+    fn done(&self) -> usize {
+        self.pages.len() + self.survey.as_ref().map_or(0, |s| s.pages)
     }
 
     /// Full counting `queued` pages not emitted yet.
     fn full_with(&self, queued: usize) -> bool {
-        self.limit.is_some_and(|n| self.pages.len() + queued >= n)
+        self.limit.is_some_and(|n| self.done() + queued >= n)
     }
 
     /// Decodes, crops, trims and encodes a run (at most `WORKERS` pages) side by side, in order.
     fn emit_files(&mut self, files: &[PathBuf], margins: &Margins) -> Result<()> {
+        if let Some(s) = self.survey.as_mut() {
+            s.add_regular(files);
+            return Ok(());
+        }
         let t = Instant::now();
         let (settings, trim) = (self.settings, self.trim);
         let encoded = pool::install(|| {
@@ -106,6 +119,16 @@ impl<'a> Run<'a> {
     }
 
     fn emit_pages(&mut self, rendered: Vec<RgbaImage>) -> Result<()> {
+        if let Some(s) = self.survey.as_mut() {
+            let picked = s.picker();
+            s.add_strip(sample_bytes(
+                rendered,
+                self.settings,
+                &s.qualities,
+                &picked,
+            )?);
+            return Ok(());
+        }
         let t = Instant::now();
         let settings = self.settings;
         let encoded = pool::install(|| {
@@ -184,9 +207,7 @@ impl<'a> Run<'a> {
                 return Ok(());
             }
             // Past a strip's held-back rows, a page of the same width continues that strip.
-            let room = self
-                .limit
-                .map_or(WINDOW, |n| n.saturating_sub(self.pages.len()));
+            let room = self.limit.map_or(WINDOW, |n| n.saturating_sub(self.done()));
             let run = match self
                 .paginator
                 .has_pending(page_size(&files[i], &margins)?.0)

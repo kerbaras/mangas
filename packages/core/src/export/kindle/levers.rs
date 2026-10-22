@@ -42,7 +42,7 @@ pub(super) fn levers(
 /// shorter book of bigger pages can be the larger one.
 fn chapters_per_book(dirs: &[PathBuf], e: &Estimate, spec: BudgetSpec) -> Result<Option<usize>> {
     let target = spec.delivery.target();
-    let pages = chapter_pages(dirs, &spec.device, &spec.page);
+    let pages = chapter_pages(dirs, spec.device, spec.cut, spec.page)?;
     let mut guess = most_that_fit(&pages, e.bytes / e.pages.max(1) as u64, target);
     while let Some(n) = guess {
         let books: Vec<Vec<PathBuf>> = dirs.chunks(n).map(<[PathBuf]>::to_vec).collect();
