@@ -302,6 +302,10 @@ with `git cliff -o`); the tag push runs `release.yml`, which builds, signs and p
   where `vPREV` is the previous stable tag.
 - Then: commit `chore(release): vX.Y.Z[-rc.N]`, `git tag -a vX.Y.Z[-rc.N] -m vX.Y.Z[-rc.N]`,
   `git push --follow-tags origin HEAD:main`.
+- The release body, and the `notes` in `latest.json` that the app shows as "What's new", is the
+  tag's `## [X.Y.Z]` section of `CHANGELOG.md` (`scripts/release-notes.sh`, dry run in
+  `scripts/test-release-notes.sh`). Write the section before tagging: a tag without one gets only
+  its heading and a warning in the run.
 - A green run is not proof of signing: check the jobs log `HAS_UPDATER_KEY: true` and the
   release has a `.sig` per updater bundle and a `latest.json`.
 

@@ -42,6 +42,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: scripts/test-publish-updater.sh
+      - run: scripts/test-release-notes.sh
   pr-title:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04

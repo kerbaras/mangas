@@ -107,14 +107,14 @@ jobs:
             echo "::error::runner glibc $have is newer than the $GLIBC_FLOOR floor"; exit 1
           fi
       - run: pnpm install --frozen-lockfile
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: git-cliff
+      # The tag's CHANGELOG.md section, not `git cliff --latest`: after an rc the stable tag's
+      # own commits are only `chore(release)`, so git-cliff gave just the heading (#415).
       - name: Release notes
         id: notes
         shell: bash
         run: |
-          { echo 'body<<EOF'; git cliff --latest --strip all; echo EOF; } >> "$GITHUB_OUTPUT"
+          delimiter="$(openssl rand -hex 16)"
+          { echo "body<<$delimiter"; scripts/release-notes.sh "${{ needs.version.outputs.tag }}"; echo "$delimiter"; } >> "$GITHUB_OUTPUT"
       - name: Apple signing secrets
         if: runner.os == 'macOS' && env.HAS_APPLE_CERTIFICATE == 'true'
         env:

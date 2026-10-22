@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Dry run of publish-updater.sh against a fake `gh` whose releases are folders. Publishes a
-# sequence of tags and checks which version each channel file offers afterwards.
+# sequence of tags and checks which version each channel file offers afterwards, and that its
+# `notes` are release-notes.sh's CHANGELOG.md section (what tauri-action writes from releaseBody).
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 sandbox="$(mktemp -d)"
@@ -35,16 +36,18 @@ GH
 chmod +x "$sandbox/bin/gh"
 
 manifest() { # manifest TAG [wrong]: tauri-action's latest.json, signed by the committed key
-  python3 - "$1" "${2:-}" "$root/apps/desktop/src-tauri/tauri.conf.json" <<'PY'
+  local notes
+  notes="$(cd "$root" && scripts/release-notes.sh "$1" 2>/dev/null)"
+  python3 - "$1" "${2:-}" "$root/apps/desktop/src-tauri/tauri.conf.json" "$notes" <<'PY'
 import base64, json, sys
-tag, wrong, config = sys.argv[1:4]
+tag, wrong, config, notes = sys.argv[1:5]
 pubkey = json.load(open(config))["plugins"]["updater"]["pubkey"]
 key_id = bytes(8) if wrong else base64.b64decode(base64.b64decode(pubkey).decode().splitlines()[1])[2:10]
 blob = base64.b64encode(b"ED" + key_id + bytes(64)).decode()
 signature = base64.b64encode(f"untrusted comment: test\n{blob}\n".encode()).decode()
 platforms = {p: {"signature": signature, "url": f"https://example.test/{tag}/{p}"}
              for p in ["linux-x86_64", "darwin-aarch64", "windows-x86_64"]}
-print(json.dumps({"version": tag.lstrip("v"), "platforms": platforms}))
+print(json.dumps({"version": tag.lstrip("v"), "notes": notes, "platforms": platforms}))
 PY
 }
 
@@ -61,16 +64,30 @@ offers() { # offers FILE: version in the channel file, or "none"
 }
 
 expect() { # expect LATEST LATEST_RC
-  local got="latest.json=$(offers latest.json) latest-rc.json=$(offers latest-rc.json)"
+  local got
+  got="latest.json=$(offers latest.json) latest-rc.json=$(offers latest-rc.json)"
   [[ "$got" == "latest.json=$1 latest-rc.json=$2" ]] || { echo "FAIL: $got, want $1 / $2"; exit 1; }
   echo "ok: $got"
 }
 
+notes_of() { # notes_of FILE TAG: the channel file's notes must be TAG's CHANGELOG.md section
+  local want got
+  want="$(cd "$root" && scripts/release-notes.sh "$2")"
+  got="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["notes"])' "$RELEASES/updater/$1")"
+  [[ "$got" == "$want" ]] || { echo "FAIL: $1 notes differ from $2's CHANGELOG.md section"; exit 1; }
+  echo "ok: $1 notes = $2's section ($(grep -c '^### ' <<<"$got") ### lists, $(grep -c '^- ' <<<"$got") entries)"
+}
+
 publish v0.5.0 && expect 0.5.0 0.5.0
+notes_of latest.json v0.5.0
 publish v0.4.9 && expect 0.5.0 0.5.0
 publish v0.5.0-rc.1 && expect 0.5.0 0.5.0
 publish v0.5.1-rc.1 && expect 0.5.0 0.5.1-rc.1
 publish v0.5.1 && expect 0.5.1 0.5.1
-if publish v0.5.2 wrong; then echo "FAIL: published a manifest signed by another key"; exit 1; fi
-expect 0.5.1 0.5.1
+publish v0.6.0-rc.2 && expect 0.5.1 0.6.0-rc.2
+notes_of latest-rc.json v0.6.0-rc.2
+publish v0.6.0 && expect 0.6.0 0.6.0
+notes_of latest.json v0.6.0
+if publish v0.6.1 wrong; then echo "FAIL: published a manifest signed by another key"; exit 1; fi
+expect 0.6.0 0.6.0
 echo "all publish-updater cases pass"

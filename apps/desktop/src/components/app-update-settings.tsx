@@ -1,6 +1,7 @@
 import { CheckCircle2, Info, RefreshCw } from "lucide-react";
 import { Field } from "@/components/field";
 import { Hint } from "@/components/hint";
+import { ReleaseNotes } from "@/components/release-notes";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -55,17 +56,20 @@ function CheckResult({ check }: { check: CheckState }) {
       </p>
     );
   return (
-    <div className="flex items-center gap-3">
-      <p className="text-caption text-ink-2">{statusLine(status)}</p>
-      <Button
-        size="sm"
-        variant="primary"
-        disabled={install.kind === "running"}
-        onClick={() => void installAppUpdate()}
-      >
-        Restart to update
-      </Button>
-    </div>
+    <>
+      <div className="flex items-center gap-3">
+        <p className="text-caption text-ink-2">{statusLine(status)}</p>
+        <Button
+          size="sm"
+          variant="primary"
+          disabled={install.kind === "running"}
+          onClick={() => void installAppUpdate()}
+        >
+          Restart to update
+        </Button>
+      </div>
+      <ReleaseNotes version={status.version} notes={status.notes} />
+    </>
   );
 }
 
