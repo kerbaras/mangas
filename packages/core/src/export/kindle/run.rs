@@ -13,7 +13,7 @@ use super::plan::{page_size, regular_run, Margins};
 use super::pool::{self, WORKERS as WINDOW};
 use super::process::{encode_owned, ImageSettings};
 use super::request::{ExportStats, Progress};
-pub(super) use super::run_spec::{empty_stats, RunSpec};
+pub(super) use super::run_spec::RunSpec;
 use super::survey::Survey;
 use super::trim::trim_owned;
 use super::Device;
@@ -29,38 +29,17 @@ pub(super) struct Run<'a> {
     pub pages: PageSpool,
     pub stats: ExportStats,
     pub progress: &'a mut dyn FnMut(Progress),
-    device: Device,
-    trim: bool,
+    pub device: Device,
+    pub trim: bool,
     /// Stop once this many pages are final (preview); the rest of the chapter is not read.
-    limit: Option<usize>,
-    cancelled: &'a dyn Fn() -> bool,
+    pub limit: Option<usize>,
+    pub cancelled: &'a dyn Fn() -> bool,
     pub stopped_early: bool,
     /// Set, the run only counts its pages into this survey and writes none.
     pub survey: Option<Survey>,
 }
 
 impl<'a> Run<'a> {
-    pub fn new(spec: RunSpec<'a>, progress: &'a mut dyn FnMut(Progress)) -> Result<Run<'a>> {
-        let dev = spec.device;
-        let mut paginator = StripPaginator::new(dev.width, spec.page.page_height(&dev), spec.cut);
-        if let Some(p) = spec.penalizer {
-            paginator = paginator.with_penalizer(p);
-        }
-        Ok(Run {
-            settings: spec.page.image_settings(&dev),
-            paginator,
-            pages: PageSpool::new_in(spec.spool_dir)?,
-            stats: empty_stats(),
-            progress,
-            device: dev,
-            trim: spec.page.trim_margins,
-            limit: spec.limit,
-            cancelled: spec.cancelled,
-            stopped_early: false,
-            survey: None,
-        })
-    }
-
     fn final_pages(&self) -> usize {
         self.pages.len() + self.survey.as_ref().map_or(0, |s| s.pages)
     }
