@@ -1,4 +1,4 @@
-import { Mail, RefreshCw, Usb } from "lucide-react";
+import { Mail, RefreshCw, Usb, X } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -17,10 +17,12 @@ type Props = {
   onRetry?: () => void;
   /** Sends by email instead, offered when a Kindle is connected over MTP only or may not open an EPUB. */
   onEmail?: () => void;
+  /** Stops a USB copy under way. */
+  onCancel?: () => void;
 };
 
 /** Where a delivery is: looking, copying with progress, Device not found, MTP only (+ Use Email), a format the Kindle won't or may not open (+ Copy anyway), failed (+ Retry when given), done. */
-export function SendStatus({ state, via, onRetry, onEmail }: Props) {
+export function SendStatus({ state, via, onRetry, onEmail, onCancel }: Props) {
   const failed = failedVia(state);
   if (via !== undefined && failed !== undefined && failed !== via) {
     return state.kind === "error" && state.sent ? <Sent lines={state.sent} /> : null;
@@ -43,7 +45,14 @@ export function SendStatus({ state, via, onRetry, onEmail }: Props) {
               </span>
             )}
           </div>
-          <Progress value={state.done} max={state.total} className="mt-1.5" />
+          <div className="mt-1.5 flex items-center gap-2">
+            <Progress value={state.done} max={state.total} className="flex-1" />
+            {onCancel && (
+              <Button size="sm" variant="ghost" onClick={onCancel}>
+                <X /> Cancel
+              </Button>
+            )}
+          </div>
         </div>
       );
     case "format":

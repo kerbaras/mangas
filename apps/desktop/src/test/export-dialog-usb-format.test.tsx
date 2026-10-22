@@ -38,7 +38,7 @@ function backend(verdict: Omit<UsbVerdict, "device">, mtpOnly = false) {
   const usbVerdict = vi.fn(async (_f: string, device: string) => ({ ...verdict, device }));
   const { exportVolumes } = exportBackend({
     findKindles: async () => (mtpOnly ? [] : [kindle]),
-    usbKindles: async () => [{ name: "Kindle Paperwhite" }],
+    usbKindles: async () => [{ name: "Kindle Paperwhite", copyable: false }],
     sendUsb,
     usbVerdict,
   });

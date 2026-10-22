@@ -5,7 +5,7 @@
  * reports a keychain that won't open.
  */
 import type { Unlisten } from "./ipc";
-import type { CopyProgress, ExportRecord, SendBackend } from "./ipc.send";
+import { COPY_CANCELLED, type CopyProgress, type ExportRecord, type SendBackend } from "./ipc.send";
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const params = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
@@ -21,6 +21,7 @@ const now = () => new Date().toISOString().slice(0, 19).replace("T", " ");
 
 export function mockSend(): SendBackend {
   let looks = 0;
+  let cancelled = false;
   let saved = false;
   const storage = () =>
     params.has("locked-keychain") ? "locked" : params.has("no-keychain") ? "file" : "keychain";
@@ -50,7 +51,8 @@ export function mockSend(): SendBackend {
       return (params.has("no-kindle") && looks < 2) || params.has("mtp-kindle") ? [] : [KINDLE];
     },
     async usbKindles() {
-      return params.has("mtp-kindle") ? [{ name: "Kindle" }] : [];
+      const copyable = params.has("mtp-copy");
+      return params.has("mtp-kindle") ? [{ name: "Kindle", copyable }] : [];
     },
     async emailRefusal(file) {
       // The browser preview's stand-in for `email::email_refusal`; the app asks core.
@@ -71,16 +73,22 @@ export function mockSend(): SendBackend {
           : `${device} may not open an ${format} copied over USB. Email it instead (Send to Kindle converts ${format}), or export the book as PDF or AZW3.`;
       return { decision: decision ?? "warn", format, device, reason };
     },
-    async sendUsb(file, title) {
-      const path = `${KINDLE.documents}/${file.split("/").pop()}`;
+    async sendUsb(file, title, root) {
+      const docs = root ? KINDLE.documents : "documents";
+      const path = `${docs}/${file.split("/").pop()}`;
       if (file === path) return { path, already_there: true };
       const total = 18_400_000;
+      cancelled = false;
       for (let step = 0; step <= 10; step++) {
+        if (cancelled) throw new Error(COPY_CANCELLED);
         for (const cb of listeners) cb({ done: (total * step) / 10, total });
         await wait(120);
       }
       stamp(file, title, "usb", KINDLE.name);
       return { path, already_there: false };
+    },
+    async cancelSendUsb() {
+      cancelled = true;
     },
     onCopyProgress: async (cb): Promise<Unlisten> => {
       listeners.add(cb);

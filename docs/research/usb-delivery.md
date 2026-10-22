@@ -174,6 +174,12 @@ unplug your Kindle".
 - There is no USB bus enumeration, so a plugged-in MTP Kindle looks the same as nothing plugged
   in ([#126]). On a gvfs mount, rename over an existing object and `sync_all` go through gvfs's
   MTP backend. Neither was tested on a real device **[unverified]**.
+- Since #331, macOS and Windows builds with the `mtp` feature (on by default in the desktop
+  binary) copy to an MTP-only Kindle directly: `send/mtp` (an `MtpStore` trait, `mtp-rs` behind
+  it, a folder-backed fake for tests). The book goes to `documents/` on the first storage as a
+  hidden scratch object that is renamed only once the upload completes; a failed or cancelled
+  upload is deleted and the previous book stays. Linux keeps the gvfs folder path above and
+  shows "connected over MTP" (with Email instead) when gvfs hasn't mounted the Kindle ([#332]).
 
 ## Per-OS analysis
 
@@ -363,3 +369,4 @@ Plug the Kindle in, unlock it, and note its model and firmware (Settings → Dev
 [nusb-interfaces]: https://docs.rs/nusb/0.2.8/nusb/struct.DeviceInfo.html#method.interfaces
 [amazon-stk]: https://www.amazon.com/sendtokindle
 [amazon-formats]: https://www.amazon.com/gp/help/customer/display.html?nodeId=G5WYD9SAF7PGXRNA
+[#332]: https://github.com/kerbaras/mangas/issues/332

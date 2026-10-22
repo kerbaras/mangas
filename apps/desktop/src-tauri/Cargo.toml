@@ -65,6 +65,9 @@ objc2-foundation = { version = "0.3", default-features = false, features = ["std
 objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "WKWebView", "WKNavigationDelegate"] }
 
 [features]
-default = []
+# `mtp` is on: release.yml builds it on every OS (it pulls nothing on Linux, where gvfs mounts
+# MTP Kindles as folders).
+default = ["mtp"]
+mtp = ["mangas-core/mtp", "mangas-cli/mtp"]
 ml = ["mangas-core/ml", "mangas-cli/ml"]
 cuda = ["mangas-core/cuda", "mangas-cli/cuda"]

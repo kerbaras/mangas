@@ -1,13 +1,14 @@
 //! Send to Kindle after an export: email, USB copy, test email and the export history.
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use mangas_core::library::{self, ExportRecord};
 use mangas_core::send::password::{self, SecretStore};
-use mangas_core::send::{email, usb, EmailSettings, KindleVolume, SendVia};
-use tauri::{AppHandle, Emitter};
+use mangas_core::send::{email, mtp, usb, EmailSettings, KindleVolume, SendVia};
+use tauri::{AppHandle, Emitter, State};
 
 use super::{blocking, open_library, to_ipc};
 
@@ -28,33 +29,60 @@ pub async fn find_kindles() -> Vec<KindleVolume> {
         .unwrap_or_default()
 }
 
+/// A Kindle on the USB bus; `copyable` when this build copies to it over MTP (macOS and
+/// Windows), else only its name is of use (the format table, Email instead).
+#[derive(serde::Serialize)]
+pub struct BusKindle {
+    name: String,
+    copyable: bool,
+}
+
 /// Kindles on the USB bus, mounted or not: asked when none is mounted, to tell a Kindle
 /// connected over MTP only from no Kindle at all.
 #[tauri::command]
-pub async fn usb_kindles() -> Vec<usb::UsbKindle> {
-    tauri::async_runtime::spawn_blocking(usb::usb_kindles)
-        .await
-        .unwrap_or_default()
+pub async fn usb_kindles() -> Vec<BusKindle> {
+    let found = tauri::async_runtime::spawn_blocking(usb::usb_kindles).await;
+    let copyable = mtp::copyable();
+    let to_dto = |k: usb::UsbKindle| BusKindle {
+        name: k.name,
+        copyable,
+    };
+    found.unwrap_or_default().into_iter().map(to_dto).collect()
+}
+
+/// The cancel flag of the USB copy under way (one at a time).
+#[derive(Default, Clone)]
+pub struct UsbCopying(Arc<AtomicBool>);
+
+/// Stops the USB copy under way at its next chunk: the partial book is removed and a book
+/// already on the Kindle stays; `send_usb` then fails with "copy cancelled".
+#[tauri::command]
+pub fn cancel_send_usb(copying: State<'_, UsbCopying>) {
+    copying.0.store(true, Ordering::SeqCst);
 }
 
 /// Copies `file` to the Kindle at `root` (the first one found when `None`) and returns where it
 /// is. "Device not found" when there is none. A format the Kindle doesn't open is never copied,
-/// one it may not open only with `force` (asked of a Kindle on MTP only too, before saying MTP). A book that was already on the Kindle isn't copied
-/// and adds no history row.
+/// one it may not open only with `force` (asked of a Kindle on MTP only too, before any upload).
+/// A Kindle on MTP only is copied to directly where [`mtp::copyable`]. A book that was already
+/// on the Kindle isn't copied and adds no history row. [`cancel_send_usb`] stops it.
 #[tauri::command]
 #[tracing::instrument(level = "error", skip_all)]
 pub async fn send_usb(
     app: AppHandle,
+    copying: State<'_, UsbCopying>,
     file: PathBuf,
     title: String,
     root: Option<PathBuf>,
     force: Option<bool>,
 ) -> Result<usb::Copied, String> {
+    let cancel = copying.0.clone();
+    cancel.store(false, Ordering::SeqCst);
     let (copied, name) = tauri::async_runtime::spawn_blocking({
         let file = file.clone();
         move || {
-            let chosen = usb::choose(root.as_deref(), usb::scan_kindles());
-            if let Some(name) = usb::chosen_name(&chosen) {
+            let chosen = usb::target(root.as_deref(), usb::scan_kindles());
+            if let Some(name) = usb::target_name(&chosen) {
                 usb::admit(&usb::usb_verdict(&file, name), force == Some(true))?;
             }
             let kindle = chosen?;
@@ -68,7 +96,9 @@ pub async fn send_usb(
                     }
                 }
             };
-            usb::copy_to_kindle(&file, &kindle, &mut on_progress).map(|d| (d, kindle.name))
+            let cancelled = || cancel.load(Ordering::SeqCst);
+            usb::deliver(&file, &kindle, &cancelled, &mut on_progress)
+                .map(|d| (d, kindle.name().to_string()))
         }
     })
     .await

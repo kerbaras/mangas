@@ -48,8 +48,11 @@ export const DEFAULT_PORT: Record<Security, number> = { starttls: 587, tls: 465,
 /** Mirrors `mangas_core::send::KindleVolume`. */
 export type KindleVolume = { name: string; root: string; documents: string };
 
-/** Mirrors `mangas_core::send::usb::UsbKindle`: a Kindle on the USB bus, mounted or not. */
-export type UsbKindle = { name: string };
+/**
+ * Mirrors `commands::send::BusKindle`: a Kindle on the USB bus, mounted or not; `copyable` when
+ * this build copies to it over MTP (macOS and Windows) with no mounted folder.
+ */
+export type UsbKindle = { name: string; copyable: boolean };
 
 /** Mirrors `mangas_core::send::usb::MTP_HINT`; follows the device name. */
 export const MTP_HINT = "connects over MTP, which mangas can't copy to on this computer yet";
@@ -99,6 +102,8 @@ export type SendBackend = {
    * is. A refused format rejects; one that warns rejects unless `force`.
    */
   sendUsb(file: string, title: string, root?: string, force?: boolean): Promise<UsbCopy>;
+  /** Stops the copy under way: no partial book is left; `sendUsb` rejects with {@link COPY_CANCELLED}. */
+  cancelSendUsb(): Promise<void>;
   onCopyProgress(cb: (p: CopyProgress) => void): Promise<Unlisten>;
   /** Emails the EPUB to the Kindle address in the settings. */
   sendEmail(file: string, title: string): Promise<SentEmail>;
@@ -126,6 +131,9 @@ export const sendUsb = async (file: string, title: string, root?: string, force?
   force
     ? (await backend()).sendUsb(file, title, root, true)
     : (await backend()).sendUsb(file, title, root);
+export const cancelSendUsb = async () => (await backend()).cancelSendUsb();
+/** `mangas_core::Error::Cancelled`: the user stopped a USB copy. */
+export const COPY_CANCELLED = "copy cancelled; the Kindle keeps what it had";
 export const onCopyProgress = async (cb: (p: CopyProgress) => void) =>
   (await backend()).onCopyProgress(cb);
 export const sendEmail = async (file: string, title: string) =>

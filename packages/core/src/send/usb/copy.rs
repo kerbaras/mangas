@@ -29,6 +29,17 @@ pub fn copy_to_kindle(
     kindle: &KindleVolume,
     on_progress: &mut dyn FnMut(u64, u64),
 ) -> Result<Copied> {
+    copy_to_kindle_until(file, kindle, &|| false, on_progress)
+}
+
+/// [`copy_to_kindle`] that stops at the next chunk once `cancelled()`: the `.part` file is
+/// removed, a book already there stays, and the copy is [`Error::Cancelled`].
+pub fn copy_to_kindle_until(
+    file: &Path,
+    kindle: &KindleVolume,
+    cancelled: &dyn Fn() -> bool,
+    on_progress: &mut dyn FnMut(u64, u64),
+) -> Result<Copied> {
     let name = file
         .file_name()
         .ok_or_else(|| Error::Send(format!("{} is not a file", file.display())))?;
@@ -53,11 +64,14 @@ pub fn copy_to_kindle(
         .create_new(true)
         .open(&part)
         .map_err(|e| device_error(kindle, &e))?;
-    copy(src, dst, on_progress)
+    copy(src, dst, cancelled, on_progress)
         .and_then(|()| std::fs::rename(&part, &dest))
         .map_err(|e| {
             let _ = std::fs::remove_file(&part);
-            device_error(kindle, &e)
+            match e.get_ref().is_some_and(|inner| inner.is::<Stop>()) {
+                true => Error::Cancelled,
+                false => device_error(kindle, &e),
+            }
         })?;
     Ok(Copied {
         path: dest,
@@ -88,6 +102,18 @@ fn part_name() -> String {
     format!(".mangas-{}-{n}.part", std::process::id())
 }
 
+/// Marks the io error a cancelled copy stops with.
+#[derive(Debug)]
+struct Stop;
+
+impl std::fmt::Display for Stop {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("cancelled")
+    }
+}
+
+impl std::error::Error for Stop {}
+
 fn same_file(a: &Path, b: &Path) -> bool {
     matches!((a.canonicalize(), b.canonicalize()), (Ok(a), Ok(b)) if a == b)
 }
@@ -95,6 +121,7 @@ fn same_file(a: &Path, b: &Path) -> bool {
 fn copy(
     mut src: File,
     mut dst: File,
+    cancelled: &dyn Fn() -> bool,
     on_progress: &mut dyn FnMut(u64, u64),
 ) -> std::io::Result<()> {
     let total = src.metadata()?.len();
@@ -102,6 +129,9 @@ fn copy(
     let mut done = 0u64;
     on_progress(0, total);
     loop {
+        if cancelled() {
+            return Err(std::io::Error::other(Stop));
+        }
         let n = src.read(&mut buf)?;
         if n == 0 {
             break;

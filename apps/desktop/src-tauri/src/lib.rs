@@ -25,6 +25,7 @@ pub fn run() {
         .plugin(window_state::plugin())
         .plugin(window_normal::plugin())
         .manage(commands::app_update::PendingUpdate::default())
+        .manage(commands::send::UsbCopying::default())
         .setup(move |app| {
             window_state::restore(app.handle());
             allow_covers(app.handle());
@@ -98,6 +99,7 @@ pub fn run() {
             commands::send_formats::usb_verdict,
             commands::send_formats::email_refusal,
             commands::send::send_usb,
+            commands::send::cancel_send_usb,
             commands::send::send_email,
             commands::send::send_test_email,
             commands::smtp_password::smtp_password_status,

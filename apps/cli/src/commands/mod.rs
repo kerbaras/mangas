@@ -2,6 +2,7 @@ pub mod add;
 mod app_update;
 pub mod backup;
 pub mod chapters;
+mod copy_cancel;
 mod cut_args;
 mod deliver;
 mod deliver_precheck;

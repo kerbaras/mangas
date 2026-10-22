@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use anyhow::bail;
 use clap::Args as ClapArgs;
 use mangas_core::library;
-use mangas_core::send::{email, password, usb};
+use mangas_core::send::{email, mtp, password, usb};
 
 use super::deliver::{deliver, SendArg};
 use super::deliver_usb::{mtp_step, next_step, stopped_by};
@@ -90,6 +90,9 @@ fn list_devices() -> anyhow::Result<()> {
     let found = usb::scan_kindles();
     match (found.volumes.is_empty(), found.mtp.first()) {
         (false, _) => {}
+        (true, Some(device)) if mtp::copyable() => {
+            outln!("{}\tMTP: {}", device.name, mtp::DOCUMENTS)?;
+        }
         (true, Some(device)) => eprintln!("{} {}\n  {EMAIL_INSTEAD}", device.name, usb::MTP_HINT),
         (true, None) => eprintln!("Device not found: connect your Kindle over USB and unlock it"),
     }

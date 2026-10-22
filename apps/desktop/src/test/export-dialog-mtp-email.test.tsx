@@ -37,7 +37,7 @@ describe("export dialog: Kindle over MTP, then Email", () => {
     const sendEmail = vi.fn();
     const { exportVolumes } = exportBackend({
       findKindles: vi.fn().mockResolvedValue([]),
-      usbKindles: vi.fn().mockResolvedValue([{ name: "Kindle" }]),
+      usbKindles: vi.fn().mockResolvedValue([{ name: "Kindle", copyable: false }]),
       sendEmail,
     });
     exportVolumes.mockResolvedValue(big);
