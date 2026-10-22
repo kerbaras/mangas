@@ -5,7 +5,7 @@ use clap::Args as ClapArgs;
 use mangas_core::domain::MangaId;
 use mangas_core::export::kindle::{check_export_folder, BudgetSpec};
 use mangas_core::export::volume::{self, VolumeOutcome};
-use mangas_core::export::{ExportPreset, Format};
+use mangas_core::export::{for_delivery, ExportPreset, Format};
 use mangas_core::{library, storage};
 
 use super::cut_args::{CutArgs, DEFAULT_PROFILE};
@@ -18,7 +18,7 @@ use super::export_plan::Fewer;
 use super::export_plans::plans;
 use super::export_preset::{self, PresetAction};
 use super::export_report::Report;
-use super::export_size::{delivery_of, levers_text, print_written, warn_too_big};
+use super::export_size::{delivery_of, levers_text, print_written, route_of, warn_too_big};
 use super::followed::followed_source;
 use super::kindle_record;
 use super::{export_progress::export_printing, hint, stored_settings};
@@ -79,7 +79,7 @@ pub struct Args {
     /// Mount point of the Kindle for `--send usb` [default: detected]
     #[arg(long)]
     pub kindle: Option<PathBuf>,
-    /// With `--send usb`, copy a format the Kindle may not open (EPUB); CBZ is never copied
+    /// With `--send usb`, copy a file that is no export format (the Kindle may not open it); EPUB and CBZ are never copied
     #[arg(long, requires = "send")]
     pub force: bool,
     #[command(flatten)]
@@ -113,7 +113,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let preset = ExportPreset::resolve(&explicit, series.as_ref(), &fallback)
         .with_stored_quality(&stored, DEFAULT_PROFILE);
     let device = CutArgs::device_of(&preset, DEFAULT_PROFILE)?;
-    let format = Format::resolve(preset.format, None, None, &device)?;
+    let picked = args.format.map(Format::from);
+    let chosen = for_delivery(picked, preset.format, &device, route_of(args.send));
+    let format = chosen.format;
     check_export_folder(&args.output_dir, args.cut.split_mb.is_some(), args.replace)?;
     let plans = volume::named_as_written(plans, &args.output_dir, format.id(), args.replace)?;
     let names: Vec<String> = plans.iter().map(|p| p.file_name.clone()).collect();
@@ -126,7 +128,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         delivery,
         split: args.cut.split(),
     };
-    let plan = export_plan::size(&plans, &names, &args.output_dir, spec)?;
+    let plan = export_plan::size(&plans, &names, &args.output_dir, spec, chosen)?;
     let fewer = Fewer::of(args.chapters.is_some() || args.volume.is_some());
     match (args.json, args.dry_run) {
         (true, true) => return export_plan::print_json(&plan),

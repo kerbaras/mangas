@@ -9,7 +9,7 @@ type Props = { value: ExportFormat; onChange: (f: ExportFormat) => void; compact
 export function FormatPicker({ value, onChange, compact }: Props) {
   const name = useId();
   return (
-    <fieldset className="grid grid-cols-3 gap-2">
+    <fieldset className="grid grid-cols-2 gap-2">
       <legend className="sr-only">File format</legend>
       {FORMATS.map((f) => {
         const active = f.id === value;

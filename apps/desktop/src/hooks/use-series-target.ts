@@ -2,10 +2,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useExportTarget } from "@/hooks/use-export-target";
 import { type Series, useSeriesPreset } from "@/hooks/use-series-preset";
-import { effectiveFormat } from "@/lib/export-formats";
+import { deliveryFormat, effectiveFormat } from "@/lib/export-formats";
 import type { ExportPick } from "@/lib/export-name";
 import { errorMessage } from "@/lib/format";
-import type { Preset } from "@/lib/ipc";
+import type { ExportFormat, Preset } from "@/lib/ipc";
 import { setExportPreset } from "@/lib/ipc.cut-preview";
 import type { ReadingDirection } from "@/lib/ipc.domain";
 import { withQuality } from "@/lib/kindle-size";
@@ -20,6 +20,8 @@ export function useSeriesTarget(picks: ExportPick[]) {
   const stored = useExportTarget();
   const [ownPreset, setOwnPreset] = useState<Preset>(settings.defaultPreset);
   const key = picks.map((p) => `${p.manga.source}/${p.manga.id}`).join("|");
+  // A format picked in this dialog wins over the one the delivery gives a Kindle.
+  const [picked, setPicked] = useState<ExportFormat | null>(null);
   const [own, setOwn] = useState<{ key: string; direction: ReadingDirection } | null>(null);
   // A pick holds for the series it was made for; other picks start from their own way.
   const ownDirection = own?.key === key ? own.direction : null;
@@ -31,11 +33,18 @@ export function useSeriesTarget(picks: ExportPick[]) {
   const series = useSeriesPreset(info);
   const list = stored.devices.kind === "ready" ? stored.devices.data : [];
   const device = series.shown("profile", stored.device);
+  const recommended = list.find((d) => d.id === device);
+  const format = series.shown("format", effectiveFormat(settings.defaultFormat, list, device));
+  const byRoute = (via: Route) => (picked ? undefined : deliveryFormat(recommended, via));
   const target = {
     ...stored,
     device,
-    format: series.shown("format", effectiveFormat(settings.defaultFormat, list, device)),
-    recommended: list.find((d) => d.id === device),
+    format,
+    /** The format an export over `via` writes: picked here, else the delivery's, else `format`. */
+    formatFor: (via: Route) => picked ?? byRoute(via) ?? format,
+    /** "Kindle over USB: AZW3; Email: EPUB" when the delivery chose the format. */
+    reasonFor: (via: Route) => (byRoute(via) && recommended?.delivery?.reason) || null,
+    recommended,
     // The quality stored for the device shown, which a series preset may have picked.
     quality: settings.jpegQuality[device] ?? null,
     setQuality: (q: number | null) =>
@@ -44,8 +53,9 @@ export function useSeriesTarget(picks: ExportPick[]) {
       series.touch("profile");
       stored.setDevice(id);
     },
-    setFormat: (f: Parameters<typeof stored.setFormat>[0]) => {
+    setFormat: (f: ExportFormat) => {
       series.touch("format");
+      setPicked(f);
       stored.setFormat(f);
     },
     /** Picked here; null lets the series preset, else the source, decide for each series. */
@@ -86,5 +96,7 @@ export function useSeriesTarget(picks: ExportPick[]) {
     settled: series.settled,
   };
 }
+
+type Route = "save" | "usb" | "email";
 
 export type SeriesTarget = ReturnType<typeof useSeriesTarget>["target"];

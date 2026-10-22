@@ -98,23 +98,24 @@ fn supported_formats_meet_mtp_and_only_a_pdf_is_pointed_at_email() {
 }
 
 #[test]
-fn an_epub_warns_first_and_with_force_meets_mtp_with_email() {
+fn an_epub_is_refused_by_format_even_forced_and_pointed_at_email() {
     if mounted_kindle() {
         return;
     }
     let home = tempfile::tempdir().unwrap();
-    let out = send(home.path(), "epub", &[]);
-    assert_eq!(out.status.code(), Some(1), "{out:?}");
-    assert!(
-        stderr(&out).contains(&format!("{DEVICE} may not open")),
-        "{out:?}"
-    );
+    for extra in [&[][..], &["--force"][..]] {
+        let out = send(home.path(), "epub", extra);
+        assert_eq!(out.status.code(), Some(1), "{out:?}");
+        let err = stderr(&out);
+        assert!(
+            err.contains(&format!("{DEVICE} doesn't open an EPUB")),
+            "{err}"
+        );
+        assert!(err.contains("mangas send --via email"), "{err}");
+        assert!(!err.contains("MTP"), "{err}");
+    }
     let r = json(&send(home.path(), "epub", &["--json"]));
-    assert_eq!(r["usb"]["decision"], "warn", "{r}");
-    let out = send(home.path(), "epub", &["--force"]);
-    let err = stderr(&out);
-    assert!(err.contains("connects over MTP"), "{err}");
-    assert!(err.contains("mangas send --via email"), "{err}");
+    assert_eq!(r["usb"]["decision"], "refused", "{r}");
 }
 
 /// `mangas kindle <chapter> --format <ext> [--json] --send usb -o out/`, no `--kindle`.

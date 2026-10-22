@@ -20,7 +20,7 @@ export const initialMode = (chapters: Chapter[]): BundleMode =>
 
 /** `name` with the extension of `format`, as the exporter writes it. */
 export const withExtension = (name: string, format: ExportFormat): string =>
-  `${name.replace(/\.(epub|cbz|pdf)$/i, "")}.${format}`;
+  `${name.replace(/\.(epub|azw3|cbz|pdf)$/i, "")}.${format}`;
 
 /** The switch works once the build has detector support (#130) and it is downloaded (#159). */
 export const detectorsUsable = (state: Async<DetectorsStatus>): boolean =>

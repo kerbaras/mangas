@@ -28,7 +28,7 @@ impl Exporter for EpubExporter {
         let book = Book {
             id: meta.id.clone(),
             title: meta.title.clone(),
-            authors: meta.authors.clone(),
+            authors: creators(&meta.authors),
             language: meta.language.clone(),
             series: meta.series.clone(),
             right_to_left: meta.right_to_left,
@@ -39,5 +39,13 @@ impl Exporter for EpubExporter {
             cover: meta.cover.clone(),
         };
         write(&book, output, replace)
+    }
+}
+
+/// `authors`, or "mangas" when none is known: EPUB readers show a creator line.
+fn creators(authors: &[String]) -> Vec<String> {
+    match authors.is_empty() {
+        true => vec!["mangas".into()],
+        false => authors.to_vec(),
     }
 }

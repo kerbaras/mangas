@@ -1,5 +1,5 @@
-//! `mangas send --via usb` asks the format table before copying: PDF and AZW3 copy, EPUB only
-//! with `--force`, CBZ never; `--json` reports the decision under `usb`.
+//! `mangas send --via usb` asks the format table before copying: PDF and AZW3 copy, EPUB and
+//! CBZ never (EPUB is pointed at Email); `--json` reports the decision under `usb`.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -76,42 +76,29 @@ fn a_cbz_is_refused_even_with_force() {
 }
 
 #[test]
-fn an_epub_warns_and_copies_only_with_force() {
+fn an_epub_is_refused_even_with_force_and_pointed_at_azw3_and_email() {
     let (home, book) = setup("epub");
-    let out = send(home.path(), &book, &[]);
-    assert_eq!(out.status.code(), Some(1), "{out:?}");
-    let err = stderr(&out);
-    assert!(
-        err.contains("Kindle may not open an EPUB copied over USB"),
-        "{err}"
-    );
-    assert!(err.contains("Email it instead"), "{err}");
-    assert!(
-        err.contains("copy it anyway with: mangas send --via usb --force"),
-        "{err}"
-    );
-    assert!(
-        err.contains("or email it: mangas send --via email"),
-        "{err}"
-    );
+    for extra in [&[][..], &["--force"][..]] {
+        let out = send(home.path(), &book, extra);
+        assert_eq!(out.status.code(), Some(1), "{out:?}");
+        let err = stderr(&out);
+        assert!(
+            err.contains("Kindle doesn't open an EPUB copied over USB"),
+            "{err}"
+        );
+        assert!(err.contains("Export the book as AZW3"), "{err}");
+        assert!(
+            err.contains("send it by email instead: mangas send --via email"),
+            "{err}"
+        );
+        assert!(!err.contains("--force"), "{err}");
+    }
     assert!(!on_kindle(home.path(), "epub"));
-    let r = json(&send(home.path(), &book, &["--json"]));
+    let r = json(&send(home.path(), &book, &["--force", "--json"]));
     assert_eq!(
         (r["sent"].clone(), r["usb"]["decision"].clone()),
-        (false.into(), "warn".into())
+        (false.into(), "refused".into())
     );
-
-    let out = send(home.path(), &book, &["--force", "--json"]);
-    assert!(out.status.success(), "{out:?}");
-    assert!(on_kindle(home.path(), "epub"));
-    assert!(
-        stderr(&out).contains("warning: Kindle may not open an EPUB"),
-        "{out:?}"
-    );
-    let r = json(&out);
-    assert_eq!(r["sent"], true, "{r}");
-    assert_eq!(r["usb"]["decision"], "warn", "{r}");
-    assert!(r["usb"]["reason"].is_string(), "{r}");
 }
 
 #[test]
@@ -162,7 +149,7 @@ fn kindle_json(home: &Path, ext: &str) -> Output {
 
 #[test]
 fn a_stopped_kindle_send_still_prints_the_json_report_and_writes_nothing() {
-    for (ext, class) in [("cbz", "usb_refused"), ("epub", "usb_warn")] {
+    for (ext, class) in [("cbz", "usb_refused"), ("epub", "usb_refused")] {
         let (home, _) = setup("pdf");
         let out = kindle_json(home.path(), ext);
         assert!(!out.status.success(), "{ext}: {out:?}");

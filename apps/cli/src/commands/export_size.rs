@@ -7,6 +7,8 @@ use mangas_core::export::kindle::{
     book_levers, BudgetSpec, Delivery, ExportStats, Levers, Oversized,
 };
 
+use mangas_core::export::Route;
+
 use super::deliver::SendArg;
 use super::export_plan::{levers_line, Fewer};
 
@@ -18,6 +20,15 @@ pub fn bytes(file: &Path) -> u64 {
 }
 
 /// The budget `send` puts a book under: email's, or the web one for everything else.
+/// The route `--send` takes, which picks a Kindle book's format (`export::for_delivery`).
+pub fn route_of(send: Option<SendArg>) -> Route {
+    match send {
+        Some(SendArg::Email) => Route::Email,
+        Some(SendArg::Usb) => Route::Usb,
+        None => Route::Save,
+    }
+}
+
 pub fn delivery_of(send: Option<SendArg>) -> Delivery {
     match send {
         Some(SendArg::Email) => Delivery::Email,

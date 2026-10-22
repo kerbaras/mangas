@@ -30,7 +30,7 @@ describe("export dialog: format, smart cut and delivery", () => {
     expect(exportVolumes.mock.calls[0][0].format).toBe("cbz");
   });
 
-  it("copies every book to the Kindle over USB and says when one is already there", async () => {
+  it("copies every book to the Kindle over USB as AZW3 and says when one is already there", async () => {
     const kindle = {
       name: "Kindle",
       root: "/media/me/Kindle",
@@ -39,11 +39,11 @@ describe("export dialog: format, smart cut and delivery", () => {
     const sendUsb = vi
       .fn()
       .mockResolvedValueOnce({
-        path: "/media/me/Kindle/documents/Solo v1.epub",
+        path: "/media/me/Kindle/documents/Solo v1.azw3",
         already_there: true,
       })
       .mockResolvedValueOnce({
-        path: "/media/me/Kindle/documents/Solo v2.epub",
+        path: "/media/me/Kindle/documents/Solo v2.azw3",
         already_there: false,
       });
     exportBackend({ findKindles: async () => [kindle], sendUsb });
@@ -51,15 +51,15 @@ describe("export dialog: format, smart cut and delivery", () => {
     fireEvent.mouseDown(await screen.findByRole("tab", { name: "Kindle over USB" }));
     fireEvent.click(await enabledButton(/Export 2 books and copy/));
     await waitFor(() => expect(sendUsb).toHaveBeenCalledTimes(2));
-    expect(sendUsb).toHaveBeenCalledWith("/k/Solo v1.epub", "Solo v1", kindle.root);
-    expect(await screen.findByText(/Already on Kindle: .*Solo v1\.epub/)).toBeTruthy();
-    expect(screen.getByText(/Copied to Kindle: .*Solo v2\.epub/)).toBeTruthy();
+    expect(sendUsb).toHaveBeenCalledWith("/k/Solo v1.azw3", "Solo v1", kindle.root);
+    expect(await screen.findByText(/Already on Kindle: .*Solo v1\.azw3/)).toBeTruthy();
+    expect(screen.getByText(/Copied to Kindle: .*Solo v2\.azw3/)).toBeTruthy();
   });
 
   it("offers email only for formats Send to Kindle takes", async () => {
     exportBackend();
-    writeSettings({ defaultFormat: "cbz" });
     render(dialog());
+    fireEvent.click(await screen.findByLabelText("CBZ"));
     const email = await screen.findByRole("tab", { name: "Email to Kindle" });
     expect(email.getAttribute("aria-disabled")).toBe("true");
     fireEvent.focus(email);

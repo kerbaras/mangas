@@ -14,6 +14,7 @@ const device = {
   dpi: 300,
   grayscale: true,
   format: "epub" as const,
+  delivery: null,
 };
 
 function open(detectorsError: string | null = null, broken: "runtime" | "model" = "runtime") {

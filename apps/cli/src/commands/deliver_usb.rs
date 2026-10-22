@@ -79,19 +79,20 @@ pub fn mtp_step(file: &Path) -> String {
     }
 }
 
-/// What to run after the table stopped `file`: `--force` for a format that only warns (and
-/// Email for an EPUB); nothing for a refused one, whose reason already says to export a PDF.
+/// What to run after the table stopped `file`: `--force` for a file that only warns, Email for
+/// an EPUB (its route to a Kindle), nothing for a CBZ, whose reason already says what to export.
 /// `via` is the `--via` value that reached the same Kindle.
 pub fn next_step(verdict: &UsbVerdict, file: &Path, via: &str) -> String {
-    if verdict.decision != Sideload::Warn {
-        return String::new();
-    }
     let file = file.display();
-    let email = match verdict.format.as_str() {
-        "EPUB" => format!("\n  or email it: mangas send --via email \"{file}\""),
+    match (verdict.decision, verdict.format.as_str()) {
+        (Sideload::Warn, _) => {
+            format!("\n  copy it anyway with: mangas send --via {via} --force \"{file}\"")
+        }
+        (Sideload::Refused, "EPUB") => {
+            format!("\n  send it by email instead: mangas send --via email \"{file}\"")
+        }
         _ => String::new(),
-    };
-    format!("\n  copy it anyway with: mangas send --via {via} --force \"{file}\"{email}")
+    }
 }
 
 /// Before an export that `send`s over USB (and before `--detectors` loads anything, so the
@@ -120,14 +121,18 @@ pub fn precheck(
     if json {
         not_copied(&verdict, books).print()?;
     }
-    Err(match verdict.decision {
-        Sideload::Warn => anyhow!("{e}\n  to write and copy it anyway, add --force"),
+    Err(match (verdict.decision, ext) {
+        (Sideload::Warn, _) => anyhow!("{e}\n  to write and copy it anyway, add --force"),
+        (Sideload::Refused, "epub") => anyhow!(
+            "{e}\n  for USB, export with --format azw3 (or leave --format out); for Email, use \
+             --send email"
+        ),
         _ => e.into(),
     })
 }
 
 /// The `--json` report of an export the format table stopped: every book in `not_written`, with
-/// the verdict's reason and `usb_refused` (CBZ) or `usb_warn` (EPUB: `--force` would copy it).
+/// the verdict's reason and `usb_refused` (EPUB, CBZ) or `usb_warn` (`--force` would copy it).
 fn not_copied(verdict: &UsbVerdict, books: &[PathBuf]) -> Report {
     let error = Some(match verdict.decision {
         Sideload::Refused => "usb_refused",

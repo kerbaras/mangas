@@ -7,18 +7,29 @@ use mangas_core::library::{self, Library};
 
 #[test]
 fn kindle_writes_epub_unless_the_flags_say_otherwise() {
-    assert_eq!(legacy_format(None, None, None), Format::Epub);
-    assert_eq!(
-        legacy_format(None, Some(Path::new("b.pdf")), None),
-        Format::Pdf
-    );
-    assert_eq!(legacy_format(Some(Format::Cbz), None, None), Format::Cbz);
+    let pw = mangas_core::export::profile(DEFAULT_PROFILE).unwrap();
+    let f = |e, o: Option<&str>, s| legacy_format(e, o.map(Path::new), s, &pw, None);
+    assert_eq!(f(None, None, None), Format::Epub);
+    assert_eq!(f(None, Some("b.pdf"), None), Format::Pdf);
+    assert_eq!(f(Some(Format::Cbz), None, None), Format::Cbz);
     let series = Some(Format::Cbz);
-    assert_eq!(legacy_format(None, None, series), Format::Cbz);
-    assert_eq!(
-        legacy_format(None, Some(Path::new("b.pdf")), series),
-        Format::Pdf
-    );
+    assert_eq!(f(None, None, series), Format::Cbz);
+    assert_eq!(f(None, Some("b.pdf"), series), Format::Pdf);
+}
+
+#[test]
+fn a_kindle_gets_azw3_over_usb_and_epub_by_email_unless_picked() {
+    let pw = mangas_core::export::profile(DEFAULT_PROFILE).unwrap();
+    let usb = Some(SendArg::Usb);
+    assert_eq!(legacy_format(None, None, None, &pw, usb), Format::Azw3);
+    let series = Some(Format::Pdf);
+    assert_eq!(legacy_format(None, None, series, &pw, usb), Format::Azw3);
+    let email = Some(SendArg::Email);
+    assert_eq!(legacy_format(None, None, series, &pw, email), Format::Epub);
+    let epub = Some(Format::Epub);
+    assert_eq!(legacy_format(epub, None, None, &pw, usb), Format::Epub);
+    let file = Some(Path::new("b.pdf"));
+    assert_eq!(legacy_format(None, file, None, &pw, usb), Format::Pdf);
 }
 
 /// A library following "Kaiju No. 8" with chapter `c1` downloaded to `<root>/m-uuid/c1`.

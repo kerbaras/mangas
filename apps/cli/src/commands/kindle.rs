@@ -7,7 +7,7 @@ use anyhow::bail;
 use clap::Args as ClapArgs;
 use mangas_core::export::kindle::{export, BookMeta, BudgetSpec, ExportRequest};
 use mangas_core::export::target::{book_path, is_folder};
-use mangas_core::export::{ExportPreset, Format, PROFILES};
+use mangas_core::export::{for_delivery, ExportPreset, Format, Profile, PROFILES};
 use mangas_core::library;
 use mangas_core::storage;
 
@@ -18,7 +18,7 @@ use super::export_args::FormatArg;
 use super::export_plan::{planned_book, Fewer};
 use super::export_preset::note_series_preset;
 use super::export_report::Report;
-use super::export_size::{delivery_of, levers_text, warn_too_big};
+use super::export_size::{delivery_of, levers_text, route_of, warn_too_big};
 use super::kindle_library::from_library;
 use super::kindle_print;
 use super::kindle_record;
@@ -51,7 +51,7 @@ pub struct Args {
     /// Mount point of the Kindle for `--send usb` [default: detected]
     #[arg(long)]
     pub kindle: Option<PathBuf>,
-    /// With `--send usb`, copy a format the Kindle may not open (EPUB); CBZ is never copied
+    /// With `--send usb`, copy a file that is no export format (the Kindle may not open it); EPUB and CBZ are never copied
     #[arg(long, requires = "send")]
     pub force: bool,
     /// Print the known e-reader profiles and exit
@@ -91,16 +91,18 @@ fn default_title(series: Option<&str>, chapters: &[PathBuf]) -> String {
         .unwrap_or_else(|| "Manga".to_string())
 }
 
-/// `--format`, else the output's extension, else the series preset's, else EPUB.
+/// `--format`, else the output's extension, else the delivery's format for a Kindle, else the
+/// series preset's, else EPUB.
 fn legacy_format(
     explicit: Option<Format>,
     output: Option<&Path>,
     series: Option<Format>,
+    dev: &Profile,
+    send: Option<SendArg>,
 ) -> Format {
-    explicit
-        .or_else(|| output.and_then(Format::of_path))
-        .or(series)
-        .unwrap_or(Format::Epub)
+    let picked = explicit.or_else(|| output.and_then(Format::of_path));
+    let stored = series.or(Some(Format::Epub));
+    for_delivery(picked, stored, dev, route_of(send)).format
 }
 
 pub async fn run(args: Args) -> anyhow::Result<()> {
@@ -124,6 +126,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         args.format.map(Format::from),
         file,
         saved.as_ref().and_then(|p| p.format),
+        &dev,
+        args.send,
     );
     let format = Format::resolve(Some(picked), file, None, &dev)?;
     let title = args

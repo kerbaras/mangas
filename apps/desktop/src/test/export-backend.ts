@@ -47,6 +47,14 @@ export const detectorState = (o: Partial<DetectorsStatus> = {}): DetectorsStatus
 
 const detectorsReady = detectorState();
 
+const paperwhite = { id: "kindle-paperwhite12", name: "Paperwhite", width: 1236, height: 1648 };
+/** As `export::delivery_formats` gives a Kindle. */
+export const kindleDelivery = {
+  usb: "azw3",
+  email: "epub",
+  reason: "Kindle over USB: AZW3; Email: EPUB",
+} as const;
+
 /** A backend for the export dialog: plans with the mock planner, writes one result per book. */
 export function exportBackend(overrides: Partial<Backend> = {}, detectors = detectorsReady) {
   const planVolumes = vi.fn(async (r: VolumeRequest) =>
@@ -76,7 +84,7 @@ export function exportBackend(overrides: Partial<Backend> = {}, detectors = dete
     exportFileName: async (title: string, format: ExportFormat) =>
       withExtension(portable(title), format),
     listDevices: async () => [
-      { id: "kindle-paperwhite12", name: "Paperwhite", width: 1236, height: 1648, format: "epub" },
+      { ...paperwhite, format: "epub", delivery: kindleDelivery },
       { id: "kobo-clara", name: "Kobo Clara", width: 1072, height: 1448, format: "cbz" },
     ],
     detectorsStatus: async () => detectors,

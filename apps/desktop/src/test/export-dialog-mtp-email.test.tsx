@@ -46,6 +46,8 @@ describe("export dialog: Kindle over MTP, then Email", () => {
         <ExportDialog open onOpenChange={() => {}} picks={[{ manga: solo, chapters }]} />
       </TooltipProvider>,
     );
+    // A format both routes take, so the book written for USB can be emailed as is.
+    fireEvent.click(await screen.findByLabelText("PDF"));
     fireEvent.mouseDown(await screen.findByRole("tab", { name: "Kindle over USB" }));
     fireEvent.click(await enabledButton(/^Export .*and copy/));
     expect(await screen.findByText("Kindle connected over MTP")).toBeTruthy();
