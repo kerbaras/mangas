@@ -4,6 +4,71 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.6.0] - 2026-10-22
+
+### Added
+
+- **export:** Warn over the Send-to-Kindle limit, split into parts, JPEG quality per profile (#287)
+- **providers:** Add MANGA Plus (protobuf API, XOR-encrypted pages) (#308)
+- Rename the product from Mangas to mangas (#294)
+- **send:** Detect a Kindle connected over MTP only and point to Email (#371)
+- **desktop:** English message catalog and useT hook for library, details and search (#378)
+
+### Changed
+
+- **export:** Decode and encode regular pages in parallel, three at a time (#277)
+- **desktop:** Progress bars step about 4 times a second, with no layout or transition (#288)
+- **desktop:** Still icons for open-ended waits instead of endless spinners (#273)
+- **export:** Stream pages through an on-disk spool into EPUB, CBZ and PDF (#281)
+- **core:** Count Library chapters with one aggregate query (#349)
+- **desktop:** Window the Details chapter list (#350)
+- **desktop:** Page the Completed downloads list (#352)
+- **desktop:** Still indicators instead of a pulsing progress bar and endless spinners (#356)
+
+### Fixed
+
+- **desktop:** Keep a finished delivery's result when the tab changed mid-run (#272)
+- **desktop:** Try again after a failed export exports again (#274)
+- **desktop:** Offer Remove on the detector card when a remove left files behind (#278)
+- **desktop:** Point detector support at Settings → Detectors (#275)
+- **desktop:** Keep a long placeholder cover title inside the cover (#276)
+- **desktop:** End the Connect wait when its window closes or its page fails to load (#269)
+- **desktop:** Valid tab aria-controls and a Downloads rail name with its count (#279)
+- **desktop:** Pass WCAG AA contrast for captions, the primary button, warn and the nav badge (#282)
+- **export:** Deterministic EPUB modified date, no stray ZipWriter::drop log on a failed write (#270)
+- **export:** A failed volume stops the run, keeps the books before it and reports both (#271)
+- **storage:** Refuse a data-folder move while an export reads chapters (#280)
+- **smartcut:** Skip long blank gutters, drop blank pages, keep tall balloons whole (#292)
+- **providers:** Let the proxy resolve page hosts when one is configured (#305)
+- **cli:** Resolve a title's followed source when --source is left out (#306)
+- **kindle:** Name a moved chapter folder's book from the library, never the manga id (#307)
+- **export:** Plan the names a write-only folder really gives in --dry-run and the preview (#334)
+- **cli:** Print each error reason once (#304)
+- **storage:** A refused data-folder move leaves no target folder behind (#354)
+- **storage:** Reusing a partial copy deletes only the files the move copied (#353)
+- **desktop:** Hold the export lease while a smart-cut preview reads the chapter (#344)
+- **ml:** A spawned status child never holds a lease of the app (#355)
+- **desktop:** Replace an earlier error toast when the same action later succeeds (#342)
+- **desktop:** Show an export failure once, in the dialog's panel (#363)
+- **desktop:** Open the folder pickers at the folder they change (#375)
+- **storage:** Take the export lease for Delete downloads in the app and the CLI (#345)
+- **export:** Valid Kindle writing mode and the series' reading direction (#358)
+- **cli:** Record kindle exports from moved or copied chapter folders (#359)
+- **cli:** Print the partial report when kindle --json fails (#360)
+- **send:** Plain not-enough-space error for a full Kindle over USB (#361)
+- **export:** Name the book only by renaming its finished part (#347)
+- **cli,desktop:** Update checks name the network cause (Connection refused, DNS), once (#348)
+- **providers:** Show MangaDot's PNG icon, loaded without a Referer (#362)
+- **providers,core:** Page hosts that can't be looked up fail after one retry with the cause (#351)
+- **cli,desktop:** A stored non-public-address refusal offers Retry once a proxy is in use (#357)
+- **desktop:** Name the certificate problem instead of "Couldn't reach the site" (#340)
+- **desktop:** Keep the blocked Email delivery option a tab, so the tablist is axe clean (#377)
+- **desktop:** Give the Library Cover header text and the Search provider groups h2 (#388)
+- **desktop:** Try again after a stopped export writes only the books it didn't (#365)
+- **desktop:** End the Connect wait on a failed load on macOS and Windows too (#341)
+- **core:** Io errors name the file or folder they failed on, once (#364)
+- **desktop:** Io hints name the export or data folder that failed (#376)
+- **desktop:** Use the owner's updater signing key (#406)
 ## [0.6.0-rc.2] - 2026-10-22
 
 ### Fixed
