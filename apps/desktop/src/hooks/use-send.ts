@@ -3,15 +3,15 @@ import { errorMessage } from "@/lib/format";
 import { isFinalError } from "@/lib/ipc.downloads";
 import {
   emailRefusal,
-  findKindles,
+  type KindleVolume,
   onCopyProgress,
   sendEmail,
   sendUsb,
   type UsbVerdict,
-  usbKindles,
   usbVerdict,
 } from "@/lib/ipc.send";
 import { fileName, megabytes } from "@/lib/send-labels";
+import { reachKindle, stopper } from "@/lib/send-reach";
 
 export type Via = "email" | "usb";
 
@@ -28,7 +28,8 @@ export type SendState =
   | { kind: "format"; verdict: UsbVerdict }
   | { kind: "copying"; device: string; done: number; total: number }
   | { kind: "emailing" }
-  | { kind: "done"; via: Via; message: string }
+  /** `kindle` and `copied` (where the books are on it) after a USB copy, for Eject. */
+  | { kind: "done"; via: Via; message: string; kindle?: KindleVolume; copied?: string[] }
   /** `left`: the files this delivery didn't get to, the failed one first. */
   | { kind: "error"; via: Via; message: string; sent: string; left?: string[] };
 
@@ -56,18 +57,6 @@ export const stopped = (state: SendState) =>
 /** What a failed delivery still has to send (from the book it failed on) and what it already did. */
 type Pending = { books: Book[]; via: Via; lines: string[] };
 
-/** The verdict that stops copying `verdicts`' books: a refusal first, else a warning. */
-const stopper = (verdicts: UsbVerdict[]) =>
-  verdicts.find((v) => v.decision === "refused") ?? verdicts.find((v) => v.decision === "warn");
-
-/** The mounted Kindle, else the `name` of one on the bus over MTP only: no copy, but the format table still applies. */
-async function reachKindle() {
-  const [kindle] = await findKindles();
-  if (kindle) return { kindle, name: kindle.name };
-  const [mtp] = await usbKindles();
-  return { kindle: undefined, name: mtp?.name };
-}
-
 /**
  * One delivery at a time, of one or more books: email, or a USB copy, each book's format checked
  * against the Kindle first. `retry` sends again only what the last delivery didn't (never
@@ -76,6 +65,8 @@ async function reachKindle() {
 export function useSend(onSent?: () => void) {
   const [state, setState] = useState<SendState>({ kind: "idle" });
   const device = useRef<string | null>(null);
+  /** The mounted Kindle the last USB delivery found, for its Eject. */
+  const [kindle, setKindle] = useState<KindleVolume | null>(null);
   const pending = useRef<Pending | null>(null);
   const warned = useRef(false);
 
@@ -100,6 +91,7 @@ export function useSend(onSent?: () => void) {
     async (books: Book[], via: Via, earlier: string[] = [], force = false) => {
       warned.current = false;
       const lines = [...earlier];
+      let reached: { kindle: KindleVolume; copied: string[] } | undefined;
       pending.current = { books, via, lines: [...lines] };
       const sentOne = (i: number) => {
         pending.current = { books: books.slice(i + 1), via, lines: [...lines] };
@@ -118,14 +110,18 @@ export function useSend(onSent?: () => void) {
           if (!kindle) {
             const refusals = await Promise.all(books.map((b) => emailRefusal(b.file)));
             const email = refusals.every((r) => r === null);
+            setKindle(null);
             return setState({ kind: "mtp", device: name, email });
           }
           device.current = kindle.name;
+          setKindle(kindle);
+          reached = { kindle, copied: [] };
           for (const [i, { file, title }] of books.entries()) {
             setState({ kind: "copying", device: kindle.name, done: 0, total: 0 });
             const copy = await sendUsb(file, title, kindle.root, force);
             const verb = copy.already_there ? "Already on" : "Copied to";
             lines.push(`${verb} ${kindle.name}: ${copy.path}`);
+            reached.copied.push(copy.path);
             sentOne(i);
           }
         } else {
@@ -137,7 +133,7 @@ export function useSend(onSent?: () => void) {
           }
         }
         pending.current = null;
-        setState({ kind: "done", via, message: lines.join("\n") });
+        setState({ kind: "done", via, message: lines.join("\n"), ...reached });
         onSent?.();
       } catch (e) {
         const left = (pending.current?.books ?? []).map((b) => fileName(b.file));
@@ -190,5 +186,5 @@ export function useSend(onSent?: () => void) {
     warned.current = false;
     setState({ kind: "idle" });
   }, []);
-  return { state, deliver, usb, email, retry, reset, unsent, admits };
+  return { state, kindle, deliver, usb, email, retry, reset, unsent, admits };
 }

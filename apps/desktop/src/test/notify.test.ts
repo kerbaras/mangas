@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { notifyError, TOAST_EXIT_MS } from "@/lib/notify";
 
-type Action = { label: string; onClick: () => void };
+type Action = { label: string; onClick: (event: { preventDefault(): void }) => void };
 const error = vi.hoisted(() => vi.fn((_title: string, _opts: { action?: Action }) => {}));
 vi.mock("sonner", () => ({ toast: { error, warning: vi.fn() } }));
 
@@ -18,9 +18,22 @@ describe("notifyError", () => {
 
     const action = error.mock.calls[0]?.[1].action;
     expect(action?.label).toBe("Retry");
-    action?.onClick();
+    action?.onClick({ preventDefault: vi.fn() });
     expect(retry).not.toHaveBeenCalled();
     vi.advanceTimersByTime(TOAST_EXIT_MS);
+    expect(retry).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the toast for a retry that replaces it at once", () => {
+    const retry = vi.fn();
+    const preventDefault = vi.fn();
+    notifyError("Couldn't eject Kindle", new Error("busy"), {
+      retry,
+      id: "eject",
+      retryReplaces: true,
+    });
+    error.mock.calls[0]?.[1].action?.onClick({ preventDefault });
+    expect(preventDefault).toHaveBeenCalledOnce();
     expect(retry).toHaveBeenCalledOnce();
   });
 

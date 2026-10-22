@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { retryOf, useExport } from "@/hooks/use-export";
 import { ExportStopped } from "@/lib/export-stopped";
 import { type ExportResult, setBackend } from "@/lib/ipc";
-import { ch, chapters, enabledButton, exportBackend, solo } from "./export-backend";
+import { ch, chapters, enabledButton, exportBackend, solo, usbKindle } from "./export-backend";
 
 const stats = (title: string) => ({
   pages: 6,
@@ -134,8 +134,7 @@ describe("Try again after a stopped export (#337)", () => {
   ])(
     "USB (Kindle at the first try %s): every kept book reaches the Kindle once",
     async (plugged, copied) => {
-      const kindle = { name: "Kindle", root: "/media/k", documents: "/media/k/documents" };
-      const findKindles = vi.fn(async () => [kindle]);
+      const findKindles = vi.fn(async () => [usbKindle]);
       if (!plugged) findKindles.mockResolvedValueOnce([]);
       const sendUsb = vi.fn(async (file: string) => ({ path: file, already_there: false }));
       const exportVolumes = vi
@@ -158,9 +157,7 @@ describe("Try again after a stopped export (#337)", () => {
   );
 
   it("USB: a kept book the retry rewrites with more chapters is copied once, as the new book", async () => {
-    const findKindles = vi.fn(async () => [
-      { name: "Kindle", root: "/media/k", documents: "/media/k/documents" },
-    ]);
+    const findKindles = vi.fn(async () => [usbKindle]);
     findKindles.mockResolvedValueOnce([]);
     const sendUsb = vi.fn(async (file: string) => ({ path: file, already_there: false }));
     const v1 = { ...stats("Solo v1"), chapters: ["c1", "c2"] };

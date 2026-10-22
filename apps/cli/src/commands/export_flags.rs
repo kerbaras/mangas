@@ -6,7 +6,6 @@ use clap::Args as ClapArgs;
 use mangas_core::export::volume;
 
 use super::cut_args::CutArgs;
-use super::deliver::SendArg;
 use super::export_args::FormatArg;
 use super::export_preset::PresetAction;
 
@@ -54,22 +53,14 @@ pub struct Args {
     /// total} when written in parts, skipped_files, jpeg_quality), `skipped`, `failed` and
     /// `not_written` (path, reason; a failed book stops the run: the books before it stay, the
     /// ones after it are `not_written`) and `detectors` (state "used", "skipped" or "off", and the
-    /// runtime's error as reason)
+    /// runtime's error as reason), and with `--eject` `eject` (attempted, ok, error)
     #[arg(long, conflicts_with = "preset")]
     pub json: bool,
     /// Write over books already in the folder instead of next to them as "Title (2)"
     #[arg(long)]
     pub replace: bool,
-    /// After writing, email each book to the Kindle or copy it to one over USB
-    #[arg(long, value_enum)]
-    pub send: Option<SendArg>,
-    /// Mount point of the Kindle for `--send usb` [default: detected]
-    #[arg(long)]
-    pub kindle: Option<PathBuf>,
-    /// With `--send usb`, copy a file that is no export format (the Kindle may not open it);
-    /// EPUB and CBZ are never copied
-    #[arg(long, requires = "send")]
-    pub force: bool,
+    #[command(flatten)]
+    pub to: super::send_args::SendArgs,
     #[command(flatten)]
     pub cut: CutArgs,
     /// Manage the series export preset instead of exporting. Exports of the series use it for

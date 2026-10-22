@@ -22,6 +22,7 @@ const HINTS: [prefix: string, hint: string][] = [
   ["refused:", tr("errors.refused")],
   ["not enough space in", tr("errors.noSpace")],
   ["not enough space on", tr("errors.kindleNoSpace")],
+  ["can't eject", tr("errors.eject")],
 ];
 
 /** A stored refusal that a retry through the proxy can fetch: Retry is offered, so say why. */

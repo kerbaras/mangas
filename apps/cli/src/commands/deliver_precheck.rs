@@ -12,7 +12,9 @@ use mangas_core::send::email;
 use mangas_core::send::usb::{self, Sideload};
 
 use super::deliver::SendArg;
+use super::eject::after_send;
 use super::export_report::{Item, Report};
+use super::send_args::SendArgs;
 
 /// Why the export stops: the reason (core's words), its `--json` class, and the error to exit
 /// with (the reason and the flags that get the book there).
@@ -23,15 +25,11 @@ struct Stop {
 }
 
 /// Stops an export sending `ext` books by `to` (via, Kindle mount, `--force`) when that
-/// delivery can't take them. With `json` the report still prints, listing `books` (what the
-/// export would have written) in `not_written` with the reason and its class.
-pub fn precheck(
-    to: Option<(SendArg, Option<&Path>, bool)>,
-    ext: &str,
-    books: &[PathBuf],
-    json: bool,
-) -> anyhow::Result<()> {
-    let Some((via, kindle, force)) = to else {
+/// delivery can't take them; `--eject` still ejects a mounted Kindle. With `json` the report
+/// still prints, listing `books` (what the export would have written) in `not_written` with
+/// the reason and its class, and the eject.
+pub fn precheck(to: &SendArgs, ext: &str, books: &[PathBuf], json: bool) -> anyhow::Result<()> {
+    let Some((via, kindle, force)) = to.target() else {
         return Ok(());
     };
     let stop = match via {
@@ -41,10 +39,16 @@ pub fn precheck(
     let Some(stop) = stop else {
         return Ok(());
     };
+    let eject = after_send(to, &[], json);
     if json {
-        not_written(&stop, books).print()?;
+        let mut report = not_written(&stop, books);
+        report.eject = eject.clone();
+        report.print()?;
     }
-    Err(stop.error)
+    Err(match eject.error {
+        None => stop.error,
+        Some(e) => anyhow!("{}\n{e}", crate::exit::describe(&stop.error)),
+    })
 }
 
 /// Send to Kindle by email takes EPUB and PDF only (core's rule), so an AZW3 or CBZ export

@@ -98,6 +98,7 @@ pub fn run() {
             commands::send_formats::usb_verdict,
             commands::send_formats::email_refusal,
             commands::send::send_usb,
+            commands::send_eject::eject_kindle,
             commands::send::send_email,
             commands::send::send_test_email,
             commands::smtp_password::smtp_password_status,

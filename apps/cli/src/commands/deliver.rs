@@ -11,7 +11,18 @@ use mangas_core::send::{email, SendVia};
 use super::deliver_usb::{self, mb, stopped_by};
 use super::export_report::error_class;
 use super::settings_email::warn_unencrypted;
+use crate::output::outln;
 use crate::Exit;
+
+/// A delivery's line: on stderr under `--json` (stdout is the report), else on stdout.
+pub fn say(line: &str, json: bool) -> anyhow::Result<()> {
+    if json {
+        eprintln!("{line}");
+    } else {
+        outln!("{line}")?;
+    }
+    Ok(())
+}
 
 /// Delivery path picked on the command line.
 #[derive(Clone, Copy, Debug, clap::ValueEnum)]

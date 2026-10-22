@@ -26,7 +26,12 @@ const emailSetUp = () =>
   });
 const checked = (label: string) => (screen.getByLabelText(label) as HTMLInputElement).checked;
 
-const kindle = { name: "Kindle Scribe", root: "/media/me/Kindle", documents: "/d" };
+const kindle = {
+  name: "Kindle Scribe",
+  root: "/media/me/Kindle",
+  documents: "/d",
+  ejectable: true,
+};
 const dialog = () => (
   <TooltipProvider>
     <ExportDialog open onOpenChange={() => {}} picks={[{ manga: solo, chapters }]} />

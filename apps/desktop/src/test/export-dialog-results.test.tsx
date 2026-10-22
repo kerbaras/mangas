@@ -66,6 +66,7 @@ describe("export dialog: what it shows before and after writing", () => {
       name: "Kindle",
       root: "/media/me/Kindle",
       documents: "/media/me/Kindle/documents",
+      ejectable: true,
     };
     const sendUsb = vi
       .fn()

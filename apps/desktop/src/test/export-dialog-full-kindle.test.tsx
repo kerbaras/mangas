@@ -10,6 +10,7 @@ const kindle = {
   name: "Kindle",
   root: "/media/me/Kindle",
   documents: "/media/me/Kindle/documents",
+  ejectable: true,
 };
 const full = "not enough space on Kindle at /media/me/Kindle";
 

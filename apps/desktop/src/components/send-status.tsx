@@ -1,4 +1,5 @@
 import { Mail, RefreshCw, Usb } from "lucide-react";
+import { EjectButton } from "@/components/eject-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -17,10 +18,12 @@ type Props = {
   onRetry?: () => void;
   /** Sends by email instead, offered when a Kindle is connected over MTP only or may not open an EPUB. */
   onEmail?: () => void;
+  /** Offers Eject after a USB copy to a mounted Kindle. */
+  eject?: boolean;
 };
 
-/** Where a delivery is: looking, copying with progress, Device not found, MTP only (+ Use Email), a format the Kindle won't or may not open (+ Copy anyway), failed (+ Retry when given), done. */
-export function SendStatus({ state, via, onRetry, onEmail }: Props) {
+/** Where a delivery is: looking, copying with progress, Device not found, MTP only (+ Use Email), a format the Kindle won't or may not open (+ Copy anyway), failed (+ Retry when given), done (+ Eject over USB). */
+export function SendStatus({ state, via, onRetry, onEmail, eject }: Props) {
   const failed = failedVia(state);
   if (via !== undefined && failed !== undefined && failed !== via) {
     return state.kind === "error" && state.sent ? <Sent lines={state.sent} /> : null;
@@ -43,7 +46,12 @@ export function SendStatus({ state, via, onRetry, onEmail }: Props) {
               </span>
             )}
           </div>
-          <Progress value={state.done} max={state.total} className="mt-1.5" />
+          <Progress
+            value={state.done}
+            max={state.total}
+            aria-label={`Copying to ${state.device}`}
+            className="mt-1.5"
+          />
         </div>
       );
     case "format":
@@ -87,12 +95,17 @@ export function SendStatus({ state, via, onRetry, onEmail }: Props) {
       );
     case "done":
       return (
-        <p
-          role="status"
-          className="whitespace-pre-line text-caption text-ink-2 [overflow-wrap:anywhere]"
-        >
-          {state.message}
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <p
+            role="status"
+            className="whitespace-pre-line text-caption text-ink-2 [overflow-wrap:anywhere]"
+          >
+            {state.message}
+          </p>
+          {eject && state.kindle?.ejectable && (
+            <EjectButton key={state.message} kindle={state.kindle} files={state.copied} />
+          )}
+        </div>
       );
     case "error":
       return (

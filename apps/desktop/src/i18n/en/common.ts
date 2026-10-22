@@ -36,6 +36,7 @@ export const common = {
     "The image host points at a local or private address, so the app won't fetch it.",
   "errors.noSpace": "Free up space on that disk or choose another folder, then export again.",
   "errors.kindleNoSpace": "Delete some books from the Kindle, then send again.",
+  "errors.eject": "Your books are on the Kindle; close what's using it, then eject again.",
   "errors.proxiedRefusal":
     "The image host points at a private address. Retry fetches it through the configured proxy.",
   "errors.certificate": "{host} answered, but its certificate couldn't be verified: {problem}.",

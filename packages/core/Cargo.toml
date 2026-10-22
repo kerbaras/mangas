@@ -63,6 +63,14 @@ cuda = ["ml", "ort/cuda"]
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
+# Kindle eject: udisks2 over D-Bus, the same pure-Rust zbus keyring already links.
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = { version = "5", default-features = false, features = ["blocking-api", "async-io"] }
+
+# Kindle eject: DeviceIoControl lock/dismount/eject and CM_Request_Device_EjectW.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_Storage_Vhd", "Win32_System_IO", "Win32_System_Ioctl", "Win32_Devices_DeviceAndDriverInstallation", "Win32_Security"] }
+
 [target.'cfg(all(target_os = "macos", target_arch = "aarch64"))'.dependencies]
 ort = { version = "=2.0.0-rc.13", optional = true, default-features = false, features = ["coreml"] }
 

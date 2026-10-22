@@ -10,6 +10,7 @@ fn volume(root: &str) -> KindleVolume {
         name: "Kindle".into(),
         root: root.into(),
         documents: format!("{root}/documents").into(),
+        ejectable: true,
     }
 }
 

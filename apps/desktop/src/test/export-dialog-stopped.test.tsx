@@ -12,6 +12,7 @@ const kindle = {
   name: "Kindle",
   root: "/media/me/Kindle",
   documents: "/media/me/Kindle/documents",
+  ejectable: true,
 };
 const stats = (output: string): ExportStats => ({
   pages: 6,
