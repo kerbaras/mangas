@@ -47,7 +47,11 @@ export function VolumePreview({ plans, budgets, folder, stale = false, blocked =
                 <span className="truncate font-mono text-caption">{p.file_name}</span>
               </Hint>
               {p.authors.length > 0 && (
-                <span className="truncate text-caption text-ink-3">By {p.authors.join(", ")}</span>
+                <Hint hint={p.authors.join(", ")} truncated>
+                  <span className="truncate text-caption text-ink-3">
+                    By {p.authors.join(", ")}
+                  </span>
+                </Hint>
               )}
             </span>
             <span className="flex shrink-0 flex-col items-end text-caption text-ink-3 tabular-nums">

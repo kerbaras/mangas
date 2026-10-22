@@ -32,9 +32,15 @@ pub fn export_creators(lib: &Library, dirs: &[Vec<&Path>]) -> Result<Vec<String>
         }
         series
     };
+    series_creators(lib, &series)
+}
+
+/// The creators of each `(source, id)` series in order, each name once; a series not in the
+/// library or without credits adds nobody.
+pub fn series_creators(lib: &Library, series: &[(String, String)]) -> Result<Vec<String>> {
     let mut out: Vec<String> = Vec::new();
     for (source, id) in series {
-        let Some(manga) = get_manga(lib, &source, &MangaId(id))? else {
+        let Some(manga) = get_manga(lib, source, &MangaId(id.clone()))? else {
             continue;
         };
         for name in manga.creators() {

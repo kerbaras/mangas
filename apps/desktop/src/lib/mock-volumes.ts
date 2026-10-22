@@ -1,7 +1,6 @@
 import { withExtension } from "./export-plan";
 import type { Chapter, ExportProgress, Manga } from "./ipc";
 import type { BookBudget, EstimateRequest, VolumesBackend } from "./ipc.volumes";
-import { bookCreators } from "./manga-meta";
 import { simulateExport } from "./mock-export";
 import { mockExportResult } from "./mock-flags";
 import { markExported } from "./mock-library";
@@ -20,11 +19,14 @@ export function mockVolumes(deps: Deps): VolumesBackend {
   const plan: VolumesBackend["planVolumes"] = async (r) => {
     const picked = deps.chapters(r.source, r.mangaId).filter((c) => r.chapterIds.includes(c.id));
     const manga = deps.manga(r.source, r.mangaId);
-    const authors = manga ? bookCreators(manga) : [];
-    return mockPlan(manga?.title ?? "Manga", picked, r.grouping, r.title, authors);
+    return mockPlan(manga?.title ?? "Manga", picked, r.grouping, r.title, manga?.authors ?? []);
   };
   return {
     planVolumes: plan,
+    // Mock data only: the stored authors as they are; the real rule is core's.
+    bookCreators: async (series) => [
+      ...new Set(series.flatMap(([source, id]) => deps.manga(source, id)?.authors ?? [])),
+    ],
     async exportVolumes(r) {
       const books = await plan(r);
       const results = [];

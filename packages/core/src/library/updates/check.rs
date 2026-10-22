@@ -10,7 +10,8 @@ use super::{new_chapters, select, CheckFailure, Known, Target, TitleUpdate, Upda
 use crate::domain::{in_group, Chapter, Error, MangaId, Result};
 use crate::library::stored_releases::stored_releases;
 use crate::library::{
-    fetch_chapters, get_manga, list_entries, refresh_record, store_chapters, Library,
+    credits_checked, fetch_chapters, get_manga, list_entries, mark_credits_checked, refresh_record,
+    store_chapters, Library,
 };
 use crate::sources::Source;
 
@@ -120,18 +121,20 @@ async fn refresh(lib: &Library, source: &SourceFor, target: &Target) -> Result<V
     Ok(new)
 }
 
-/// A title saved without credits (followed before they were mapped) gets its record again, once
-/// per check until the source names someone; best effort, the chapters are already stored.
+/// A title saved without credits (followed before they were mapped) gets its record again, once:
+/// a source that names nobody is not asked on every check. Best effort, the chapters are stored.
 async fn fill_credits(lib: &Library, source: &SourceFor, target: &Target) {
-    if !target.manga.creators().is_empty() {
+    let (name, id) = (target.manga.source.as_str(), &target.manga.id);
+    if !target.manga.creators().is_empty() || credits_checked(lib, name, id).unwrap_or(true) {
         return;
     }
-    let id = &target.manga.id;
-    if let Err(e) = refresh_record(lib, source.source.as_ref(), id).await {
-        tracing::warn!(
-            "{}: kept the saved record of {id}: {e}",
-            source.source.name()
-        );
+    let refreshed = match refresh_record(lib, source.source.as_ref(), id).await {
+        Ok(true) => mark_credits_checked(lib, name, id),
+        Ok(false) => Ok(()),
+        Err(e) => Err(e),
+    };
+    if let Err(e) = refreshed {
+        tracing::warn!("{name}: kept the saved record of {id}: {e}");
     }
 }
 

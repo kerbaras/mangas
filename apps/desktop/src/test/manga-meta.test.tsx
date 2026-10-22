@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { MangaMeta } from "@/components/manga-meta";
 import type { Manga } from "@/lib/ipc";
-import { bookCreators, creditsLine, visibleTags } from "@/lib/manga-meta";
+import { creditsLine, visibleTags } from "@/lib/manga-meta";
 
 const base: Manga = {
   id: "solo",
@@ -25,16 +25,6 @@ describe("creditsLine", () => {
   it("is empty when the source gave nothing", () => {
     expect(creditsLine(base)).toBe("");
     expect(creditsLine({ ...base, authors: [], year: null })).toBe("");
-  });
-});
-
-describe("bookCreators", () => {
-  it("lists authors, then artists not already named, trimmed and once each", () => {
-    const m = { ...base, authors: ["Oda Eiichiro", " "], artists: [" Oda Eiichiro ", "Studio"] };
-    expect(bookCreators(m)).toEqual(["Oda Eiichiro", "Studio"]);
-  });
-  it("is empty, not a placeholder, when the source names nobody", () => {
-    expect(bookCreators(base)).toEqual([]);
   });
 });
 

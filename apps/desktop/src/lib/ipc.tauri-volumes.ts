@@ -14,6 +14,7 @@ const planArgs = (r: VolumeRequest) => ({
 
 export const tauriVolumes: VolumesBackend = {
   planVolumes: (r) => invoke("plan_volumes", planArgs(r)),
+  bookCreators: (series) => invoke("book_creators", { series }),
   exportVolumes: async (r) => {
     const outcome = await invoke<VolumeOutcome>("export_volumes", {
       ...planArgs(r),

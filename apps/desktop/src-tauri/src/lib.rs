@@ -88,6 +88,7 @@ pub fn run() {
             commands::cut_preview::preview_cut,
             commands::cut_preview::cancel_cut_preview,
             commands::volumes::plan_volumes,
+            commands::export_library::book_creators,
             commands::volumes::export_volumes,
             commands::volumes::free_export_names,
             commands::volumes::check_export_dir,

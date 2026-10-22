@@ -39,3 +39,11 @@ pub(super) fn creators_of(dirs: &[PathBuf]) -> Vec<String> {
             Vec::new()
         })
 }
+
+/// Who a book of chapters from these `(source, id)` series credits, by the rule the export
+/// writes (`library::series_creators`), so the Export dialog previews exactly that.
+#[tauri::command]
+#[tracing::instrument(level = "error", skip_all)]
+pub fn book_creators(series: Vec<(String, String)>) -> Result<Vec<String>, String> {
+    library::series_creators(&open_library()?, &series).map_err(to_ipc)
+}

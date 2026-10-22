@@ -5,16 +5,6 @@ import type { Manga } from "./ipc";
  * "2018 · Chugong · Art by Jang Sung-Rak". The year leads so a long credit list can't truncate
  * it; artists who are also the authors aren't repeated.
  */
-/** Who a book of this title credits, as `Manga::creators` in core: authors, then artists not
- * already named, trimmed and each once. Empty when the source names nobody. */
-export function bookCreators({ authors = [], artists = [] }: Pick<Manga, "authors" | "artists">) {
-  const out: string[] = [];
-  for (const name of [...authors, ...artists].map((n) => n.trim())) {
-    if (name && !out.includes(name)) out.push(name);
-  }
-  return out;
-}
-
 export function creditsLine({ authors = [], artists = [], year }: Manga): string {
   const artOnly = artists.filter((a) => !authors.includes(a));
   return [

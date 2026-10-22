@@ -5,6 +5,7 @@ mod chapter_marks;
 mod chapter_repo;
 mod count_query;
 mod counts;
+mod credits_check;
 mod db;
 mod download_repo;
 mod entries;
@@ -40,11 +41,12 @@ pub use category_repo::{
 pub use chapter_marks::{mark_downloaded, mark_exported, mark_exported_folder, ExportedChapter};
 pub use chapter_repo::{list_chapters, upsert_chapters};
 pub use counts::{count_chapters, ChapterCounts, ChapterMark};
+pub use credits_check::{credits_checked, mark_credits_checked};
 pub use db::{open, open_in_memory, Library};
 pub(crate) use download_repo::switch_data_dir;
 pub use download_repo::{downloaded_chapters, forget_download, DownloadedChapter};
 pub use entries::{list_entries, LibraryEntry};
-pub use export_creators::export_creators;
+pub use export_creators::{export_creators, series_creators};
 pub use export_history::{list_exports, record_export, record_sent, ExportRecord};
 pub use export_labels::{chapter_titles, export_labels};
 pub use export_presets::{
