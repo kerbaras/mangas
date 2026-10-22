@@ -45,8 +45,10 @@ export function VolumePreview({ plans, budgets, folder, stale = false, blocked =
             <Hint hint={p.file_name} truncated>
               <span className="min-w-0 flex-1 truncate font-mono text-caption">{p.file_name}</span>
             </Hint>
-            <span className="shrink-0 text-caption text-ink-3 tabular-nums">{planSummary(p)}</span>
-            <BookSize budget={budgets?.[i] ?? null} />
+            <span className="flex shrink-0 flex-col items-end text-caption text-ink-3 tabular-nums">
+              {planSummary(p)}
+              <BookSize budget={budgets?.[i] ?? null} />
+            </span>
           </li>
         ))}
       </ul>
@@ -67,7 +69,7 @@ function BookSize({ budget }: { budget: BookBudget | null }) {
   if (!budget) return null;
   const tone = budget.over_budget ? "text-accent-text" : "text-ink-3";
   return (
-    <span className={`shrink-0 text-caption tabular-nums ${tone}`}>
+    <span className={tone}>
       {againstBudget(budget)}
       {budget.over_budget && <span className="sr-only">, over budget</span>}
     </span>

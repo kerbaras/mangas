@@ -63,14 +63,22 @@ describe("export dialog: a written book over the email limit", () => {
     ]);
   });
 
-  it("says so without blocking a book that is only saved", async () => {
+  it("holds a book that is only saved to the 200 MB web budget, not the email one", async () => {
     const { exportVolumes } = exportBackend();
-    exportVolumes.mockResolvedValueOnce([
-      { output: book, parts: [], pages: 31, skipped: 0, oversized: [{ file: book, bytes: 5.1e7 }] },
-    ]);
+    const written = (bytes: number) => [
+      { output: book, parts: [], pages: 31, skipped: 0, oversized: [{ file: book, bytes }] },
+    ];
+    exportVolumes.mockResolvedValueOnce(written(5.1e7)).mockResolvedValueOnce(written(2.12e8));
     dialog();
     fireEvent.click(await enabledButton(/^Export/));
-    expect(await screen.findByText("Too big to email")).toBeTruthy();
-    expect(screen.getByText(/Solo\.epub is 51\.0 MB/)).toBeTruthy();
+    await waitFor(() => expect(exportVolumes).toHaveBeenCalledTimes(1));
+    const again = await enabledButton(/^Export/);
+    expect(screen.queryByText(/Too big/)).toBeNull();
+    fireEvent.click(again);
+    expect(await screen.findByText("Too big for Send to Kindle")).toBeTruthy();
+    expect(screen.getByText(/Solo\.epub is 212\.0 MB; Send to Kindle on the web takes up to 200/));
+    fireEvent.click(screen.getByRole("button", { name: /Split into 180 MB parts/ }));
+    const split = () => document.getElementById("export-split")?.getAttribute("aria-checked");
+    await waitFor(() => expect(split()).toBe("true"));
   });
 });

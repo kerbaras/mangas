@@ -37,7 +37,7 @@ import {
   pickSummary,
 } from "@/lib/export-plan";
 import type { ExportResult } from "@/lib/ipc";
-import { oversizedOf, PART_MB } from "@/lib/kindle-size";
+import { oversizedOf, PART_MB, WEB_PART_MB } from "@/lib/kindle-size";
 
 type Props = {
   open: boolean;
@@ -77,7 +77,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const books = files.kind === "ready" ? files.data.length : 0;
   const email = via === "email";
   const budgets = useSizeEstimate({ plans: files, device, preset, quality, email, splitMb });
-  const oversized = job.state.kind === "done" ? oversizedOf(job.state.results) : [];
+  const oversized = job.state.kind === "done" ? oversizedOf(job.state.results, email) : [];
   const sending = runningVia(send.state);
   const busy = job.state.kind === "running" || sending !== undefined;
   const failed = written.length > 0 && ["error", "no-device", "mtp"].includes(send.state.kind);
@@ -132,7 +132,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
     const sent = booksToSend(send.unsent(), job.retry.kept, results);
     setWritten(sent);
     // A book over the email limit on disk is never emailed: the alert offers the split.
-    if (via === "email" && oversizedOf(results).length > 0) return;
+    if (via === "email" && oversizedOf(results, true).length > 0) return;
     if (via !== "save") await send.deliver(sent, via);
   };
 
@@ -174,8 +174,8 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
           <ExportProgressPanel state={job.state} onRetry={() => void run()} canRetry={ready} />
           <OversizedAlert
             files={oversized}
-            email={via === "email"}
-            onSplit={splitMb === null ? () => setSplitMb(PART_MB) : undefined}
+            email={email}
+            onSplit={splitMb === null ? () => setSplitMb(email ? PART_MB : WEB_PART_MB) : undefined}
           />
           <SendStatus state={send.state} via={via} onRetry={retrySend} />
         </div>

@@ -23,9 +23,13 @@ fn a_split_book_is_held_to_its_part_size() {
 }
 
 #[test]
-fn fewer_chapters_per_book_scale_with_the_estimate() {
-    assert_eq!(chapters_per_book(10, 212_000_000, 180_000_000), Some(8));
-    assert_eq!(chapters_per_book(10, 212_000_000, 45_000_000), Some(2));
-    assert_eq!(chapters_per_book(10, 2_000_000_000, 45_000_000), Some(1));
-    assert_eq!(chapters_per_book(1, 212_000_000, 45_000_000), None);
+fn fewer_chapters_per_book_fit_the_longest_run_of_chapters() {
+    let even = [30; 10];
+    assert_eq!(most_that_fit(&even, 700_000, 180_000_000), Some(8));
+    assert_eq!(most_that_fit(&even, 700_000, 45_000_000), Some(2));
+    // The longest run of chapters decides it, not the average.
+    let front = [32, 32, 32, 32, 32, 32, 31, 31, 25, 25];
+    assert_eq!(most_that_fit(&front, 900_000, 180_000_000), Some(6));
+    assert_eq!(most_that_fit(&even, 7_000_000, 45_000_000), None);
+    assert_eq!(most_that_fit(&[300], 700_000, 45_000_000), None);
 }

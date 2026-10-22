@@ -62,6 +62,14 @@ pub fn estimate_each(
         .collect()
 }
 
+/// The pages each of `chapter_dirs` gives, counted as [`estimate_each`] counts them.
+pub fn chapter_pages(chapter_dirs: &[PathBuf], device: &Device, page: &PageSettings) -> Vec<usize> {
+    let counted = count(chapter_dirs, device, page);
+    (counted.chapters.iter())
+        .map(|(_, files)| page_count(files, device, page).0)
+        .collect()
+}
+
 /// One book's chapters with their files, and the pages they give.
 struct Counted<'a> {
     dirs: &'a [PathBuf],

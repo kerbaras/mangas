@@ -7,8 +7,8 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::estimate::{estimate_each, Estimate};
-use super::parts::SEND_TO_KINDLE_LIMIT;
+use super::estimate::{chapter_pages, estimate_each, estimate_largest, Estimate};
+use super::parts::{Oversized, SEND_TO_KINDLE_LIMIT};
 use super::Device;
 use crate::domain::Result;
 use crate::export::PageSettings;
@@ -43,6 +43,23 @@ impl Delivery {
     /// (45 MB by email, the part size #134 offers).
     pub const fn target(self) -> u64 {
         self.budget() / 10 * 9
+    }
+
+    /// The written `files` over this budget (core lists every file over the email limit, the
+    /// smaller of the two).
+    pub fn over(self, files: &[Oversized]) -> Vec<Oversized> {
+        (files.iter())
+            .filter(|f| f.bytes > self.budget())
+            .cloned()
+            .collect()
+    }
+
+    /// "email" or "web": which Send-to-Kindle limit the budget is.
+    pub const fn limit_name(self) -> &'static str {
+        match self {
+            Delivery::Email => "email",
+            Delivery::Other => "web",
+        }
     }
 }
 
@@ -126,15 +143,32 @@ fn levers(dirs: &[PathBuf], e: &Estimate, quality: u8, spec: BudgetSpec) -> Resu
     let target = spec.delivery.target();
     Ok(Levers {
         split_bytes: target,
-        chapters_per_book: chapters_per_book(dirs.len(), e.bytes, target),
+        chapters_per_book: chapters_per_book(dirs, e, spec)?,
         jpeg_quality: fitting_quality(dirs, quality, spec)?,
     })
 }
 
-/// How many of `chapters` a book of `bytes` holds within `target`, as chapters average out.
-fn chapters_per_book(chapters: usize, bytes: u64, target: u64) -> Option<usize> {
-    let per = chapters as u128 * target as u128 / bytes.max(1) as u128;
-    (chapters > 1).then(|| (per as usize).clamp(1, chapters - 1))
+/// The most chapters per book of `dirs` that keeps every book within the target: guessed from
+/// each chapter's pages at the book's average page size, then checked on the largest book.
+fn chapters_per_book(dirs: &[PathBuf], e: &Estimate, spec: BudgetSpec) -> Result<Option<usize>> {
+    let target = spec.delivery.target();
+    let pages = chapter_pages(dirs, &spec.device, &spec.page);
+    let mut guess = most_that_fit(&pages, e.bytes / e.pages.max(1) as u64, target);
+    while let Some(n) = guess {
+        let books: Vec<Vec<PathBuf>> = dirs.chunks(n).map(<[PathBuf]>::to_vec).collect();
+        if estimate_largest(&books, spec.device, spec.cut, spec.page)?.bytes <= target {
+            return Ok(Some(n));
+        }
+        guess = (n > 1).then(|| n - 1);
+    }
+    Ok(None)
+}
+
+/// The most chapters of `pages` per book, fewer than all, whose books all stay within `target`.
+fn most_that_fit(pages: &[usize], page_bytes: u64, target: u64) -> Option<usize> {
+    let fits =
+        |n: usize| (pages.chunks(n)).all(|c| c.iter().sum::<usize>() as u64 * page_bytes <= target);
+    (1..pages.len()).rev().find(|&n| fits(n))
 }
 
 /// The highest of [`QUALITY_STEPS`] below `quality` whose estimate is within the target.

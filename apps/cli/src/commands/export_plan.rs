@@ -51,6 +51,7 @@ pub fn print(
     plan: &[PlannedBook],
     first_parts: &[String],
     split_mb: Option<u64>,
+    picked: bool,
 ) -> anyhow::Result<()> {
     for ((p, book), first_part) in plans.iter().zip(plan).zip(first_parts) {
         let (first, last) = match (p.chapters.first(), p.chapters.last()) {
@@ -71,7 +72,7 @@ pub fn print(
         )?;
         outln!("  {}", budget_line(&book.budget))?;
         if let Some(levers) = &book.budget.levers {
-            outln!("  {}", levers_line(levers))?;
+            outln!("  {}", levers_line(levers, picked))?;
         }
     }
     Ok(())
@@ -109,10 +110,16 @@ pub fn budget_line(b: &BookBudget) -> String {
 }
 
 /// `to fit: --every 8 (fewer chapters per book), --split-mb 180 (parts) or --quality 60`.
-pub fn levers_line(l: &Levers) -> String {
+/// When the chapters were `picked` (`--chapters`, `--volume`), which `--every` can't be given
+/// with, the fewer chapters are ranges of that many.
+pub fn levers_line(l: &Levers, picked: bool) -> String {
     let mut ways = Vec::new();
-    if let Some(n) = l.chapters_per_book {
-        ways.push(format!("--every {n} (fewer chapters per book)"));
+    match l.chapters_per_book {
+        Some(n) if picked => ways.push(format!(
+            "--chapters in ranges of {n} (fewer chapters per book)"
+        )),
+        Some(n) => ways.push(format!("--every {n} (fewer chapters per book)")),
+        None => {}
     }
     ways.push(format!("--split-mb {} (parts)", l.split_bytes / 1_000_000));
     match l.jpeg_quality {

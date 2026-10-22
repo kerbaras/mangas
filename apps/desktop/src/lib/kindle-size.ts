@@ -6,6 +6,10 @@ import type { BookBudget, Levers, VolumePlan } from "./ipc.volumes";
 export const SEND_TO_KINDLE_MB = 50;
 /** The part size offered: under the limit with room for what the estimate misses. */
 export const PART_MB = 45;
+/** Amazon's Send-to-Kindle web upload limit for one file, in MB: the budget of every other delivery. */
+export const WEB_MB = 200;
+/** The part size offered for the web limit. */
+export const WEB_PART_MB = 180;
 /** JPEG qualities the core accepts (`export::page::JPEG_QUALITY`). */
 export const JPEG_QUALITIES = [80, 70, 60, 50] as const;
 
@@ -68,5 +72,8 @@ export function budgetNote(budgets: BookBudget[]) {
   };
 }
 
-/** The written files over the email limit, as measured on disk after the export. */
-export const oversizedOf = (results: ExportResult[]) => results.flatMap((r) => r.oversized ?? []);
+/** The written files over the budget of the delivery (`email` or not), as measured on disk. */
+export const oversizedOf = (results: ExportResult[], email: boolean) =>
+  results
+    .flatMap((r) => r.oversized ?? [])
+    .filter((o) => o.bytes > (email ? SEND_TO_KINDLE_MB : WEB_MB) * 1_000_000);

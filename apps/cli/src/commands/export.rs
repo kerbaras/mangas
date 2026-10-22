@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use anyhow::bail;
 use clap::Args as ClapArgs;
 use mangas_core::domain::MangaId;
-use mangas_core::export::kindle::{check_export_folder, BudgetSpec, Delivery};
+use mangas_core::export::kindle::{check_export_folder, BudgetSpec};
 use mangas_core::export::volume::{self, VolumeOutcome};
 use mangas_core::export::{ExportPreset, Format};
 use mangas_core::{library, storage};
@@ -16,7 +16,7 @@ use super::export_plan;
 use super::export_plans::plans;
 use super::export_preset::{self, PresetAction};
 use super::export_report::Report;
-use super::export_size::{print_written, warn_too_big};
+use super::export_size::{delivery_of, print_written, warn_too_big};
 use super::followed::followed_source;
 use super::kindle_record;
 use super::{export_progress::export_printing, hint, stored_settings};
@@ -113,10 +113,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let plans = volume::named_as_written(plans, &args.output_dir, format.id(), args.replace)?;
     let names: Vec<String> = plans.iter().map(|p| p.file_name.clone()).collect();
     let firsts = volume::first_part_names(&names, &args.output_dir, args.replace)?;
-    let delivery = match args.send {
-        Some(SendArg::Email) => Delivery::Email,
-        _ => Delivery::Other,
-    };
+    let delivery = delivery_of(args.send);
     let spec = BudgetSpec {
         device,
         cut: preset.cut(),
@@ -127,7 +124,10 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let plan = export_plan::size(&plans, &names, &args.output_dir, spec)?;
     match (args.json, args.dry_run) {
         (true, true) => return export_plan::print_json(&plan),
-        (false, _) => export_plan::print(&plans, &plan, &firsts, args.cut.split_mb)?,
+        (false, _) => {
+            let picked = args.chapters.is_some() || args.volume.is_some();
+            export_plan::print(&plans, &plan, &firsts, args.cut.split_mb, picked)?
+        }
         (true, false) => {}
     }
     if args.dry_run {
@@ -172,7 +172,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         if !args.json {
             print_written(&stats)?;
         }
-        warn_too_big(&stats.oversized);
+        warn_too_big(&stats.oversized, delivery_of(args.send));
         let recorded = kindle_record::mark_exported(&lib, &stats, &req.chapter_dirs);
         report.recorded.extend(recorded);
         for (output, title) in &stats.titled_outputs(&req.title) {

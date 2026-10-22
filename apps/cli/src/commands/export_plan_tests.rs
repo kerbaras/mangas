@@ -35,10 +35,11 @@ fn an_over_budget_book_lists_every_lever_as_a_flag() {
         jpeg_quality: Some(80),
     };
     assert_eq!(
-        levers_line(&l),
+        levers_line(&l, false),
         "to fit: --every 8 (fewer chapters per book), --split-mb 180 (parts), --quality 80 \
          (lower JPEG quality)"
     );
+    assert!(levers_line(&l, true).starts_with("to fit: --chapters in ranges of 8 (fewer"));
 }
 
 #[test]

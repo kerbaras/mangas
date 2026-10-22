@@ -16,7 +16,7 @@ use super::deliver::SendArg;
 use super::export_args::FormatArg;
 use super::export_preset::note_series_preset;
 use super::export_report::Report;
-use super::export_size::warn_too_big;
+use super::export_size::{delivery_of, warn_too_big};
 use super::kindle_library::from_library;
 use super::kindle_print;
 use super::kindle_record;
@@ -153,7 +153,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let mut report = Report::new(detectors);
     let stats = export(&req, penalizer, &mut print_progress)
         .or_else(|e| report.export_failed(&req.output, req.replace, e, args.json))?;
-    warn_too_big(&stats.oversized);
+    warn_too_big(&stats.oversized, delivery_of(args.send));
     report.add(&stats, &req.title, &req.chapter_dirs);
     if !args.json {
         kindle_print::print_book(&stats, req.chapter_dirs.len(), started)?;
