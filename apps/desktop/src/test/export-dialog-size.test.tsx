@@ -7,6 +7,10 @@ import type { EstimateRequest } from "@/lib/ipc.volumes";
 import { readSettings, writeSettings } from "@/lib/settings";
 import { chapters, enabledButton, exportBackend, solo } from "./export-backend";
 
+// The plan (300 ms) and estimate (600 ms) debounces wait in real time and would spend most of
+// `findByText`'s 1 s on the clock; this file checks budgets, not pauses (#408).
+vi.mock("@/hooks/use-debounced", () => ({ useDebounced: <T,>(value: T) => value }));
+
 // Radix Select scrolls the picked option into view, which jsdom lacks.
 Element.prototype.scrollIntoView = vi.fn();
 
