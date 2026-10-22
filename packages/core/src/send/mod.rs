@@ -1,7 +1,8 @@
 //! Delivery of a finished export to a Kindle: by email to its Send to Kindle address, or by
-//! copying the file onto a Kindle mounted over USB.
+//! copying the file onto a Kindle over USB (a mounted folder, or MTP on macOS and Windows).
 
 pub mod email;
+pub mod mtp;
 pub mod password;
 pub mod usb;
 

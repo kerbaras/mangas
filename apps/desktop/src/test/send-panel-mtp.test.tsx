@@ -37,7 +37,7 @@ function stub(overrides: Partial<Backend>) {
   setBackend({
     onCopyProgress: async () => () => {},
     findKindles: vi.fn().mockResolvedValue([]),
-    usbKindles: vi.fn().mockResolvedValue([{ name: DEVICE }]),
+    usbKindles: vi.fn().mockResolvedValue([{ name: DEVICE, copyable: false }]),
     emailRefusal,
     usbVerdict,
     ...overrides,
@@ -65,7 +65,7 @@ describe("send panel, Kindle connected over MTP", () => {
   it("offers no Use Email until email is set up, and keeps Device not found for no Kindle", async () => {
     const usbKindles = vi
       .fn()
-      .mockResolvedValueOnce([{ name: DEVICE }])
+      .mockResolvedValueOnce([{ name: DEVICE, copyable: false }])
       .mockResolvedValue([]);
     stub({ usbKindles });
     render(<SendPanel file={FILE} />);

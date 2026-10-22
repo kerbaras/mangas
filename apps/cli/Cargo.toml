@@ -19,7 +19,7 @@ path = "src/main.rs"
 mangas-core = { path = "../../packages/core" }
 mangas-providers = { path = "../../packages/providers" }
 anyhow = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["signal"] }
 clap = { version = "4", features = ["derive"] }
 directories = "6"
 serde = { workspace = true }
@@ -36,3 +36,5 @@ default = []
 # ONNX detectors for smart cutting (ONNX Runtime is downloaded on demand by `mangas ml download`).
 ml = ["mangas-core/ml"]
 cuda = ["mangas-core/cuda"]
+# Copies to Kindles connected over MTP only on macOS and Windows (see mangas-core's `mtp`).
+mtp = ["mangas-core/mtp"]

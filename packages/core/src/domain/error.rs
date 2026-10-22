@@ -61,6 +61,17 @@ pub enum Error {
     /// verdict's reason names the format and the device and what to do instead.
     #[error("{}", .0.reason.as_deref().unwrap_or("this format can't be copied to a Kindle"))]
     NotOnKindle(Box<crate::send::usb::UsbVerdict>),
+    /// The user stopped a USB copy: no partial book is left and a book already there stays.
+    #[error("copy cancelled; the Kindle keeps what it had")]
+    Cancelled,
+    /// The Kindle (`device`) is on the bus but another process holds it (macOS `ptpcamerad`,
+    /// Android File Transfer): `holder` names it, `fix` is what the user runs or quits.
+    #[error("{device} is in use by {holder}: {fix}")]
+    KindleHeld {
+        device: String,
+        holder: String,
+        fix: String,
+    },
     /// Email or USB delivery failed; the message is meant for the user as is.
     #[error("{0}")]
     Send(String),

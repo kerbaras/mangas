@@ -7,16 +7,18 @@ mod copy;
 mod detect;
 mod formats;
 mod scan;
+mod target;
 
 use std::path::Path;
 
 pub use bus::{usb_kindles, UsbKindle, AMAZON_VENDOR_ID};
-pub use copy::{copy_to_kindle, Copied};
+pub use copy::{copy_to_kindle, copy_to_kindle_until, Copied};
 pub use detect::{
     find_kindles, find_kindles_in, kindle_at, looks_like_kindle, mount_roots, KindleVolume,
 };
 pub use formats::{admit, sideload, usb_verdict, Sideload, UsbVerdict, SIDELOAD};
 pub use scan::{decide, scan_kindles, KindleScan, Reach};
+pub use target::{deliver, pick, target, target_name, Target};
 
 use crate::domain::{Error, Result};
 

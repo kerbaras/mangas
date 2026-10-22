@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { errorMessage } from "@/lib/format";
 import { isFinalError } from "@/lib/ipc.downloads";
 import {
+  cancelSendUsb,
   emailRefusal,
   findKindles,
   onCopyProgress,
@@ -22,7 +23,7 @@ export type SendState =
   | { kind: "idle" }
   | { kind: "looking" }
   | { kind: "no-device" }
-  /** A Kindle on the USB bus with no mounted folder: MTP only, so no copy; `email` when email takes the books. */
+  /** A Kindle on the USB bus with no mounted folder that this build can't copy to over MTP (Linux without gvfs); `email` when email takes the books. */
   | { kind: "mtp"; device: string; email: boolean }
   /** The format table stopped the copy before it began: refused, or warned (Retry copies anyway). */
   | { kind: "format"; verdict: UsbVerdict }
@@ -60,12 +61,15 @@ type Pending = { books: Book[]; via: Via; lines: string[] };
 const stopper = (verdicts: UsbVerdict[]) =>
   verdicts.find((v) => v.decision === "refused") ?? verdicts.find((v) => v.decision === "warn");
 
-/** The mounted Kindle, else the `name` of one on the bus over MTP only: no copy, but the format table still applies. */
+/**
+ * The mounted Kindle, else the `name` of one on the bus over MTP only (`copyable` when this build
+ * copies to it directly); the format table applies to both before anything is copied.
+ */
 async function reachKindle() {
   const [kindle] = await findKindles();
-  if (kindle) return { kindle, name: kindle.name };
+  if (kindle) return { kindle, name: kindle.name, copyable: true };
   const [mtp] = await usbKindles();
-  return { kindle: undefined, name: mtp?.name };
+  return { kindle: undefined, name: mtp?.name, copyable: mtp?.copyable ?? false };
 }
 
 /**
@@ -107,7 +111,7 @@ export function useSend(onSent?: () => void) {
       try {
         if (via === "usb") {
           setState({ kind: "looking" });
-          const { kindle, name } = await reachKindle();
+          const { kindle, name, copyable } = await reachKindle();
           if (!name) return setState({ kind: "no-device" });
           const verdicts = await Promise.all(books.map((b) => usbVerdict(b.file, name)));
           const stop = stopper(force ? verdicts.filter((v) => v.decision === "refused") : verdicts);
@@ -115,17 +119,17 @@ export function useSend(onSent?: () => void) {
             warned.current = stop.decision === "warn";
             return setState({ kind: "format", verdict: stop });
           }
-          if (!kindle) {
+          if (!copyable) {
             const refusals = await Promise.all(books.map((b) => emailRefusal(b.file)));
             const email = refusals.every((r) => r === null);
             return setState({ kind: "mtp", device: name, email });
           }
-          device.current = kindle.name;
+          device.current = name;
           for (const [i, { file, title }] of books.entries()) {
-            setState({ kind: "copying", device: kindle.name, done: 0, total: 0 });
-            const copy = await sendUsb(file, title, kindle.root, force);
+            setState({ kind: "copying", device: name, done: 0, total: 0 });
+            const copy = await sendUsb(file, title, kindle?.root, force);
             const verb = copy.already_there ? "Already on" : "Copied to";
-            lines.push(`${verb} ${kindle.name}: ${copy.path}`);
+            lines.push(`${verb} ${name}: ${copy.path}`);
             sentOne(i);
           }
         } else {
@@ -183,6 +187,8 @@ export function useSend(onSent?: () => void) {
     setState({ kind: "format", verdict });
     return false;
   }, []);
+  /** Stops the USB copy under way; the delivery then fails with "copy cancelled" (Retry sends it again). */
+  const cancel = useCallback(() => cancelSendUsb(), []);
   /** The books the last delivery didn't get to (none once it finished). */
   const unsent = useCallback(() => pending.current?.books ?? [], []);
   const reset = useCallback(() => {
@@ -190,5 +196,5 @@ export function useSend(onSent?: () => void) {
     warned.current = false;
     setState({ kind: "idle" });
   }, []);
-  return { state, deliver, usb, email, retry, reset, unsent, admits };
+  return { state, deliver, usb, email, retry, cancel, reset, unsent, admits };
 }

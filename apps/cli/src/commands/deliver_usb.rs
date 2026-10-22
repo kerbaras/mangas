@@ -16,29 +16,33 @@ pub struct UsbSent {
 
 /// Copies `file` to the Kindle at `kindle` (else the one detected) when the format table lets
 /// it: a refused format never, one that warns only with `force` (the warning still goes to
-/// stderr). The table speaks first, so a Kindle on MTP only still refuses a CBZ as a CBZ.
+/// stderr). The table speaks first, so a Kindle on MTP only still refuses a CBZ as a CBZ, before
+/// anything is uploaded. Where this build copies over MTP (macOS/Windows, feature `mtp`), a
+/// Kindle with no mounted folder is copied to directly; Ctrl-C cancels the copy.
 pub fn copy(file: &Path, kindle: Option<&Path>, force: bool) -> anyhow::Result<UsbSent> {
-    let chosen = usb::choose(kindle, usb::scan_kindles());
-    let verdict = usb::chosen_name(&chosen).map(|name| usb::usb_verdict(file, name));
+    let chosen = usb::target(kindle, usb::scan_kindles());
+    let verdict = usb::target_name(&chosen).map(|name| usb::usb_verdict(file, name));
     if let Some(verdict) = &verdict {
         usb::admit(verdict, force)?;
     }
     let kindle = chosen?;
-    let verdict = verdict.unwrap_or_else(|| usb::usb_verdict(file, &kindle.name));
+    let verdict = verdict.unwrap_or_else(|| usb::usb_verdict(file, kindle.name()));
     if let (Sideload::Warn, Some(reason)) = (verdict.decision, &verdict.reason) {
         eprintln!("warning: {reason}");
     }
     let mut shown = false;
-    let copied = usb::copy_to_kindle(file, &kindle, &mut |done, total| {
-        shown = true;
-        print_copy(done, total);
+    let copied = super::copy_cancel::cancellable(|cancelled| {
+        usb::deliver(file, &kindle, cancelled, &mut |done, total| {
+            shown = true;
+            print_copy(done, total);
+        })
     });
     if shown {
         eprintln!();
     }
     let copied = copied?;
     Ok(UsbSent {
-        to: kindle.name,
+        to: kindle.name().to_string(),
         path: copied.path,
         already_there: copied.already_there,
         verdict,

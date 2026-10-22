@@ -1,5 +1,6 @@
 //! Tauri shell. Commands in `commands.rs` are thin: parse, call `mangas_core`, return JSON.
 
+mod asset_scope;
 mod commands;
 mod first_run;
 mod paths;
@@ -25,10 +26,11 @@ pub fn run() {
         .plugin(window_state::plugin())
         .plugin(window_normal::plugin())
         .manage(commands::app_update::PendingUpdate::default())
+        .manage(commands::send_usb::UsbCopying::default())
         .setup(move |app| {
             window_state::restore(app.handle());
-            allow_covers(app.handle());
-            allow_cut_previews(app.handle());
+            asset_scope::allow_covers(app.handle());
+            asset_scope::allow_cut_previews(app.handle());
             start_downloads(app.handle());
             if fresh {
                 first_run::mark_setup_pending();
@@ -93,11 +95,12 @@ pub fn run() {
             commands::volumes::free_export_names,
             commands::volumes::check_export_dir,
             commands::volumes::export_file_name,
-            commands::send::find_kindles,
-            commands::send::usb_kindles,
+            commands::send_usb::find_kindles,
+            commands::send_usb::usb_kindles,
             commands::send_formats::usb_verdict,
             commands::send_formats::email_refusal,
-            commands::send::send_usb,
+            commands::send_usb::send_usb,
+            commands::send_usb::cancel_send_usb,
             commands::send::send_email,
             commands::send::send_test_email,
             commands::smtp_password::smtp_password_status,
@@ -164,36 +167,6 @@ fn start_downloads(app: &tauri::AppHandle) {
         tracing::error!("download queue unavailable: {e}");
     }
     app.manage(commands::downloads::Downloads(queue));
-}
-
-/// Lets the webview load cached covers through the asset protocol, and nothing else on disk.
-fn allow_covers(app: &tauri::AppHandle) {
-    use tauri::Manager;
-    let allowed = paths::covers().and_then(|dir| {
-        app.asset_protocol_scope()
-            .allow_directory(&dir, false)
-            .map_err(|e| e.to_string())
-    });
-    if let Err(e) = allowed {
-        tracing::warn!("covers will show placeholders: {e}");
-    }
-}
-
-/// Starts the preview cache empty and lets the webview load its pages.
-fn allow_cut_previews(app: &tauri::AppHandle) {
-    use tauri::Manager;
-    let allowed = paths::cut_previews().and_then(|dir| {
-        if let Err(e) = std::fs::remove_dir_all(&dir) {
-            tracing::debug!("cut preview cache: {e}");
-        }
-        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-        app.asset_protocol_scope()
-            .allow_directory(&dir, true)
-            .map_err(|e| e.to_string())
-    });
-    if let Err(e) = allowed {
-        tracing::warn!("smart-cut previews will not show: {e}");
-    }
 }
 
 /// File logging under the platform data dir; the app still starts if the folder is unwritable.

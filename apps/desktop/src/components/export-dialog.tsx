@@ -179,7 +179,7 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
             levers={over.levers}
             onSplit={splitMb === null ? () => setSplitMb(email ? PART_MB : WEB_PART_MB) : undefined}
           />
-          <SendStatus state={send.state} via={via} onRetry={retrySend} />
+          <SendStatus state={send.state} via={via} onRetry={retrySend} onCancel={send.cancel} />
         </div>
         <DialogFooter>
           <Button disabled={busy} onClick={() => onOpenChange(false)}>
