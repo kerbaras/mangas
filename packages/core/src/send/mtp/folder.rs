@@ -145,7 +145,8 @@ impl MtpStore for FolderStore {
         }
         std::fs::rename(&from, &to).map_err(fault)?;
         let mut handles = self.handles.lock().unwrap_or_else(|e| e.into_inner());
-        if let Some(slot) = handles.get_mut(handle as usize - 1) {
+        let at = (handle as usize).checked_sub(1);
+        if let Some(slot) = at.and_then(|i| handles.get_mut(i)) {
             *slot = to;
         }
         Ok(())

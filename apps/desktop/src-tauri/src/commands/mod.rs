@@ -22,6 +22,7 @@ mod preview_panels;
 pub mod providers;
 pub mod send;
 pub mod send_formats;
+pub mod send_usb;
 pub mod smtp_password;
 pub mod storage;
 pub mod updates;

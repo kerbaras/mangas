@@ -3,12 +3,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { refused, type SendState, type Via } from "@/hooks/use-send";
-import { MTP_HINT } from "@/lib/ipc.send";
+import { isCancelled, MTP_HINT } from "@/lib/ipc.send";
 import { megabytes } from "@/lib/send-labels";
 import { UsbFormatAlert } from "./usb-format-alert";
 
 const EMAIL_INSTEAD = "Send it by email instead.";
 const EMAIL_FORMATS = "To send it by email, export the book as PDF or EPUB.";
+const FAILED = { email: "Email not sent", usb: "Copy failed" } as const;
 
 type Props = {
   state: SendState;
@@ -21,7 +22,7 @@ type Props = {
   onCancel?: () => void;
 };
 
-/** Where a delivery is: looking, copying with progress, Device not found, MTP only (+ Use Email), a format the Kindle won't or may not open (+ Copy anyway), failed (+ Retry when given), done. */
+/** Where a delivery is: looking, copying with progress, Device not found, MTP only (+ Use Email), a format the Kindle won't or may not open (+ Copy anyway), failed or cancelled (+ Retry when given), done. */
 export function SendStatus({ state, via, onRetry, onEmail, onCancel }: Props) {
   const failed = failedVia(state);
   if (via !== undefined && failed !== undefined && failed !== via) {
@@ -103,12 +104,14 @@ export function SendStatus({ state, via, onRetry, onEmail, onCancel }: Props) {
           {state.message}
         </p>
       );
-    case "error":
+    case "error": {
+      const cancelled = state.via === "usb" && isCancelled(state.message);
       return (
         <>
           {state.sent && <Sent lines={state.sent} />}
-          <Alert variant="destructive">
-            <AlertTitle>{state.via === "email" ? "Email not sent" : "Copy failed"}</AlertTitle>
+          <Alert variant={cancelled ? "default" : "destructive"}>
+            {cancelled && <Usb />}
+            <AlertTitle>{cancelled ? "Copy cancelled" : FAILED[state.via]}</AlertTitle>
             <AlertDescription>
               {state.message}
               {state.left && (state.sent || state.left.length > 1) && (
@@ -123,6 +126,7 @@ export function SendStatus({ state, via, onRetry, onEmail, onCancel }: Props) {
           </Alert>
         </>
       );
+    }
   }
 }
 

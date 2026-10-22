@@ -134,6 +134,9 @@ export const sendUsb = async (file: string, title: string, root?: string, force?
 export const cancelSendUsb = async () => (await backend()).cancelSendUsb();
 /** `mangas_core::Error::Cancelled`: the user stopped a USB copy. */
 export const COPY_CANCELLED = "copy cancelled; the Kindle keeps what it had";
+
+/** Whether a failed USB copy is one the user cancelled (core `Error::Cancelled`), not a failure. */
+export const isCancelled = (message: string) => message === COPY_CANCELLED;
 export const onCopyProgress = async (cb: (p: CopyProgress) => void) =>
   (await backend()).onCopyProgress(cb);
 export const sendEmail = async (file: string, title: string) =>

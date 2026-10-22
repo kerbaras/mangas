@@ -32,6 +32,10 @@ fn recognises_a_kindle_by_name_or_system_folder() {
 }
 
 #[test]
+#[cfg_attr(
+    windows,
+    ignore = "the fake gvfs root `mtp:host=...` can't be created: `:` is not allowed in a Windows file name (gvfs is Linux only)"
+)]
 fn finds_kindles_under_fake_mount_roots() {
     let tmp = tempfile::tempdir().unwrap();
     let media = tmp.path().join("media");

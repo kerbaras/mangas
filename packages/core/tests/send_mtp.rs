@@ -58,6 +58,24 @@ fn a_different_size_replaces_the_old_book_and_leaves_no_scratch_objects() {
 }
 
 #[test]
+fn the_old_book_is_set_aside_as_mangas_pid_n_dot_old_name() {
+    let f = fixture();
+    std::fs::create_dir(f.kindle.join("documents")).unwrap();
+    book(&f.kindle.join("documents"), "Vol 1.pdf", 10);
+    let file = book(&f.src, "Vol 1.pdf", 20);
+    let store = faulty(&f.kindle);
+    run(&store, &file, &AtomicBool::new(false)).unwrap();
+    let renames = store.renames.lock().unwrap().clone();
+    assert_eq!(renames.len(), 2, "{renames:?}");
+    assert_eq!(renames[1], "Vol 1.pdf");
+    let prefix = format!(".mangas-{}-", std::process::id());
+    let rest = renames[0].strip_prefix(&prefix).unwrap();
+    let (n, book) = rest.split_once('.').unwrap();
+    assert!(n.parse::<u64>().is_ok(), "{}", renames[0]);
+    assert_eq!(book, "old-Vol 1.pdf", "{}", renames[0]);
+}
+
+#[test]
 fn cancel_mid_upload_deletes_the_part_and_keeps_the_old_book() {
     let f = fixture();
     std::fs::create_dir(f.kindle.join("documents")).unwrap();

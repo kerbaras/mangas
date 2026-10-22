@@ -3,6 +3,7 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::Mutex;
 use std::time::Duration;
 
 use mangas_core::send::mtp::{self, Entry, Fault, FolderStore, Handle, MtpStore, OnChunk};
@@ -15,6 +16,8 @@ pub struct Faulty {
     pub fail_rename: AtomicUsize,
     pub rename: bool,
     pub partial: bool,
+    /// Every name a rename asked for, in order.
+    pub renames: Mutex<Vec<String>>,
 }
 
 pub fn faulty(root: &Path) -> Faulty {
@@ -24,6 +27,7 @@ pub fn faulty(root: &Path) -> Faulty {
         fail_rename: AtomicUsize::new(usize::MAX),
         rename: true,
         partial: true,
+        renames: Mutex::default(),
     }
 }
 
@@ -69,6 +73,7 @@ impl MtpStore for Faulty {
         self.inner.delete(handle).await
     }
     async fn rename(&self, handle: Handle, name: &str) -> Result<(), Fault> {
+        self.renames.lock().unwrap().push(name.to_string());
         if self.fail_rename.fetch_sub(1, Ordering::SeqCst) == 0 {
             return Err(Fault::Other("rename refused".into()));
         }

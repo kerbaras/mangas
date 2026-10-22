@@ -58,7 +58,7 @@ pub async fn send(
         }
     }
     let upload_as = if renames {
-        scratch("part")
+        scratch(".part")
     } else {
         name.to_string()
     };
@@ -192,8 +192,8 @@ async fn drop_partial(store: &dyn MtpStore, folder: Handle, name: &str, partial:
 }
 
 /// `.mangas-<pid>-<n>.<ext>`: short and unique per copy.
-fn scratch(ext: &str) -> String {
+fn scratch(suffix: &str) -> String {
     static NEXT: AtomicU64 = AtomicU64::new(0);
     let n = NEXT.fetch_add(1, Ordering::Relaxed);
-    format!("{SCRATCH}{}-{n}.{ext}", std::process::id())
+    format!("{SCRATCH}{}-{n}{suffix}", std::process::id())
 }

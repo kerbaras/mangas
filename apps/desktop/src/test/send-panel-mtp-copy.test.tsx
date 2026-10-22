@@ -44,7 +44,7 @@ describe("send panel, Kindle over MTP on a build that copies to it", () => {
     render(<SendPanel file={FILE} />);
     fireEvent.click(screen.getByRole("button", { name: /Copy over USB/ }));
     expect(await screen.findByText(`Copied to ${DEVICE}: documents/x.azw3`)).toBeTruthy();
-    expect(sendUsb).toHaveBeenCalledWith(FILE, "Solo Leveling 1-3.azw3", undefined);
+    expect(sendUsb).toHaveBeenCalledWith(FILE, "Solo Leveling 1-3", undefined);
     expect(screen.queryByText(/connected over MTP/)).toBeNull();
   });
 
@@ -70,6 +70,9 @@ describe("send panel, Kindle over MTP on a build that copies to it", () => {
     fireEvent.click(screen.getByRole("button", { name: /Cancel/ }));
     await waitFor(() => expect(cancelSendUsb).toHaveBeenCalledOnce());
     expect(await screen.findByText(COPY_CANCELLED)).toBeTruthy();
+    expect(screen.getByText("Copy cancelled")).toBeTruthy();
+    expect(screen.queryByText("Copy failed")).toBeNull();
+    expect(screen.getByRole("alert").className).not.toContain("destructive");
     expect(screen.getByRole("button", { name: /Retry/ })).toBeTruthy();
   });
 });
