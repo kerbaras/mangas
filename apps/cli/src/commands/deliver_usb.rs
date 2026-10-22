@@ -4,9 +4,11 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use anyhow::anyhow;
+use mangas_core::ml::DetectorReport;
 use mangas_core::send::usb::{self, Sideload, UsbVerdict};
 
 use super::deliver::SendArg;
+use super::export_report::{Item, Report};
 
 /// A book copied (or found already) on a Kindle, and the table's verdict for it.
 pub struct UsbSent {
@@ -66,26 +68,49 @@ pub fn next_step(verdict: &UsbVerdict, file: &Path, via: &str) -> String {
     format!("\n  copy it anyway with: mangas send --via {via} --force \"{file}\"{email}")
 }
 
-/// Before an export that `send`s over USB: stops it when the detected Kindle won't open the
-/// `ext` format, or may not and the user didn't pass `--force`, so no book is written in vain.
-/// With no Kindle found the export goes ahead and its send says so.
+/// Before an export that `send`s over USB: stops it, writing nothing, when the detected Kindle
+/// won't open the `ext` format, or may not and `--force` wasn't given. With `json` the report
+/// still prints, listing `books` (what the export would have written) in `not_written`. With no
+/// Kindle found the export goes ahead and its send says so.
 pub fn precheck(
-    send: Option<SendArg>,
+    to: Option<(SendArg, Option<&Path>, bool)>,
     ext: &str,
-    kindle: Option<&Path>,
-    force: bool,
+    books: &[PathBuf],
+    json: bool,
 ) -> anyhow::Result<()> {
-    if !matches!(send, Some(SendArg::Usb)) {
+    let Some((SendArg::Usb, kindle, force)) = to else {
         return Ok(());
-    }
+    };
     let Ok(found) = usb::choose(kindle, usb::scan_kindles()) else {
         return Ok(());
     };
     let verdict = usb::usb_verdict(&Path::new("book").with_extension(ext), &found.name);
-    usb::admit(&verdict, force).map_err(|e| match verdict.decision {
+    let Err(e) = usb::admit(&verdict, force) else {
+        return Ok(());
+    };
+    if json {
+        not_copied(&verdict, books).print()?;
+    }
+    Err(match verdict.decision {
         Sideload::Warn => anyhow!("{e}\n  to write and copy it anyway, add --force"),
         _ => e.into(),
     })
+}
+
+/// The `--json` report of an export the format table stopped: every book in `not_written`, with
+/// the verdict's reason and `usb_refused` (CBZ) or `usb_warn` (EPUB: `--force` would copy it).
+fn not_copied(verdict: &UsbVerdict, books: &[PathBuf]) -> Report {
+    let error = Some(match verdict.decision {
+        Sideload::Refused => "usb_refused",
+        _ => "usb_warn",
+    });
+    let mut report = Report::new(DetectorReport::off());
+    report.not_written.extend(books.iter().map(|path| Item {
+        path: path.clone(),
+        reason: verdict.reason.clone().unwrap_or_default(),
+        error,
+    }));
+    report
 }
 
 fn print_copy(done: u64, total: u64) {

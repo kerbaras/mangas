@@ -39,9 +39,14 @@ export const runningVia = (state: SendState): Via | undefined =>
       ? "usb"
       : undefined;
 
-/** Whether a delivery by `via` failed in a way Retry cannot fix (the Kindle is full). */
+/**
+ * Whether a delivery by `via` failed in a way a plain Retry can't fix: the Kindle is full, or the
+ * format table stopped the copy (only the alert's Copy anyway goes on after a warning).
+ */
 export const refused = (state: SendState, via?: Via | "save") =>
-  state.kind === "error" && state.via === via && isFinalError(state.message);
+  state.kind === "format"
+    ? via === "usb"
+    : state.kind === "error" && state.via === via && isFinalError(state.message);
 
 /** What a failed delivery still has to send (from the book it failed on) and what it already did. */
 type Pending = { books: Book[]; via: Via; lines: string[] };

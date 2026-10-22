@@ -136,7 +136,10 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     if args.dry_run {
         return Ok(());
     }
-    deliver_usb::precheck(args.send, format.id(), args.kindle.as_deref(), args.force)?;
+    let books: Vec<_> = names.iter().map(|n| args.output_dir.join(n)).collect();
+    let kindle = args.kindle.as_deref();
+    let to = args.send.map(|via| (via, kindle, args.force));
+    deliver_usb::precheck(to, format.id(), &books, args.json)?;
     export_preset::note_series_preset(series.as_ref());
     let (penalizer, detectors) = args.cut.penalizer().await?;
     let mut report = Report::new(detectors).with_plan(plan);
@@ -187,9 +190,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         for (output, title) in &stats.titled_outputs(&req.title) {
             kindle_record::record_export(&lib, output, title, device.id);
             let Some(via) = args.send else { continue };
-            let file = std::path::absolute(output)?;
-            let kindle = args.kindle.as_deref();
-            match try_deliver(&lib, &file, title, via, kindle, args.force).await {
+            match try_deliver(&lib, output, title, via, kindle, args.force).await {
                 Ok(sent) if args.json => eprintln!("{sent}"),
                 Ok(sent) => outln!("{sent}")?,
                 Err(e) => report.unsent(output, &e),

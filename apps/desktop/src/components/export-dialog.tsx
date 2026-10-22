@@ -82,7 +82,8 @@ export function ExportDialog({ open, onOpenChange, picks, onExported, onSent }: 
   const over = useOversized(job.state.kind === "done" ? job.state.results : [], files, fit);
   const sending = runningVia(send.state);
   const busy = job.state.kind === "running" || sending !== undefined;
-  const failed = written.length > 0 && ["error", "no-device", "mtp"].includes(send.state.kind);
+  const failed =
+    written.length > 0 && ["error", "no-device", "mtp", "format"].includes(send.state.kind);
   const sendVia = via === "save" ? undefined : via;
   const stuck = failed && refused(send.state, via);
   const resend =

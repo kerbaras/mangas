@@ -129,3 +129,51 @@ fn email_reports_no_usb_decision() {
     assert_eq!(r["via"], "email", "{r}");
     assert!(r["usb"].is_null(), "{r}");
 }
+
+/// `mangas kindle <chapter> --format <ext> --json --send usb -o out/` to the fake Kindle.
+fn kindle_json(home: &Path, ext: &str) -> Output {
+    let chapter = home.join("ch1");
+    std::fs::create_dir_all(&chapter).unwrap();
+    let page = image::RgbImage::from_pixel(64, 96, image::Rgb([200, 200, 200]));
+    page.save(chapter.join("001.png")).unwrap();
+    Command::new(env!("CARGO_BIN_EXE_mangas-cli"))
+        .args([
+            "kindle", "--format", ext, "--title", "Vol 1", "--json", "--send", "usb",
+        ])
+        .arg(&chapter)
+        .arg("-o")
+        .arg(home.join("out/"))
+        .arg("--kindle")
+        .arg(home.join("Kindle"))
+        .env("HOME", home)
+        .env("XDG_DATA_HOME", home.join("data"))
+        .env_remove("MANGAS_LOG")
+        .output()
+        .unwrap()
+}
+
+#[test]
+fn a_stopped_kindle_send_still_prints_the_json_report_and_writes_nothing() {
+    for (ext, class) in [("cbz", "usb_refused"), ("epub", "usb_warn")] {
+        let (home, _) = setup("pdf");
+        let out = kindle_json(home.path(), ext);
+        assert!(!out.status.success(), "{ext}: {out:?}");
+        let r = json(&out);
+        assert_eq!(r["files"], serde_json::json!([]), "{r}");
+        let item = &r["not_written"][0];
+        assert_eq!(item["error"], class, "{r}");
+        assert!(
+            item["path"]
+                .as_str()
+                .unwrap()
+                .ends_with(&format!("Vol 1.{ext}")),
+            "{r}"
+        );
+        assert!(
+            item["reason"].as_str().unwrap().starts_with("Kindle "),
+            "{r}"
+        );
+        assert!(!home.path().join("out").exists(), "{ext}: nothing written");
+        assert!(!on_kindle(home.path(), ext), "{ext}: nothing copied");
+    }
+}

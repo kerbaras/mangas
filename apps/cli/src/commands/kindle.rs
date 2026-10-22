@@ -15,7 +15,7 @@ use super::cut_args::{print_progress, CutArgs, DEFAULT_PROFILE};
 use super::deliver::SendArg;
 use super::deliver_usb;
 use super::export_args::FormatArg;
-use super::export_plan::Fewer;
+use super::export_plan::{planned_book, Fewer};
 use super::export_preset::note_series_preset;
 use super::export_report::Report;
 use super::export_size::{delivery_of, levers_text, warn_too_big};
@@ -154,7 +154,11 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         },
         labels,
     };
-    deliver_usb::precheck(args.send, format.id(), args.kindle.as_deref(), args.force)?;
+    let to = args
+        .send
+        .map(|via| (via, args.kindle.as_deref(), args.force));
+    let books = [planned_book(&req.output, req.replace)];
+    deliver_usb::precheck(to, format.id(), &books, args.json)?;
     let started = Instant::now();
     let mut report = Report::new(detectors);
     let stats = export(&req, penalizer, &mut print_progress)
@@ -172,9 +176,6 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     if !args.json {
         kindle_print::print_book(&stats, req.chapter_dirs.len(), started)?;
     }
-    let to = args
-        .send
-        .map(|via| (via, args.kindle.as_deref(), args.force));
     let done =
         kindle_record::record_and_send(&stats, &req.chapter_dirs, &req.title, dev.id, to).await;
     done.print_sent(args.json)?;

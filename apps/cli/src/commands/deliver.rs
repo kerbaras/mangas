@@ -103,16 +103,18 @@ pub async fn deliver(
     Ok(done)
 }
 
-/// Sends one written book, saying on stderr straight away when it couldn't be sent, so a
-/// later failure can't hide it. Returns [`deliver`]'s line; the error is that message.
+/// Sends one written book (by its absolute path), saying on stderr straight away when it
+/// couldn't be sent, so a later failure can't hide it. Returns [`deliver`]'s line; the error is
+/// that message.
 pub async fn try_deliver(
     lib: &Library,
-    file: &Path,
+    output: &Path,
     title: &str,
     via: SendArg,
     kindle: Option<&Path>,
     force: bool,
 ) -> Result<String, Unsent> {
+    let file = &std::path::absolute(output).unwrap_or_else(|_| output.to_path_buf());
     let e = match deliver(lib, file, title, via, kindle, force).await {
         Ok(done) => return Ok(done.line),
         Err(e) => e,
