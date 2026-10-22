@@ -18,7 +18,7 @@ use crate::Exit;
 pub enum SendArg {
     /// Email it to the Kindle address in `mangas settings email`
     Email,
-    /// Copy it to a Kindle mounted over USB
+    /// Copy it to a Kindle over USB: mounted, or over MTP on macOS and Windows
     Usb,
 }
 
